@@ -886,6 +886,13 @@ static RPCHelpMan getblocktemplate()
     }
 
     UniValue aux(UniValue::VOBJ);
+    aux.pushKV("zkcoin", HexStr(ZkCoinCoinbaseTag()));
+    if (consensusParams.ltc_snapshot.IsEnabled()) {
+        const std::vector<unsigned char> snapshot_hash(
+            consensusParams.ltc_snapshot.hashBlock.begin(),
+            consensusParams.ltc_snapshot.hashBlock.end());
+        aux.pushKV("zkcoin_snapshot", HexStr(snapshot_hash));
+    }
 
     arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 

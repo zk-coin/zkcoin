@@ -19,6 +19,7 @@
 
 #include <test/util/setup_common.h>
 
+#include <algorithm>
 #include <memory>
 
 #include <boost/test/unit_test.hpp>
@@ -87,6 +88,11 @@ static CBlockIndex CreateBlockIndex(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs_mai
     index.nHeight = nHeight;
     index.pprev = ::ChainActive().Tip();
     return index;
+}
+
+static bool ScriptContains(const CScript& script, const std::vector<unsigned char>& bytes)
+{
+    return std::search(script.begin(), script.end(), bytes.begin(), bytes.end()) != script.end();
 }
 
 // Test suite for ancestor feerate transaction selection.
@@ -213,6 +219,26 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
     // Simple block creation, nothing special yet:
     BOOST_CHECK(pblocktemplate = AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey));
+    BOOST_CHECK(ScriptContains(pblocktemplate->block.vtx[0]->vin[0].scriptSig, ZkCoinCoinbaseTag()));
+    {
+        Consensus::Params snapshot_consensus = chainparams.GetConsensus();
+        snapshot_consensus.ltc_snapshot.nHeight = 1;
+        snapshot_consensus.ltc_snapshot.hashBlock = uint256S("00000000000000000000000000000000000000000000000000000000000000aa");
+        snapshot_consensus.ltc_snapshot.hashUTXORoot = uint256S("00000000000000000000000000000000000000000000000000000000000000bb");
+        const CScript snapshot_script = MakeZkCoinCoinbaseScriptSig(1, 0, snapshot_consensus);
+        const std::vector<unsigned char> snapshot_hash(
+            snapshot_consensus.ltc_snapshot.hashBlock.begin(),
+            snapshot_consensus.ltc_snapshot.hashBlock.end());
+        BOOST_CHECK(ScriptContains(snapshot_script, ZkCoinCoinbaseTag()));
+        BOOST_CHECK(ScriptContains(snapshot_script, snapshot_hash));
+    }
+    {
+        LOCK(cs_main);
+        CBlockIndex indexPrev = CreateBlockIndex(::ChainActive().Height());
+        unsigned int extra_nonce = 0;
+        IncrementExtraNonce(&pblocktemplate->block, &indexPrev, extra_nonce);
+        BOOST_CHECK(ScriptContains(pblocktemplate->block.vtx[0]->vin[0].scriptSig, ZkCoinCoinbaseTag()));
+    }
 
     // We can't make transactions until we have inputs
     // Therefore, load 110 blocks :)

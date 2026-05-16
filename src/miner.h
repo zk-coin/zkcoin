@@ -34,6 +34,9 @@ struct CBlockTemplate
     std::vector<unsigned char> vchCoinbaseCommitment;
 };
 
+const std::vector<unsigned char>& ZkCoinCoinbaseTag();
+CScript MakeZkCoinCoinbaseScriptSig(int nHeight, int64_t nExtraNonce, const Consensus::Params& consensusParams);
+
 // Container for tracking updates to ancestor feerate as we include (parent)
 // transactions in a block
 struct CTxMemPoolModifiedEntry {

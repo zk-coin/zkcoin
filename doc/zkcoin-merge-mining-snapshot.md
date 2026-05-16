@@ -73,6 +73,8 @@ The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO s
 
 It also returns an `import_hash`, which is the launch-consensus hash to use for imported balances. The import hash preserves each Litecoin outpoint, script, and value, but normalizes chain-local metadata such as UTXO height and coinbase status. That matters because Litecoin coinbase maturity must not make old, already-mature Litecoin outputs unspendable on the new chain.
 
+Because imported balances preserve original Litecoin outpoints, built-in mining templates include a small `zkcoin` push in the child coinbase scriptSig after the BIP34 height/extranonce fields. When block-X snapshot parameters are configured, templates also push the configured Litecoin snapshot block hash. This keeps locally generated launch coinbases from accidentally recreating an imported Litecoin coinbase transaction id. `getblocktemplate` exposes the base tag in `coinbaseaux.zkcoin` and the configured snapshot block hash in `coinbaseaux.zkcoin_snapshot` for external miners.
+
 Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.
 
 ## Current RPC Status
