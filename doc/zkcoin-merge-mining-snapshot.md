@@ -1,0 +1,58 @@
+# zkCoin Merge-Mining and Snapshot Plan
+
+This fork is intended to be a Litecoin tribute chain, not a Zcash mutation. The base stays Litecoin: scrypt proof of work parameters, Litecoin transaction model, MWEB already present in the codebase, and a one-time Litecoin balance snapshot at a chosen block X. ZK privacy is added as a later shielded pool or extension after the fork and merge-mining path is stable.
+
+## Direction
+
+1. Fork from Litecoin Core and keep scrypt as the work function.
+2. Hardcode a Litecoin snapshot block height and hash before launch.
+3. Build a deterministic UTXO snapshot manifest from that Litecoin block.
+4. Import balances on the new chain using the manifest root as consensus data.
+5. Enable AuxPoW so Litecoin miners can merge mine zkCoin without leaving Litecoin.
+6. Add a shielded pool after the base chain validates, syncs, mines, and reorganizes safely.
+
+## Snapshot Rules
+
+The snapshot is a consensus object. Nodes must agree on:
+
+- Litecoin block height X.
+- Litecoin block hash at height X.
+- UTXO inclusion rules.
+- Dust and unspendable-output policy.
+- Deterministic serialization of each allocation entry.
+- Manifest hash or Merkle root.
+- Total imported supply.
+
+The snapshot tool should fail closed if the local Litecoin node does not report the exact expected block hash for height X.
+
+## AuxPoW Rules
+
+The target model is Namecoin and Dogecoin style AuxPoW:
+
+- zkCoin block header keeps the child chain header hash.
+- AuxPoW data proves the child header hash is committed in a Litecoin parent coinbase.
+- The parent block header must satisfy Litecoin scrypt proof of work.
+- The parent coinbase must commit to the zkCoin chain id.
+- Chain merkle branches must place the child commitment at the expected index.
+- Activation height must be explicit and testable.
+
+The first code step adds disabled consensus parameters for activation height and chain id. Later steps wire block serialization, validation, mining RPCs, and functional tests.
+
+## Shielded Pool
+
+Do not start by forking Zcash and swapping Equihash for scrypt. That would make the project a Zcash-derived chain with Litecoin mining parameters. For a Litecoin tribute chain, the simpler narrative and safer engineering path is:
+
+- Keep Litecoin as the consensus base.
+- Merge mine with Litecoin.
+- Add a shielded pool as a new transaction component or extension area.
+- Reuse a modern proving stack where practical, such as Orchard/Halo2-style components, but integrate it into Litecoin-derived validation deliberately.
+
+SNARK privacy is not quantum resistance. If post-quantum privacy becomes a requirement, that is a separate cryptographic design track.
+
+## Current Consensus Placeholders
+
+`Consensus::Params::ltc_snapshot` records block X and the deterministic UTXO root. It is disabled until `nHeight` is set.
+
+`Consensus::Params::auxpow` records the AuxPoW start height and chain id. It is disabled until `nStartHeight` is set.
+
+Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.

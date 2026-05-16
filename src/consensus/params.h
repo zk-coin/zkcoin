@@ -7,6 +7,7 @@
 #define BITCOIN_CONSENSUS_PARAMS_H
 
 #include <uint256.h>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -49,6 +50,31 @@ struct BIP9Deployment {
      *  This is useful for integrating the code changes for a new feature
      *  prior to deploying it on some or all networks. */
     static constexpr int64_t NEVER_ACTIVE = -2;
+};
+
+/**
+ * Parameters for importing Litecoin balances into the fork.
+ *
+ * The selected Litecoin block hash and deterministic UTXO snapshot root must be
+ * locked before launch so every node validates the same initial allocation.
+ */
+struct LitecoinSnapshotParams {
+    int nHeight{-1};
+    uint256 hashBlock;
+    uint256 hashUTXORoot;
+
+    bool IsEnabled() const { return nHeight >= 0; }
+};
+
+/**
+ * Parameters for AuxPoW merge mining with Litecoin as the parent chain.
+ */
+struct AuxPowParams {
+    int nStartHeight{-1};
+    uint32_t nChainId{0};
+    bool fStrictChainId{true};
+
+    bool IsEnabled(int nHeight) const { return nStartHeight >= 0 && nHeight >= nStartHeight; }
 };
 
 /**
@@ -97,6 +123,12 @@ struct Params {
 
     /** Optional one-block grandfather for the known MWEB input-metadata exploit. */
     uint256 mweb_input_metadata_grandfather_blockhash;
+
+    /** Litecoin balance snapshot consumed by the fork launch. */
+    LitecoinSnapshotParams ltc_snapshot;
+
+    /** AuxPoW merge-mining activation and chain identity. */
+    AuxPowParams auxpow;
 
     /** Frozen MWEB output IDs that may not be spent. */
     std::vector<uint256> frozen_mweb_output_ids;
