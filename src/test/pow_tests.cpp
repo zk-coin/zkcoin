@@ -6,6 +6,7 @@
 #include <chainparams.h>
 #include <pow.h>
 #include <test/util/setup_common.h>
+#include <util/system.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -190,6 +191,18 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
 BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
 {
     sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_height)
+{
+    ArgsManager args;
+    args.ForceSetArg("-auxpowheight", "7");
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const auto consensus = chainParams->GetConsensus();
+
+    BOOST_CHECK(!consensus.auxpow.IsEnabled(6));
+    BOOST_CHECK(consensus.auxpow.IsEnabled(7));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

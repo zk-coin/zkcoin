@@ -396,6 +396,14 @@ public:
 
 void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
 {
+    if (args.IsArgSet("-auxpowheight")) {
+        int64_t height = args.GetArg("-auxpowheight", consensus.auxpow.nStartHeight);
+        if (height < -1 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Activation height %ld for auxpow is out of valid range. Use -1 to disable auxpow.", height));
+        }
+        consensus.auxpow.nStartHeight = static_cast<int>(height);
+    }
+
     if (args.IsArgSet("-segwitheight")) {
         int64_t height = args.GetArg("-segwitheight", consensus.SegwitHeight);
         if (height < -1 || height >= std::numeric_limits<int>::max()) {
