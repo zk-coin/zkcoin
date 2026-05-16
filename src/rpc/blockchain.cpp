@@ -1471,6 +1471,8 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::NUM, "height", "configured Litecoin snapshot height, or -1 if disabled"},
                             {RPCResult::Type::STR_HEX, "block_hash", "configured Litecoin snapshot block hash"},
                             {RPCResult::Type::STR_HEX, "import_hash", "configured normalized snapshot import hash"},
+                            {RPCResult::Type::BOOL, "imported", "whether the configured snapshot import marker is present and matches import_hash"},
+                            {RPCResult::Type::STR_HEX, "imported_hash", /*optional=*/true, "persisted snapshot import marker hash"},
                         }},
                         {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
                         {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
@@ -1534,10 +1536,16 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("auxpow", auxpow);
 
     UniValue ltc_snapshot(UniValue::VOBJ);
+    uint256 imported_snapshot_hash;
+    const bool has_imported_snapshot = ::ChainstateActive().CoinsDB().ReadLtcSnapshotImportHash(imported_snapshot_hash);
     ltc_snapshot.pushKV("enabled", consensusParams.ltc_snapshot.IsEnabled());
     ltc_snapshot.pushKV("height", consensusParams.ltc_snapshot.nHeight);
     ltc_snapshot.pushKV("block_hash", consensusParams.ltc_snapshot.hashBlock.ToString());
     ltc_snapshot.pushKV("import_hash", consensusParams.ltc_snapshot.hashUTXORoot.ToString());
+    ltc_snapshot.pushKV("imported", consensusParams.ltc_snapshot.IsEnabled() && has_imported_snapshot && imported_snapshot_hash == consensusParams.ltc_snapshot.hashUTXORoot);
+    if (has_imported_snapshot) {
+        ltc_snapshot.pushKV("imported_hash", imported_snapshot_hash.ToString());
+    }
     obj.pushKV("ltc_snapshot", ltc_snapshot);
 
     obj.pushKV("size_on_disk",          CalculateCurrentUsage());
@@ -2811,6 +2819,12 @@ static RPCHelpMan importsnapshotmanifest()
     }
 
     active_chainstate->ForceFlushStateToDisk();
+    if (snapshot_enabled) {
+        LOCK(cs_main);
+        if (!active_chainstate->CoinsDB().WriteLtcSnapshotImportHash(stats.m_hash_import)) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to write Litecoin snapshot import marker");
+        }
+    }
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_imported", static_cast<int64_t>(stats.m_coins_count));

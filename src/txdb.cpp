@@ -28,6 +28,7 @@ static const char DB_HEAD_BLOCKS = 'H';
 static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
+static const char DB_LTC_SNAPSHOT_IMPORT_HASH = 'S';
 
 namespace {
 
@@ -91,6 +92,16 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
         return std::vector<uint256>();
     }
     return vhashHeadBlocks;
+}
+
+bool CCoinsViewDB::ReadLtcSnapshotImportHash(uint256& hash) const
+{
+    return m_db->Read(DB_LTC_SNAPSHOT_IMPORT_HASH, hash);
+}
+
+bool CCoinsViewDB::WriteLtcSnapshotImportHash(const uint256& hash)
+{
+    return m_db->Write(DB_LTC_SNAPSHOT_IMPORT_HASH, hash, true);
 }
 
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, const mw::CoinsViewCache::Ptr& derivedView) {

@@ -61,6 +61,8 @@ public:
     bool HaveCoin(const OutputIndex& index) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
+    bool ReadLtcSnapshotImportHash(uint256& hash) const;
+    bool WriteLtcSnapshotImportHash(const uint256& hash);
     bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
     CCoinsViewCursor *Cursor() const override;
     CDBWrapper* GetDB() noexcept { return m_db.get(); }

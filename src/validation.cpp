@@ -2040,6 +2040,17 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         return true;
     }
 
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    if (pindex->nHeight == 1 && consensus.ltc_snapshot.IsEnabled()) {
+        uint256 imported_snapshot_hash;
+        if (!CoinsDB().ReadLtcSnapshotImportHash(imported_snapshot_hash)) {
+            return state.Error("configured Litecoin snapshot has not been imported");
+        }
+        if (imported_snapshot_hash != consensus.ltc_snapshot.hashUTXORoot) {
+            return state.Error("configured Litecoin snapshot import hash mismatch");
+        }
+    }
+
     bool fScriptChecks = true;
     if (!hashAssumeValid.IsNull()) {
         // We've been configured with the hash of a block which has been externally verified to have a valid history.
