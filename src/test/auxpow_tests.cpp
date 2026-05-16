@@ -12,6 +12,36 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+
+namespace {
+std::vector<unsigned char> BuildAuxPowCommitmentBytes(const uint256& hashAuxBlock)
+{
+    std::vector<unsigned char> commitment(hashAuxBlock.begin(), hashAuxBlock.end());
+    std::reverse(commitment.begin(), commitment.end());
+    commitment.push_back(1);
+    commitment.insert(commitment.end(), 7, 0);
+    return commitment;
+}
+
+CAuxPow DeserializeAuxPowForParentTx(const CTransactionRef& parentTx, const CPureBlockHeader& parentHeader)
+{
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    const uint256 hashBlock;
+    const std::vector<uint256> merkleBranch;
+    const int txIndex = 0;
+    const std::vector<uint256> chainMerkleBranch;
+    const int chainIndex = 0;
+
+    stream << parentTx << hashBlock << merkleBranch << txIndex;
+    stream << chainMerkleBranch << chainIndex << parentHeader;
+
+    CAuxPow auxpow;
+    stream >> auxpow;
+    return auxpow;
+}
+} // namespace
+
 BOOST_FIXTURE_TEST_SUITE(auxpow_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(expected_index_bounds)
@@ -45,6 +75,42 @@ BOOST_AUTO_TEST_CASE(init_auxpow_creates_valid_minimal_proof)
     BOOST_CHECK(header.auxpow->check(header.GetHash(), consensus.auxpow.nChainId, consensus));
     BOOST_CHECK(!header.auxpow->getParentBlockHash().IsNull());
     BOOST_CHECK(!header.auxpow->getParentBlockPoWHash().IsNull());
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_rejects_non_coinbase_parent_commitment)
+{
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = 0x207fffff;
+    header.nNonce = 0;
+    header.hashPrevBlock.SetHex("07");
+    header.hashMerkleRoot.SetHex("08");
+    header.SetAuxpowVersion(true);
+
+    uint256 prevoutHash;
+    prevoutHash.SetHex("09");
+
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout = COutPoint(prevoutHash, 0);
+    tx.vin[0].scriptSig = CScript() << BuildAuxPowCommitmentBytes(header.GetHash());
+    tx.vout.resize(1);
+    tx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    CTransactionRef txRef = MakeTransactionRef(tx);
+
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+    parent.hashMerkleRoot = txRef->GetHash();
+
+    CAuxPow auxpow = DeserializeAuxPowForParentTx(txRef, parent);
+    const Consensus::Params& consensus = Params().GetConsensus();
+
+    BOOST_CHECK(!txRef->IsCoinBase());
+    BOOST_CHECK(!auxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(block_proof_of_work_uses_parent_auxpow_header)

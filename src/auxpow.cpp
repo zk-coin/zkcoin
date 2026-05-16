@@ -39,11 +39,11 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
     std::vector<unsigned char> vchRootHash(nRootHash.begin(), nRootHash.end());
     std::reverse(vchRootHash.begin(), vchRootHash.end());
 
-    if (CheckMerkleBranch(coinbaseTx->GetHash(), vMerkleBranch, 0) != parentBlock.hashMerkleRoot) {
+    if (!coinbaseTx || !coinbaseTx->IsCoinBase()) {
         return false;
     }
 
-    if (coinbaseTx->vin.empty()) {
+    if (CheckMerkleBranch(coinbaseTx->GetHash(), vMerkleBranch, 0) != parentBlock.hashMerkleRoot) {
         return false;
     }
 
