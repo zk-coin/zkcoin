@@ -89,7 +89,7 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
-        consensus.auxpow.nChainId = 0x5a4b43; // "ZKC"
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 6048; // 75% of 8064
         consensus.nMinerConfirmationWindow = 8064; // nPowTargetTimespan / nPowTargetSpacing * 4
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -214,7 +214,7 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
-        consensus.auxpow.nChainId = 0x5a4b43; // "ZKC"
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -314,7 +314,7 @@ public:
         consensus.fPowNoRetargeting = true;
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
-        consensus.auxpow.nChainId = 0x5a4b43; // "ZKC"
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
 

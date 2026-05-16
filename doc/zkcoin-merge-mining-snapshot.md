@@ -53,6 +53,11 @@ SNARK privacy is not quantum resistance. If post-quantum privacy becomes a requi
 
 `Consensus::Params::ltc_snapshot` records block X and the deterministic UTXO root. It is disabled until `nHeight` is set.
 
-`Consensus::Params::auxpow` records the AuxPoW start height and chain id. It is disabled until `nStartHeight` is set.
+`Consensus::Params::auxpow` records the AuxPoW start height and chain id. It is disabled until `nStartHeight` is set. The placeholder chain id is `0x5a4b` (`ZK`) so it fits in the AuxPoW block-version chain-id field.
+
+The validation path should switch at that height:
+
+- before activation, headers must not carry AuxPoW data and are checked against their own scrypt PoW hash;
+- at and after activation, headers must carry AuxPoW data, must encode the zkCoin chain id, and are checked against the parent Litecoin-style scrypt header hash committed through the parent coinbase.
 
 Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.

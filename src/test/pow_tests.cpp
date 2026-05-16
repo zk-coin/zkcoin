@@ -162,6 +162,7 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     BOOST_CHECK(consensus.ltc_snapshot.hashUTXORoot.IsNull());
     BOOST_CHECK(!consensus.auxpow.IsEnabled(0));
     BOOST_CHECK_NE(consensus.auxpow.nChainId, 0U);
+    BOOST_CHECK_LT(consensus.auxpow.nChainId, 0x8000U);
 
     // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
     /* Litecoin: we allow overflowing by 1 bit

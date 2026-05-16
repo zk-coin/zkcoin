@@ -105,3 +105,20 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
     return true;
 }
+
+bool CheckBlockProofOfWork(const CBlockHeader& block, const Consensus::Params& params)
+{
+    if (!block.IsAuxpow()) {
+        return CheckProofOfWork(block.GetPoWHash(), block.nBits, params);
+    }
+
+    if (!block.auxpow) {
+        return false;
+    }
+
+    if (!block.auxpow->check(block.GetHash(), params.auxpow.nChainId, params)) {
+        return false;
+    }
+
+    return CheckProofOfWork(block.auxpow->getParentBlockPoWHash(), block.nBits, params);
+}
