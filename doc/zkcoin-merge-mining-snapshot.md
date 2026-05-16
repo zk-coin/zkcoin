@@ -36,7 +36,16 @@ The target model is Namecoin and Dogecoin style AuxPoW:
 - Chain merkle branches must place the child commitment at the expected index.
 - Activation height must be explicit and testable.
 
-The first code step adds disabled consensus parameters for activation height and chain id. Later steps wire block serialization, validation, mining RPCs, and functional tests.
+The first code steps add disabled consensus parameters for activation height and chain id, AuxPoW header serialization, validation, regtest mining, and a first pool-facing `getauxblock` RPC.
+
+`getauxblock` is the initial merge-mining RPC:
+
+- `getauxblock` with no arguments returns a child-chain block hash, chain id, child target, and `auxpowcommitment`.
+- The `auxpowcommitment` bytes are the merged-mining tag, the child commitment, the chain-merkle size, and the chain-merkle nonce. They are intended to be included in the Litecoin parent coinbase scriptSig.
+- `getauxblock <hash> <auxpow>` submits a serialized AuxPoW proof for a previously returned candidate.
+- The child block is accepted when the AuxPoW proof commits the child header into the parent coinbase and the parent Litecoin-style scrypt header satisfies the child target.
+
+This is enough for regtest and pool-integration prototyping. A production launch still needs hardcoded mainnet activation constants, broader interop testing with real Litecoin pool software, and a final review of chain id/version-bit interactions.
 
 ## Shielded Pool
 
@@ -63,3 +72,10 @@ The validation path should switch at that height:
 The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash`. That hash is the value to lock into `Consensus::Params::ltc_snapshot.hashUTXORoot` once block X is chosen.
 
 Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.
+
+## Current RPC Status
+
+- `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
+- `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
+- `getauxblock` exposes candidate creation and AuxPoW submission for merge-mining integration.
+- `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest, but it does not yet import the balances into chainstate.
