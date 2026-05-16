@@ -50,6 +50,7 @@ struct SnapshotManifestStats
     uint64_t m_coins_count{0};
     CAmount m_total_amount{0};
     uint256 m_hash_serialized;
+    uint256 m_hash_import;
 };
 
 bool DecodeSnapshotManifest(CDataStream& stream, SnapshotManifestStats& stats, std::string& error);

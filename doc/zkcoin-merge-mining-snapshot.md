@@ -69,7 +69,9 @@ The validation path should switch at that height:
 - before activation, headers must not carry AuxPoW data and are checked against their own scrypt PoW hash;
 - at and after activation, headers must carry AuxPoW data, must encode the zkCoin chain id, and are checked against the parent Litecoin-style scrypt header hash committed through the parent coinbase.
 
-The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash`. That hash is the value to lock into `Consensus::Params::ltc_snapshot.hashUTXORoot` once block X is chosen.
+The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash` for source-file auditability.
+
+It also returns an `import_hash`, which is the launch-consensus hash to use for imported balances. The import hash preserves each Litecoin outpoint, script, and value, but normalizes chain-local metadata such as UTXO height and coinbase status. That matters because Litecoin coinbase maturity must not make old, already-mature Litecoin outputs unspendable on the new chain.
 
 Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.
 
@@ -78,4 +80,4 @@ Both are intentionally present before behavior changes so tests and review can t
 - `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes candidate creation and AuxPoW submission for merge-mining integration.
-- `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest, but it does not yet import the balances into chainstate.
+- `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`, but it does not yet import the balances into chainstate.

@@ -13,15 +13,22 @@
 #include <exception>
 
 namespace {
+Coin NormalizeSnapshotCoinForImport(const Coin& coin)
+{
+    return Coin(coin.out, /*nHeightIn=*/0, /*fCoinBaseIn=*/false, /*fPegoutIn=*/false);
+}
+
 template <typename Stream, typename DoneFn>
 bool DecodeSnapshotManifestImpl(Stream& stream, DoneFn done, SnapshotManifestStats& stats, std::string& error)
 {
     stats = SnapshotManifestStats{};
     CHashWriter manifest_hash(SER_DISK, CLIENT_VERSION);
+    CHashWriter import_hash(SER_DISK, CLIENT_VERSION);
 
     try {
         stream >> stats.m_metadata;
         manifest_hash << stats.m_metadata;
+        import_hash << stats.m_metadata;
 
         while (!done()) {
             COutPoint outpoint;
@@ -41,6 +48,8 @@ bool DecodeSnapshotManifestImpl(Stream& stream, DoneFn done, SnapshotManifestSta
 
             manifest_hash << outpoint;
             manifest_hash << coin;
+            import_hash << outpoint;
+            import_hash << NormalizeSnapshotCoinForImport(coin);
             ++stats.m_coins_count;
             stats.m_total_amount += coin.out.nValue;
         }
@@ -55,6 +64,7 @@ bool DecodeSnapshotManifestImpl(Stream& stream, DoneFn done, SnapshotManifestSta
     }
 
     stats.m_hash_serialized = manifest_hash.GetHash();
+    stats.m_hash_import = import_hash.GetHash();
     return true;
 }
 } // namespace

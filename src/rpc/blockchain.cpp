@@ -2666,8 +2666,9 @@ static RPCHelpMan verifysnapshotmanifest()
                     {RPCResult::Type::NUM, "metadata_coins", "the number of UTXOs declared by the snapshot metadata"},
                     {RPCResult::Type::NUM, "base_nchaintx", "the nChainTx value stored in snapshot metadata"},
                     {RPCResult::Type::STR_HEX, "snapshot_hash", "deterministic hash of the serialized snapshot manifest"},
+                    {RPCResult::Type::STR_HEX, "import_hash", "deterministic hash of the normalized launch UTXO set"},
                     {RPCResult::Type::STR_AMOUNT, "total_amount", "total amount represented by the decoded UTXOs"},
-                    {RPCResult::Type::BOOL, "matches_configured_snapshot", "whether the manifest matches configured block-X constants, if enabled"},
+                    {RPCResult::Type::BOOL, "matches_configured_snapshot", "whether the normalized import set matches configured block-X constants, if enabled"},
                     {RPCResult::Type::NUM, "configured_height", "configured Litecoin snapshot height, if enabled"},
                 }
         },
@@ -2688,7 +2689,7 @@ static RPCHelpMan verifysnapshotmanifest()
     const bool snapshot_enabled = consensus.ltc_snapshot.IsEnabled();
     const bool matches_configured_snapshot = snapshot_enabled &&
         stats.m_metadata.m_base_blockhash == consensus.ltc_snapshot.hashBlock &&
-        stats.m_hash_serialized == consensus.ltc_snapshot.hashUTXORoot;
+        stats.m_hash_import == consensus.ltc_snapshot.hashUTXORoot;
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("base_hash", stats.m_metadata.m_base_blockhash.ToString());
@@ -2696,6 +2697,7 @@ static RPCHelpMan verifysnapshotmanifest()
     result.pushKV("metadata_coins", static_cast<int64_t>(stats.m_metadata.m_coins_count));
     result.pushKV("base_nchaintx", static_cast<int64_t>(stats.m_metadata.m_nchaintx));
     result.pushKV("snapshot_hash", stats.m_hash_serialized.ToString());
+    result.pushKV("import_hash", stats.m_hash_import.ToString());
     result.pushKV("total_amount", ValueFromAmount(stats.m_total_amount));
     result.pushKV("matches_configured_snapshot", matches_configured_snapshot);
     if (snapshot_enabled) {

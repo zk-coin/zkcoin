@@ -15,11 +15,11 @@
 
 BOOST_AUTO_TEST_SUITE(utxo_snapshot_tests)
 
-static Coin SnapshotCoin(CAmount value, int height)
+static Coin SnapshotCoin(CAmount value, int height, bool coinbase = false)
 {
     CScript script;
     script << OP_TRUE;
-    return Coin(CTxOut(value, script), height, false, false);
+    return Coin(CTxOut(value, script), height, coinbase, false);
 }
 
 static CDataStream BuildSnapshotStream(const SnapshotMetadata& metadata, const std::vector<std::pair<COutPoint, Coin>>& coins)
@@ -51,11 +51,21 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_decodes_and_hashes)
     BOOST_CHECK_EQUAL(stats.m_coins_count, 2U);
     BOOST_CHECK_EQUAL(stats.m_total_amount, 3 * COIN);
     BOOST_CHECK(!stats.m_hash_serialized.IsNull());
+    BOOST_CHECK(!stats.m_hash_import.IsNull());
 
     CDataStream stream_again = BuildSnapshotStream(metadata, coins);
     SnapshotManifestStats stats_again;
     BOOST_REQUIRE(DecodeSnapshotManifest(stream_again, stats_again, error));
     BOOST_CHECK(stats_again.m_hash_serialized == stats.m_hash_serialized);
+    BOOST_CHECK(stats_again.m_hash_import == stats.m_hash_import);
+
+    std::vector<std::pair<COutPoint, Coin>> remapped_metadata_coins = coins;
+    remapped_metadata_coins[0].second = SnapshotCoin(1 * COIN, 900, true);
+    CDataStream remapped_metadata_stream = BuildSnapshotStream(metadata, remapped_metadata_coins);
+    SnapshotManifestStats remapped_metadata_stats;
+    BOOST_REQUIRE(DecodeSnapshotManifest(remapped_metadata_stream, remapped_metadata_stats, error));
+    BOOST_CHECK(remapped_metadata_stats.m_hash_serialized != stats.m_hash_serialized);
+    BOOST_CHECK(remapped_metadata_stats.m_hash_import == stats.m_hash_import);
 
     std::vector<std::pair<COutPoint, Coin>> changed_coins = coins;
     changed_coins[1].second = SnapshotCoin(3 * COIN, 11);
@@ -63,6 +73,7 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_decodes_and_hashes)
     SnapshotManifestStats changed_stats;
     BOOST_REQUIRE(DecodeSnapshotManifest(changed_stream, changed_stats, error));
     BOOST_CHECK(changed_stats.m_hash_serialized != stats.m_hash_serialized);
+    BOOST_CHECK(changed_stats.m_hash_import != stats.m_hash_import);
 }
 
 BOOST_AUTO_TEST_CASE(snapshot_manifest_rejects_count_mismatch)
