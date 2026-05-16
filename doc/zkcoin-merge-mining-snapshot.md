@@ -78,6 +78,7 @@ Both are intentionally present before behavior changes so tests and review can t
 ## Current RPC Status
 
 - `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
+- `-ltcsnapshotheight=<n>`, `-ltcsnapshotblockhash=<hex>`, and `-ltcsnapshotutxoroot=<hex>` configure the block-X snapshot constants on regtest for launch rehearsal.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes candidate creation and AuxPoW submission for merge-mining integration.
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.

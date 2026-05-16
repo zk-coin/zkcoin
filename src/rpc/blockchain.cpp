@@ -1458,6 +1458,20 @@ RPCHelpMan getblockchaininfo()
                         {RPCResult::Type::NUM, "verificationprogress", "estimate of verification progress [0..1]"},
                         {RPCResult::Type::BOOL, "initialblockdownload", "(debug information) estimate of whether this node is in Initial Block Download mode"},
                         {RPCResult::Type::STR_HEX, "chainwork", "total amount of work in active chain, in hexadecimal"},
+                        {RPCResult::Type::OBJ, "auxpow", "AuxPoW merge-mining parameters",
+                        {
+                            {RPCResult::Type::BOOL, "next_block_active", "whether AuxPoW is required for the next block"},
+                            {RPCResult::Type::NUM, "start_height", "height at which AuxPoW activates, or -1 if disabled"},
+                            {RPCResult::Type::NUM, "chain_id", "AuxPoW child chain id"},
+                            {RPCResult::Type::BOOL, "strict_chain_id", "whether parent and child chain ids must differ"},
+                        }},
+                        {RPCResult::Type::OBJ, "ltc_snapshot", "Litecoin block-X launch snapshot parameters",
+                        {
+                            {RPCResult::Type::BOOL, "enabled", "whether the Litecoin snapshot is configured"},
+                            {RPCResult::Type::NUM, "height", "configured Litecoin snapshot height, or -1 if disabled"},
+                            {RPCResult::Type::STR_HEX, "block_hash", "configured Litecoin snapshot block hash"},
+                            {RPCResult::Type::STR_HEX, "import_hash", "configured normalized snapshot import hash"},
+                        }},
                         {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
                         {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
                         {RPCResult::Type::NUM, "pruneheight", "lowest-height complete block stored (only present if pruning is enabled)"},
@@ -1511,6 +1525,21 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));
     obj.pushKV("initialblockdownload",  ::ChainstateActive().IsInitialBlockDownload());
     obj.pushKV("chainwork",             tip->nChainWork.GetHex());
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    UniValue auxpow(UniValue::VOBJ);
+    auxpow.pushKV("next_block_active", consensusParams.auxpow.IsEnabled(::ChainActive().Height() + 1));
+    auxpow.pushKV("start_height", consensusParams.auxpow.nStartHeight);
+    auxpow.pushKV("chain_id", static_cast<int64_t>(consensusParams.auxpow.nChainId));
+    auxpow.pushKV("strict_chain_id", consensusParams.auxpow.fStrictChainId);
+    obj.pushKV("auxpow", auxpow);
+
+    UniValue ltc_snapshot(UniValue::VOBJ);
+    ltc_snapshot.pushKV("enabled", consensusParams.ltc_snapshot.IsEnabled());
+    ltc_snapshot.pushKV("height", consensusParams.ltc_snapshot.nHeight);
+    ltc_snapshot.pushKV("block_hash", consensusParams.ltc_snapshot.hashBlock.ToString());
+    ltc_snapshot.pushKV("import_hash", consensusParams.ltc_snapshot.hashUTXORoot.ToString());
+    obj.pushKV("ltc_snapshot", ltc_snapshot);
+
     obj.pushKV("size_on_disk",          CalculateCurrentUsage());
     obj.pushKV("pruned",                fPruneMode);
     if (fPruneMode) {
@@ -1530,7 +1559,6 @@ RPCHelpMan getblockchaininfo()
         }
     }
 
-    const Consensus::Params& consensusParams = Params().GetConsensus();
     UniValue softforks(UniValue::VOBJ);
     BuriedForkDescPushBack(softforks, "bip34", consensusParams.BIP34Height);
     BuriedForkDescPushBack(softforks, "bip66", consensusParams.BIP66Height);

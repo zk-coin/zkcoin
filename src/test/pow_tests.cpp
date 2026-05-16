@@ -206,4 +206,31 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_height)
     BOOST_CHECK(consensus.auxpow.IsEnabled(7));
 }
 
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_ltc_snapshot_args)
+{
+    const std::string block_hash{"0000000000000000000000000000000000000000000000000000000000000001"};
+    const std::string utxo_root{"0000000000000000000000000000000000000000000000000000000000000002"};
+
+    ArgsManager args;
+    args.ForceSetArg("-ltcsnapshotheight", "123");
+    args.ForceSetArg("-ltcsnapshotblockhash", block_hash);
+    args.ForceSetArg("-ltcsnapshotutxoroot", utxo_root);
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const auto consensus = chainParams->GetConsensus();
+
+    BOOST_CHECK(consensus.ltc_snapshot.IsEnabled());
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.nHeight, 123);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashBlock.ToString(), block_hash);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashUTXORoot.ToString(), utxo_root);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_ltc_snapshot_args_reject_partial)
+{
+    ArgsManager args;
+    args.ForceSetArg("-ltcsnapshotheight", "123");
+
+    BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::REGTEST), std::runtime_error);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

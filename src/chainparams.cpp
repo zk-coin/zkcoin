@@ -404,6 +404,36 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
         consensus.auxpow.nStartHeight = static_cast<int>(height);
     }
 
+    const bool snapshot_height_set = args.IsArgSet("-ltcsnapshotheight");
+    const bool snapshot_blockhash_set = args.IsArgSet("-ltcsnapshotblockhash");
+    const bool snapshot_utxoroot_set = args.IsArgSet("-ltcsnapshotutxoroot");
+    if (snapshot_height_set || snapshot_blockhash_set || snapshot_utxoroot_set) {
+        if (!snapshot_height_set || !snapshot_blockhash_set || !snapshot_utxoroot_set) {
+            throw std::runtime_error("Litecoin snapshot parameters must include -ltcsnapshotheight, -ltcsnapshotblockhash, and -ltcsnapshotutxoroot together.");
+        }
+
+        const int64_t height = args.GetArg("-ltcsnapshotheight", consensus.ltc_snapshot.nHeight);
+        if (height < 0 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Litecoin snapshot height %ld is out of valid range.", height));
+        }
+
+        auto parse_hash_arg = [&args](const std::string& arg) {
+            const std::string value = args.GetArg(arg, "");
+            if (value.size() != 64 || !IsHex(value)) {
+                throw std::runtime_error(strprintf("%s must be exactly 64 hex characters.", arg));
+            }
+            const uint256 hash = uint256S(value);
+            if (hash.IsNull()) {
+                throw std::runtime_error(strprintf("%s must not be null.", arg));
+            }
+            return hash;
+        };
+
+        consensus.ltc_snapshot.nHeight = static_cast<int>(height);
+        consensus.ltc_snapshot.hashBlock = parse_hash_arg("-ltcsnapshotblockhash");
+        consensus.ltc_snapshot.hashUTXORoot = parse_hash_arg("-ltcsnapshotutxoroot");
+    }
+
     if (args.IsArgSet("-segwitheight")) {
         int64_t height = args.GetArg("-segwitheight", consensus.SegwitHeight);
         if (height < -1 || height >= std::numeric_limits<int>::max()) {
