@@ -2708,6 +2708,96 @@ static RPCHelpMan verifysnapshotmanifest()
     };
 }
 
+static RPCHelpMan importsnapshotmanifest()
+{
+    return RPCHelpMan{
+        "importsnapshotmanifest",
+        "\nImport a dumptxoutset-compatible Litecoin UTXO snapshot into the launch chainstate.\n"
+        "\nThis is intended for the one-time block-X balance import. It can only run while the\n"
+        "active chain is still at genesis, and it verifies the configured Litecoin snapshot\n"
+        "block hash and normalized import hash when snapshot consensus parameters are enabled.\n",
+        {
+            {"path",
+                RPCArg::Type::STR,
+                RPCArg::Optional::NO,
+                /* default_val */ "",
+                "path to the snapshot file. If relative, will be prefixed by datadir."},
+            {"allow_unconfigured",
+                RPCArg::Type::BOOL,
+                /* default */ "false",
+                "Allow import when no snapshot root is configured. This is only accepted on test chains."},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::NUM, "coins_imported", "the number of UTXOs imported into chainstate"},
+                    {RPCResult::Type::STR_HEX, "base_hash", "the Litecoin block hash reflected by the snapshot"},
+                    {RPCResult::Type::NUM, "base_nchaintx", "the nChainTx value stored in snapshot metadata"},
+                    {RPCResult::Type::STR_HEX, "snapshot_hash", "deterministic hash of the serialized source snapshot manifest"},
+                    {RPCResult::Type::STR_HEX, "import_hash", "deterministic hash of the normalized launch UTXO set"},
+                    {RPCResult::Type::STR_AMOUNT, "total_amount", "total imported amount"},
+                    {RPCResult::Type::STR_HEX, "chainstate_base", "the fork-chain block hash the imported UTXO set is attached to"},
+                    {RPCResult::Type::BOOL, "configured_snapshot", "whether configured snapshot consensus parameters were enforced"},
+                }
+        },
+        RPCExamples{
+            HelpExampleCli("importsnapshotmanifest", "ltc-utxo.dat")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const fs::path path = fs::absolute(request.params[0].get_str(), GetDataDir());
+    const bool allow_unconfigured = !request.params[1].isNull() && request.params[1].get_bool();
+    const CChainParams& chainparams = Params();
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const bool snapshot_enabled = consensus.ltc_snapshot.IsEnabled();
+    if (!snapshot_enabled && (!allow_unconfigured || !chainparams.IsTestChain())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "snapshot consensus parameters are not configured");
+    }
+    if (snapshot_enabled && (consensus.ltc_snapshot.hashBlock.IsNull() || consensus.ltc_snapshot.hashUTXORoot.IsNull())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "configured snapshot parameters are incomplete");
+    }
+
+    NodeContext& node = EnsureNodeContext(request.context);
+    SnapshotManifestStats stats;
+    std::string error;
+    uint256 chainstate_base;
+    CChainState* active_chainstate{nullptr};
+
+    {
+        LOCK(cs_main);
+        active_chainstate = &::ChainstateActive();
+        const CBlockIndex* tip = ::ChainActive().Tip();
+        if (tip == nullptr || tip->nHeight != 0) {
+            throw JSONRPCError(RPC_VERIFY_ERROR, "snapshot import is only allowed at the genesis chain tip");
+        }
+        chainstate_base = active_chainstate->CoinsTip().GetBestBlock();
+        if (chainstate_base.IsNull()) {
+            throw JSONRPCError(RPC_VERIFY_ERROR, "chainstate is not initialized");
+        }
+
+        const uint256* expected_base_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashBlock : nullptr;
+        const uint256* expected_import_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashUTXORoot : nullptr;
+        if (!ImportSnapshotManifestFromFile(path, active_chainstate->CoinsTip(), stats, error, expected_base_hash, expected_import_hash, node.rpc_interruption_point)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, error);
+        }
+    }
+
+    active_chainstate->ForceFlushStateToDisk();
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("coins_imported", static_cast<int64_t>(stats.m_coins_count));
+    result.pushKV("base_hash", stats.m_metadata.m_base_blockhash.ToString());
+    result.pushKV("base_nchaintx", static_cast<int64_t>(stats.m_metadata.m_nchaintx));
+    result.pushKV("snapshot_hash", stats.m_hash_serialized.ToString());
+    result.pushKV("import_hash", stats.m_hash_import.ToString());
+    result.pushKV("total_amount", ValueFromAmount(stats.m_total_amount));
+    result.pushKV("chainstate_base", chainstate_base.ToString());
+    result.pushKV("configured_snapshot", snapshot_enabled);
+    return result;
+},
+    };
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2748,6 +2838,7 @@ static const CRPCCommand commands[] =
     { "hidden",             "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, {} },
     { "hidden",             "dumptxoutset",           &dumptxoutset,           {"path"} },
     { "hidden",             "verifysnapshotmanifest", &verifysnapshotmanifest, {"path"} },
+    { "hidden",             "importsnapshotmanifest", &importsnapshotmanifest, {"path", "allow_unconfigured"} },
 };
 // clang-format on
     for (const auto& c : commands) {

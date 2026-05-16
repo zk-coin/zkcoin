@@ -13,7 +13,10 @@
 #include <serialize.h>
 
 #include <cstdint>
+#include <functional>
 #include <string>
+
+class CCoinsViewCache;
 
 //! Metadata describing a serialized version of a UTXO set from which an
 //! assumeutxo CChainState can be constructed.
@@ -55,5 +58,7 @@ struct SnapshotManifestStats
 
 bool DecodeSnapshotManifest(CDataStream& stream, SnapshotManifestStats& stats, std::string& error);
 bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& stats, std::string& error);
+bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const uint256* expected_base_hash = nullptr, const uint256* expected_import_hash = nullptr, const std::function<void()>& interruption_point = {});
+bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const uint256* expected_base_hash = nullptr, const uint256* expected_import_hash = nullptr, const std::function<void()>& interruption_point = {});
 
 #endif // BITCOIN_NODE_UTXO_SNAPSHOT_H

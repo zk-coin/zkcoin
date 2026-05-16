@@ -258,8 +258,10 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
         }
     }
 
-    // MWEB: Flushes mweb coins
-    derivedView->Flush(nullptr);
+    // MWEB: Flushes mweb coins when this cache is backed by an MWEB view.
+    if (derivedView) {
+        derivedView->Flush(nullptr);
+    }
 
     hashBlock = hashBlockIn;
     return true;

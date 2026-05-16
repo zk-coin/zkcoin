@@ -91,4 +91,56 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_rejects_count_mismatch)
     BOOST_CHECK(error.find("coin count mismatch") != std::string::npos);
 }
 
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_normalizes_chain_metadata)
+{
+    const SnapshotMetadata metadata{uint256S("06"), 1, 100};
+    const COutPoint outpoint(uint256S("07"), 0);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {outpoint, SnapshotCoin(5 * COIN, 600, true)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    const uint256 chainstate_base = uint256S("0a");
+    cache.SetBestBlock(chainstate_base);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+
+    BOOST_REQUIRE(ImportSnapshotManifest(stream, cache, stats, error));
+    BOOST_CHECK(error.empty());
+    BOOST_CHECK_EQUAL(stats.m_coins_count, 1U);
+    BOOST_CHECK_EQUAL(stats.m_total_amount, 5 * COIN);
+
+    Coin imported;
+    BOOST_REQUIRE(cache.GetCoin(outpoint, imported));
+    BOOST_CHECK_EQUAL(imported.out.nValue, 5 * COIN);
+    BOOST_CHECK_EQUAL(imported.nHeight, 0U);
+    BOOST_CHECK(!imported.IsCoinBase());
+    BOOST_CHECK(!imported.IsPegout());
+    BOOST_CHECK_EQUAL(cache.GetBestBlock().ToString(), chainstate_base.ToString());
+}
+
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_wrong_expected_hash)
+{
+    const SnapshotMetadata metadata{uint256S("08"), 1, 100};
+    const COutPoint outpoint(uint256S("09"), 0);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {outpoint, SnapshotCoin(1 * COIN, 10)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+    const uint256 wrong_import_hash = uint256S("0a");
+
+    BOOST_CHECK(!ImportSnapshotManifest(stream, cache, stats, error, nullptr, &wrong_import_hash));
+    BOOST_CHECK(error.find("import hash mismatch") != std::string::npos);
+
+    Coin imported;
+    BOOST_CHECK(!cache.GetCoin(outpoint, imported));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
