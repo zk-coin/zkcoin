@@ -6,8 +6,14 @@
 #ifndef BITCOIN_NODE_UTXO_SNAPSHOT_H
 #define BITCOIN_NODE_UTXO_SNAPSHOT_H
 
+#include <amount.h>
+#include <fs.h>
+#include <streams.h>
 #include <uint256.h>
 #include <serialize.h>
+
+#include <cstdint>
+#include <string>
 
 //! Metadata describing a serialized version of a UTXO set from which an
 //! assumeutxo CChainState can be constructed.
@@ -37,5 +43,16 @@ public:
 
     SERIALIZE_METHODS(SnapshotMetadata, obj) { READWRITE(obj.m_base_blockhash, obj.m_coins_count, obj.m_nchaintx); }
 };
+
+struct SnapshotManifestStats
+{
+    SnapshotMetadata m_metadata;
+    uint64_t m_coins_count{0};
+    CAmount m_total_amount{0};
+    uint256 m_hash_serialized;
+};
+
+bool DecodeSnapshotManifest(CDataStream& stream, SnapshotManifestStats& stats, std::string& error);
+bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& stats, std::string& error);
 
 #endif // BITCOIN_NODE_UTXO_SNAPSHOT_H

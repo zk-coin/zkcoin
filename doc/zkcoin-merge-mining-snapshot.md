@@ -60,4 +60,6 @@ The validation path should switch at that height:
 - before activation, headers must not carry AuxPoW data and are checked against their own scrypt PoW hash;
 - at and after activation, headers must carry AuxPoW data, must encode the zkCoin chain id, and are checked against the parent Litecoin-style scrypt header hash committed through the parent coinbase.
 
+The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash`. That hash is the value to lock into `Consensus::Params::ltc_snapshot.hashUTXORoot` once block X is chosen.
+
 Both are intentionally present before behavior changes so tests and review can track the launch-critical constants.

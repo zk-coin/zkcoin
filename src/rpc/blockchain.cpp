@@ -2645,6 +2645,67 @@ static RPCHelpMan dumptxoutset()
     };
 }
 
+static RPCHelpMan verifysnapshotmanifest()
+{
+    return RPCHelpMan{
+        "verifysnapshotmanifest",
+        "\nRead and hash a dumptxoutset-compatible UTXO snapshot manifest.\n"
+        "\nThis is used to lock the Litecoin block-X balance snapshot before launch.\n",
+        {
+            {"path",
+                RPCArg::Type::STR,
+                RPCArg::Optional::NO,
+                /* default_val */ "",
+                "path to the snapshot file. If relative, will be prefixed by datadir."},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "base_hash", "the block hash reflected by the snapshot"},
+                    {RPCResult::Type::NUM, "coins", "the number of UTXOs decoded from the snapshot"},
+                    {RPCResult::Type::NUM, "metadata_coins", "the number of UTXOs declared by the snapshot metadata"},
+                    {RPCResult::Type::NUM, "base_nchaintx", "the nChainTx value stored in snapshot metadata"},
+                    {RPCResult::Type::STR_HEX, "snapshot_hash", "deterministic hash of the serialized snapshot manifest"},
+                    {RPCResult::Type::STR_AMOUNT, "total_amount", "total amount represented by the decoded UTXOs"},
+                    {RPCResult::Type::BOOL, "matches_configured_snapshot", "whether the manifest matches configured block-X constants, if enabled"},
+                    {RPCResult::Type::NUM, "configured_height", "configured Litecoin snapshot height, if enabled"},
+                }
+        },
+        RPCExamples{
+            HelpExampleCli("verifysnapshotmanifest", "ltc-utxo.dat")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const fs::path path = fs::absolute(request.params[0].get_str(), GetDataDir());
+
+    SnapshotManifestStats stats;
+    std::string error;
+    if (!ReadSnapshotManifestFromFile(path, stats, error)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, error);
+    }
+
+    const Consensus::Params& consensus = Params().GetConsensus();
+    const bool snapshot_enabled = consensus.ltc_snapshot.IsEnabled();
+    const bool matches_configured_snapshot = snapshot_enabled &&
+        stats.m_metadata.m_base_blockhash == consensus.ltc_snapshot.hashBlock &&
+        stats.m_hash_serialized == consensus.ltc_snapshot.hashUTXORoot;
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("base_hash", stats.m_metadata.m_base_blockhash.ToString());
+    result.pushKV("coins", static_cast<int64_t>(stats.m_coins_count));
+    result.pushKV("metadata_coins", static_cast<int64_t>(stats.m_metadata.m_coins_count));
+    result.pushKV("base_nchaintx", static_cast<int64_t>(stats.m_metadata.m_nchaintx));
+    result.pushKV("snapshot_hash", stats.m_hash_serialized.ToString());
+    result.pushKV("total_amount", ValueFromAmount(stats.m_total_amount));
+    result.pushKV("matches_configured_snapshot", matches_configured_snapshot);
+    if (snapshot_enabled) {
+        result.pushKV("configured_height", consensus.ltc_snapshot.nHeight);
+    }
+    return result;
+},
+    };
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2684,6 +2745,7 @@ static const CRPCCommand commands[] =
     { "hidden",             "waitforblockheight",     &waitforblockheight,     {"height","timeout"} },
     { "hidden",             "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, {} },
     { "hidden",             "dumptxoutset",           &dumptxoutset,           {"path"} },
+    { "hidden",             "verifysnapshotmanifest", &verifysnapshotmanifest, {"path"} },
 };
 // clang-format on
     for (const auto& c : commands) {

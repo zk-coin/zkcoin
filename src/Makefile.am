@@ -368,6 +368,7 @@ libbitcoin_server_a_SOURCES = \
   node/context.cpp \
   node/psbt.cpp \
   node/transaction.cpp \
+  node/utxo_snapshot.cpp \
   node/ui_interface.cpp \
   noui.cpp \
   policy/fees.cpp \
