@@ -29,6 +29,7 @@ private:
     CTransactionRef coinbaseTx;
     std::vector<uint256> vMerkleBranch;
     std::vector<uint256> vChainMerkleBranch;
+    int nIndex{0};
     int nChainIndex{0};
     CPureBlockHeader parentBlock;
 
@@ -47,9 +48,8 @@ public:
     SERIALIZE_METHODS(CAuxPow, obj)
     {
         uint256 hashBlock;
-        int nIndex = 0;
 
-        READWRITE(obj.coinbaseTx, hashBlock, obj.vMerkleBranch, nIndex);
+        READWRITE(obj.coinbaseTx, hashBlock, obj.vMerkleBranch, obj.nIndex);
         READWRITE(obj.vChainMerkleBranch, obj.nChainIndex, obj.parentBlock);
     }
 

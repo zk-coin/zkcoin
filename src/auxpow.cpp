@@ -43,7 +43,11 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
         return false;
     }
 
-    if (CheckMerkleBranch(coinbaseTx->GetHash(), vMerkleBranch, 0) != parentBlock.hashMerkleRoot) {
+    if (nIndex != 0) {
+        return false;
+    }
+
+    if (CheckMerkleBranch(coinbaseTx->GetHash(), vMerkleBranch, nIndex) != parentBlock.hashMerkleRoot) {
         return false;
     }
 
@@ -141,6 +145,7 @@ std::unique_ptr<CAuxPow> CAuxPow::createAuxPow(const CPureBlockHeader& header)
     parent.hashMerkleRoot = BlockMerkleRoot(parent);
 
     std::unique_ptr<CAuxPow> auxpow(new CAuxPow(std::move(coinbaseRef)));
+    auxpow->nIndex = 0;
     auxpow->nChainIndex = 0;
     auxpow->parentBlock = parent.GetBlockHeader();
 
