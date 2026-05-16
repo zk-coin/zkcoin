@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <amount.h>
+#include <auxpow.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/consensus.h>
@@ -115,15 +116,26 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
     }
 
     CChainParams chainparams(Params());
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    CPureBlockHeader* mining_header = &block;
 
-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetPoWHash(), block.nBits, chainparams.GetConsensus()) && !ShutdownRequested()) {
-        ++block.nNonce;
+    {
+        LOCK(cs_main);
+        const int next_height = ::ChainActive().Height() + 1;
+        if (consensus.auxpow.IsEnabled(next_height)) {
+            block.SetChainId(consensus.auxpow.nChainId);
+            mining_header = &CAuxPow::initAuxPow(block);
+        }
+    }
+
+    while (max_tries > 0 && mining_header->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(mining_header->GetPoWHash(), block.nBits, consensus) && !ShutdownRequested()) {
+        ++mining_header->nNonce;
         --max_tries;
     }
     if (max_tries == 0 || ShutdownRequested()) {
         return false;
     }
-    if (block.nNonce == std::numeric_limits<uint32_t>::max()) {
+    if (mining_header->nNonce == std::numeric_limits<uint32_t>::max()) {
         return true;
     }
 

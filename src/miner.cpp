@@ -6,6 +6,7 @@
 #include <miner.h>
 
 #include <amount.h>
+#include <auxpow.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
@@ -188,6 +189,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
+
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    if (consensus.auxpow.IsEnabled(nHeight)) {
+        pblock->SetChainId(consensus.auxpow.nChainId);
+        CAuxPow::initAuxPow(*pblock);
+    }
 
     BlockValidationState state;
     if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
