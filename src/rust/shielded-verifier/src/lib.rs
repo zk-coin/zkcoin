@@ -21,6 +21,10 @@ const PROOF_SYSTEM_ORCHARD: u8 = 1;
 const PROOF_BUNDLE_FLAGS_NONE: u8 = 0;
 const ORCHARD_PROOF_BODY_MODE_SCAFFOLD: u8 = 0;
 const ORCHARD_PROOF_BODY_MODE_REAL: u8 = 1;
+pub const ORCHARD_REAL_PROOF_STATUS_MALFORMED: i32 = 0;
+pub const ORCHARD_REAL_PROOF_STATUS_VALID: i32 = 1;
+pub const ORCHARD_REAL_PROOF_STATUS_INVALID: i32 = -1;
+pub const ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED: i32 = -2;
 const PROOF_BUNDLE_HEADER_LEN_V4: usize =
     6 + 1 + 1 + 1 + 1 + HASH_SIZE + core::mem::size_of::<u32>();
 const ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1: usize =
@@ -38,6 +42,25 @@ fn hash256(data: &[u8]) -> [u8; HASH_SIZE] {
     let first = Sha256::digest(data);
     let second = Sha256::digest(first);
     second.into()
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OrchardRealProofStatus {
+    Valid,
+    Malformed,
+    Invalid,
+    Unsupported,
+}
+
+impl OrchardRealProofStatus {
+    pub fn as_ffi_code(self) -> i32 {
+        match self {
+            OrchardRealProofStatus::Valid => ORCHARD_REAL_PROOF_STATUS_VALID,
+            OrchardRealProofStatus::Malformed => ORCHARD_REAL_PROOF_STATUS_MALFORMED,
+            OrchardRealProofStatus::Invalid => ORCHARD_REAL_PROOF_STATUS_INVALID,
+            OrchardRealProofStatus::Unsupported => ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED,
+        }
+    }
 }
 
 pub fn expected_proof_payload_v1(
@@ -185,19 +208,28 @@ pub fn verify_orchard_real_proof_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> bool {
-    let Some(proof_bytes) = decode_orchard_real_proof_v1(proof, proof_kind, public_input_hash)
-    else {
-        return false;
-    };
-    verify_orchard_real_proof_backend_v1(proof_bytes, proof_kind, public_input_hash)
+    orchard_real_proof_status_v1(proof, proof_kind, public_input_hash)
+        == OrchardRealProofStatus::Valid
 }
 
-fn verify_orchard_real_proof_backend_v1(
+pub fn orchard_real_proof_status_v1(
+    proof: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> OrchardRealProofStatus {
+    let Some(proof_bytes) = decode_orchard_real_proof_v1(proof, proof_kind, public_input_hash)
+    else {
+        return OrchardRealProofStatus::Malformed;
+    };
+    verify_orchard_real_proof_backend_status_v1(proof_bytes, proof_kind, public_input_hash)
+}
+
+fn verify_orchard_real_proof_backend_status_v1(
     _proof_bytes: &[u8],
     _proof_kind: u8,
     _public_input_hash: &[u8; HASH_SIZE],
-) -> bool {
-    false
+) -> OrchardRealProofStatus {
+    OrchardRealProofStatus::Unsupported
 }
 
 pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
@@ -570,6 +602,25 @@ pub unsafe extern "C" fn zkc_shielded_verify_orchard_real_proof_v1(
     ))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_verify_orchard_real_proof_status_v1(
+    proof: *const u8,
+    proof_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+) -> i32 {
+    if proof.is_null() {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    };
+
+    let proof = slice::from_raw_parts(proof, proof_len);
+    orchard_real_proof_status_v1(proof, proof_kind, public_input_hash).as_ffi_code()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -731,11 +782,19 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            orchard_real_proof_status_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofStatus::Unsupported
+        );
         assert!(!is_well_formed_orchard_real_proof_v1(
             &real_proof_v1,
             2,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            orchard_real_proof_status_v1(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofStatus::Malformed
+        );
         let mut wrong_real_proof_v1 = real_proof_v1.clone();
         wrong_real_proof_v1[ORCHARD_REAL_PROOF_PREFIX_V1.len()] = 0x01;
         assert!(!is_well_formed_orchard_real_proof_v1(
@@ -743,6 +802,10 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            orchard_real_proof_status_v1(&wrong_real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofStatus::Malformed
+        );
         let mut wrong_real_proof_v1 = real_proof_v1.clone();
         let verifier_key_hash_offset = ORCHARD_REAL_PROOF_PREFIX_V1.len() + 1 + 1 + HASH_SIZE;
         wrong_real_proof_v1[verifier_key_hash_offset] ^= 0x01;
@@ -999,6 +1062,19 @@ mod tests {
 
         let real_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &[0x42; 192]);
+        let unsupported_real_proof_status_v1 = unsafe {
+            zkc_shielded_verify_orchard_real_proof_status_v1(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(
+            unsupported_real_proof_status_v1,
+            ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED
+        );
         let unsupported_real_proof_v1 = unsafe {
             zkc_shielded_verify_orchard_real_proof_v1(
                 real_proof_v1.as_ptr(),
@@ -1009,6 +1085,20 @@ mod tests {
             )
         };
         assert_eq!(unsupported_real_proof_v1, 0);
+
+        let malformed_real_proof_status_v1 = unsafe {
+            zkc_shielded_verify_orchard_real_proof_status_v1(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                2,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(
+            malformed_real_proof_status_v1,
+            ORCHARD_REAL_PROOF_STATUS_MALFORMED
+        );
 
         let real_body_v1 = build_orchard_real_proof_body_with_context_v1(
             1,

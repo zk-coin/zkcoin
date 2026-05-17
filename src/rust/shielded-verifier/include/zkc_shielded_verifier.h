@@ -8,6 +8,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define ZKC_ORCHARD_REAL_PROOF_STATUS_MALFORMED 0
+#define ZKC_ORCHARD_REAL_PROOF_STATUS_VALID 1
+#define ZKC_ORCHARD_REAL_PROOF_STATUS_INVALID -1
+#define ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED -2
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +56,13 @@ int zkc_shielded_verify_orchard_proof_v1(
     size_t public_input_hash_len);
 
 int zkc_shielded_verify_orchard_real_proof_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
+int zkc_shielded_verify_orchard_real_proof_status_v1(
     const unsigned char* proof,
     size_t proof_len,
     uint8_t proof_kind,

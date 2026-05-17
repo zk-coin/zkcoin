@@ -4,9 +4,12 @@ This crate exposes the `zkc_shielded_verify_proof_v1`,
 `zkc_shielded_verify_proof_v2`, `zkc_shielded_verify_proof_v3`,
 `zkc_shielded_verify_bundle_v4`, `zkc_shielded_verify_orchard_proof_v1`, and
 `zkc_shielded_verify_orchard_real_proof_v1` C ABIs used by the C++ consensus
-shielded pool. The current v4 path moves consensus toward the real verifier
-boundary: C++ computes the consensus public-input hash, while Rust parses a
-versioned proof bundle and dispatches by proof-system id.
+shielded pool. A companion
+`zkc_shielded_verify_orchard_real_proof_status_v1` ABI returns a typed status
+for diagnostics and future verifier wiring. The current v4 path moves consensus
+toward the real verifier boundary: C++ computes the consensus public-input
+hash, while Rust parses a versioned proof bundle and dispatches by
+proof-system id.
 
 The v4 bundle layout is:
 
@@ -40,6 +43,10 @@ verifier-key commitments, and malformed lengths are rejected. The real-proof
 backend still returns unsupported until the Orchard verifier is wired; this
 keeps local Litecoin snapshot launch and Scrypt AuxPoW tests reproducible while
 preventing placeholder proof bytes from being accepted as production proofs.
+
+The real-proof status ABI returns `1` for a valid proof, `0` for malformed
+bytes or context mismatch, `-1` for a parsed but invalid proof, and `-2` when a
+well-formed proof reaches a verifier backend that has not been wired yet.
 
 Run the Rust tests and C ABI smoke test with:
 

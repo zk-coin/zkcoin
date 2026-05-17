@@ -240,6 +240,16 @@ bool VerifyOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t p
         SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
 }
 
+int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash)
+{
+    return zkc_shielded_verify_orchard_real_proof_status_v1(
+        proof.data(),
+        proof.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE);
+}
+
 bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash)
 {
     return zkc_shielded_verify_orchard_proof_v1(
@@ -475,6 +485,22 @@ extern "C" int zkc_shielded_verify_orchard_real_proof_v1(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len)
 {
+    const int status = zkc_shielded_verify_orchard_real_proof_status_v1(
+        proof,
+        proof_len,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len);
+    return status == Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID ? 1 : 0;
+}
+
+extern "C" int zkc_shielded_verify_orchard_real_proof_status_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len)
+{
     if (proof == nullptr || public_input_hash == nullptr) return 0;
     if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
 
@@ -485,9 +511,9 @@ extern "C" int zkc_shielded_verify_orchard_real_proof_v1(
             proof_kind,
             public_input_hash_value,
             proof_bytes)) {
-        return 0;
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
     }
 
-    return 0;
+    return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

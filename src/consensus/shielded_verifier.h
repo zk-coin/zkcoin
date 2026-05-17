@@ -56,6 +56,13 @@ extern "C" int zkc_shielded_verify_orchard_real_proof_v1(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+extern "C" int zkc_shielded_verify_orchard_real_proof_status_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 namespace Consensus {
 namespace ShieldedPool {
 
@@ -66,6 +73,10 @@ static constexpr uint8_t SHIELDED_PROOF_SYSTEM_ORCHARD{1};
 static constexpr uint8_t SHIELDED_PROOF_BUNDLE_FLAGS_NONE{0};
 static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD{0};
 static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL{1};
+static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED{0};
+static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID{1};
+static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID{-1};
+static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED{-2};
 
 uint256 ExpectedProofEnvelopeHash(const uint256& field_hash, const uint256& tx_binding_hash);
 std::vector<unsigned char> BuildProofPayloadV1(const uint256& field_hash, const uint256& tx_binding_hash);
@@ -82,6 +93,7 @@ uint256 ExpectedOrchardRealVerifierKeyHashV1();
 std::vector<unsigned char> BuildOrchardRealProofV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_bytes);
 bool DecodeOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, std::vector<unsigned char>& proof_bytes);
 bool VerifyOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
+int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_body_mode, const std::vector<unsigned char>& proof_bytes);
 std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildOrchardRealProofBodyV1(const std::vector<unsigned char>& proof_bytes);

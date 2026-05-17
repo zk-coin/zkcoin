@@ -170,12 +170,20 @@ int main(void)
         return 13;
     }
 
-    if (zkc_shielded_verify_orchard_real_proof_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+    if (zkc_shielded_verify_orchard_real_proof_status_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
         return 14;
     }
 
-    if (zkc_shielded_verify_orchard_proof_v1(real_orchard_body_v1, sizeof(real_orchard_body_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+    if (zkc_shielded_verify_orchard_real_proof_status_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != ZKC_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
         return 15;
+    }
+
+    if (zkc_shielded_verify_orchard_real_proof_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 16;
+    }
+
+    if (zkc_shielded_verify_orchard_proof_v1(real_orchard_body_v1, sizeof(real_orchard_body_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 17;
     }
 
     return 0;

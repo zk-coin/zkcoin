@@ -229,11 +229,20 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         decoded_real_proof_bytes.begin(),
         decoded_real_proof_bytes.end());
     BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
+    BOOST_CHECK_EQUAL(
+        VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_MINT, public_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
     BOOST_CHECK(!DecodeOrchardRealProofV1(real_proof_v1, ACTION_SPEND, public_input_hash, decoded_real_proof_bytes));
+    BOOST_CHECK_EQUAL(
+        VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_SPEND, public_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
     auto wrong_real_proof_v1 = real_proof_v1;
     const size_t real_proof_flags_offset = sizeof("zkc-orchard-real-v1") - 1;
     wrong_real_proof_v1[real_proof_flags_offset] = 0x01;
     BOOST_CHECK(!DecodeOrchardRealProofV1(wrong_real_proof_v1, ACTION_MINT, public_input_hash, decoded_real_proof_bytes));
+    BOOST_CHECK_EQUAL(
+        VerifyOrchardRealProofStatusV1(wrong_real_proof_v1, ACTION_MINT, public_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
     wrong_real_proof_v1 = real_proof_v1;
     const size_t real_verifier_key_hash_offset = real_proof_flags_offset + 1 + 1 + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
     wrong_real_proof_v1[real_verifier_key_hash_offset] ^= 0x01;
