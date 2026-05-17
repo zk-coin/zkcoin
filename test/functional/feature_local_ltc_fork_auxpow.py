@@ -17,7 +17,7 @@ from test_framework.blocktools import (
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxOut
 from test_framework.script import CScript
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 
 class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
@@ -61,13 +61,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(snapshot["imported_block_hash"], verify["base_hash"])
         assert_equal(snapshot["imported_hash"], verify["import_hash"])
 
-    def child_launch_args(self, dump, verify):
+    def child_launch_args(self, dump, verify, import_hash=None):
         return [
             "-acceptnonstdtxn=1",
             "-auxpowheight=1",
             f"-ltcsnapshotheight={dump['base_height']}",
             f"-ltcsnapshotblockhash={verify['base_hash']}",
-            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+            f"-ltcsnapshotutxoroot={import_hash or verify['import_hash']}",
         ]
 
     def run_test(self):
@@ -104,6 +104,35 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         parent_excluded_miner_coinbase = parent.gettxout(excluded_miner_coinbase_outpoint["txid"], excluded_miner_coinbase_outpoint["vout"])
         assert_equal(Decimal(str(parent_excluded_miner_coinbase["value"])), Decimal("50.00000000"))
         assert_equal(parent_excluded_miner_coinbase["coinbase"], True)
+        parent_immature_coinbase_spend = parent.createrawtransaction(
+            [miner_coinbase_outpoint],
+            {bob_key.address: Decimal("49.99900000")},
+        )
+        assert_raises_rpc_error(
+            -26,
+            "bad-txns-premature-spend-of-coinbase",
+            parent.sendrawtransaction,
+            parent_immature_coinbase_spend,
+        )
+
+        self.log.info("Reject a wrong-root local snapshot import without mutating named child UTXOs")
+        wrong_import_hash = ("00" if verify["import_hash"][:2] != "00" else "01") + verify["import_hash"][2:]
+        self.stop_node(1)
+        self.start_node(1, extra_args=self.child_launch_args(dump, verify, wrong_import_hash))
+        child = self.nodes[1]
+        assert_raises_rpc_error(
+            -8,
+            "snapshot import hash mismatch",
+            child.importsnapshotmanifest,
+            dump["path"],
+        )
+        snapshot_info = child.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], False)
+        assert_equal(snapshot_info["import_in_progress"], False)
+        assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"]), None)
+        assert_equal(child.gettxout(bob_outpoint["txid"], bob_outpoint["vout"]), None)
+        assert_equal(child.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"]), None)
+        assert_equal(child.gettxout(excluded_miner_coinbase_outpoint["txid"], excluded_miner_coinbase_outpoint["vout"]), None)
 
         self.log.info("Start child chain with block-X snapshot and AuxPoW activation")
         self.stop_node(1)
