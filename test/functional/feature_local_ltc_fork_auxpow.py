@@ -25,6 +25,7 @@ from test_framework.util import assert_array_result, assert_equal, assert_raises
 
 MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
+ACTION_SPEND = 0x02
 PROOF_TAG_SIZE = 3
 PROOF_ENVELOPE_PREFIX = b"zkc-proof-v3"
 PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
@@ -97,18 +98,29 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_commitment(self, label):
         return hashlib.sha256(label.encode()).digest()
 
-    def shielded_proof_hash(self, action, shielded_value, commitment):
-        preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
+    def shielded_nullifier(self, label):
+        return hashlib.sha256(label.encode()).digest()
+
+    def root_hex_to_payload_bytes(self, root_hex):
+        return bytes.fromhex(root_hex)[::-1]
+
+    def shielded_proof_hash(self, action, shielded_value, commitment=None, nullifier=None, anchor=None):
+        if action == ACTION_MINT:
+            preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
+        elif action == ACTION_SPEND:
+            preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier + anchor
+        else:
+            raise AssertionError(f"unknown shielded action {action}")
         return hashlib.sha256(hashlib.sha256(preimage).digest()).digest()
 
-    def shielded_proof_tag(self, action, shielded_value, commitment):
-        return self.shielded_proof_hash(action, shielded_value, commitment)[:PROOF_TAG_SIZE]
+    def shielded_proof_tag(self, action, shielded_value, commitment=None, nullifier=None, anchor=None):
+        return self.shielded_proof_hash(action, shielded_value, commitment=commitment, nullifier=nullifier, anchor=anchor)[:PROOF_TAG_SIZE]
 
     def hash256(self, data):
         return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
-    def shielded_proof_envelope(self, tx, action, shielded_value, commitment):
-        proof_hash = self.shielded_proof_hash(action, shielded_value, commitment)
+    def shielded_proof_envelope(self, tx, action, shielded_value, commitment=None, nullifier=None, anchor=None):
+        proof_hash = self.shielded_proof_hash(action, shielded_value, commitment=commitment, nullifier=nullifier, anchor=anchor)
         tx_binding_hash = self.hash256(tx.serialize_without_witness())
         public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + proof_hash + tx_binding_hash)
         proof_payload = self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + public_input_hash)
@@ -124,7 +136,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             + bytes([ACTION_MINT])
             + shielded_value.to_bytes(8, "little")
             + commitment
-            + self.shielded_proof_tag(ACTION_MINT, shielded_value, commitment)
+            + self.shielded_proof_tag(ACTION_MINT, shielded_value, commitment=commitment)
         )
         destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
 
@@ -134,7 +146,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             CTxOut(prev_value - shielded_value - 100000, destination_script),
             CTxOut(0, CScript([OP_RETURN, payload])),
         ]
-        proof_envelope = self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment)
+        proof_envelope = self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment=commitment)
         if mutate_public_input:
             proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 1)
         if mutate_proof_payload:
@@ -144,6 +156,29 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         tx.wit.vtxinwit[0].scriptWitness.stack = [proof_envelope, PROOF_SCRIPT]
         tx.rehash()
         return tx.serialize().hex()
+
+    def create_shielded_spend_tx(self, outpoint, prev_txout, destination_script, nullifier, anchor, shielded_value=COIN):
+        prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
+        payload = (
+            MARKER_PREFIX
+            + bytes([ACTION_SPEND])
+            + shielded_value.to_bytes(8, "little")
+            + nullifier
+            + anchor
+            + self.shielded_proof_tag(ACTION_SPEND, shielded_value, nullifier=nullifier, anchor=anchor)
+        )
+
+        tx = CTransaction()
+        tx.vin = [CTxIn(COutPoint(int(outpoint["txid"], 16), outpoint["vout"]))]
+        tx.vout = [
+            CTxOut(prev_value + shielded_value - 100000, destination_script),
+            CTxOut(0, CScript([OP_RETURN, payload])),
+        ]
+        proof_envelope = self.shielded_proof_envelope(tx, ACTION_SPEND, shielded_value, nullifier=nullifier, anchor=anchor)
+        tx.wit.vtxinwit = [CTxInWitness()]
+        tx.wit.vtxinwit[0].scriptWitness.stack = [proof_envelope, PROOF_SCRIPT]
+        tx.rehash()
+        return tx.serialize().hex(), tx.hash
 
     def run_test(self):
         parent = self.nodes[0]
@@ -458,6 +493,69 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(reloaded_shielded_info["commitments"], 1)
         assert_equal(reloaded_shielded_info["nullifiers"], 0)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
+
+        self.log.info("Mine a shielded spend through local parent AuxPoW")
+        spend_anchor = self.root_hex_to_payload_bytes(reloaded_shielded_info["root"])
+        spend_nullifier = self.shielded_nullifier("local-parent-fork-auxpow-shielded-spend")
+        spend_source = child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)
+        assert_equal(Decimal(str(spend_source["value"])), Decimal("6.00000000"))
+        raw_shielded_spend, shielded_spend_txid = self.create_shielded_spend_tx(
+            duplicate_proof_outpoint,
+            spend_source,
+            proof_script,
+            spend_nullifier,
+            spend_anchor,
+        )
+        assert_equal(child.sendrawtransaction(raw_shielded_spend), shielded_spend_txid)
+
+        if self.is_wallet_compiled():
+            shielded_spend_candidate = child.getauxblock()
+        else:
+            shielded_spend_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(shielded_spend_candidate["height"], 3)
+        shielded_spend_parent_block = self.mine_parent_block(parent, commitment_hex=shielded_spend_candidate["auxpowcommitment"])
+        shielded_spend_auxpow = build_parent_auxpow(shielded_spend_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(shielded_spend_candidate["hash"], shielded_spend_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(shielded_spend_candidate["hash"], shielded_spend_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 3)
+        assert_equal(child.getbestblockhash(), shielded_spend_candidate["hash"])
+        assert shielded_spend_txid in child.getblock(shielded_spend_candidate["hash"])["tx"]
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False), None)
+        shielded_spend_output = child.gettxout(shielded_spend_txid, 0, False)
+        assert_equal(Decimal(str(shielded_spend_output["value"])), Decimal("6.99900000"))
+        shielded_spend_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(shielded_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(shielded_spend_info["commitments"], 1)
+        assert_equal(shielded_spend_info["nullifiers"], 1)
+
+        duplicate_nullifier_outpoint = {"txid": shielded_spend_txid, "vout": 0}
+        duplicate_nullifier_source = child.gettxout(duplicate_nullifier_outpoint["txid"], duplicate_nullifier_outpoint["vout"], False)
+        raw_duplicate_nullifier, _ = self.create_shielded_spend_tx(
+            duplicate_nullifier_outpoint,
+            duplicate_nullifier_source,
+            proof_script,
+            spend_nullifier,
+            spend_anchor,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier)
+
+        self.log.info("Restart child after merge-mined shielded spend and replay shielded nullifier state")
+        self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
+        child = self.nodes[1]
+        assert_equal(child.getblockcount(), 3)
+        assert_equal(child.getbestblockhash(), shielded_spend_candidate["hash"])
+        self.assert_child_snapshot_imported(child, dump, verify)
+        reloaded_spend_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reloaded_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reloaded_spend_info["commitments"], 1)
+        assert_equal(reloaded_spend_info["nullifiers"], 1)
+        assert_equal(child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False), None)
+        reloaded_shielded_spend_output = child.gettxout(shielded_spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_shielded_spend_output["value"])), Decimal("6.99900000"))
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier)
 
 
 if __name__ == "__main__":
