@@ -1367,15 +1367,6 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
     AuxPowReservation duplicate_valid_reservation;
     {
         LOCK(cs_main);
-        const CBlockIndex* pindexPrev = ::ChainActive().Tip();
-        if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
-            RemoveAuxPowCandidate(hash);
-            if (dogecoin_compat) return false;
-            return "inconclusive-not-best-prevblk";
-        }
-        if (!consensus.auxpow.IsEnabled(pindexPrev->nHeight + 1)) {
-            throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
-        }
         const CBlockIndex* pindex = LookupBlockIndex(hash);
         if (pindex) {
             if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
@@ -1387,6 +1378,17 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
                 RemoveAuxPowCandidate(hash);
                 if (dogecoin_compat) return false;
                 return "duplicate-invalid";
+            }
+        }
+        if (!duplicate_valid) {
+            const CBlockIndex* pindexPrev = ::ChainActive().Tip();
+            if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
+                RemoveAuxPowCandidate(hash);
+                if (dogecoin_compat) return false;
+                return "inconclusive-not-best-prevblk";
+            }
+            if (!consensus.auxpow.IsEnabled(pindexPrev->nHeight + 1)) {
+                throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
             }
         }
     }
