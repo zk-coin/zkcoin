@@ -22,7 +22,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
 
 
-MARKER_PREFIX = b"zkc-shield-v0"
+MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 
 

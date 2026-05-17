@@ -23,9 +23,10 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.wallet import MiniWallet
 
 
-MARKER_PREFIX = b"zkc-shield-v0"
+MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 ACTION_SPEND = 0x02
+EMPTY_ROOT = "00" * 32
 
 
 class ShieldedPoolTest(BitcoinTestFramework):
@@ -46,7 +47,10 @@ class ShieldedPoolTest(BitcoinTestFramework):
         self.marker_nonce += 1
         return hashlib.sha256(f"{label}-{self.marker_nonce}".encode()).digest()
 
-    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, shielded_value=COIN):
+    def root_hex_to_payload_bytes(self, root_hex):
+        return bytes.fromhex(root_hex)[::-1]
+
+    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN):
         if commitment is None:
             commitment = self.unique_field("commitment")
 
@@ -56,15 +60,17 @@ class ShieldedPoolTest(BitcoinTestFramework):
 
         if nullifier is None:
             nullifier = self.unique_field("nullifier")
+        if anchor is None:
+            anchor = self.unique_field("anchor")
 
         if action == ACTION_SPEND:
-            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier
+            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier + anchor
             return payload, commitment, nullifier
 
         payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
         return payload, commitment, nullifier
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, shielded_value=COIN):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -82,6 +88,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
             action=action,
             commitment=commitment,
             nullifier=nullifier,
+            anchor=anchor,
             shielded_value=shielded_value,
         )
         for _ in range(marker_count):
@@ -110,6 +117,8 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(Decimal(str(active.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0E-8"))
         assert_equal(active.getblockchaininfo()["shielded_pool"]["commitments"], 0)
         assert_equal(active.getblockchaininfo()["shielded_pool"]["nullifiers"], 0)
+        assert_equal(active.getblockchaininfo()["shielded_pool"]["root"], EMPTY_ROOT)
+        assert_equal(active.getblockchaininfo()["shielded_pool"]["anchors"], 1)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["start_height"], 200)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
 
@@ -146,9 +155,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
         raw_zero_nullifier, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-nullifier", active.sendrawtransaction, raw_zero_nullifier)
 
-        self.log.info("Reject shielded spends before the value pool is funded")
+        self.log.info("Reject shielded spends with unknown anchors")
         raw_unfunded_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND)
-        assert_raises_rpc_error(-26, "bad-shielded-value-pool", active.sendrawtransaction, raw_unfunded_spend)
+        assert_raises_rpc_error(-26, "bad-shielded-anchor", active.sendrawtransaction, raw_unfunded_spend)
 
         self.log.info("Reject duplicate shielded state inside a candidate block")
         duplicate_block_commitment = self.unique_field("duplicate-block-commitment")
@@ -173,17 +182,23 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("1.00000000"))
         assert_equal(shielded_info["commitments"], 1)
         assert_equal(shielded_info["nullifiers"], 0)
+        assert shielded_info["root"] != EMPTY_ROOT
+        assert_equal(shielded_info["anchors"], 2)
+        mined_anchor = self.root_hex_to_payload_bytes(shielded_info["root"])
 
         self.log.info("Reject duplicate shielded commitments from active-chain state")
         raw_chain_duplicate, _, _, _ = self.make_marker_tx(wallets[1], commitment=mined_commitment)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", active.sendrawtransaction, raw_chain_duplicate)
 
+        raw_overspend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, anchor=mined_anchor, shielded_value=2 * COIN)
+        assert_raises_rpc_error(-26, "bad-shielded-value-pool", active.sendrawtransaction, raw_overspend)
+
         self.log.info("Reject duplicate shielded nullifiers from mempool and active-chain state")
         shared_nullifier = self.unique_field("shared-nullifier")
-        raw_spend, spend_txid, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        raw_spend, spend_txid, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier, anchor=mined_anchor)
         assert_equal(active.sendrawtransaction(raw_spend), spend_txid)
 
-        raw_mempool_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        raw_mempool_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier, anchor=mined_anchor)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", active.sendrawtransaction, raw_mempool_duplicate)
 
         spend_block_hash = active.generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)[0]
@@ -192,8 +207,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("0E-8"))
         assert_equal(shielded_info["commitments"], 1)
         assert_equal(shielded_info["nullifiers"], 1)
+        assert_equal(shielded_info["anchors"], 2)
 
-        raw_chain_nullifier_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        raw_chain_nullifier_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier, anchor=mined_anchor)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", active.sendrawtransaction, raw_chain_nullifier_duplicate)
 
 

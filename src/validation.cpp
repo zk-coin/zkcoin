@@ -582,11 +582,18 @@ struct ShieldedValidationState
 {
     std::set<uint256> commitments;
     std::set<uint256> nullifiers;
+    std::set<uint256> anchors;
     CAmount nValuePool{0};
+    uint256 commitment_root;
+    uint64_t nCommitments{0};
 };
 
 static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& marker, ShieldedValidationState& shielded, std::string& reject_reason)
 {
+    if (marker.HasAnchor() && !shielded.anchors.count(marker.anchor)) {
+        reject_reason = "bad-shielded-anchor";
+        return false;
+    }
     if (marker.HasNullifier() && !shielded.nullifiers.insert(marker.nullifier).second) {
         reject_reason = "bad-shielded-duplicate-nullifier";
         return false;
@@ -606,6 +613,11 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
     if (!MoneyRange(shielded.nValuePool)) {
         reject_reason = "bad-shielded-value-pool";
         return false;
+    }
+    if (marker.HasCommitment()) {
+        shielded.commitment_root = Consensus::ShieldedPool::AppendCommitmentRoot(shielded.commitment_root, shielded.nCommitments, marker.commitment);
+        ++shielded.nCommitments;
+        shielded.anchors.insert(shielded.commitment_root);
     }
     return true;
 }
@@ -657,6 +669,7 @@ static bool CheckShieldedBlockState(const CBlock& block, const CBlockIndex* pind
 {
     const bool active = consensus.shielded_pool.IsEnabled(nHeight);
     ShieldedValidationState shielded;
+    shielded.anchors.insert(shielded.commitment_root);
 
     if (active && !LoadShieldedChainState(pindexPrev, consensus, shielded, state)) {
         return false;
@@ -676,6 +689,7 @@ static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool:
     if (markers.empty()) return true;
 
     ShieldedValidationState shielded;
+    shielded.anchors.insert(shielded.commitment_root);
     BlockValidationState block_state;
     if (!LoadShieldedChainState(::ChainActive().Tip(), consensus, shielded, block_state)) {
         return state.Error(strprintf("failed to read shielded chain state: %s", block_state.ToString()));

@@ -7,6 +7,7 @@
 
 #include <amount.h>
 #include <consensus/validation.h>
+#include <hash.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <uint256.h>
@@ -27,18 +28,20 @@ struct Marker
 {
     uint8_t action{0};
     CAmount nValue{0};
+    uint256 anchor;
     uint256 commitment;
     uint256 nullifier;
 
     bool HasCommitment() const { return action == ACTION_MINT; }
     bool HasNullifier() const { return action == ACTION_SPEND; }
+    bool HasAnchor() const { return action == ACTION_SPEND; }
     CAmount ValuePoolDelta() const { return action == ACTION_MINT ? nValue : -nValue; }
 };
 
 inline const std::vector<unsigned char>& MarkerPrefix()
 {
-    // Keep the marker short enough for spend payloads to stay standard-relay sized.
-    static const std::vector<unsigned char> marker{'z', 'k', 'c', '-', 's', 'h', 'i', 'e', 'l', 'd', '-', 'v', '0'};
+    // Keep the marker short enough for spend payloads with anchors to stay standard-relay sized.
+    static const std::vector<unsigned char> marker{'z', 'k', 'c', '0'};
     return marker;
 }
 
@@ -62,7 +65,7 @@ inline bool IsMarkerPayloadWellFormed(const std::vector<unsigned char>& payload)
         return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE;
     }
     if (action == ACTION_SPEND) {
-        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE;
+        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE + FIELD_SIZE;
     }
     return false;
 }
@@ -88,6 +91,17 @@ inline void AppendAmount(std::vector<unsigned char>& payload, CAmount amount)
     }
 }
 
+inline uint256 AppendCommitmentRoot(const uint256& previous_root, uint64_t position, const uint256& commitment)
+{
+    std::vector<unsigned char> data{'z', 'k', 'c', '-', 'n', 'o', 't', 'e', '-', 'r', 'o', 'o', 't', '-', 'v', '0'};
+    data.insert(data.end(), previous_root.begin(), previous_root.end());
+    for (size_t i = 0; i < sizeof(position); ++i) {
+        data.push_back((position >> (8 * i)) & 0xff);
+    }
+    data.insert(data.end(), commitment.begin(), commitment.end());
+    return Hash(data);
+}
+
 inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marker& marker)
 {
     if (!IsMarkerPayloadWellFormed(payload)) return false;
@@ -106,6 +120,7 @@ inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marke
     }
     if (marker.action == ACTION_SPEND) {
         marker.nullifier = ReadUint256Field(payload, field_offset);
+        marker.anchor = ReadUint256Field(payload, field_offset + FIELD_SIZE);
         return true;
     }
 
@@ -121,13 +136,19 @@ inline std::vector<unsigned char> BuildMintPayload(const uint256& commitment, CA
     return payload;
 }
 
-inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, CAmount amount)
+inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, const uint256& anchor, CAmount amount)
 {
     std::vector<unsigned char> payload = MarkerPrefix();
     payload.push_back(ACTION_SPEND);
     AppendAmount(payload, amount);
     payload.insert(payload.end(), nullifier.begin(), nullifier.end());
+    payload.insert(payload.end(), anchor.begin(), anchor.end());
     return payload;
+}
+
+inline bool VerifyStubbedProof(const Marker&)
+{
+    return true;
 }
 
 inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)
@@ -159,6 +180,12 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
         }
         if (marker.HasNullifier() && marker.nullifier.IsNull()) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-nullifier");
+        }
+        if (marker.HasAnchor() && marker.anchor.IsNull()) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-anchor");
+        }
+        if (!VerifyStubbedProof(marker)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-proof");
         }
         if (markers_out) {
             markers_out->push_back(marker);

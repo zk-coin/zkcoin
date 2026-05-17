@@ -45,6 +45,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <set>
 
 struct CUpdatedBlock
 {
@@ -1401,6 +1402,8 @@ struct ShieldedPoolRpcState
     CAmount nValuePool{0};
     size_t nCommitments{0};
     size_t nNullifiers{0};
+    std::set<uint256> anchors{uint256()};
+    uint256 commitment_root;
 };
 
 static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params& consensus, ShieldedPoolRpcState& pool_state, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
@@ -1424,6 +1427,10 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
             }
 
             for (const auto& marker : markers) {
+                if (marker.HasAnchor() && !pool_state.anchors.count(marker.anchor)) {
+                    error = strprintf("shielded spend references unknown anchor %s", marker.anchor.ToString());
+                    return false;
+                }
                 const CAmount delta = marker.ValuePoolDelta();
                 if ((delta > 0 && pool_state.nValuePool > MAX_MONEY - delta) ||
                     (delta < 0 && pool_state.nValuePool < -delta)) {
@@ -1431,7 +1438,11 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
                     return false;
                 }
                 pool_state.nValuePool += delta;
-                if (marker.HasCommitment()) ++pool_state.nCommitments;
+                if (marker.HasCommitment()) {
+                    pool_state.commitment_root = Consensus::ShieldedPool::AppendCommitmentRoot(pool_state.commitment_root, pool_state.nCommitments, marker.commitment);
+                    ++pool_state.nCommitments;
+                    pool_state.anchors.insert(pool_state.commitment_root);
+                }
                 if (marker.HasNullifier()) ++pool_state.nNullifiers;
             }
         }
@@ -1524,6 +1535,8 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::NUM, "value_pool", "current shielded value pool balance"},
                             {RPCResult::Type::NUM, "commitments", "number of accepted shielded note commitments"},
                             {RPCResult::Type::NUM, "nullifiers", "number of accepted shielded spend nullifiers"},
+                            {RPCResult::Type::STR_HEX, "root", "current shielded note commitment root"},
+                            {RPCResult::Type::NUM, "anchors", "number of accepted shielded note commitment anchors, including the empty root"},
                             {RPCResult::Type::STR, "state_error", /*optional=*/true, "state scan error, if the shielded pool summary could not be computed"},
                         }},
                         {RPCResult::Type::OBJ, "ltc_snapshot", "Litecoin block-X launch snapshot parameters",
@@ -1611,6 +1624,8 @@ RPCHelpMan getblockchaininfo()
         shielded_pool.pushKV("value_pool", ValueFromAmount(shielded_pool_state.nValuePool));
         shielded_pool.pushKV("commitments", static_cast<int64_t>(shielded_pool_state.nCommitments));
         shielded_pool.pushKV("nullifiers", static_cast<int64_t>(shielded_pool_state.nNullifiers));
+        shielded_pool.pushKV("root", shielded_pool_state.commitment_root.ToString());
+        shielded_pool.pushKV("anchors", static_cast<int64_t>(shielded_pool_state.anchors.size()));
     } else {
         shielded_pool.pushKV("state_error", shielded_pool_error);
     }
