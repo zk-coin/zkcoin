@@ -114,7 +114,10 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         proof_payload = self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + public_input_hash)
         return PROOF_ENVELOPE_PREFIX + bytes([action]) + public_input_hash + proof_payload
 
-    def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN):
+    def flip_proof_byte(self, proof_envelope, offset):
+        return proof_envelope[:offset] + bytes([proof_envelope[offset] ^ 0x01]) + proof_envelope[offset + 1 :]
+
+    def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN, mutate_public_input=False, mutate_proof_payload=False):
         prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
         payload = (
             MARKER_PREFIX
@@ -131,11 +134,14 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             CTxOut(prev_value - shielded_value - 100000, destination_script),
             CTxOut(0, CScript([OP_RETURN, payload])),
         ]
+        proof_envelope = self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment)
+        if mutate_public_input:
+            proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 1)
+        if mutate_proof_payload:
+            proof_envelope = self.flip_proof_byte(proof_envelope, len(proof_envelope) - 1)
+
         tx.wit.vtxinwit = [CTxInWitness()]
-        tx.wit.vtxinwit[0].scriptWitness.stack = [
-            self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment),
-            PROOF_SCRIPT,
-        ]
+        tx.wit.vtxinwit[0].scriptWitness.stack = [proof_envelope, PROOF_SCRIPT]
         tx.rehash()
         return tx.serialize().hex()
 
@@ -390,6 +396,28 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             shielded_commitment,
         )
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
+
+        bad_public_input_commitment = self.shielded_commitment("local-parent-fork-bad-public-input")
+        raw_bad_public_input_mint = self.create_shielded_mint_tx(
+            child,
+            duplicate_proof_outpoint,
+            reloaded_duplicate_proof,
+            bob_key.address,
+            bad_public_input_commitment,
+            mutate_public_input=True,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_bad_public_input_mint)
+
+        bad_payload_commitment = self.shielded_commitment("local-parent-fork-bad-proof-payload")
+        raw_bad_payload_mint = self.create_shielded_mint_tx(
+            child,
+            duplicate_proof_outpoint,
+            reloaded_duplicate_proof,
+            bob_key.address,
+            bad_payload_commitment,
+            mutate_proof_payload=True,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_bad_payload_mint)
 
         if self.is_wallet_compiled():
             shielded_candidate = child.getauxblock()

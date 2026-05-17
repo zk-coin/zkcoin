@@ -91,6 +91,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
         proof_payload = self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + public_input_hash)
         return PROOF_ENVELOPE_PREFIX + bytes([action]) + public_input_hash + proof_payload
 
+    def flip_proof_byte(self, proof_envelope, offset):
+        return proof_envelope[:offset] + bytes([proof_envelope[offset] ^ 0x01]) + proof_envelope[offset + 1 :]
+
     def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None):
         if commitment is None:
             commitment = self.unique_field("commitment")
@@ -115,7 +118,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
         return payload, commitment, nullifier, {"action": action, "shielded_value": shielded_value, "commitment": commitment}
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, include_proof=True, mutate_after_proof=False):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, include_proof=True, mutate_after_proof=False, mutate_public_input=False, mutate_proof_payload=False):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -142,6 +145,10 @@ class ShieldedPoolTest(BitcoinTestFramework):
 
         if proof_envelope is None:
             proof_envelope = self.proof_envelope(tx, **proof_kwargs)
+        if mutate_public_input:
+            proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 1)
+        if mutate_proof_payload:
+            proof_envelope = self.flip_proof_byte(proof_envelope, len(proof_envelope) - 1)
         tx.wit.vtxinwit = [CTxInWitness()]
         tx.wit.vtxinwit[0].scriptWitness.stack = []
         if include_proof:
@@ -219,6 +226,26 @@ class ShieldedPoolTest(BitcoinTestFramework):
 
         raw_bad_envelope, _, _, _ = self.make_marker_tx(wallets[1], proof_envelope=PROOF_ENVELOPE_PREFIX + bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_envelope)
+
+        raw_bad_public_input, _, _, _ = self.make_marker_tx(wallets[1], mutate_public_input=True)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_public_input)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-proof",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_bad_public_input],
+        )
+
+        raw_bad_payload, _, _, _ = self.make_marker_tx(wallets[1], mutate_proof_payload=True)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_payload)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-proof",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_bad_payload],
+        )
 
         raw_bad_binding, _, _, _ = self.make_marker_tx(wallets[1], mutate_after_proof=True)
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_binding)
