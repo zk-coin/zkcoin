@@ -14,6 +14,7 @@
 #include <mweb/mweb_models.h>
 
 #include <cassert>
+#include <ios>
 #include <memory>
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
@@ -38,7 +39,9 @@ public:
         READWRITEAS(CPureBlockHeader, obj);
         if (obj.IsAuxpow()) {
             SER_READ(obj, obj.auxpow = std::make_shared<CAuxPow>());
-            assert(obj.auxpow);
+            if (!obj.auxpow) {
+                throw std::ios_base::failure("cannot serialize AuxPoW header without AuxPoW payload");
+            }
             READWRITE(*obj.auxpow);
         } else {
             SER_READ(obj, obj.auxpow.reset());

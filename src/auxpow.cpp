@@ -148,6 +148,7 @@ std::unique_ptr<CAuxPow> CAuxPow::createAuxPow(const CPureBlockHeader& header)
     auxpow->nIndex = 0;
     auxpow->nChainIndex = 0;
     auxpow->parentBlock = parent.GetBlockHeader();
+    auxpow->hashBlock = auxpow->parentBlock.GetHash();
 
     return auxpow;
 }

@@ -73,9 +73,43 @@ class AuxPowRPCTest(BitcoinTestFramework):
         self.log.info("Reject partial getauxblock submission arguments")
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")
 
+        self.log.info("Create Dogecoin-style AuxPoW candidate with payout address")
+        address = node.get_deterministic_priv_key().address
+        pool_candidate = node.createauxblock(address)
+        pool_candidate_repeat = node.createauxblock(address)
+        assert_equal(pool_candidate_repeat["hash"], pool_candidate["hash"])
+        assert_equal(pool_candidate["height"], 1)
+        assert_equal(pool_candidate["chainid"], node.getblockchaininfo()["auxpow"]["chain_id"])
+        assert_equal(pool_candidate["auxpowcommitment"], "fabe6d6d" + pool_candidate["hash"] + "0100000000000000")
+
+        self.log.info("Submit solved AuxPoW through Dogecoin-style RPC")
+        pool_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
+        solve_parent_header(pool_auxpow, int(pool_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(pool_candidate["hash"], pool_auxpow.serialize().hex()), True)
+        assert_equal(node.getblockcount(), 1)
+        assert_equal(node.getbestblockhash(), pool_candidate["hash"])
+
+        header_hex = node.getblockheader(pool_candidate["hash"], False)
+        assert header_hex.startswith(pool_candidate["header"])
+        assert len(header_hex) > len(pool_candidate["header"])
+
+        self.log.info("Reload AuxPoW header payload from block index after restart")
+        self.restart_node(0)
+        node = self.nodes[0]
+        assert_equal(node.getblockheader(pool_candidate["hash"], False), header_hex)
+
+        self.log.info("Reject unknown AuxPoW candidate through Dogecoin-style RPC")
+        assert_raises_rpc_error(
+            -8,
+            "block hash unknown",
+            node.submitauxblock,
+            pool_candidate["hash"],
+            pool_auxpow.serialize().hex(),
+        )
+
         self.log.info("Create AuxPoW candidate")
         candidate = node.getauxblock()
-        assert_equal(candidate["height"], 1)
+        assert_equal(candidate["height"], 2)
         assert_equal(candidate["chainid"], node.getblockchaininfo()["auxpow"]["chain_id"])
         assert_equal(candidate["previousblockhash"], node.getbestblockhash())
         assert_equal(candidate["auxpowcommitment"], "fabe6d6d" + candidate["hash"] + "0100000000000000")
@@ -89,7 +123,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         auxpow = parse_auxpow(candidate["defaultauxpow"])
         solve_parent_header(auxpow, int(candidate["bits"], 16))
         assert_equal(node.getauxblock(candidate["hash"], auxpow.serialize().hex()), None)
-        assert_equal(node.getblockcount(), 1)
+        assert_equal(node.getblockcount(), 2)
         assert_equal(node.getbestblockhash(), candidate["hash"])
 
         self.log.info("Reject unknown AuxPoW candidate")
@@ -107,7 +141,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         solve_parent_header(bad_auxpow, int(next_candidate["bits"], 16))
         bad_auxpow.index = 1
         assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), "high-hash")
-        assert_equal(node.getblockcount(), 1)
+        assert_equal(node.getblockcount(), 2)
 
 
 if __name__ == "__main__":

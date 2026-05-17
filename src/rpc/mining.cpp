@@ -39,6 +39,7 @@
 #include <warnings.h>
 
 #include <algorithm>
+#include <deque>
 #include <map>
 #include <memory>
 #include <stdint.h>
@@ -47,6 +48,9 @@ namespace {
 static constexpr size_t MAX_AUXPOW_CANDIDATES{32};
 
 std::map<uint256, std::shared_ptr<CBlock>> g_auxpow_candidates;
+std::deque<uint256> g_auxpow_candidate_order;
+std::map<CScriptID, uint256> g_auxpow_candidates_by_script;
+uint256 g_auxpow_candidate_tip;
 
 std::string SerializeAuxPowHex(const CAuxPow& auxpow)
 {
@@ -96,11 +100,54 @@ std::vector<unsigned char> BuildAuxPowCommitment(const uint256& hashAuxBlock)
     return commitment;
 }
 
-void StoreAuxPowCandidate(const CBlock& block)
+void ClearAuxPowCandidates()
 {
-    g_auxpow_candidates[block.GetHash()] = std::make_shared<CBlock>(block);
+    g_auxpow_candidates.clear();
+    g_auxpow_candidate_order.clear();
+    g_auxpow_candidates_by_script.clear();
+}
+
+void ResetAuxPowCandidatesForTip(const uint256& tip_hash)
+{
+    if (g_auxpow_candidate_tip != tip_hash) {
+        ClearAuxPowCandidates();
+        g_auxpow_candidate_tip = tip_hash;
+    }
+}
+
+std::shared_ptr<CBlock> FindAuxPowCandidate(const CScript& script_pub_key)
+{
+    const auto script_it = g_auxpow_candidates_by_script.find(CScriptID(script_pub_key));
+    if (script_it == g_auxpow_candidates_by_script.end()) {
+        return nullptr;
+    }
+
+    const auto candidate_it = g_auxpow_candidates.find(script_it->second);
+    if (candidate_it == g_auxpow_candidates.end()) {
+        g_auxpow_candidates_by_script.erase(script_it);
+        return nullptr;
+    }
+    return candidate_it->second;
+}
+
+void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key)
+{
+    const uint256 hash = block.GetHash();
+    g_auxpow_candidates[hash] = std::make_shared<CBlock>(block);
+    g_auxpow_candidate_order.push_back(hash);
+    g_auxpow_candidates_by_script[CScriptID(script_pub_key)] = hash;
+
     while (g_auxpow_candidates.size() > MAX_AUXPOW_CANDIDATES) {
-        g_auxpow_candidates.erase(g_auxpow_candidates.begin());
+        const uint256 evicted = g_auxpow_candidate_order.front();
+        g_auxpow_candidate_order.pop_front();
+        g_auxpow_candidates.erase(evicted);
+        for (auto it = g_auxpow_candidates_by_script.begin(); it != g_auxpow_candidates_by_script.end();) {
+            if (it->second == evicted) {
+                it = g_auxpow_candidates_by_script.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 }
 } // namespace
@@ -1019,6 +1066,209 @@ protected:
     }
 };
 
+static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CScript& coinbase_script)
+{
+    NodeContext& node = EnsureNodeContext(request.context);
+    if (!node.connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    const CChainParams& chainparams = Params();
+    if (!chainparams.IsTestChain()) {
+        if (node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0) {
+            throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
+        }
+        if (::ChainstateActive().IsInitialBlockDownload()) {
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
+        }
+    }
+
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const CTxMemPool& mempool = EnsureMemPool(request.context);
+    std::shared_ptr<CBlock> candidate;
+    int height;
+
+    {
+        LOCK(cs_main);
+        CBlockIndex* pindexPrev = ::ChainActive().Tip();
+        if (!pindexPrev) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "No active chain tip");
+        }
+
+        height = pindexPrev->nHeight + 1;
+        if (!consensus.auxpow.IsEnabled(height)) {
+            throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
+        }
+
+        ResetAuxPowCandidatesForTip(pindexPrev->GetBlockHash());
+        candidate = FindAuxPowCandidate(coinbase_script);
+        if (!candidate) {
+            std::unique_ptr<CBlockTemplate> blocktemplate = BlockAssembler(mempool, chainparams).CreateNewBlock(coinbase_script);
+            if (!blocktemplate) {
+                throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
+            }
+
+            CBlock& block = blocktemplate->block;
+            if (!block.IsAuxpow() || !block.auxpow) {
+                block.SetChainId(consensus.auxpow.nChainId);
+                CAuxPow::initAuxPow(block);
+            }
+            StoreAuxPowCandidate(block, coinbase_script);
+            candidate = g_auxpow_candidates.at(block.GetHash());
+        }
+    }
+
+    const CBlock& block = *candidate;
+    const uint256 hash = block.GetHash();
+    arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("hash", hash.GetHex());
+    result.pushKV("chainid", static_cast<int64_t>(consensus.auxpow.nChainId));
+    result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
+    result.pushKV("coinbasevalue", static_cast<int64_t>(block.vtx[0]->vout[0].nValue));
+    result.pushKV("bits", strprintf("%08x", block.nBits));
+    result.pushKV("target", hashTarget.GetHex());
+    result.pushKV("height", static_cast<int64_t>(height));
+    result.pushKV("auxpowcommitment", HexStr(BuildAuxPowCommitment(hash)));
+    result.pushKV("header", SerializePureHeaderHex(block));
+    result.pushKV("defaultauxpow", SerializeAuxPowHex(*block.auxpow));
+    return result;
+}
+
+static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& hash, CAuxPow&& auxpow, bool dogecoin_compat)
+{
+    const CChainParams& chainparams = Params();
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+
+    std::shared_ptr<CBlock> candidate;
+    {
+        LOCK(cs_main);
+        const auto it = g_auxpow_candidates.find(hash);
+        if (it == g_auxpow_candidates.end()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, dogecoin_compat ? "block hash unknown" : "Unknown AuxPoW candidate");
+        }
+        candidate = it->second;
+    }
+
+    std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(*candidate);
+    CBlock& block = *blockptr;
+    block.SetAuxpow(std::unique_ptr<CAuxPow>(new CAuxPow(std::move(auxpow))));
+
+    if (block.GetHash() != hash) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "AuxPoW candidate hash changed after attaching proof");
+    }
+
+    {
+        LOCK(cs_main);
+        const CBlockIndex* pindexPrev = ::ChainActive().Tip();
+        if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
+            if (dogecoin_compat) return false;
+            return "inconclusive-not-best-prevblk";
+        }
+        if (!consensus.auxpow.IsEnabled(pindexPrev->nHeight + 1)) {
+            throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
+        }
+        const CBlockIndex* pindex = LookupBlockIndex(hash);
+        if (pindex) {
+            if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                if (dogecoin_compat) return false;
+                return "duplicate";
+            }
+            if (pindex->nStatus & BLOCK_FAILED_MASK) {
+                if (dogecoin_compat) return false;
+                return "duplicate-invalid";
+            }
+        }
+    }
+
+    bool new_block;
+    auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
+    RegisterSharedValidationInterface(sc);
+    bool accepted = EnsureChainman(request.context).ProcessNewBlock(chainparams, blockptr, /* fForceProcessing */ true, /* fNewBlock */ &new_block);
+    UnregisterSharedValidationInterface(sc);
+    if (!new_block && accepted) {
+        if (dogecoin_compat) return false;
+        return "duplicate";
+    }
+    if (!sc->found) {
+        if (dogecoin_compat) return false;
+        return "inconclusive";
+    }
+
+    UniValue result = BIP22ValidationResult(sc->state);
+    if (sc->state.IsValid()) {
+        LOCK(cs_main);
+        g_auxpow_candidates.erase(hash);
+    }
+
+    if (dogecoin_compat) return result.isNull();
+    return result;
+}
+
+static RPCHelpMan createauxblock()
+{
+    return RPCHelpMan{"createauxblock",
+                "\nCreate an AuxPoW merge-mining block candidate paying the child-chain coinbase to an address.\n",
+                {
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to receive the child-chain coinbase reward."},
+                },
+                {
+                    RPCResult{RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::STR_HEX, "hash", "Child block hash to commit in the parent coinbase"},
+                            {RPCResult::Type::NUM, "chainid", "AuxPoW child chain id"},
+                            {RPCResult::Type::STR_HEX, "previousblockhash", "Previous child-chain block hash"},
+                            {RPCResult::Type::NUM, "coinbasevalue", "Maximum child-chain coinbase value in satoshis"},
+                            {RPCResult::Type::STR_HEX, "bits", "Compressed child-chain target"},
+                            {RPCResult::Type::STR_HEX, "target", "Expanded child-chain target"},
+                            {RPCResult::Type::NUM, "height", "Candidate child-chain height"},
+                            {RPCResult::Type::STR_HEX, "auxpowcommitment", "Bytes to include in the Litecoin parent coinbase scriptSig"},
+                            {RPCResult::Type::STR_HEX, "header", "Serialized child-chain block header"},
+                            {RPCResult::Type::STR_HEX, "defaultauxpow", "Serialized placeholder AuxPoW proof for local testing"},
+                        }},
+                },
+                RPCExamples{
+                    HelpExampleCli("createauxblock", "\"ltc1q...\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    CTxDestination destination = DecodeDestination(request.params[0].get_str());
+    if (!IsValidDestination(destination) || destination.type() == typeid(StealthAddress)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    return CreateAuxBlockCandidate(request, GetScriptForDestination(destination));
+},
+    };
+}
+
+static RPCHelpMan submitauxblock()
+{
+    return RPCHelpMan{"submitauxblock",
+                "\nSubmit a solved AuxPoW proof for a block created by createauxblock or getauxblock.\n",
+                {
+                    {"hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The child block hash returned by createauxblock or getauxblock."},
+                    {"auxpow", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Serialized AuxPoW proof committing the child block into a parent Litecoin-style block."},
+                },
+                RPCResult{RPCResult::Type::BOOL, "", "Whether the submitted AuxPoW proof was accepted"},
+                RPCExamples{
+                    HelpExampleCli("submitauxblock", "\"hash\" \"auxpow\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    uint256 hash(ParseHashV(request.params[0], "hash"));
+
+    CAuxPow auxpow;
+    if (!DecodeHexAuxPow(auxpow, request.params[1].get_str())) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "AuxPow decode failed");
+    }
+
+    return SubmitAuxBlock(request, hash, std::move(auxpow), /* dogecoin_compat */ true);
+},
+    };
+}
+
 static RPCHelpMan getauxblock()
 {
     return RPCHelpMan{"getauxblock",
@@ -1060,68 +1310,8 @@ static RPCHelpMan getauxblock()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Either provide both hash and auxpow, or provide neither.");
     }
 
-    const CChainParams& chainparams = Params();
-    const Consensus::Params& consensus = chainparams.GetConsensus();
-
     if (creating_candidate) {
-        NodeContext& node = EnsureNodeContext(request.context);
-        if (!node.connman) {
-            throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-        }
-        if (!chainparams.IsTestChain()) {
-            if (node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0) {
-                throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
-            }
-            if (::ChainstateActive().IsInitialBlockDownload()) {
-                throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
-            }
-        }
-
-        const CTxMemPool& mempool = EnsureMemPool(request.context);
-        std::unique_ptr<CBlockTemplate> blocktemplate;
-        CBlockIndex* pindexPrev{nullptr};
-
-        {
-            LOCK(cs_main);
-            pindexPrev = ::ChainActive().Tip();
-            if (!pindexPrev) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "No active chain tip");
-            }
-            const int height = pindexPrev->nHeight + 1;
-            if (!consensus.auxpow.IsEnabled(height)) {
-                throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
-            }
-
-            CScript scriptDummy = CScript() << OP_TRUE;
-            blocktemplate = BlockAssembler(mempool, chainparams).CreateNewBlock(scriptDummy);
-            if (!blocktemplate) {
-                throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
-            }
-
-            CBlock& block = blocktemplate->block;
-            if (!block.IsAuxpow() || !block.auxpow) {
-                block.SetChainId(consensus.auxpow.nChainId);
-                CAuxPow::initAuxPow(block);
-            }
-            StoreAuxPowCandidate(block);
-        }
-
-        const CBlock& block = blocktemplate->block;
-        const uint256 hash = block.GetHash();
-        arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
-
-        UniValue result(UniValue::VOBJ);
-        result.pushKV("hash", hash.GetHex());
-        result.pushKV("chainid", static_cast<int64_t>(consensus.auxpow.nChainId));
-        result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
-        result.pushKV("coinbasevalue", static_cast<int64_t>(block.vtx[0]->vout[0].nValue));
-        result.pushKV("bits", strprintf("%08x", block.nBits));
-        result.pushKV("target", hashTarget.GetHex());
-        result.pushKV("height", static_cast<int64_t>(pindexPrev->nHeight + 1));
-        result.pushKV("auxpowcommitment", HexStr(BuildAuxPowCommitment(hash)));
-        result.pushKV("header", SerializePureHeaderHex(block));
-        result.pushKV("defaultauxpow", SerializeAuxPowHex(*block.auxpow));
-        return result;
+        return CreateAuxBlockCandidate(request, CScript() << OP_TRUE);
     }
 
     uint256 hash(ParseHashV(request.params[0], "hash"));
@@ -1131,62 +1321,7 @@ static RPCHelpMan getauxblock()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "AuxPoW decode failed");
     }
 
-    std::shared_ptr<CBlock> candidate;
-    {
-        LOCK(cs_main);
-        const auto it = g_auxpow_candidates.find(hash);
-        if (it == g_auxpow_candidates.end()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown AuxPoW candidate");
-        }
-        candidate = it->second;
-    }
-
-    std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(*candidate);
-    CBlock& block = *blockptr;
-    block.SetAuxpow(std::unique_ptr<CAuxPow>(new CAuxPow(std::move(auxpow))));
-
-    if (block.GetHash() != hash) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "AuxPoW candidate hash changed after attaching proof");
-    }
-
-    {
-        LOCK(cs_main);
-        const CBlockIndex* pindexPrev = ::ChainActive().Tip();
-        if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
-            return "inconclusive-not-best-prevblk";
-        }
-        if (!consensus.auxpow.IsEnabled(pindexPrev->nHeight + 1)) {
-            throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
-        }
-        const CBlockIndex* pindex = LookupBlockIndex(hash);
-        if (pindex) {
-            if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
-                return "duplicate";
-            }
-            if (pindex->nStatus & BLOCK_FAILED_MASK) {
-                return "duplicate-invalid";
-            }
-        }
-    }
-
-    bool new_block;
-    auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
-    RegisterSharedValidationInterface(sc);
-    bool accepted = EnsureChainman(request.context).ProcessNewBlock(chainparams, blockptr, /* fForceProcessing */ true, /* fNewBlock */ &new_block);
-    UnregisterSharedValidationInterface(sc);
-    if (!new_block && accepted) {
-        return "duplicate";
-    }
-    if (!sc->found) {
-        return "inconclusive";
-    }
-
-    UniValue result = BIP22ValidationResult(sc->state);
-    if (sc->state.IsValid()) {
-        LOCK(cs_main);
-        g_auxpow_candidates.erase(hash);
-    }
-    return result;
+    return SubmitAuxBlock(request, hash, std::move(auxpow), /* dogecoin_compat */ false);
 },
     };
 }
@@ -1490,6 +1625,8 @@ static const CRPCCommand commands[] =
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  {"txid","dummy","fee_delta"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       {"template_request"} },
     { "mining",             "getauxblock",            &getauxblock,            {"hash","auxpow"} },
+    { "mining",             "createauxblock",         &createauxblock,         {"address"} },
+    { "mining",             "submitauxblock",         &submitauxblock,         {"hash","auxpow"} },
     { "mining",             "submitblock",            &submitblock,            {"hexdata","dummy"} },
     { "mining",             "submitheader",           &submitheader,           {"hexdata"} },
 

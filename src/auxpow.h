@@ -27,6 +27,7 @@ class CAuxPow
 {
 private:
     CTransactionRef coinbaseTx;
+    uint256 hashBlock;
     std::vector<uint256> vMerkleBranch;
     std::vector<uint256> vChainMerkleBranch;
     int nIndex{0};
@@ -47,9 +48,7 @@ public:
 
     SERIALIZE_METHODS(CAuxPow, obj)
     {
-        uint256 hashBlock;
-
-        READWRITE(obj.coinbaseTx, hashBlock, obj.vMerkleBranch, obj.nIndex);
+        READWRITE(obj.coinbaseTx, obj.hashBlock, obj.vMerkleBranch, obj.nIndex);
         READWRITE(obj.vChainMerkleBranch, obj.nChainIndex, obj.parentBlock);
     }
 

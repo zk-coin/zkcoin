@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <auxpow.h>
+#include <chain.h>
 #include <chainparams.h>
 #include <pow.h>
 #include <primitives/block.h>
@@ -15,10 +16,16 @@
 #include <algorithm>
 
 namespace {
-std::vector<unsigned char> BuildAuxPowCommitmentBytes(const uint256& hashAuxBlock)
+std::vector<unsigned char> BuildAuxPowCommitmentBytes(const uint256& hashAuxBlock, bool includeMergedMiningHeader = false, unsigned int leadingPadding = 0)
 {
-    std::vector<unsigned char> commitment(hashAuxBlock.begin(), hashAuxBlock.end());
-    std::reverse(commitment.begin(), commitment.end());
+    std::vector<unsigned char> commitment(leadingPadding, 0);
+    if (includeMergedMiningHeader) {
+        commitment.insert(commitment.end(), PCH_MERGED_MINING_HEADER, PCH_MERGED_MINING_HEADER + sizeof(PCH_MERGED_MINING_HEADER));
+    }
+
+    std::vector<unsigned char> auxBlockHash(hashAuxBlock.begin(), hashAuxBlock.end());
+    std::reverse(auxBlockHash.begin(), auxBlockHash.end());
+    commitment.insert(commitment.end(), auxBlockHash.begin(), auxBlockHash.end());
     commitment.push_back(1);
     commitment.insert(commitment.end(), 7, 0);
     return commitment;
@@ -62,11 +69,12 @@ BOOST_AUTO_TEST_CASE(init_auxpow_creates_valid_minimal_proof)
     header.nNonce = 0;
     header.hashPrevBlock.SetHex("01");
     header.hashMerkleRoot.SetHex("02");
+    const Consensus::Params& consensus = Params().GetConsensus();
+    header.SetChainId(consensus.auxpow.nChainId);
 
     BOOST_CHECK(!header.IsAuxpow());
 
     CPureBlockHeader& parent = CAuxPow::initAuxPow(header);
-    const Consensus::Params& consensus = Params().GetConsensus();
 
     BOOST_CHECK(header.IsAuxpow());
     BOOST_REQUIRE(header.auxpow);
@@ -145,6 +153,44 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_nonzero_parent_tx_index)
     BOOST_CHECK(!auxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
+BOOST_AUTO_TEST_CASE(auxpow_merged_mining_header_allows_late_commitment)
+{
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = 0x207fffff;
+    header.nNonce = 0;
+    header.hashPrevBlock.SetHex("0c");
+    header.hashMerkleRoot.SetHex("0d");
+    header.SetAuxpowVersion(true);
+
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].prevout.SetNull();
+    coinbase.vout.resize(1);
+    coinbase.vout[0].scriptPubKey = CScript() << OP_TRUE;
+
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+
+    const Consensus::Params& consensus = Params().GetConsensus();
+
+    coinbase.vin[0].scriptSig = CScript() << BuildAuxPowCommitmentBytes(header.GetHash(), false, 24);
+    CTransactionRef legacyLateCoinbase = MakeTransactionRef(coinbase);
+    parent.hashMerkleRoot = legacyLateCoinbase->GetHash();
+    CAuxPow legacyLateAuxpow = DeserializeAuxPowForParentTx(legacyLateCoinbase, parent);
+    BOOST_CHECK(!legacyLateAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    coinbase.vin[0].scriptSig = CScript() << BuildAuxPowCommitmentBytes(header.GetHash(), true, 24);
+    CTransactionRef taggedCoinbase = MakeTransactionRef(coinbase);
+    parent.hashMerkleRoot = taggedCoinbase->GetHash();
+    CAuxPow taggedAuxpow = DeserializeAuxPowForParentTx(taggedCoinbase, parent);
+    BOOST_CHECK(taggedAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
 BOOST_AUTO_TEST_CASE(block_proof_of_work_uses_parent_auxpow_header)
 {
     CBlockHeader header;
@@ -154,10 +200,11 @@ BOOST_AUTO_TEST_CASE(block_proof_of_work_uses_parent_auxpow_header)
     header.nNonce = 0;
     header.hashPrevBlock.SetHex("05");
     header.hashMerkleRoot.SetHex("06");
-
-    CPureBlockHeader& parent = CAuxPow::initAuxPow(header);
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
     const Consensus::Params& consensus = chainParams->GetConsensus();
+    header.SetChainId(consensus.auxpow.nChainId);
+
+    CPureBlockHeader& parent = CAuxPow::initAuxPow(header);
 
     while (!CheckProofOfWork(parent.GetPoWHash(), header.nBits, consensus) && parent.nNonce < 100000) {
         ++parent.nNonce;
@@ -176,6 +223,8 @@ BOOST_AUTO_TEST_CASE(auxpow_header_serialization_round_trip)
     header.nNonce = 3;
     header.hashPrevBlock.SetHex("03");
     header.hashMerkleRoot.SetHex("04");
+    const Consensus::Params& consensus = Params().GetConsensus();
+    header.SetChainId(consensus.auxpow.nChainId);
     CAuxPow::initAuxPow(header);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -184,11 +233,49 @@ BOOST_AUTO_TEST_CASE(auxpow_header_serialization_round_trip)
     CBlockHeader decoded;
     stream >> decoded;
 
-    const Consensus::Params& consensus = Params().GetConsensus();
     BOOST_CHECK(decoded.IsAuxpow());
     BOOST_REQUIRE(decoded.auxpow);
     BOOST_CHECK(decoded.GetHash() == header.GetHash());
     BOOST_CHECK(decoded.auxpow->check(decoded.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_block_index_preserves_payload)
+{
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 2;
+    header.nBits = 0x207fffff;
+    header.nNonce = 3;
+    header.hashPrevBlock.SetNull();
+    header.hashMerkleRoot.SetHex("0f");
+    const Consensus::Params& consensus = Params().GetConsensus();
+    header.SetChainId(consensus.auxpow.nChainId);
+    CAuxPow::initAuxPow(header);
+
+    CBlockIndex index(header);
+    CBlockHeader indexed_header = index.GetBlockHeader();
+
+    BOOST_REQUIRE(indexed_header.IsAuxpow());
+    BOOST_REQUIRE(indexed_header.auxpow);
+
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << indexed_header;
+
+    CBlockHeader decoded_header;
+    stream >> decoded_header;
+
+    BOOST_REQUIRE(decoded_header.auxpow);
+    BOOST_CHECK(decoded_header.GetHash() == header.GetHash());
+    BOOST_CHECK(decoded_header.auxpow->check(decoded_header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CDataStream disk_stream(SER_DISK, PROTOCOL_VERSION);
+    CDiskBlockIndex disk_index(&index);
+    disk_stream << disk_index;
+
+    CDiskBlockIndex decoded_disk_index;
+    disk_stream >> decoded_disk_index;
+
+    BOOST_REQUIRE(decoded_disk_index.auxpow);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -13,6 +13,8 @@
 #include <tinyformat.h>
 #include <uint256.h>
 
+#include <ios>
+#include <memory>
 #include <vector>
 
 /**
@@ -187,6 +189,9 @@ public:
     uint256 hogex_hash{};
     CAmount mweb_amount{0};
 
+    //! AuxPoW data (only populated when the block version has the AuxPoW bit set).
+    std::shared_ptr<CAuxPow> auxpow{nullptr};
+
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId{0};
 
@@ -202,7 +207,8 @@ public:
           hashMerkleRoot{block.hashMerkleRoot},
           nTime{block.nTime},
           nBits{block.nBits},
-          nNonce{block.nNonce}
+          nNonce{block.nNonce},
+          auxpow{block.auxpow}
     {
     }
 
@@ -234,6 +240,7 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.auxpow         = auxpow;
         return block;
     }
 
@@ -367,6 +374,15 @@ public:
         READWRITE(obj.nTime);
         READWRITE(obj.nBits);
         READWRITE(obj.nNonce);
+        if (obj.nVersion & CPureBlockHeader::VERSION_AUXPOW) {
+            SER_READ(obj, obj.auxpow = std::make_shared<CAuxPow>());
+            if (!obj.auxpow) {
+                throw std::ios_base::failure("cannot serialize AuxPoW block index without AuxPoW payload");
+            }
+            READWRITE(*obj.auxpow);
+        } else {
+            SER_READ(obj, obj.auxpow.reset());
+        }
     }
 
     uint256 GetBlockHash() const
