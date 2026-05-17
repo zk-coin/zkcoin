@@ -122,6 +122,78 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_normalizes_chain_metadata)
     BOOST_CHECK_EQUAL(cache.GetBestBlock().ToString(), chainstate_base.ToString());
 }
 
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_duplicate_without_resume)
+{
+    const SnapshotMetadata metadata{100, uint256S("0d"), 1, 100};
+    const COutPoint outpoint(uint256S("0e"), 0);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {outpoint, SnapshotCoin(5 * COIN, 600, true)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    cache.AddCoin(outpoint, SnapshotCoin(5 * COIN, 0), /*possible_overwrite=*/false);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+
+    BOOST_CHECK(!ImportSnapshotManifest(stream, cache, stats, error));
+    BOOST_CHECK(error.find("snapshot outpoint already exists") != std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_resumes_identical_existing_coin)
+{
+    const SnapshotMetadata metadata{100, uint256S("0f"), 2, 100};
+    const COutPoint existing_outpoint(uint256S("10"), 0);
+    const COutPoint new_outpoint(uint256S("11"), 1);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {existing_outpoint, SnapshotCoin(5 * COIN, 600, true)},
+        {new_outpoint, SnapshotCoin(7 * COIN, 601, true)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    cache.AddCoin(existing_outpoint, SnapshotCoin(5 * COIN, 0), /*possible_overwrite=*/false);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+
+    BOOST_REQUIRE(ImportSnapshotManifest(stream, cache, stats, error, nullptr, nullptr, nullptr, {}, /*resume_import=*/true));
+    BOOST_CHECK(error.empty());
+    BOOST_CHECK_EQUAL(stats.m_coins_count, 2U);
+
+    Coin existing;
+    BOOST_REQUIRE(cache.GetCoin(existing_outpoint, existing));
+    BOOST_CHECK_EQUAL(existing.out.nValue, 5 * COIN);
+    BOOST_CHECK_EQUAL(existing.nHeight, 0U);
+    BOOST_CHECK(!existing.IsCoinBase());
+
+    Coin imported;
+    BOOST_REQUIRE(cache.GetCoin(new_outpoint, imported));
+    BOOST_CHECK_EQUAL(imported.out.nValue, 7 * COIN);
+    BOOST_CHECK_EQUAL(imported.nHeight, 0U);
+    BOOST_CHECK(!imported.IsCoinBase());
+}
+
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_resume_rejects_mismatched_existing_coin)
+{
+    const SnapshotMetadata metadata{100, uint256S("12"), 1, 100};
+    const COutPoint outpoint(uint256S("13"), 0);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {outpoint, SnapshotCoin(5 * COIN, 600, true)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    cache.AddCoin(outpoint, SnapshotCoin(6 * COIN, 0), /*possible_overwrite=*/false);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+
+    BOOST_CHECK(!ImportSnapshotManifest(stream, cache, stats, error, nullptr, nullptr, nullptr, {}, /*resume_import=*/true));
+    BOOST_CHECK(error.find("snapshot outpoint already exists") != std::string::npos);
+}
+
 BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_wrong_expected_hash)
 {
     const SnapshotMetadata metadata{100, uint256S("08"), 1, 100};

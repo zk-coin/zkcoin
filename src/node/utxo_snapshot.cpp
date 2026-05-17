@@ -19,6 +19,14 @@ Coin NormalizeSnapshotCoinForImport(const Coin& coin)
     return Coin(coin.out, /*nHeightIn=*/0, /*fCoinBaseIn=*/false, /*fPegoutIn=*/false);
 }
 
+bool SnapshotCoinsEqual(const Coin& a, const Coin& b)
+{
+    return a.out == b.out &&
+        a.nHeight == b.nHeight &&
+        a.fCoinBase == b.fCoinBase &&
+        a.fPegout == b.fPegout;
+}
+
 template <typename Stream, typename DoneFn>
 bool DecodeSnapshotManifestImpl(
     Stream& stream,
@@ -29,7 +37,8 @@ bool DecodeSnapshotManifestImpl(
     const int* expected_base_height = nullptr,
     const uint256* expected_base_hash = nullptr,
     const uint256* expected_import_hash = nullptr,
-    const std::function<void()>& interruption_point = {})
+    const std::function<void()>& interruption_point = {},
+    bool resume_import = false)
 {
     stats = SnapshotManifestStats{};
     CHashWriter manifest_hash(SER_DISK, CLIENT_VERSION);
@@ -71,11 +80,15 @@ bool DecodeSnapshotManifestImpl(
             Coin normalized_coin = NormalizeSnapshotCoinForImport(coin);
             import_hash << normalized_coin;
             if (import_cache) {
-                if (import_cache->HaveCoin(outpoint)) {
-                    error = strprintf("snapshot outpoint already exists in chainstate: %s", outpoint.ToString());
-                    return false;
+                Coin existing_coin;
+                if (import_cache->GetCoin(outpoint, existing_coin)) {
+                    if (!resume_import || !SnapshotCoinsEqual(existing_coin, normalized_coin)) {
+                        error = strprintf("snapshot outpoint already exists in chainstate: %s", outpoint.ToString());
+                        return false;
+                    }
+                } else {
+                    import_cache->AddCoin(outpoint, std::move(normalized_coin), /*possible_overwrite=*/false);
                 }
-                import_cache->AddCoin(outpoint, std::move(normalized_coin), /*possible_overwrite=*/false);
             }
             ++stats.m_coins_count;
             stats.m_total_amount += coin.out.nValue;
@@ -145,12 +158,12 @@ bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& s
     return DecodeSnapshotManifestImpl(stream, done, stats, error);
 }
 
-bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
+bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point, bool resume_import)
 {
-    return DecodeSnapshotManifestImpl(stream, [&stream]() { return stream.empty(); }, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point);
+    return DecodeSnapshotManifestImpl(stream, [&stream]() { return stream.empty(); }, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point, resume_import);
 }
 
-bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
+bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point, bool resume_import)
 {
     uintmax_t file_size{0};
     try {
@@ -175,5 +188,5 @@ bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins
         return static_cast<uintmax_t>(pos) >= file_size;
     };
 
-    return DecodeSnapshotManifestImpl(stream, done, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point);
+    return DecodeSnapshotManifestImpl(stream, done, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point, resume_import);
 }

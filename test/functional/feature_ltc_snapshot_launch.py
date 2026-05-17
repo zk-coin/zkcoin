@@ -68,6 +68,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(snapshot_info["block_hash"], verify["base_hash"])
         assert_equal(snapshot_info["import_hash"], verify["import_hash"])
         assert_equal(snapshot_info["imported"], False)
+        assert_equal(snapshot_info["import_in_progress"], False)
 
         self.log.info("Require configured snapshot import before launch mining")
         assert_raises_rpc_error(
@@ -101,6 +102,18 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
         assert_equal(snapshot_info["imported"], True)
         assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+        assert_equal(snapshot_info["import_in_progress"], False)
+
+        self.log.info("Allow replaying the same snapshot import before launch mining")
+        replayed = launch.importsnapshotmanifest(dump["path"])
+        assert_equal(replayed["configured_snapshot"], True)
+        assert_equal(replayed["base_hash"], verify["base_hash"])
+        assert_equal(replayed["base_height"], verify["base_height"])
+        assert_equal(replayed["import_hash"], verify["import_hash"])
+        assert_equal(replayed["coins_imported"], verify["coins"])
+        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], True)
+        assert_equal(snapshot_info["import_in_progress"], False)
 
         self.log.info("Persist imported snapshot marker across restart and reject wrong-root reconfiguration")
         self.restart_node(1, extra_args=[

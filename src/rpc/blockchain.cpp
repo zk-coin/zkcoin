@@ -81,6 +81,13 @@ ChainstateManager& EnsureChainman(const util::Ref& context)
     return *node.chainman;
 }
 
+static bool LtcSnapshotImportInfoMatches(const LtcSnapshotImportInfo& a, const LtcSnapshotImportInfo& b)
+{
+    return a.nHeight == b.nHeight &&
+        a.hashBlock == b.hashBlock &&
+        a.hashUTXORoot == b.hashUTXORoot;
+}
+
 CConnman& EnsureConnman(const util::Ref& context)
 {
     NodeContext& node = EnsureNodeContext(context);
@@ -1475,6 +1482,10 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::NUM, "imported_height", /*optional=*/true, "persisted snapshot import marker height"},
                             {RPCResult::Type::STR_HEX, "imported_block_hash", /*optional=*/true, "persisted snapshot import marker block hash"},
                             {RPCResult::Type::STR_HEX, "imported_hash", /*optional=*/true, "persisted snapshot import marker import hash"},
+                            {RPCResult::Type::BOOL, "import_in_progress", "whether an interrupted snapshot import marker is present"},
+                            {RPCResult::Type::NUM, "import_in_progress_height", /*optional=*/true, "in-progress snapshot import marker height"},
+                            {RPCResult::Type::STR_HEX, "import_in_progress_block_hash", /*optional=*/true, "in-progress snapshot import marker block hash"},
+                            {RPCResult::Type::STR_HEX, "import_in_progress_hash", /*optional=*/true, "in-progress snapshot import marker import hash"},
                         }},
                         {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
                         {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
@@ -1540,19 +1551,30 @@ RPCHelpMan getblockchaininfo()
     UniValue ltc_snapshot(UniValue::VOBJ);
     LtcSnapshotImportInfo imported_snapshot;
     const bool has_imported_snapshot = ::ChainstateActive().CoinsDB().ReadLtcSnapshotImportInfo(imported_snapshot);
+    LtcSnapshotImportInfo import_in_progress;
+    const bool has_import_in_progress = ::ChainstateActive().CoinsDB().ReadLtcSnapshotImportInProgress(import_in_progress);
+    const LtcSnapshotImportInfo configured_snapshot{
+        consensusParams.ltc_snapshot.nHeight,
+        consensusParams.ltc_snapshot.hashBlock,
+        consensusParams.ltc_snapshot.hashUTXORoot,
+    };
     ltc_snapshot.pushKV("enabled", consensusParams.ltc_snapshot.IsEnabled());
     ltc_snapshot.pushKV("height", consensusParams.ltc_snapshot.nHeight);
     ltc_snapshot.pushKV("block_hash", consensusParams.ltc_snapshot.hashBlock.ToString());
     ltc_snapshot.pushKV("import_hash", consensusParams.ltc_snapshot.hashUTXORoot.ToString());
     ltc_snapshot.pushKV("imported", consensusParams.ltc_snapshot.IsEnabled() &&
         has_imported_snapshot &&
-        imported_snapshot.nHeight == consensusParams.ltc_snapshot.nHeight &&
-        imported_snapshot.hashBlock == consensusParams.ltc_snapshot.hashBlock &&
-        imported_snapshot.hashUTXORoot == consensusParams.ltc_snapshot.hashUTXORoot);
+        LtcSnapshotImportInfoMatches(imported_snapshot, configured_snapshot));
     if (has_imported_snapshot) {
         ltc_snapshot.pushKV("imported_height", imported_snapshot.nHeight);
         ltc_snapshot.pushKV("imported_block_hash", imported_snapshot.hashBlock.ToString());
         ltc_snapshot.pushKV("imported_hash", imported_snapshot.hashUTXORoot.ToString());
+    }
+    ltc_snapshot.pushKV("import_in_progress", has_import_in_progress);
+    if (has_import_in_progress) {
+        ltc_snapshot.pushKV("import_in_progress_height", import_in_progress.nHeight);
+        ltc_snapshot.pushKV("import_in_progress_block_hash", import_in_progress.hashBlock.ToString());
+        ltc_snapshot.pushKV("import_in_progress_hash", import_in_progress.hashUTXORoot.ToString());
     }
     obj.pushKV("ltc_snapshot", ltc_snapshot);
 
@@ -2806,10 +2828,32 @@ static RPCHelpMan importsnapshotmanifest()
     }
 
     NodeContext& node = EnsureNodeContext(request.context);
-    SnapshotManifestStats stats;
     std::string error;
+    SnapshotManifestStats verified_stats;
+    if (!ReadSnapshotManifestFromFile(path, verified_stats, error)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, error);
+    }
+    if (snapshot_enabled) {
+        if (verified_stats.m_metadata.m_base_height != consensus.ltc_snapshot.nHeight) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("snapshot base height mismatch: expected=%d actual=%d", consensus.ltc_snapshot.nHeight, verified_stats.m_metadata.m_base_height));
+        }
+        if (verified_stats.m_metadata.m_base_blockhash != consensus.ltc_snapshot.hashBlock) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("snapshot base hash mismatch: expected=%s actual=%s", consensus.ltc_snapshot.hashBlock.ToString(), verified_stats.m_metadata.m_base_blockhash.ToString()));
+        }
+        if (verified_stats.m_hash_import != consensus.ltc_snapshot.hashUTXORoot) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("snapshot import hash mismatch: expected=%s actual=%s", consensus.ltc_snapshot.hashUTXORoot.ToString(), verified_stats.m_hash_import.ToString()));
+        }
+    }
+
+    SnapshotManifestStats stats;
     uint256 chainstate_base;
     CChainState* active_chainstate{nullptr};
+    const LtcSnapshotImportInfo import_info{
+        verified_stats.m_metadata.m_base_height,
+        verified_stats.m_metadata.m_base_blockhash,
+        verified_stats.m_hash_import,
+    };
+    bool resume_import{false};
 
     {
         LOCK(cs_main);
@@ -2826,20 +2870,42 @@ static RPCHelpMan importsnapshotmanifest()
         const int* expected_base_height = snapshot_enabled ? &consensus.ltc_snapshot.nHeight : nullptr;
         const uint256* expected_base_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashBlock : nullptr;
         const uint256* expected_import_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashUTXORoot : nullptr;
-        if (!ImportSnapshotManifestFromFile(path, active_chainstate->CoinsTip(), stats, error, expected_base_height, expected_base_hash, expected_import_hash, node.rpc_interruption_point)) {
+        if (snapshot_enabled) {
+            LtcSnapshotImportInfo existing_import;
+            if (active_chainstate->CoinsDB().ReadLtcSnapshotImportInfo(existing_import)) {
+                if (!LtcSnapshotImportInfoMatches(existing_import, import_info)) {
+                    throw JSONRPCError(RPC_VERIFY_ERROR, "different Litecoin snapshot has already been imported");
+                }
+                resume_import = true;
+            }
+
+            LtcSnapshotImportInfo in_progress_import;
+            if (active_chainstate->CoinsDB().ReadLtcSnapshotImportInProgress(in_progress_import)) {
+                if (!LtcSnapshotImportInfoMatches(in_progress_import, import_info)) {
+                    throw JSONRPCError(RPC_VERIFY_ERROR, "different Litecoin snapshot import already in progress");
+                }
+                resume_import = true;
+            }
+
+            if (!active_chainstate->CoinsDB().WriteLtcSnapshotImportInProgress(import_info)) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to write Litecoin snapshot import in-progress marker");
+            }
+        }
+        if (!ImportSnapshotManifestFromFile(path, active_chainstate->CoinsTip(), stats, error, expected_base_height, expected_base_hash, expected_import_hash, node.rpc_interruption_point, resume_import)) {
+            if (snapshot_enabled) {
+                active_chainstate->CoinsDB().ClearLtcSnapshotImportInProgress();
+            }
             throw JSONRPCError(RPC_INVALID_PARAMETER, error);
         }
     }
 
-    active_chainstate->ForceFlushStateToDisk();
+    BlockValidationState state;
+    if (!active_chainstate->FlushStateToDisk(chainparams, state, FlushStateMode::ALWAYS)) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("failed to flush snapshot import to disk: %s", state.ToString()));
+    }
     if (snapshot_enabled) {
         LOCK(cs_main);
-        const LtcSnapshotImportInfo imported_snapshot{
-            stats.m_metadata.m_base_height,
-            stats.m_metadata.m_base_blockhash,
-            stats.m_hash_import,
-        };
-        if (!active_chainstate->CoinsDB().WriteLtcSnapshotImportInfo(imported_snapshot)) {
+        if (!active_chainstate->CoinsDB().CompleteLtcSnapshotImportInfo(import_info)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to write Litecoin snapshot import marker");
         }
     }

@@ -76,6 +76,10 @@ public:
     std::vector<uint256> GetHeadBlocks() const override;
     bool ReadLtcSnapshotImportInfo(LtcSnapshotImportInfo& info) const;
     bool WriteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info);
+    bool ReadLtcSnapshotImportInProgress(LtcSnapshotImportInfo& info) const;
+    bool WriteLtcSnapshotImportInProgress(const LtcSnapshotImportInfo& info);
+    bool ClearLtcSnapshotImportInProgress();
+    bool CompleteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info);
     bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
     CCoinsViewCursor *Cursor() const override;
     CDBWrapper* GetDB() noexcept { return m_db.get(); }

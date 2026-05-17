@@ -402,6 +402,24 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_malformed_parent_coinbase_script)
     parent.hashMerkleRoot = truncatedCoinbaseRef->GetHash();
     CAuxPow truncatedAuxpow = DeserializeAuxPowForParentTx(truncatedCoinbaseRef, parent);
     BOOST_CHECK(!truncatedAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CMutableTransaction shortCoinbase;
+    shortCoinbase.vin.resize(1);
+    shortCoinbase.vin[0].prevout.SetNull();
+    shortCoinbase.vin[0].scriptSig = CScript() << OP_1;
+    shortCoinbase.vout.resize(1);
+    shortCoinbase.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    CTransactionRef shortCoinbaseRef = MakeTransactionRef(shortCoinbase);
+    BOOST_CHECK_EQUAL(shortCoinbaseRef->vin[0].scriptSig.size(), 1U);
+    parent.hashMerkleRoot = shortCoinbaseRef->GetHash();
+    CAuxPow shortScriptAuxpow = DeserializeAuxPowForParentTx(shortCoinbaseRef, parent);
+    BOOST_CHECK(!shortScriptAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CTransactionRef oversizedCoinbaseRef = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(header.GetHash(), true, 60));
+    BOOST_CHECK_GT(oversizedCoinbaseRef->vin[0].scriptSig.size(), 100U);
+    parent.hashMerkleRoot = oversizedCoinbaseRef->GetHash();
+    CAuxPow oversizedScriptAuxpow = DeserializeAuxPowForParentTx(oversizedCoinbaseRef, parent);
+    BOOST_CHECK(!oversizedScriptAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(auxpow_validates_chain_merkle_branch_metadata)

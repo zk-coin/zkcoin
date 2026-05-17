@@ -102,6 +102,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(imported["import_hash"], verify["import_hash"])
         self.assert_child_snapshot_imported(child, dump, verify)
 
+        self.log.info("Replay the same local parent snapshot before mining starts")
+        replayed = child.importsnapshotmanifest(dump["path"])
+        assert_equal(replayed["configured_snapshot"], True)
+        assert_equal(replayed["base_height"], dump["base_height"])
+        assert_equal(replayed["import_hash"], verify["import_hash"])
+        self.assert_child_snapshot_imported(child, dump, verify)
+
         self.log.info("Verify Alice and Bob UTXOs exist on the child chain")
         child_alice = child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"])
         child_bob = child.gettxout(bob_outpoint["txid"], bob_outpoint["vout"])

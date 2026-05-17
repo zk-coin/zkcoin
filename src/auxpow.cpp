@@ -14,6 +14,9 @@
 #include <cassert>
 
 namespace {
+constexpr size_t MIN_COINBASE_SCRIPTSIG_SIZE{2};
+constexpr size_t MAX_COINBASE_SCRIPTSIG_SIZE{100};
+
 uint32_t DecodeLE32(const unsigned char* bytes)
 {
     uint32_t res = 0;
@@ -47,6 +50,11 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
         return false;
     }
 
+    const CScript script = coinbaseTx->vin[0].scriptSig;
+    if (script.size() < MIN_COINBASE_SCRIPTSIG_SIZE || script.size() > MAX_COINBASE_SCRIPTSIG_SIZE) {
+        return false;
+    }
+
     if (nIndex != 0) {
         return false;
     }
@@ -55,7 +63,6 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
         return false;
     }
 
-    const CScript script = coinbaseTx->vin[0].scriptSig;
     const unsigned char* mmHeaderBegin = PCH_MERGED_MINING_HEADER;
     const unsigned char* mmHeaderEnd = mmHeaderBegin + sizeof(PCH_MERGED_MINING_HEADER);
 

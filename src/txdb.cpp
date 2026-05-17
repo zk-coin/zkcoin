@@ -29,6 +29,7 @@ static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 static const char DB_LTC_SNAPSHOT_IMPORT_INFO = 'S';
+static const char DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS = 's';
 
 namespace {
 
@@ -102,6 +103,29 @@ bool CCoinsViewDB::ReadLtcSnapshotImportInfo(LtcSnapshotImportInfo& info) const
 bool CCoinsViewDB::WriteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info)
 {
     return m_db->Write(DB_LTC_SNAPSHOT_IMPORT_INFO, info, true);
+}
+
+bool CCoinsViewDB::ReadLtcSnapshotImportInProgress(LtcSnapshotImportInfo& info) const
+{
+    return m_db->Read(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, info);
+}
+
+bool CCoinsViewDB::WriteLtcSnapshotImportInProgress(const LtcSnapshotImportInfo& info)
+{
+    return m_db->Write(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, info, true);
+}
+
+bool CCoinsViewDB::ClearLtcSnapshotImportInProgress()
+{
+    return m_db->Erase(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, true);
+}
+
+bool CCoinsViewDB::CompleteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info)
+{
+    CDBBatch batch(*m_db);
+    batch.Write(DB_LTC_SNAPSHOT_IMPORT_INFO, info);
+    batch.Erase(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS);
+    return m_db->WriteBatch(batch, true);
 }
 
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, const mw::CoinsViewCache::Ptr& derivedView) {

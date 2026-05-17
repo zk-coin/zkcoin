@@ -86,6 +86,16 @@ Both are intentionally present before behavior changes so tests and review can t
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.
 - `importsnapshotmanifest` imports the normalized snapshot UTXOs into the launch chainstate. It is guarded so it only runs at the genesis chain tip, and it enforces configured snapshot constants unless explicitly allowed on test chains.
 
+`importsnapshotmanifest` is intended to be restart-safe during launch rehearsal:
+
+- it verifies the manifest before mutating chainstate;
+- it writes an in-progress marker keyed by height, Litecoin block hash, and normalized import hash;
+- if the same import is replayed at the genesis tip, already-written identical UTXOs are accepted and missing UTXOs continue to be imported;
+- if an existing or in-progress marker points at a different snapshot, the RPC fails closed;
+- after a successful flush, the in-progress marker is atomically replaced by the completed import marker.
+
+This makes local block-X launch tests repeatable without requiring a full datadir reset after an interrupted import.
+
 ## Block-X Snapshot Constant Generation
 
 `contrib/devtools/zkcoin_ltc_snapshot.sh` is the operator tool for turning a selected Litecoin block X into launch constants. It requires:
