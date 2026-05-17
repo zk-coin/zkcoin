@@ -74,6 +74,25 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     TxValidationState valid_state;
     BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, valid_state));
 
+    const uint256 field_hash = ExpectedProofHash(marker);
+    const uint256 tx_binding_hash = TransactionBindingHash(unsigned_tx);
+    const auto proof_payload = BuildProofPayloadV1(field_hash, tx_binding_hash);
+    BOOST_CHECK(VerifyProofPayloadV1(proof_payload, field_hash, tx_binding_hash));
+    BOOST_CHECK_EQUAL(
+        zkc_shielded_verify_proof_v1(
+            proof_payload.data(),
+            proof_payload.size(),
+            field_hash.begin(),
+            SHIELDED_PROOF_HASH_SIZE,
+            tx_binding_hash.begin(),
+            SHIELDED_PROOF_HASH_SIZE),
+        1);
+
+    auto short_proof_payload = proof_payload;
+    short_proof_payload.pop_back();
+    BOOST_CHECK(!VerifyProofPayloadV1(short_proof_payload, field_hash, tx_binding_hash));
+    BOOST_CHECK(!VerifyProofPayloadV1(proof_payload, Field(0x04), tx_binding_hash));
+
     auto tampered_payload = payload;
     tampered_payload.back() ^= 0x01;
     TxValidationState invalid_state;

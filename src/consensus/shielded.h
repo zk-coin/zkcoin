@@ -6,6 +6,7 @@
 #define BITCOIN_CONSENSUS_SHIELDED_H
 
 #include <amount.h>
+#include <consensus/shielded_verifier.h>
 #include <consensus/validation.h>
 #include <hash.h>
 #include <primitives/transaction.h>
@@ -140,21 +141,11 @@ inline uint256 TransactionBindingHash(const CTransaction& tx)
     return SerializeHash(tx, SER_GETHASH, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS | SERIALIZE_NO_MWEB);
 }
 
-inline uint256 ExpectedProofEnvelopeHash(const Marker& marker, const CTransaction& tx)
-{
-    const uint256 proof_hash = ExpectedProofHash(marker);
-    const uint256 tx_binding_hash = TransactionBindingHash(tx);
-    std::vector<unsigned char> data{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'e', 'n', 'v', 'e', 'l', 'o', 'p', 'e', '-', 'v', '1'};
-    data.insert(data.end(), proof_hash.begin(), proof_hash.end());
-    data.insert(data.end(), tx_binding_hash.begin(), tx_binding_hash.end());
-    return Hash(data);
-}
-
 inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker, const CTransaction& tx)
 {
-    const uint256 proof_hash = ExpectedProofEnvelopeHash(marker, tx);
     std::vector<unsigned char> envelope = ProofEnvelopePrefix();
-    envelope.insert(envelope.end(), proof_hash.begin(), proof_hash.end());
+    const auto proof_payload = BuildProofPayloadV1(ExpectedProofHash(marker), TransactionBindingHash(tx));
+    envelope.insert(envelope.end(), proof_payload.begin(), proof_payload.end());
     return envelope;
 }
 
@@ -230,13 +221,16 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
     if (marker.proof_tag != ExpectedProofTag(marker)) return false;
 
     bool found{false};
-    const std::vector<unsigned char> expected = BuildProofEnvelope(marker, tx);
+    const uint256 field_hash = ExpectedProofHash(marker);
+    const uint256 tx_binding_hash = TransactionBindingHash(tx);
     for (const CTxIn& txin : tx.vin) {
         for (const auto& stack_item : txin.scriptWitness.stack) {
             if (!HasProofEnvelopePrefix(stack_item)) continue;
             if (found) return false;
             found = true;
-            if (stack_item != expected) return false;
+            const size_t proof_offset = ProofEnvelopePrefix().size();
+            const std::vector<unsigned char> proof_payload(stack_item.begin() + proof_offset, stack_item.end());
+            if (!VerifyProofPayloadV1(proof_payload, field_hash, tx_binding_hash)) return false;
         }
     }
     return found;

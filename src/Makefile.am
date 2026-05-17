@@ -177,6 +177,7 @@ BITCOIN_CORE_H = \
   compressor.h \
   consensus/consensus.h \
   consensus/shielded.h \
+  consensus/shielded_verifier.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
   core_io.h \
@@ -348,6 +349,7 @@ libbitcoin_server_a_SOURCES = \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
+  consensus/shielded_verifier.cpp \
   consensus/tx_verify.cpp \
   dbwrapper.cpp \
   flatfile.cpp \
