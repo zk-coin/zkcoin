@@ -180,6 +180,41 @@ bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint
         SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
 }
 
+bool DecodeOrchardProofBodyModeV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode)
+{
+    const auto& payload_prefix = OrchardProofPayloadPrefixV1();
+    const size_t kind_offset = payload_prefix.size();
+    const size_t public_input_offset = kind_offset + 1;
+    const size_t proof_len_offset = public_input_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
+    if (proof_payload.size() < proof_offset) return false;
+    if (!std::equal(payload_prefix.begin(), payload_prefix.end(), proof_payload.begin())) return false;
+    if (proof_payload[kind_offset] != proof_kind) return false;
+    if (!std::equal(public_input_hash.begin(), public_input_hash.end(), proof_payload.begin() + public_input_offset)) return false;
+
+    uint32_t proof_len{0};
+    for (size_t i = 0; i < sizeof(proof_len); ++i) {
+        proof_len |= uint32_t{proof_payload[proof_len_offset + i]} << (8 * i);
+    }
+    if (proof_len != proof_payload.size() - proof_offset) return false;
+
+    const auto& body_prefix = OrchardProofBodyPrefixV1();
+    const size_t body_mode_offset = proof_offset + body_prefix.size();
+    const size_t body_len_offset = body_mode_offset + 1;
+    const size_t body_offset = body_len_offset + sizeof(uint32_t);
+    if (proof_payload.size() < body_offset) return false;
+    if (!std::equal(body_prefix.begin(), body_prefix.end(), proof_payload.begin() + proof_offset)) return false;
+
+    uint32_t body_len{0};
+    for (size_t i = 0; i < sizeof(body_len); ++i) {
+        body_len |= uint32_t{proof_payload[body_len_offset + i]} << (8 * i);
+    }
+    if (body_len != proof_payload.size() - body_offset) return false;
+
+    proof_body_mode = proof_payload[body_mode_offset];
+    return true;
+}
+
 std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash)
 {
     const uint256 scaffold_body = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);

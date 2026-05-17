@@ -72,6 +72,7 @@ bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof
 uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash);
+bool DecodeOrchardProofBodyModeV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode);
 std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash);

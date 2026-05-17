@@ -241,7 +241,7 @@ inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, co
     return payload;
 }
 
-inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
+inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx, bool allow_scaffold_proofs)
 {
     if (marker.proof_tag != ExpectedProofTag(marker)) return false;
 
@@ -254,13 +254,21 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
             if (!HasProofEnvelopePrefix(stack_item)) continue;
             if (found) return false;
             found = true;
+            uint8_t proof_kind{0};
+            uint256 public_input_hash;
+            std::vector<unsigned char> proof_payload;
+            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) return false;
+            if (proof_kind != marker.action || public_input_hash != expected_public_input_hash) return false;
+            uint8_t proof_body_mode{0};
+            if (!DecodeOrchardProofBodyModeV1(proof_payload, marker.action, expected_public_input_hash, proof_body_mode)) return false;
+            if (!allow_scaffold_proofs && proof_body_mode == SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD) return false;
             if (!VerifyProofBundleV4(stack_item, marker.action, expected_public_input_hash)) return false;
         }
     }
     return found;
 }
 
-inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)
+inline bool CheckTransaction(const CTransaction& tx, bool active, bool allow_scaffold_proofs, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)
 {
     size_t marker_outputs{0};
     for (const CTxOut& txout : tx.vout) {
@@ -293,7 +301,7 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
         if (marker.HasAnchor() && marker.anchor.IsNull()) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-anchor");
         }
-        if (!VerifyProofEnvelope(marker, tx)) {
+        if (!VerifyProofEnvelope(marker, tx, allow_scaffold_proofs)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-proof");
         }
         if (markers_out) {
@@ -308,10 +316,10 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
     return true;
 }
 
-inline bool GetTransactionValuePoolDelta(const CTransaction& tx, bool active, CAmount& delta, TxValidationState& state)
+inline bool GetTransactionValuePoolDelta(const CTransaction& tx, bool active, bool allow_scaffold_proofs, CAmount& delta, TxValidationState& state)
 {
     std::vector<Marker> markers;
-    if (!CheckTransaction(tx, active, state, &markers)) return false;
+    if (!CheckTransaction(tx, active, allow_scaffold_proofs, state, &markers)) return false;
 
     delta = 0;
     for (const auto& marker : markers) {

@@ -630,11 +630,11 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
     return true;
 }
 
-static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, ShieldedValidationState& shielded, BlockValidationState& state, const std::set<uint256>* spend_anchors = nullptr, CAmount* spend_value_limit = nullptr)
+static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, bool allow_scaffold_proofs, ShieldedValidationState& shielded, BlockValidationState& state, const std::set<uint256>* spend_anchors = nullptr, CAmount* spend_value_limit = nullptr)
 {
     std::vector<Consensus::ShieldedPool::Marker> markers;
     TxValidationState tx_state;
-    if (!Consensus::ShieldedPool::CheckTransaction(tx, active, tx_state, &markers)) {
+    if (!Consensus::ShieldedPool::CheckTransaction(tx, active, allow_scaffold_proofs, tx_state, &markers)) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                              strprintf("Shielded pool transaction check failed (tx hash %s) %s",
                                        tx.GetHash().ToString(), tx_state.GetDebugMessage()));
@@ -666,7 +666,7 @@ static bool LoadShieldedChainState(const CBlockIndex* pindexPrev, const Consensu
         const std::set<uint256> block_spend_anchors = shielded.anchors;
         CAmount block_spend_value_limit = shielded.nValuePool;
         for (const auto& tx : block.vtx) {
-            if (!AddShieldedTransactionToState(*tx, /*active=*/true, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
+            if (!AddShieldedTransactionToState(*tx, /*active=*/true, consensus.shielded_pool.fAllowScaffoldProofs, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
                 return false;
             }
         }
@@ -688,7 +688,7 @@ static bool CheckShieldedBlockState(const CBlock& block, const CBlockIndex* pind
     const std::set<uint256> block_spend_anchors = shielded.anchors;
     CAmount block_spend_value_limit = shielded.nValuePool;
     for (const auto& tx : block.vtx) {
-        if (!AddShieldedTransactionToState(*tx, active, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
+        if (!AddShieldedTransactionToState(*tx, active, consensus.shielded_pool.fAllowScaffoldProofs, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
             return false;
         }
     }
@@ -712,7 +712,7 @@ static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool:
     for (const TxMempoolInfo& info : pool.infoAll()) {
         std::vector<Consensus::ShieldedPool::Marker> mempool_markers;
         TxValidationState tx_state;
-        if (!Consensus::ShieldedPool::CheckTransaction(*info.tx, /*active=*/true, tx_state, &mempool_markers)) {
+        if (!Consensus::ShieldedPool::CheckTransaction(*info.tx, /*active=*/true, consensus.shielded_pool.fAllowScaffoldProofs, tx_state, &mempool_markers)) {
             return state.Error(strprintf("bad shielded mempool state: %s", tx_state.ToString()));
         }
         for (const auto& marker : mempool_markers) {
@@ -762,7 +762,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     const Consensus::Params& consensus = args.m_chainparams.GetConsensus();
     const bool shielded_pool_active = consensus.shielded_pool.IsEnabled(::ChainActive().Height() + 1);
     std::vector<Consensus::ShieldedPool::Marker> shielded_markers;
-    if (!Consensus::ShieldedPool::CheckTransaction(tx, shielded_pool_active, state, &shielded_markers)) {
+    if (!Consensus::ShieldedPool::CheckTransaction(tx, shielded_pool_active, consensus.shielded_pool.fAllowScaffoldProofs, state, &shielded_markers)) {
         return false; // state filled in by CheckTransaction
     }
     if (shielded_pool_active && !CheckShieldedMempoolState(shielded_markers, m_pool, consensus, state)) {
@@ -3925,7 +3925,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     const bool shielded_pool_active = consensusParams.shielded_pool.IsEnabled(nHeight);
     for (const auto& tx : block.vtx) {
         TxValidationState tx_state;
-        if (!Consensus::ShieldedPool::CheckTransaction(*tx, shielded_pool_active, tx_state)) {
+        if (!Consensus::ShieldedPool::CheckTransaction(*tx, shielded_pool_active, consensusParams.shielded_pool.fAllowScaffoldProofs, tx_state)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Shielded pool transaction check failed (tx hash %s) %s",
                                            tx->GetHash().ToString(), tx_state.GetDebugMessage()));

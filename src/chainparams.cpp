@@ -318,6 +318,7 @@ public:
         consensus.auxpow.nStartHeight = -1;
         consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.shielded_pool.nStartHeight = -1;
+        consensus.shielded_pool.fAllowScaffoldProofs = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
 
@@ -413,6 +414,9 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
             throw std::runtime_error(strprintf("Activation height %ld for shielded pool is out of valid range. Use -1 to disable shielded pool.", height));
         }
         consensus.shielded_pool.nStartHeight = static_cast<int>(height);
+    }
+    if (args.IsArgSet("-shieldedscaffoldproofs")) {
+        consensus.shielded_pool.fAllowScaffoldProofs = args.GetBoolArg("-shieldedscaffoldproofs", consensus.shielded_pool.fAllowScaffoldProofs);
     }
 
     const bool snapshot_height_set = args.IsArgSet("-ltcsnapshotheight");

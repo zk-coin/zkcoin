@@ -206,7 +206,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     CAmount shielded_delta = 0;
     if (consensus_params.shielded_pool.IsEnabled(nSpendHeight)) {
         TxValidationState shielded_state;
-        if (!Consensus::ShieldedPool::GetTransactionValuePoolDelta(tx, /*active=*/true, shielded_delta, shielded_state)) {
+        if (!Consensus::ShieldedPool::GetTransactionValuePoolDelta(tx, /*active=*/true, consensus_params.shielded_pool.fAllowScaffoldProofs, shielded_delta, shielded_state)) {
             return state.Invalid(shielded_state.GetResult(), shielded_state.GetRejectReason(), shielded_state.GetDebugMessage());
         }
     }

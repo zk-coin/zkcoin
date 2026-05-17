@@ -289,6 +289,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         self.assert_child_snapshot_imported(child, dump, verify)
         assert_equal(child.getblockchaininfo()["shielded_pool"]["start_height"], 2)
         assert_equal(child.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
+        assert_equal(child.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], True)
         assert_equal(Decimal(str(child.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0.00000000"))
 
         self.log.info("Replay the same local parent snapshot before mining starts")

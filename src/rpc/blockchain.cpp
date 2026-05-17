@@ -1423,7 +1423,7 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
         for (const auto& tx : block.vtx) {
             std::vector<Consensus::ShieldedPool::Marker> markers;
             TxValidationState tx_state;
-            if (!Consensus::ShieldedPool::CheckTransaction(*tx, /*active=*/true, tx_state, &markers)) {
+            if (!Consensus::ShieldedPool::CheckTransaction(*tx, /*active=*/true, consensus.shielded_pool.fAllowScaffoldProofs, tx_state, &markers)) {
                 error = strprintf("failed to parse shielded pool transaction %s: %s", tx->GetHash().ToString(), tx_state.ToString());
                 return false;
             }
@@ -1541,6 +1541,7 @@ RPCHelpMan getblockchaininfo()
                         {
                             {RPCResult::Type::BOOL, "next_block_active", "whether shielded pool marker transactions are valid for the next block"},
                             {RPCResult::Type::NUM, "start_height", "height at which shielded pool marker transactions activate, or -1 if disabled"},
+                            {RPCResult::Type::BOOL, "scaffold_proofs", "whether deterministic scaffold proof bodies are accepted by consensus"},
                             {RPCResult::Type::NUM, "value_pool", "current shielded value pool balance"},
                             {RPCResult::Type::NUM, "commitments", "number of accepted shielded note commitments"},
                             {RPCResult::Type::NUM, "nullifiers", "number of accepted shielded spend nullifiers"},
@@ -1627,6 +1628,7 @@ RPCHelpMan getblockchaininfo()
     UniValue shielded_pool(UniValue::VOBJ);
     shielded_pool.pushKV("next_block_active", consensusParams.shielded_pool.IsEnabled(::ChainActive().Height() + 1));
     shielded_pool.pushKV("start_height", consensusParams.shielded_pool.nStartHeight);
+    shielded_pool.pushKV("scaffold_proofs", consensusParams.shielded_pool.fAllowScaffoldProofs);
     ShieldedPoolRpcState shielded_pool_state;
     std::string shielded_pool_error;
     if (GetShieldedPoolRpcState(::ChainActive(), consensusParams, shielded_pool_state, shielded_pool_error)) {

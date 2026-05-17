@@ -82,6 +82,7 @@ struct AuxPowParams {
  */
 struct ShieldedPoolParams {
     int nStartHeight{-1};
+    bool fAllowScaffoldProofs{false};
 
     bool IsEnabled(int nHeight) const { return nStartHeight >= 0 && nHeight >= nStartHeight; }
 };

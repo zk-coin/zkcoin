@@ -137,11 +137,14 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_GT(BuildProofEnvelope(marker, unsigned_tx).size(), MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
 
     TxValidationState missing_proof_state;
-    BOOST_CHECK(!CheckTransaction(unsigned_tx, /*active=*/true, missing_proof_state));
+    BOOST_CHECK(!CheckTransaction(unsigned_tx, /*active=*/true, /*allow_scaffold_proofs=*/true, missing_proof_state));
     BOOST_CHECK_EQUAL(missing_proof_state.GetRejectReason(), "bad-shielded-proof");
 
     TxValidationState valid_state;
-    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, valid_state));
+    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, /*allow_scaffold_proofs=*/true, valid_state));
+    TxValidationState scaffold_disabled_state;
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, /*allow_scaffold_proofs=*/false, scaffold_disabled_state));
+    BOOST_CHECK_EQUAL(scaffold_disabled_state.GetRejectReason(), "bad-shielded-proof");
 
     const uint256 field_hash = ExpectedProofHash(marker);
     const uint256 tx_binding_hash = TransactionBindingHash(unsigned_tx);
@@ -198,6 +201,13 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         std::vector<unsigned char>(orchard_proof_body_v1.begin(), orchard_proof_body_v1.end()),
         ACTION_MINT,
         public_input_hash));
+    uint8_t decoded_body_mode{0xff};
+    BOOST_CHECK(DecodeOrchardProofBodyModeV1(
+        orchard_payload_v1,
+        ACTION_MINT,
+        public_input_hash,
+        decoded_body_mode));
+    BOOST_CHECK_EQUAL(decoded_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
     auto unknown_body_mode = orchard_body_v1;
     const size_t body_mode_offset = sizeof("zkc-orchard-body-v1") - 1;
     BOOST_REQUIRE_GT(unknown_body_mode.size(), body_mode_offset);
@@ -294,38 +304,38 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     auto tampered_payload = payload;
     tampered_payload.back() ^= 0x01;
     TxValidationState invalid_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(tampered_payload, BuildProofEnvelope(marker, unsigned_tx)), /*active=*/true, invalid_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(tampered_payload, BuildProofEnvelope(marker, unsigned_tx)), /*active=*/true, /*allow_scaffold_proofs=*/true, invalid_state));
     BOOST_CHECK_EQUAL(invalid_state.GetRejectReason(), "bad-shielded-proof");
 
     auto tampered_proof = BuildProofEnvelope(marker, unsigned_tx);
     tampered_proof.back() ^= 0x01;
     TxValidationState tampered_proof_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, tampered_proof), /*active=*/true, tampered_proof_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, tampered_proof), /*active=*/true, /*allow_scaffold_proofs=*/true, tampered_proof_state));
     BOOST_CHECK_EQUAL(tampered_proof_state.GetRejectReason(), "bad-shielded-proof");
 
     auto wrong_kind_proof = BuildProofEnvelope(marker, unsigned_tx);
     wrong_kind_proof[ProofEnvelopePrefix().size() + 1] = ACTION_SPEND;
     TxValidationState wrong_kind_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_kind_proof), /*active=*/true, wrong_kind_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_kind_proof), /*active=*/true, /*allow_scaffold_proofs=*/true, wrong_kind_state));
     BOOST_CHECK_EQUAL(wrong_kind_state.GetRejectReason(), "bad-shielded-proof");
 
     auto wrong_public_input_proof = BuildProofEnvelope(marker, unsigned_tx);
     wrong_public_input_proof[ProofEnvelopePrefix().size() + 4] ^= 0x01;
     TxValidationState wrong_public_input_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_public_input_proof), /*active=*/true, wrong_public_input_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_public_input_proof), /*active=*/true, /*allow_scaffold_proofs=*/true, wrong_public_input_state));
     BOOST_CHECK_EQUAL(wrong_public_input_state.GetRejectReason(), "bad-shielded-proof");
 
     auto duplicate_proof = BuildProofEnvelope(marker, unsigned_tx);
     CMutableTransaction duplicate_proof_tx(TransactionWithProof(payload, duplicate_proof));
     duplicate_proof_tx.vin[0].scriptWitness.stack.push_back(duplicate_proof);
     TxValidationState duplicate_proof_state;
-    BOOST_CHECK(!CheckTransaction(CTransaction(duplicate_proof_tx), /*active=*/true, duplicate_proof_state));
+    BOOST_CHECK(!CheckTransaction(CTransaction(duplicate_proof_tx), /*active=*/true, /*allow_scaffold_proofs=*/true, duplicate_proof_state));
     BOOST_CHECK_EQUAL(duplicate_proof_state.GetRejectReason(), "bad-shielded-proof");
 
     auto wrong_prefix_proof = BuildProofEnvelope(marker, unsigned_tx);
     wrong_prefix_proof[0] ^= 0x01;
     TxValidationState wrong_prefix_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_prefix_proof), /*active=*/true, wrong_prefix_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_prefix_proof), /*active=*/true, /*allow_scaffold_proofs=*/true, wrong_prefix_state));
     BOOST_CHECK_EQUAL(wrong_prefix_state.GetRejectReason(), "bad-shielded-proof");
 
     CMutableTransaction mutated_tx = MutableTransactionWithMarker(payload);
@@ -333,7 +343,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     mutated_tx.nLockTime = 1;
     mutated_tx.vin[0].scriptWitness.stack.push_back(original_proof);
     TxValidationState mutated_tx_state;
-    BOOST_CHECK(!CheckTransaction(CTransaction(mutated_tx), /*active=*/true, mutated_tx_state));
+    BOOST_CHECK(!CheckTransaction(CTransaction(mutated_tx), /*active=*/true, /*allow_scaffold_proofs=*/true, mutated_tx_state));
     BOOST_CHECK_EQUAL(mutated_tx_state.GetRejectReason(), "bad-shielded-proof");
 }
 
@@ -352,7 +362,7 @@ BOOST_AUTO_TEST_CASE(spend_markers_stay_standard_relay_sized)
     BOOST_CHECK_EQUAL(marker.action, ACTION_SPEND);
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
     TxValidationState valid_state;
-    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, valid_state));
+    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, /*allow_scaffold_proofs=*/true, valid_state));
 }
 
 BOOST_AUTO_TEST_CASE(shielded_proof_bundle_witness_policy_allows_real_proof_sizes)
