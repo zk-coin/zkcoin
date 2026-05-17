@@ -233,6 +233,7 @@ BASE_SCRIPTS = [
     'rpc_bind.py --nonloopback',
     'mining_basic.py',
     'feature_auxpow_rpc.py',
+    'feature_ltc_snapshot_launch.py',
     'feature_signet.py',
     'wallet_bumpfee.py',
     'wallet_bumpfee.py --descriptors',
