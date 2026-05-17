@@ -21,15 +21,18 @@ namespace ShieldedPool {
 static constexpr uint8_t ACTION_MINT{0x01};
 static constexpr uint8_t ACTION_SPEND{0x02};
 static constexpr size_t FIELD_SIZE{32};
+static constexpr size_t VALUE_SIZE{8};
 
 struct Marker
 {
     uint8_t action{0};
+    CAmount nValue{0};
     uint256 commitment;
     uint256 nullifier;
 
-    bool HasCommitment() const { return action == ACTION_MINT || action == ACTION_SPEND; }
+    bool HasCommitment() const { return action == ACTION_MINT; }
     bool HasNullifier() const { return action == ACTION_SPEND; }
+    CAmount ValuePoolDelta() const { return action == ACTION_MINT ? nValue : -nValue; }
 };
 
 inline const std::vector<unsigned char>& MarkerPrefix()
@@ -56,12 +59,21 @@ inline bool IsMarkerPayloadWellFormed(const std::vector<unsigned char>& payload)
     if (payload.size() < marker.size() + 1) return false;
     const uint8_t action = payload[marker.size()];
     if (action == ACTION_MINT) {
-        return payload.size() == marker.size() + 1 + FIELD_SIZE;
+        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE;
     }
     if (action == ACTION_SPEND) {
-        return payload.size() == marker.size() + 1 + FIELD_SIZE + FIELD_SIZE;
+        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE;
     }
     return false;
+}
+
+inline uint64_t ReadUint64Field(const std::vector<unsigned char>& payload, size_t offset)
+{
+    uint64_t value{0};
+    for (size_t i = 0; i < VALUE_SIZE; ++i) {
+        value |= uint64_t{payload[offset + i]} << (8 * i);
+    }
+    return value;
 }
 
 inline uint256 ReadUint256Field(const std::vector<unsigned char>& payload, size_t offset)
@@ -69,39 +81,52 @@ inline uint256 ReadUint256Field(const std::vector<unsigned char>& payload, size_
     return uint256(std::vector<unsigned char>(payload.begin() + offset, payload.begin() + offset + FIELD_SIZE));
 }
 
+inline void AppendAmount(std::vector<unsigned char>& payload, CAmount amount)
+{
+    for (size_t i = 0; i < VALUE_SIZE; ++i) {
+        payload.push_back((amount >> (8 * i)) & 0xff);
+    }
+}
+
 inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marker& marker)
 {
     if (!IsMarkerPayloadWellFormed(payload)) return false;
 
     const size_t action_offset = MarkerPrefix().size();
+    const size_t value_offset = action_offset + 1;
+    const size_t field_offset = value_offset + VALUE_SIZE;
+    const uint64_t encoded_value = ReadUint64Field(payload, value_offset);
+    if (encoded_value > uint64_t{MAX_MONEY}) return false;
+
     marker.action = payload[action_offset];
+    marker.nValue = static_cast<CAmount>(encoded_value);
     if (marker.action == ACTION_MINT) {
-        marker.commitment = ReadUint256Field(payload, action_offset + 1);
+        marker.commitment = ReadUint256Field(payload, field_offset);
         return true;
     }
     if (marker.action == ACTION_SPEND) {
-        marker.nullifier = ReadUint256Field(payload, action_offset + 1);
-        marker.commitment = ReadUint256Field(payload, action_offset + 1 + FIELD_SIZE);
+        marker.nullifier = ReadUint256Field(payload, field_offset);
         return true;
     }
 
     return false;
 }
 
-inline std::vector<unsigned char> BuildMintPayload(const uint256& commitment)
+inline std::vector<unsigned char> BuildMintPayload(const uint256& commitment, CAmount amount)
 {
     std::vector<unsigned char> payload = MarkerPrefix();
     payload.push_back(ACTION_MINT);
+    AppendAmount(payload, amount);
     payload.insert(payload.end(), commitment.begin(), commitment.end());
     return payload;
 }
 
-inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, const uint256& commitment)
+inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, CAmount amount)
 {
     std::vector<unsigned char> payload = MarkerPrefix();
     payload.push_back(ACTION_SPEND);
+    AppendAmount(payload, amount);
     payload.insert(payload.end(), nullifier.begin(), nullifier.end());
-    payload.insert(payload.end(), commitment.begin(), commitment.end());
     return payload;
 }
 
@@ -126,6 +151,9 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
         if (!DecodeMarkerPayload(payload, marker)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-payload");
         }
+        if (!MoneyRange(marker.nValue) || marker.nValue == 0) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-amount");
+        }
         if (marker.HasCommitment() && marker.commitment.IsNull()) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-commitment");
         }
@@ -141,6 +169,28 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-duplicate");
     }
 
+    return true;
+}
+
+inline bool GetTransactionValuePoolDelta(const CTransaction& tx, bool active, CAmount& delta, TxValidationState& state)
+{
+    std::vector<Marker> markers;
+    if (!CheckTransaction(tx, active, state, &markers)) return false;
+
+    delta = 0;
+    for (const auto& marker : markers) {
+        if (marker.action == ACTION_MINT) {
+            if (delta > MAX_MONEY - marker.nValue) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-amount");
+            }
+            delta += marker.nValue;
+        } else if (marker.action == ACTION_SPEND) {
+            if (delta < -MAX_MONEY + marker.nValue) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-amount");
+            }
+            delta -= marker.nValue;
+        }
+    }
     return true;
 }
 

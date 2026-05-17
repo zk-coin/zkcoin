@@ -582,6 +582,7 @@ struct ShieldedValidationState
 {
     std::set<uint256> commitments;
     std::set<uint256> nullifiers;
+    CAmount nValuePool{0};
 };
 
 static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& marker, ShieldedValidationState& shielded, std::string& reject_reason)
@@ -592,6 +593,18 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
     }
     if (marker.HasCommitment() && !shielded.commitments.insert(marker.commitment).second) {
         reject_reason = "bad-shielded-duplicate-commitment";
+        return false;
+    }
+
+    const CAmount delta = marker.ValuePoolDelta();
+    if ((delta > 0 && shielded.nValuePool > MAX_MONEY - delta) ||
+        (delta < 0 && shielded.nValuePool < -delta)) {
+        reject_reason = "bad-shielded-value-pool";
+        return false;
+    }
+    shielded.nValuePool += delta;
+    if (!MoneyRange(shielded.nValuePool)) {
+        reject_reason = "bad-shielded-value-pool";
         return false;
     }
     return true;

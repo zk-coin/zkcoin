@@ -6,6 +6,8 @@
 
 import hashlib
 
+from decimal import Decimal
+
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
 from test_framework.messages import (
     COIN,
@@ -44,37 +46,43 @@ class ShieldedPoolTest(BitcoinTestFramework):
         self.marker_nonce += 1
         return hashlib.sha256(f"{label}-{self.marker_nonce}".encode()).digest()
 
-    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None):
+    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, shielded_value=COIN):
         if commitment is None:
             commitment = self.unique_field("commitment")
 
         if action == ACTION_MINT:
-            payload = MARKER_PREFIX + bytes([action]) + commitment
+            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
             return payload, commitment, None
 
         if nullifier is None:
             nullifier = self.unique_field("nullifier")
 
         if action == ACTION_SPEND:
-            payload = MARKER_PREFIX + bytes([action]) + nullifier + commitment
+            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier
             return payload, commitment, nullifier
 
-        payload = MARKER_PREFIX + bytes([action]) + commitment
+        payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
         return payload, commitment, nullifier
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, shielded_value=COIN):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
+        output_value = input_value - fee
+        if action == ACTION_MINT:
+            output_value -= shielded_value
+        elif action == ACTION_SPEND:
+            output_value += shielded_value
 
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(utxo["txid"], 16), utxo["vout"]))]
-        tx.vout = [CTxOut(input_value - fee, wallet._scriptPubKey)]
+        tx.vout = [CTxOut(output_value, wallet._scriptPubKey)]
 
         payload, commitment, nullifier = self.make_marker_payload(
             action=action,
             commitment=commitment,
             nullifier=nullifier,
+            shielded_value=shielded_value,
         )
         for _ in range(marker_count):
             tx.vout.append(CTxOut(marker_value, CScript([OP_RETURN, payload])))
@@ -126,11 +134,18 @@ class ShieldedPoolTest(BitcoinTestFramework):
         raw_duplicate, _, _, _ = self.make_marker_tx(wallets[1], marker_count=2)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate", active.sendrawtransaction, raw_duplicate)
 
+        raw_zero_amount, _, _, _ = self.make_marker_tx(wallets[1], shielded_value=0)
+        assert_raises_rpc_error(-26, "bad-shielded-amount", active.sendrawtransaction, raw_zero_amount)
+
         raw_zero_commitment, _, _, _ = self.make_marker_tx(wallets[1], commitment=bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-commitment", active.sendrawtransaction, raw_zero_commitment)
 
         raw_zero_nullifier, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-nullifier", active.sendrawtransaction, raw_zero_nullifier)
+
+        self.log.info("Reject shielded spends before the value pool is funded")
+        raw_unfunded_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND)
+        assert_raises_rpc_error(-26, "bad-shielded-value-pool", active.sendrawtransaction, raw_unfunded_spend)
 
         self.log.info("Reject duplicate shielded state inside a candidate block")
         duplicate_block_commitment = self.unique_field("duplicate-block-commitment")
@@ -149,6 +164,8 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(active.sendrawtransaction(raw_active), txid)
         block_hash = active.generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)[0]
         assert txid in active.getblock(block_hash)["tx"]
+        coinbase_value = sum(Decimal(str(vout["value"])) for vout in active.getblock(block_hash, 2)["tx"][0]["vout"])
+        assert_equal(coinbase_value, Decimal("50.00001000"))
 
         self.log.info("Reject duplicate shielded commitments from active-chain state")
         raw_chain_duplicate, _, _, _ = self.make_marker_tx(wallets[1], commitment=mined_commitment)

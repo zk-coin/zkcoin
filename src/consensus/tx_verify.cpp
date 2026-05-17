@@ -6,6 +6,7 @@
 
 #include <chainparams.h>
 #include <consensus/consensus.h>
+#include <consensus/shielded.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <consensus/validation.h>
@@ -202,14 +203,36 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
     }
 
+    CAmount shielded_delta = 0;
+    if (consensus_params.shielded_pool.IsEnabled(nSpendHeight)) {
+        TxValidationState shielded_state;
+        if (!Consensus::ShieldedPool::GetTransactionValuePoolDelta(tx, /*active=*/true, shielded_delta, shielded_state)) {
+            return state.Invalid(shielded_state.GetResult(), shielded_state.GetRejectReason(), shielded_state.GetDebugMessage());
+        }
+    }
+
     const CAmount value_out = tx.GetValueOut();
-    if (nValueIn < value_out) {
+    CAmount adjusted_value_in = nValueIn;
+    CAmount adjusted_value_out = value_out;
+    if (shielded_delta > 0) {
+        adjusted_value_out += shielded_delta;
+        if (!MoneyRange(adjusted_value_out)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-amount");
+        }
+    } else if (shielded_delta < 0) {
+        adjusted_value_in += -shielded_delta;
+        if (!MoneyRange(adjusted_value_in)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-amount");
+        }
+    }
+
+    if (adjusted_value_in < adjusted_value_out) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
-            strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
+            strprintf("value in (%s) + shielded spends < value out (%s) + shielded mints", FormatMoney(nValueIn), FormatMoney(value_out)));
     }
 
     // Tally transaction fees
-    CAmount txfee_aux = nValueIn - value_out;
+    CAmount txfee_aux = adjusted_value_in - adjusted_value_out;
     if (!MoneyRange(txfee_aux)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange");
     }

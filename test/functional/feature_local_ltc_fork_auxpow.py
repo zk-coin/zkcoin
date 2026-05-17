@@ -89,13 +89,14 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_commitment(self, label):
         return hashlib.sha256(label.encode()).digest()
 
-    def create_shielded_mint_tx(self, node, outpoint, prev_txout, signing_key, destination, commitment):
+    def create_shielded_mint_tx(self, node, outpoint, prev_txout, signing_key, destination, commitment, shielded_value=COIN):
         prev_value = Decimal(str(prev_txout["value"]))
-        payload = MARKER_PREFIX + bytes([ACTION_MINT]) + commitment
+        shielded_decimal = Decimal(shielded_value) / Decimal(COIN)
+        payload = MARKER_PREFIX + bytes([ACTION_MINT]) + shielded_value.to_bytes(8, "little") + commitment
         raw_tx = node.createrawtransaction(
             [outpoint],
             [
-                {destination: prev_value - Decimal("0.00100000")},
+                {destination: prev_value - shielded_decimal - Decimal("0.00100000")},
                 {"data": payload.hex()},
             ],
         )
@@ -359,7 +360,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getrawmempool(), [])
         assert_equal(child.gettxout(spend_txid, 0, False), None)
         shielded_output = child.gettxout(shielded_txid, 0, False)
-        assert_equal(Decimal(str(shielded_output["value"])), Decimal("4.99800000"))
+        assert_equal(Decimal(str(shielded_output["value"])), Decimal("3.99800000"))
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
 
 
