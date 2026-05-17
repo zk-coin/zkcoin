@@ -72,11 +72,25 @@ native Orchard-style proof bytes and contains another typed envelope:
 zkc-orchard-real-v1 || flags || kind || public_input_hash || verifier_key_hash || proof_len_le32 || proof_bytes
 ```
 
+The nested `proof_bytes` field is also versioned before it can reach the native
+backend:
+
+```text
+zkc-orchard-native-proof-v1 || flags || verifier_input_hash || native_proof_len_le32 || native_proof_bytes
+```
+
+The default unsupported backend returns `unsupported` only for that structurally
+native proof envelope. Arbitrary raw proof bytes inside `zkc-orchard-real-v1`
+are parsed, fingerprinted, and rejected as `invalid`, which keeps the production
+boundary fail-closed while preserving a stable place to wire the cryptographic
+Orchard verifier.
+
 Unknown modes, unknown flags, wrong proof kinds, wrong public inputs, wrong
-verifier-key commitments, and malformed lengths are rejected. The real-proof
-backend still returns unsupported until the Orchard verifier is wired; this
-keeps local Litecoin snapshot launch and Scrypt AuxPoW tests reproducible while
-preventing placeholder proof bytes from being accepted as production proofs.
+verifier-key commitments, non-native proof bytes, and malformed lengths are
+rejected. The real-proof backend still returns unsupported until the Orchard
+verifier is wired; this keeps local Litecoin snapshot launch and Scrypt AuxPoW
+tests reproducible while preventing placeholder proof bytes from being accepted
+as production proofs.
 After parsing, the Rust verifier hands the backend a typed request containing
 the action kind, consensus public-input hash, verifier-key commitment, and raw
 proof bytes.

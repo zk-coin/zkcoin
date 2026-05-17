@@ -158,6 +158,8 @@ bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof
 uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash);
 uint256 ExpectedOrchardRealVerifierKeyHashV1();
 std::vector<unsigned char> BuildOrchardRealProofV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_bytes);
+std::vector<unsigned char> BuildOrchardNativeProofBytesV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_bytes);
+bool DecodeOrchardNativeProofBytesV1(const std::vector<unsigned char>& proof_bytes, uint8_t proof_kind, const uint256& public_input_hash, std::vector<unsigned char>& native_proof_bytes);
 bool DecodeOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, std::vector<unsigned char>& proof_bytes);
 bool VerifyOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);

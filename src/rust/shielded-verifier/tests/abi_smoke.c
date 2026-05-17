@@ -64,10 +64,10 @@ static const unsigned char EXPECTED_ORCHARD_REAL_VK_HASH[32] = {
 };
 
 static const unsigned char EXPECTED_ORCHARD_REAL_REQUEST_HASH[32] = {
-    0x50, 0xa2, 0x6b, 0x9b, 0xf8, 0x44, 0xa9, 0x3a,
-    0x8b, 0x08, 0xeb, 0xd4, 0xf8, 0x1f, 0xab, 0xee,
-    0x25, 0xa0, 0x58, 0x91, 0xcd, 0x10, 0xd3, 0xe7,
-    0x0a, 0xbd, 0xa9, 0x6d, 0xe2, 0xbf, 0x24, 0x19,
+    0xb2, 0x58, 0xed, 0x04, 0x07, 0x06, 0xd1, 0x05,
+    0xc0, 0x12, 0xd5, 0xaf, 0x51, 0x5e, 0x07, 0xaf,
+    0x8d, 0xe5, 0x63, 0x9c, 0xf9, 0x7d, 0x32, 0xfc,
+    0x15, 0x75, 0xdf, 0xc7, 0xc4, 0x52, 0x46, 0x0d,
 };
 
 static const unsigned char EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH[32] = {
@@ -88,22 +88,32 @@ int main(void)
     expected_orchard_body_v1[23] = 0;
     memcpy(expected_orchard_body_v1 + 24, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
 
-    unsigned char real_orchard_proof_v1[153];
+    unsigned char real_native_proof_bytes_v1[128];
+    memcpy(real_native_proof_bytes_v1, "zkc-orchard-native-proof-v1", 27);
+    real_native_proof_bytes_v1[27] = 0;
+    memcpy(real_native_proof_bytes_v1 + 28, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH));
+    real_native_proof_bytes_v1[60] = 64;
+    real_native_proof_bytes_v1[61] = 0;
+    real_native_proof_bytes_v1[62] = 0;
+    real_native_proof_bytes_v1[63] = 0;
+    memset(real_native_proof_bytes_v1 + 64, 0x42, 64);
+
+    unsigned char real_orchard_proof_v1[217];
     memcpy(real_orchard_proof_v1, "zkc-orchard-real-v1", 19);
     real_orchard_proof_v1[19] = 0;
     real_orchard_proof_v1[20] = 1;
     memcpy(real_orchard_proof_v1 + 21, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
     memcpy(real_orchard_proof_v1 + 53, EXPECTED_ORCHARD_REAL_VK_HASH, sizeof(EXPECTED_ORCHARD_REAL_VK_HASH));
-    real_orchard_proof_v1[85] = 64;
+    real_orchard_proof_v1[85] = 128;
     real_orchard_proof_v1[86] = 0;
     real_orchard_proof_v1[87] = 0;
     real_orchard_proof_v1[88] = 0;
-    memset(real_orchard_proof_v1 + 89, 0x42, 64);
+    memcpy(real_orchard_proof_v1 + 89, real_native_proof_bytes_v1, sizeof(real_native_proof_bytes_v1));
 
-    unsigned char real_orchard_body_v1[177];
+    unsigned char real_orchard_body_v1[241];
     memcpy(real_orchard_body_v1, "zkc-orchard-body-v1", 19);
     real_orchard_body_v1[19] = 1;
-    real_orchard_body_v1[20] = 153;
+    real_orchard_body_v1[20] = 217;
     real_orchard_body_v1[21] = 0;
     real_orchard_body_v1[22] = 0;
     real_orchard_body_v1[23] = 0;
@@ -129,25 +139,25 @@ int main(void)
     expected_bundle_v4[102] = 0;
     memcpy(expected_bundle_v4 + 103, expected_orchard_body_v1, sizeof(expected_orchard_body_v1));
 
-    unsigned char real_orchard_payload_v1[234];
+    unsigned char real_orchard_payload_v1[298];
     memcpy(real_orchard_payload_v1, "zkc-orchard-proof-v1", 20);
     real_orchard_payload_v1[20] = 1;
     memcpy(real_orchard_payload_v1 + 21, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
-    real_orchard_payload_v1[53] = 177;
+    real_orchard_payload_v1[53] = 241;
     real_orchard_payload_v1[54] = 0;
     real_orchard_payload_v1[55] = 0;
     real_orchard_payload_v1[56] = 0;
     memcpy(real_orchard_payload_v1 + 57, real_orchard_body_v1, sizeof(real_orchard_body_v1));
 
-    unsigned char real_bundle_v4[280];
+    unsigned char real_bundle_v4[344];
     memcpy(real_bundle_v4, "zkc-p4", 6);
     real_bundle_v4[6] = 1;
     real_bundle_v4[7] = 1;
     real_bundle_v4[8] = 1;
     real_bundle_v4[9] = 0;
     memcpy(real_bundle_v4 + 10, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
-    real_bundle_v4[42] = 234;
-    real_bundle_v4[43] = 0;
+    real_bundle_v4[42] = 42;
+    real_bundle_v4[43] = 1;
     real_bundle_v4[44] = 0;
     real_bundle_v4[45] = 0;
     memcpy(real_bundle_v4 + 46, real_orchard_payload_v1, sizeof(real_orchard_payload_v1));

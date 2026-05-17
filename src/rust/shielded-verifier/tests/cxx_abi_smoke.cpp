@@ -54,10 +54,10 @@ int main()
         0x0f, 0xe2, 0x82, 0xaf, 0xe3, 0xf3, 0x2c, 0xd3,
     };
     static const std::vector<unsigned char> EXPECTED_ORCHARD_REAL_REQUEST_HASH{
-        0xb5, 0xc0, 0x80, 0x93, 0xab, 0x92, 0x5b, 0x51,
-        0x3b, 0xa1, 0x01, 0xe8, 0x8a, 0x99, 0x52, 0x51,
-        0xed, 0x51, 0x5d, 0xbd, 0xce, 0x32, 0xbb, 0x17,
-        0x63, 0xad, 0xbc, 0x04, 0x6d, 0xff, 0x91, 0x52,
+        0x7c, 0xc5, 0x1e, 0x6b, 0x21, 0xcf, 0x00, 0x8e,
+        0x5e, 0x30, 0x1d, 0x9b, 0xce, 0x8b, 0x2d, 0x42,
+        0x55, 0xb8, 0x8e, 0x0c, 0xb5, 0xde, 0x0d, 0x2e,
+        0xc5, 0xa0, 0x22, 0xdd, 0x91, 0x85, 0x26, 0x30,
     };
     static const std::vector<unsigned char> EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH{
         0x66, 0xb7, 0xae, 0xc4, 0xde, 0xa3, 0x68, 0x22,
@@ -132,7 +132,9 @@ int main()
         return 14;
     }
 
-    const std::vector<unsigned char> real_proof_bytes(192, 0x42);
+    const std::vector<unsigned char> native_proof_bytes(192, 0x42);
+    const std::vector<unsigned char> real_proof_bytes =
+        Consensus::ShieldedPool::BuildOrchardNativeProofBytesV1(1, public_input_hash, native_proof_bytes);
     const auto real_proof_v1 = Consensus::ShieldedPool::BuildOrchardRealProofV1(1, public_input_hash, real_proof_bytes);
     std::vector<unsigned char> decoded_real_proof_bytes;
     if (!Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 1, public_input_hash, decoded_real_proof_bytes)) {
@@ -141,6 +143,15 @@ int main()
 
     if (decoded_real_proof_bytes != real_proof_bytes) {
         return 16;
+    }
+
+    std::vector<unsigned char> decoded_native_proof_bytes;
+    if (!Consensus::ShieldedPool::DecodeOrchardNativeProofBytesV1(decoded_real_proof_bytes, 1, public_input_hash, decoded_native_proof_bytes)) {
+        return 74;
+    }
+
+    if (decoded_native_proof_bytes != native_proof_bytes) {
+        return 75;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardRealProofV1(real_proof_v1, 1, public_input_hash)) {

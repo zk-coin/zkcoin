@@ -252,7 +252,8 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         public_input_hash,
         decoded_body_mode));
     BOOST_CHECK_EQUAL(decoded_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
-    const std::vector<unsigned char> real_proof_bytes(192, 0x42);
+    const std::vector<unsigned char> native_proof_bytes(192, 0x42);
+    const std::vector<unsigned char> real_proof_bytes = BuildOrchardNativeProofBytesV1(ACTION_MINT, public_input_hash, native_proof_bytes);
     const uint256 real_verifier_key_hash = ExpectedOrchardRealVerifierKeyHashV1();
     const std::vector<unsigned char> expected_real_verifier_key_hash{
         0x44, 0x98, 0xa4, 0xda, 0xde, 0xe9, 0x35, 0xcc,
@@ -272,6 +273,13 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         real_proof_bytes.end(),
         decoded_real_proof_bytes.begin(),
         decoded_real_proof_bytes.end());
+    std::vector<unsigned char> decoded_native_proof_bytes;
+    BOOST_CHECK(DecodeOrchardNativeProofBytesV1(decoded_real_proof_bytes, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        native_proof_bytes.begin(),
+        native_proof_bytes.end(),
+        decoded_native_proof_bytes.begin(),
+        decoded_native_proof_bytes.end());
     uint256 real_request_hash;
     BOOST_CHECK(OrchardRealProofRequestHashV1(real_proof_v1, ACTION_MINT, public_input_hash, real_request_hash));
     const uint256 expected_real_request_hash = ExpectedRealProofRequestHash(ACTION_MINT, public_input_hash, real_verifier_key_hash, real_proof_bytes);
@@ -359,6 +367,25 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_MINT, public_input_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    const auto raw_real_proof_v1 = BuildOrchardRealProofV1(ACTION_MINT, public_input_hash, native_proof_bytes);
+    const uint256 expected_raw_real_request_hash = ExpectedRealProofRequestHash(ACTION_MINT, public_input_hash, real_verifier_key_hash, native_proof_bytes);
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV2(raw_real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_raw_real_request_hash.begin(),
+        expected_raw_real_request_hash.end(),
+        checked_real_request_hash.begin(),
+        checked_real_request_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        checked_real_verifier_input_hash.begin(),
+        checked_real_verifier_input_hash.end());
+    BOOST_CHECK_EQUAL(
+        VerifyOrchardRealProofStatusV1(raw_real_proof_v1, ACTION_MINT, public_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
+    BOOST_CHECK(!DecodeOrchardNativeProofBytesV1(native_proof_bytes, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
     BOOST_CHECK_EQUAL(OrchardRealVerifierBackendV1(), SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED);
     BOOST_CHECK(!OrchardRealVerifierSupportsProofsV1());
     BOOST_CHECK_EQUAL(
