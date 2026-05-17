@@ -385,6 +385,15 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(raw_real_proof_v1, ACTION_MINT, public_input_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
+    auto wrong_native_verifier_key = real_proof_bytes;
+    wrong_native_verifier_key[sizeof("zkc-orchard-native-proof-v1") - 1 + 1] ^= 0x01;
+    const auto wrong_native_verifier_key_proof_v1 = BuildOrchardRealProofV1(ACTION_MINT, public_input_hash, wrong_native_verifier_key);
+    BOOST_CHECK_EQUAL(
+        VerifyOrchardRealProofStatusV1(wrong_native_verifier_key_proof_v1, ACTION_MINT, public_input_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
+    std::vector<unsigned char> decoded_wrong_native_verifier_key;
+    BOOST_CHECK(DecodeOrchardRealProofV1(wrong_native_verifier_key_proof_v1, ACTION_MINT, public_input_hash, decoded_wrong_native_verifier_key));
+    BOOST_CHECK(!DecodeOrchardNativeProofBytesV1(decoded_wrong_native_verifier_key, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
     BOOST_CHECK(!DecodeOrchardNativeProofBytesV1(native_proof_bytes, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
     BOOST_CHECK_EQUAL(OrchardRealVerifierBackendV1(), SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED);
     BOOST_CHECK(!OrchardRealVerifierSupportsProofsV1());

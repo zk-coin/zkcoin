@@ -64,10 +64,10 @@ static const unsigned char EXPECTED_ORCHARD_REAL_VK_HASH[32] = {
 };
 
 static const unsigned char EXPECTED_ORCHARD_REAL_REQUEST_HASH[32] = {
-    0xb2, 0x58, 0xed, 0x04, 0x07, 0x06, 0xd1, 0x05,
-    0xc0, 0x12, 0xd5, 0xaf, 0x51, 0x5e, 0x07, 0xaf,
-    0x8d, 0xe5, 0x63, 0x9c, 0xf9, 0x7d, 0x32, 0xfc,
-    0x15, 0x75, 0xdf, 0xc7, 0xc4, 0x52, 0x46, 0x0d,
+    0x20, 0x94, 0xd5, 0xd8, 0x69, 0x07, 0xe9, 0x51,
+    0x2b, 0x9f, 0x85, 0x9a, 0x4f, 0x5f, 0xbf, 0x87,
+    0x3e, 0x30, 0x8a, 0x69, 0xbf, 0x07, 0x29, 0x69,
+    0xe3, 0x90, 0x86, 0x53, 0x0d, 0x2a, 0x7e, 0x74,
 };
 
 static const unsigned char EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH[32] = {
@@ -88,32 +88,33 @@ int main(void)
     expected_orchard_body_v1[23] = 0;
     memcpy(expected_orchard_body_v1 + 24, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
 
-    unsigned char real_native_proof_bytes_v1[128];
+    unsigned char real_native_proof_bytes_v1[160];
     memcpy(real_native_proof_bytes_v1, "zkc-orchard-native-proof-v1", 27);
     real_native_proof_bytes_v1[27] = 0;
-    memcpy(real_native_proof_bytes_v1 + 28, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH));
-    real_native_proof_bytes_v1[60] = 64;
-    real_native_proof_bytes_v1[61] = 0;
-    real_native_proof_bytes_v1[62] = 0;
-    real_native_proof_bytes_v1[63] = 0;
-    memset(real_native_proof_bytes_v1 + 64, 0x42, 64);
+    memcpy(real_native_proof_bytes_v1 + 28, EXPECTED_ORCHARD_REAL_VK_HASH, sizeof(EXPECTED_ORCHARD_REAL_VK_HASH));
+    memcpy(real_native_proof_bytes_v1 + 60, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH));
+    real_native_proof_bytes_v1[92] = 64;
+    real_native_proof_bytes_v1[93] = 0;
+    real_native_proof_bytes_v1[94] = 0;
+    real_native_proof_bytes_v1[95] = 0;
+    memset(real_native_proof_bytes_v1 + 96, 0x42, 64);
 
-    unsigned char real_orchard_proof_v1[217];
+    unsigned char real_orchard_proof_v1[249];
     memcpy(real_orchard_proof_v1, "zkc-orchard-real-v1", 19);
     real_orchard_proof_v1[19] = 0;
     real_orchard_proof_v1[20] = 1;
     memcpy(real_orchard_proof_v1 + 21, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
     memcpy(real_orchard_proof_v1 + 53, EXPECTED_ORCHARD_REAL_VK_HASH, sizeof(EXPECTED_ORCHARD_REAL_VK_HASH));
-    real_orchard_proof_v1[85] = 128;
+    real_orchard_proof_v1[85] = 160;
     real_orchard_proof_v1[86] = 0;
     real_orchard_proof_v1[87] = 0;
     real_orchard_proof_v1[88] = 0;
     memcpy(real_orchard_proof_v1 + 89, real_native_proof_bytes_v1, sizeof(real_native_proof_bytes_v1));
 
-    unsigned char real_orchard_body_v1[241];
+    unsigned char real_orchard_body_v1[273];
     memcpy(real_orchard_body_v1, "zkc-orchard-body-v1", 19);
     real_orchard_body_v1[19] = 1;
-    real_orchard_body_v1[20] = 217;
+    real_orchard_body_v1[20] = 249;
     real_orchard_body_v1[21] = 0;
     real_orchard_body_v1[22] = 0;
     real_orchard_body_v1[23] = 0;
@@ -139,24 +140,24 @@ int main(void)
     expected_bundle_v4[102] = 0;
     memcpy(expected_bundle_v4 + 103, expected_orchard_body_v1, sizeof(expected_orchard_body_v1));
 
-    unsigned char real_orchard_payload_v1[298];
+    unsigned char real_orchard_payload_v1[330];
     memcpy(real_orchard_payload_v1, "zkc-orchard-proof-v1", 20);
     real_orchard_payload_v1[20] = 1;
     memcpy(real_orchard_payload_v1 + 21, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
-    real_orchard_payload_v1[53] = 241;
-    real_orchard_payload_v1[54] = 0;
+    real_orchard_payload_v1[53] = 17;
+    real_orchard_payload_v1[54] = 1;
     real_orchard_payload_v1[55] = 0;
     real_orchard_payload_v1[56] = 0;
     memcpy(real_orchard_payload_v1 + 57, real_orchard_body_v1, sizeof(real_orchard_body_v1));
 
-    unsigned char real_bundle_v4[344];
+    unsigned char real_bundle_v4[376];
     memcpy(real_bundle_v4, "zkc-p4", 6);
     real_bundle_v4[6] = 1;
     real_bundle_v4[7] = 1;
     real_bundle_v4[8] = 1;
     real_bundle_v4[9] = 0;
     memcpy(real_bundle_v4 + 10, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
-    real_bundle_v4[42] = 42;
+    real_bundle_v4[42] = 74;
     real_bundle_v4[43] = 1;
     real_bundle_v4[44] = 0;
     real_bundle_v4[45] = 0;

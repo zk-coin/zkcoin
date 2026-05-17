@@ -234,6 +234,7 @@ std::vector<unsigned char> BuildOrchardNativeProofBytesV1(uint8_t proof_kind, co
 
     std::vector<unsigned char> proof = OrchardRealNativeProofPrefixV1();
     proof.push_back(SHIELDED_PROOF_BUNDLE_FLAGS_NONE);
+    proof.insert(proof.end(), verifier_key_hash.begin(), verifier_key_hash.end());
     proof.insert(proof.end(), verifier_input_hash.begin(), verifier_input_hash.end());
     AppendUint32(proof, static_cast<uint32_t>(proof_bytes.size()));
     proof.insert(proof.end(), proof_bytes.begin(), proof_bytes.end());
@@ -244,7 +245,8 @@ bool DecodeOrchardNativeProofBytesV1(const std::vector<unsigned char>& proof_byt
 {
     const auto& prefix = OrchardRealNativeProofPrefixV1();
     const size_t flags_offset = prefix.size();
-    const size_t verifier_input_hash_offset = flags_offset + 1;
+    const size_t verifier_key_hash_offset = flags_offset + 1;
+    const size_t verifier_input_hash_offset = verifier_key_hash_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
     const size_t proof_len_offset = verifier_input_hash_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
     const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
     if (proof_bytes.size() < proof_offset) return false;
@@ -252,6 +254,8 @@ bool DecodeOrchardNativeProofBytesV1(const std::vector<unsigned char>& proof_byt
     if (proof_bytes[flags_offset] != SHIELDED_PROOF_BUNDLE_FLAGS_NONE) return false;
 
     const uint256 verifier_key_hash = ExpectedOrchardRealVerifierKeyHashV1();
+    if (!std::equal(verifier_key_hash.begin(), verifier_key_hash.end(), proof_bytes.begin() + verifier_key_hash_offset)) return false;
+
     std::vector<unsigned char> data = OrchardRealVerifierInputPreimagePrefixV1();
     data.push_back(proof_kind);
     data.insert(data.end(), public_input_hash.begin(), public_input_hash.end());

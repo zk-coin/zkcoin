@@ -76,14 +76,17 @@ The nested `proof_bytes` field is also versioned before it can reach the native
 backend:
 
 ```text
-zkc-orchard-native-proof-v1 || flags || verifier_input_hash || native_proof_len_le32 || native_proof_bytes
+zkc-orchard-native-proof-v1 || flags || verifier_key_hash || verifier_input_hash || native_proof_len_le32 || native_proof_bytes
 ```
 
 The default unsupported backend returns `unsupported` only for that structurally
 native proof envelope. Arbitrary raw proof bytes inside `zkc-orchard-real-v1`
 are parsed, fingerprinted, and rejected as `invalid`, which keeps the production
 boundary fail-closed while preserving a stable place to wire the cryptographic
-Orchard verifier.
+Orchard verifier. The duplicated verifier-key commitment is checked against the
+outer real-proof envelope before dispatch, so the backend receives a
+self-contained verifier packet and cannot accidentally verify against a
+different proving-key identity.
 
 Unknown modes, unknown flags, wrong proof kinds, wrong public inputs, wrong
 verifier-key commitments, non-native proof bytes, and malformed lengths are

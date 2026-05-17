@@ -47,6 +47,7 @@ const ORCHARD_REAL_PROOF_HEADER_LEN_V1: usize = ORCHARD_REAL_PROOF_PREFIX_V1.len
 const ORCHARD_REAL_NATIVE_PROOF_HEADER_LEN_V1: usize = ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1.len()
     + 1
     + HASH_SIZE
+    + HASH_SIZE
     + core::mem::size_of::<u32>();
 #[cfg(feature = "verifier-fixture")]
 const ORCHARD_REAL_FIXTURE_PROOF_LEN_V1: usize =
@@ -113,6 +114,7 @@ pub struct OrchardRealVerifierInput {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OrchardNativeProof<'a> {
+    pub verifier_key_hash: [u8; HASH_SIZE],
     pub verifier_input_hash: [u8; HASH_SIZE],
     pub proof_bytes: &'a [u8],
 }
@@ -406,6 +408,7 @@ pub fn build_orchard_native_proof_bytes_v1(
     let mut proof = Vec::with_capacity(ORCHARD_REAL_NATIVE_PROOF_HEADER_LEN_V1 + proof_bytes.len());
     proof.extend_from_slice(ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1);
     proof.push(PROOF_BUNDLE_FLAGS_NONE);
+    proof.extend_from_slice(&input.verifier_key_hash);
     proof.extend_from_slice(&verifier_input_hash);
     proof.extend_from_slice(&(proof_bytes.len() as u32).to_le_bytes());
     proof.extend_from_slice(proof_bytes);
@@ -494,10 +497,18 @@ pub fn decode_orchard_native_proof_bytes_v1<'a>(
     }
 
     let flags_offset = ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1.len();
-    let verifier_input_offset = flags_offset + 1;
+    let verifier_key_hash_offset = flags_offset + 1;
+    let verifier_input_offset = verifier_key_hash_offset + HASH_SIZE;
     let proof_len_offset = verifier_input_offset + HASH_SIZE;
     let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
     if proof[flags_offset] != PROOF_BUNDLE_FLAGS_NONE {
+        return None;
+    }
+
+    let verifier_key_hash: [u8; HASH_SIZE] = proof[verifier_key_hash_offset..verifier_input_offset]
+        .try_into()
+        .expect("verifier key hash slice has fixed length");
+    if verifier_key_hash != request.verifier_key_hash {
         return None;
     }
 
@@ -518,6 +529,7 @@ pub fn decode_orchard_native_proof_bytes_v1<'a>(
     }
 
     Some(OrchardNativeProof {
+        verifier_key_hash,
         verifier_input_hash,
         proof_bytes: &proof[proof_offset..],
     })
@@ -1411,9 +1423,9 @@ mod tests {
         0x2c, 0xd3,
     ];
     const EXPECTED_ORCHARD_REAL_REQUEST_HASH: [u8; HASH_SIZE] = [
-        0x7c, 0xc5, 0x1e, 0x6b, 0x21, 0xcf, 0x00, 0x8e, 0x5e, 0x30, 0x1d, 0x9b, 0xce, 0x8b, 0x2d,
-        0x42, 0x55, 0xb8, 0x8e, 0x0c, 0xb5, 0xde, 0x0d, 0x2e, 0xc5, 0xa0, 0x22, 0xdd, 0x91, 0x85,
-        0x26, 0x30,
+        0x85, 0xc1, 0x9b, 0xb0, 0x4c, 0x39, 0x8f, 0x2f, 0xcd, 0x05, 0x8c, 0x10, 0xe9, 0x4c, 0x0c,
+        0x4d, 0x41, 0x46, 0xcb, 0x37, 0x9c, 0x8d, 0x21, 0x0b, 0xba, 0x90, 0x48, 0x01, 0xa4, 0x9d,
+        0x70, 0x05,
     ];
     #[cfg(not(feature = "verifier-fixture"))]
     const EXPECTED_RAW_ORCHARD_REAL_REQUEST_HASH: [u8; HASH_SIZE] = [
@@ -1605,6 +1617,7 @@ mod tests {
         assert_eq!(
             decode_orchard_native_proof_bytes_v1(&real_request_v1),
             Some(OrchardNativeProof {
+                verifier_key_hash: EXPECTED_ORCHARD_REAL_VK_HASH,
                 verifier_input_hash: EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH,
                 proof_bytes: &expected_native_proof_bytes,
             })
@@ -1679,6 +1692,28 @@ mod tests {
         assert_eq!(
             orchard_real_proof_status_v1(&raw_real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofStatus::Invalid
+        );
+        let mut wrong_native_vk_bytes = native_bytes.clone();
+        wrong_native_vk_bytes[ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1.len() + 1] ^= 0x01;
+        let wrong_native_vk_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &wrong_native_vk_bytes);
+        assert_eq!(
+            orchard_real_proof_status_v1(
+                &wrong_native_vk_proof_v1,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH
+            ),
+            OrchardRealProofStatus::Invalid
+        );
+        let wrong_native_vk_request = decode_orchard_real_proof_request_v1(
+            &wrong_native_vk_proof_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+        )
+        .expect("wrong native verifier key outer envelope decodes");
+        assert_eq!(
+            decode_orchard_native_proof_bytes_v1(&wrong_native_vk_request),
+            None
         );
         let raw_real_request_v1 = decode_orchard_real_proof_request_v1(
             &raw_real_proof_v1,
