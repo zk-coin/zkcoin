@@ -27,9 +27,12 @@ ACTION_MINT = 0x01
 ACTION_SPEND = 0x02
 EMPTY_ROOT = "00" * 32
 PROOF_TAG_SIZE = 3
-PROOF_ENVELOPE_PREFIX = b"zkc-proof-v3"
+PROOF_ENVELOPE_PREFIX = b"zkc-p4"
 PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
-PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v3"
+PROOF_BUNDLE_PREIMAGE_PREFIX = b"zkc-proof-bundle-v4"
+PROOF_BUNDLE_VERSION = 0x01
+PROOF_SYSTEM_ORCHARD = 0x01
+PROOF_BUNDLE_FLAGS_NONE = 0x00
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -91,8 +94,14 @@ class ShieldedPoolTest(BitcoinTestFramework):
         tx_binding_hash = self.hash256(tx.serialize_without_witness())
         action = kwargs["action"]
         public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + field_hash + tx_binding_hash)
-        proof_payload = self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + public_input_hash)
-        return PROOF_ENVELOPE_PREFIX + bytes([action]) + public_input_hash + proof_payload
+        proof_payload = self.hash256(PROOF_BUNDLE_PREIMAGE_PREFIX + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE]) + public_input_hash)
+        return (
+            PROOF_ENVELOPE_PREFIX
+            + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE])
+            + public_input_hash
+            + len(proof_payload).to_bytes(4, "little")
+            + proof_payload
+        )
 
     def flip_proof_byte(self, proof_envelope, offset):
         return proof_envelope[:offset] + bytes([proof_envelope[offset] ^ 0x01]) + proof_envelope[offset + 1 :]
@@ -149,7 +158,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         if proof_envelope is None:
             proof_envelope = self.proof_envelope(tx, **proof_kwargs)
         if mutate_public_input:
-            proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 1)
+            proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 4)
         if mutate_proof_payload:
             proof_envelope = self.flip_proof_byte(proof_envelope, len(proof_envelope) - 1)
         tx.wit.vtxinwit = [CTxInWitness()]

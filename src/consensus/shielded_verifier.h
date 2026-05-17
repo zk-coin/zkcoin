@@ -35,11 +35,21 @@ extern "C" int zkc_shielded_verify_proof_v3(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+extern "C" int zkc_shielded_verify_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 namespace Consensus {
 namespace ShieldedPool {
 
 static constexpr size_t SHIELDED_PROOF_HASH_SIZE{32};
 static constexpr size_t SHIELDED_PUBLIC_INPUT_HASH_SIZE{32};
+static constexpr uint8_t SHIELDED_PROOF_BUNDLE_VERSION_V4{1};
+static constexpr uint8_t SHIELDED_PROOF_SYSTEM_ORCHARD{1};
+static constexpr uint8_t SHIELDED_PROOF_BUNDLE_FLAGS_NONE{0};
 
 uint256 ExpectedProofEnvelopeHash(const uint256& field_hash, const uint256& tx_binding_hash);
 std::vector<unsigned char> BuildProofPayloadV1(const uint256& field_hash, const uint256& tx_binding_hash);
@@ -51,6 +61,9 @@ uint256 BuildProofPublicInputHash(uint8_t proof_kind, const uint256& field_hash,
 uint256 ExpectedProofEnvelopeHashV3(uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildProofPayloadV3(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
+uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash);
+std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash);
+bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash);
 
 } // namespace ShieldedPool
 } // namespace Consensus

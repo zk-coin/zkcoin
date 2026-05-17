@@ -49,8 +49,28 @@ static const unsigned char EXPECTED_MINT_PROOF_V3[32] = {
     0x5c, 0x0e, 0xb6, 0xc1, 0xa6, 0x3f, 0x5b, 0x3a,
 };
 
+static const unsigned char EXPECTED_MINT_PROOF_V4[32] = {
+    0xe1, 0x60, 0x23, 0x9b, 0x4c, 0x8b, 0xfc, 0x13,
+    0x7c, 0xac, 0xf2, 0x10, 0xd0, 0xea, 0xc3, 0xcb,
+    0xc8, 0xe6, 0xfa, 0xd5, 0xff, 0xaa, 0x06, 0xca,
+    0xe6, 0x93, 0x1d, 0xb0, 0x34, 0x58, 0xc4, 0x24,
+};
+
 int main(void)
 {
+    unsigned char expected_bundle_v4[78];
+    memcpy(expected_bundle_v4, "zkc-p4", 6);
+    expected_bundle_v4[6] = 1;
+    expected_bundle_v4[7] = 1;
+    expected_bundle_v4[8] = 1;
+    expected_bundle_v4[9] = 0;
+    memcpy(expected_bundle_v4 + 10, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
+    expected_bundle_v4[42] = 32;
+    expected_bundle_v4[43] = 0;
+    expected_bundle_v4[44] = 0;
+    expected_bundle_v4[45] = 0;
+    memcpy(expected_bundle_v4 + 46, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
+
     if (zkc_shielded_verify_proof_v1(EXPECTED_PROOF, sizeof(EXPECTED_PROOF), FIELD_HASH, sizeof(FIELD_HASH), TX_BINDING_HASH, sizeof(TX_BINDING_HASH)) != 1) {
         return 1;
     }
@@ -84,6 +104,14 @@ int main(void)
 
     if (zkc_shielded_verify_proof_v3(EXPECTED_MINT_PROOF_V3, sizeof(EXPECTED_MINT_PROOF_V3), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
         return 8;
+    }
+
+    if (zkc_shielded_verify_bundle_v4(expected_bundle_v4, sizeof(expected_bundle_v4), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 1) {
+        return 9;
+    }
+
+    if (zkc_shielded_verify_bundle_v4(expected_bundle_v4, sizeof(expected_bundle_v4), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 10;
     }
 
     return 0;

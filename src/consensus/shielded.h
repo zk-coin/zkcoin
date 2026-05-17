@@ -50,7 +50,7 @@ inline const std::vector<unsigned char>& MarkerPrefix()
 
 inline const std::vector<unsigned char>& ProofEnvelopePrefix()
 {
-    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '3'};
+    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', '4'};
     return prefix;
 }
 
@@ -143,13 +143,8 @@ inline uint256 TransactionBindingHash(const CTransaction& tx)
 
 inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker, const CTransaction& tx)
 {
-    std::vector<unsigned char> envelope = ProofEnvelopePrefix();
-    envelope.push_back(marker.action);
     const uint256 public_input_hash = BuildProofPublicInputHash(marker.action, ExpectedProofHash(marker), TransactionBindingHash(tx));
-    envelope.insert(envelope.end(), public_input_hash.begin(), public_input_hash.end());
-    const auto proof_payload = BuildProofPayloadV3(marker.action, public_input_hash);
-    envelope.insert(envelope.end(), proof_payload.begin(), proof_payload.end());
-    return envelope;
+    return BuildProofBundleV4(marker.action, public_input_hash);
 }
 
 inline bool HasProofEnvelopePrefix(const std::vector<unsigned char>& stack_item)
@@ -161,14 +156,26 @@ inline bool HasProofEnvelopePrefix(const std::vector<unsigned char>& stack_item)
 inline bool DecodeProofEnvelope(const std::vector<unsigned char>& stack_item, uint8_t& proof_kind, uint256& public_input_hash, std::vector<unsigned char>& proof_payload)
 {
     if (!HasProofEnvelopePrefix(stack_item)) return false;
-    const size_t proof_kind_offset = ProofEnvelopePrefix().size();
-    if (stack_item.size() <= proof_kind_offset) return false;
-    const size_t public_input_offset = proof_kind_offset + 1;
-    const size_t proof_offset = public_input_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
-    if (stack_item.size() <= proof_offset) return false;
+    const size_t version_offset = ProofEnvelopePrefix().size();
+    const size_t proof_kind_offset = version_offset + 1;
+    const size_t proof_system_offset = proof_kind_offset + 1;
+    const size_t flags_offset = proof_system_offset + 1;
+    const size_t public_input_offset = flags_offset + 1;
+    const size_t proof_len_offset = public_input_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
+    if (stack_item.size() < proof_offset) return false;
+    if (stack_item[version_offset] != SHIELDED_PROOF_BUNDLE_VERSION_V4) return false;
+    if (stack_item[proof_system_offset] != SHIELDED_PROOF_SYSTEM_ORCHARD) return false;
+    if (stack_item[flags_offset] != SHIELDED_PROOF_BUNDLE_FLAGS_NONE) return false;
+
+    uint32_t proof_len{0};
+    for (size_t i = 0; i < sizeof(proof_len); ++i) {
+        proof_len |= uint32_t{stack_item[proof_len_offset + i]} << (8 * i);
+    }
+    if (proof_len != stack_item.size() - proof_offset) return false;
 
     proof_kind = stack_item[proof_kind_offset];
-    public_input_hash = uint256(std::vector<unsigned char>(stack_item.begin() + public_input_offset, stack_item.begin() + proof_offset));
+    public_input_hash = uint256(std::vector<unsigned char>(stack_item.begin() + public_input_offset, stack_item.begin() + proof_len_offset));
     proof_payload.assign(stack_item.begin() + proof_offset, stack_item.end());
     return true;
 }
@@ -247,13 +254,7 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
             if (!HasProofEnvelopePrefix(stack_item)) continue;
             if (found) return false;
             found = true;
-            uint8_t proof_kind{0};
-            uint256 public_input_hash;
-            std::vector<unsigned char> proof_payload;
-            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) return false;
-            if (proof_kind != marker.action) return false;
-            if (public_input_hash != expected_public_input_hash) return false;
-            if (!VerifyProofPayloadV3(proof_payload, proof_kind, public_input_hash)) return false;
+            if (!VerifyProofBundleV4(stack_item, marker.action, expected_public_input_hash)) return false;
         }
     }
     return found;

@@ -36,6 +36,13 @@ int zkc_shielded_verify_proof_v3(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+int zkc_shielded_verify_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 #ifdef __cplusplus
 }
 #endif

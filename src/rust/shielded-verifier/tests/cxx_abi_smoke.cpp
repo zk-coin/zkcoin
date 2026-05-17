@@ -40,6 +40,12 @@ int main()
         0x45, 0x91, 0xf8, 0xce, 0x03, 0x16, 0xf9, 0x0b,
         0x5c, 0x0e, 0xb6, 0xc1, 0xa6, 0x3f, 0x5b, 0x3a,
     };
+    static const std::vector<unsigned char> EXPECTED_MINT_PROOF_V4{
+        0xe1, 0x60, 0x23, 0x9b, 0x4c, 0x8b, 0xfc, 0x13,
+        0x7c, 0xac, 0xf2, 0x10, 0xd0, 0xea, 0xc3, 0xcb,
+        0xc8, 0xe6, 0xfa, 0xd5, 0xff, 0xaa, 0x06, 0xca,
+        0xe6, 0x93, 0x1d, 0xb0, 0x34, 0x58, 0xc4, 0x24,
+    };
 
     const uint256 field_hash = FilledHash(0x11);
     const uint256 tx_binding_hash = FilledHash(0x22);
@@ -83,10 +89,24 @@ int main()
         return 9;
     }
 
+    const uint256 built_payload_v4 = Consensus::ShieldedPool::ExpectedProofBundlePayloadHashV4(1, public_input_hash);
+    if (std::vector<unsigned char>(built_payload_v4.begin(), built_payload_v4.end()) != EXPECTED_MINT_PROOF_V4) {
+        return 10;
+    }
+
+    const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
+    if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
+        return 11;
+    }
+
+    if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
+        return 12;
+    }
+
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 10;
+        return 13;
     }
 
     return 0;

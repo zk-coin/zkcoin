@@ -40,6 +40,26 @@ static const std::vector<unsigned char>& ProofEnvelopePreimagePrefixV3()
     return prefix;
 }
 
+static const std::vector<unsigned char>& ProofBundlePrefixV4()
+{
+    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', '4'};
+    return prefix;
+}
+
+static const std::vector<unsigned char>& ProofBundlePreimagePrefixV4()
+{
+    static const std::vector<unsigned char> prefix{
+        'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'b', 'u', 'n', 'd', 'l', 'e', '-', 'v', '4'};
+    return prefix;
+}
+
+static void AppendUint32(std::vector<unsigned char>& payload, uint32_t value)
+{
+    for (size_t i = 0; i < sizeof(value); ++i) {
+        payload.push_back((value >> (8 * i)) & 0xff);
+    }
+}
+
 uint256 ExpectedProofEnvelopeHash(const uint256& field_hash, const uint256& tx_binding_hash)
 {
     std::vector<unsigned char> data = ProofEnvelopePreimagePrefixV1();
@@ -125,6 +145,41 @@ bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof
         SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
 }
 
+uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    std::vector<unsigned char> data = ProofBundlePreimagePrefixV4();
+    data.push_back(SHIELDED_PROOF_BUNDLE_VERSION_V4);
+    data.push_back(proof_kind);
+    data.push_back(SHIELDED_PROOF_SYSTEM_ORCHARD);
+    data.push_back(SHIELDED_PROOF_BUNDLE_FLAGS_NONE);
+    data.insert(data.end(), public_input_hash.begin(), public_input_hash.end());
+    return Hash(data);
+}
+
+std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    const uint256 proof_hash = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    std::vector<unsigned char> bundle = ProofBundlePrefixV4();
+    bundle.push_back(SHIELDED_PROOF_BUNDLE_VERSION_V4);
+    bundle.push_back(proof_kind);
+    bundle.push_back(SHIELDED_PROOF_SYSTEM_ORCHARD);
+    bundle.push_back(SHIELDED_PROOF_BUNDLE_FLAGS_NONE);
+    bundle.insert(bundle.end(), public_input_hash.begin(), public_input_hash.end());
+    AppendUint32(bundle, SHIELDED_PROOF_HASH_SIZE);
+    bundle.insert(bundle.end(), proof_hash.begin(), proof_hash.end());
+    return bundle;
+}
+
+bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash)
+{
+    return zkc_shielded_verify_bundle_v4(
+        bundle.data(),
+        bundle.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
+}
+
 } // namespace ShieldedPool
 } // namespace Consensus
 
@@ -182,5 +237,20 @@ extern "C" int zkc_shielded_verify_proof_v3(
     const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
     const auto expected = Consensus::ShieldedPool::BuildProofPayloadV3(proof_kind, public_input_hash_value);
     return std::equal(expected.begin(), expected.end(), proof) ? 1 : 0;
+}
+
+extern "C" int zkc_shielded_verify_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len)
+{
+    if (bundle == nullptr || public_input_hash == nullptr) return 0;
+    if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
+
+    const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
+    const auto expected = Consensus::ShieldedPool::BuildProofBundleV4(proof_kind, public_input_hash_value);
+    return expected.size() == bundle_len && std::equal(expected.begin(), expected.end(), bundle) ? 1 : 0;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

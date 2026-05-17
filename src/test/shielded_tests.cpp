@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(marker.action, ACTION_MINT);
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
     const CTransaction unsigned_tx = TransactionWithMarker(payload);
-    BOOST_CHECK_EQUAL(BuildProofEnvelope(marker, unsigned_tx).size(), ProofEnvelopePrefix().size() + 1 + SHIELDED_PUBLIC_INPUT_HASH_SIZE + FIELD_SIZE);
+    BOOST_CHECK_EQUAL(BuildProofEnvelope(marker, unsigned_tx).size(), ProofEnvelopePrefix().size() + 4 + SHIELDED_PUBLIC_INPUT_HASH_SIZE + sizeof(uint32_t) + FIELD_SIZE);
 
     TxValidationState missing_proof_state;
     BOOST_CHECK(!CheckTransaction(unsigned_tx, /*active=*/true, missing_proof_state));
@@ -113,12 +113,24 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
             public_input_hash.begin(),
             SHIELDED_PUBLIC_INPUT_HASH_SIZE),
         1);
+    const auto proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash);
+    BOOST_CHECK(VerifyProofBundleV4(proof_bundle_v4, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!VerifyProofBundleV4(proof_bundle_v4, ACTION_SPEND, public_input_hash));
+    BOOST_CHECK_EQUAL(
+        zkc_shielded_verify_bundle_v4(
+            proof_bundle_v4.data(),
+            proof_bundle_v4.size(),
+            ACTION_MINT,
+            public_input_hash.begin(),
+            SHIELDED_PUBLIC_INPUT_HASH_SIZE),
+        1);
 
     auto short_proof_payload = proof_payload;
     short_proof_payload.pop_back();
     BOOST_CHECK(!VerifyProofPayloadV1(short_proof_payload, field_hash, tx_binding_hash));
     BOOST_CHECK(!VerifyProofPayloadV2(short_proof_payload, ACTION_MINT, field_hash, tx_binding_hash));
     BOOST_CHECK(!VerifyProofPayloadV3(short_proof_payload, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!VerifyProofBundleV4(short_proof_payload, ACTION_MINT, public_input_hash));
     BOOST_CHECK(!VerifyProofPayloadV1(proof_payload, Field(0x04), tx_binding_hash));
 
     const std::vector<unsigned char> expected_vector{
@@ -165,6 +177,17 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_mint_vector_v3.end(),
         vector_payload_v3.begin(),
         vector_payload_v3.end());
+    const std::vector<unsigned char> expected_mint_vector_v4{
+        0xe1, 0x60, 0x23, 0x9b, 0x4c, 0x8b, 0xfc, 0x13,
+        0x7c, 0xac, 0xf2, 0x10, 0xd0, 0xea, 0xc3, 0xcb,
+        0xc8, 0xe6, 0xfa, 0xd5, 0xff, 0xaa, 0x06, 0xca,
+        0xe6, 0x93, 0x1d, 0xb0, 0x34, 0x58, 0xc4, 0x24};
+    const uint256 vector_payload_v4 = ExpectedProofBundlePayloadHashV4(ACTION_MINT, vector_public_input_hash);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_mint_vector_v4.begin(),
+        expected_mint_vector_v4.end(),
+        vector_payload_v4.begin(),
+        vector_payload_v4.end());
 
     auto tampered_payload = payload;
     tampered_payload.back() ^= 0x01;
@@ -179,13 +202,13 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(tampered_proof_state.GetRejectReason(), "bad-shielded-proof");
 
     auto wrong_kind_proof = BuildProofEnvelope(marker, unsigned_tx);
-    wrong_kind_proof[ProofEnvelopePrefix().size()] = ACTION_SPEND;
+    wrong_kind_proof[ProofEnvelopePrefix().size() + 1] = ACTION_SPEND;
     TxValidationState wrong_kind_state;
     BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_kind_proof), /*active=*/true, wrong_kind_state));
     BOOST_CHECK_EQUAL(wrong_kind_state.GetRejectReason(), "bad-shielded-proof");
 
     auto wrong_public_input_proof = BuildProofEnvelope(marker, unsigned_tx);
-    wrong_public_input_proof[ProofEnvelopePrefix().size() + 1] ^= 0x01;
+    wrong_public_input_proof[ProofEnvelopePrefix().size() + 4] ^= 0x01;
     TxValidationState wrong_public_input_state;
     BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_public_input_proof), /*active=*/true, wrong_public_input_state));
     BOOST_CHECK_EQUAL(wrong_public_input_state.GetRejectReason(), "bad-shielded-proof");
