@@ -124,6 +124,23 @@ impl ProofBundleCheck {
     }
 }
 
+trait OrchardRealProofBackend {
+    fn backend(&self) -> OrchardRealVerifierBackend;
+    fn verify(&self, request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus;
+}
+
+struct UnsupportedOrchardRealProofBackend;
+
+impl OrchardRealProofBackend for UnsupportedOrchardRealProofBackend {
+    fn backend(&self) -> OrchardRealVerifierBackend {
+        OrchardRealVerifierBackend::Unsupported
+    }
+
+    fn verify(&self, _request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus {
+        OrchardRealProofStatus::Unsupported
+    }
+}
+
 impl OrchardRealProofRequest<'_> {
     pub fn request_hash_v1(&self) -> [u8; HASH_SIZE] {
         let proof_len: u32 = self
@@ -318,6 +335,16 @@ pub fn orchard_real_proof_check_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> OrchardRealProofCheck {
+    let backend = UnsupportedOrchardRealProofBackend;
+    orchard_real_proof_check_with_backend_v1(proof, proof_kind, public_input_hash, &backend)
+}
+
+fn orchard_real_proof_check_with_backend_v1<B: OrchardRealProofBackend>(
+    proof: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
+) -> OrchardRealProofCheck {
     let Some(request) = decode_orchard_real_proof_request_v1(proof, proof_kind, public_input_hash)
     else {
         return OrchardRealProofCheck {
@@ -327,7 +354,7 @@ pub fn orchard_real_proof_check_v1(
     };
     let request_hash = request.request_hash_v1();
     OrchardRealProofCheck {
-        status: verify_orchard_real_proof_backend_status_v1(&request),
+        status: verify_orchard_real_proof_backend_status_with_backend_v1(&request, backend),
         request_hash: Some(request_hash),
     }
 }
@@ -350,17 +377,19 @@ pub fn orchard_real_proof_status_v1(
 }
 
 pub fn orchard_real_verifier_backend_v1() -> OrchardRealVerifierBackend {
-    OrchardRealVerifierBackend::Unsupported
+    let backend = UnsupportedOrchardRealProofBackend;
+    backend.backend()
 }
 
 pub fn orchard_real_verifier_supports_real_proofs_v1() -> bool {
     orchard_real_verifier_backend_v1().supports_real_proofs()
 }
 
-fn verify_orchard_real_proof_backend_status_v1(
-    _request: &OrchardRealProofRequest<'_>,
+fn verify_orchard_real_proof_backend_status_with_backend_v1<B: OrchardRealProofBackend>(
+    request: &OrchardRealProofRequest<'_>,
+    backend: &B,
 ) -> OrchardRealProofStatus {
-    OrchardRealProofStatus::Unsupported
+    backend.verify(request)
 }
 
 pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
@@ -448,6 +477,21 @@ pub fn check_orchard_proof_payload_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheck {
+    let backend = UnsupportedOrchardRealProofBackend;
+    check_orchard_proof_payload_with_backend_v1(
+        proof_payload,
+        proof_kind,
+        public_input_hash,
+        &backend,
+    )
+}
+
+fn check_orchard_proof_payload_with_backend_v1<B: OrchardRealProofBackend>(
+    proof_payload: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
+) -> ProofBundleCheck {
     if proof_payload.len() < ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 {
         return ProofBundleCheck::malformed();
     }
@@ -477,7 +521,7 @@ pub fn check_orchard_proof_payload_v1(
     }
 
     let proof_body = &proof_payload[proof_offset..];
-    check_orchard_proof_body_v1(proof_body, proof_kind, public_input_hash)
+    check_orchard_proof_body_with_backend_v1(proof_body, proof_kind, public_input_hash, backend)
 }
 
 pub fn verify_orchard_proof_body_v1(
@@ -493,6 +537,16 @@ pub fn check_orchard_proof_body_v1(
     proof_body: &[u8],
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheck {
+    let backend = UnsupportedOrchardRealProofBackend;
+    check_orchard_proof_body_with_backend_v1(proof_body, proof_kind, public_input_hash, &backend)
+}
+
+fn check_orchard_proof_body_with_backend_v1<B: OrchardRealProofBackend>(
+    proof_body: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
 ) -> ProofBundleCheck {
     if proof_body.len() < ORCHARD_PROOF_BODY_HEADER_LEN_V1 {
         return ProofBundleCheck::malformed();
@@ -526,10 +580,11 @@ pub fn check_orchard_proof_body_v1(
             ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
         ),
         ORCHARD_PROOF_BODY_MODE_REAL => {
-            let check = orchard_real_proof_check_v1(
+            let check = orchard_real_proof_check_with_backend_v1(
                 &proof_body[body_offset..],
                 proof_kind,
                 public_input_hash,
+                backend,
             );
             ProofBundleCheck {
                 status: check.status,
@@ -580,6 +635,16 @@ pub fn check_proof_bundle_v4(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheck {
+    let backend = UnsupportedOrchardRealProofBackend;
+    check_proof_bundle_with_backend_v4(bundle, proof_kind, public_input_hash, &backend)
+}
+
+fn check_proof_bundle_with_backend_v4<B: OrchardRealProofBackend>(
+    bundle: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
+) -> ProofBundleCheck {
     if bundle.len() < PROOF_BUNDLE_HEADER_LEN_V4 {
         return ProofBundleCheck::malformed();
     }
@@ -620,7 +685,12 @@ pub fn check_proof_bundle_v4(
         return ProofBundleCheck::malformed();
     }
 
-    check_orchard_proof_payload_v1(&bundle[proof_offset..], proof_kind, public_input_hash)
+    check_orchard_proof_payload_with_backend_v1(
+        &bundle[proof_offset..],
+        proof_kind,
+        public_input_hash,
+        backend,
+    )
 }
 
 unsafe fn read_hash<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8; HASH_SIZE]> {
@@ -940,6 +1010,24 @@ mod tests {
         0x51, 0xed, 0x51, 0x5d, 0xbd, 0xce, 0x32, 0xbb, 0x17, 0x63, 0xad, 0xbc, 0x04, 0x6d, 0xff,
         0x91, 0x52,
     ];
+
+    struct TestVectorOrchardRealProofBackend {
+        valid_request_hash: [u8; HASH_SIZE],
+    }
+
+    impl OrchardRealProofBackend for TestVectorOrchardRealProofBackend {
+        fn backend(&self) -> OrchardRealVerifierBackend {
+            OrchardRealVerifierBackend::OrchardV1
+        }
+
+        fn verify(&self, request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus {
+            if request.request_hash_v1() == self.valid_request_hash {
+                OrchardRealProofStatus::Valid
+            } else {
+                OrchardRealProofStatus::Invalid
+            }
+        }
+    }
 
     #[test]
     fn builds_known_payload() {
@@ -1317,6 +1405,118 @@ mod tests {
             ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1
         );
         assert!(OrchardRealVerifierBackend::OrchardV1.supports_real_proofs());
+    }
+
+    #[test]
+    fn injected_backend_drives_real_bundle_validity() {
+        let valid_proof_bytes = [0x77; 192];
+        let valid_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &valid_proof_bytes);
+        let valid_request_hash =
+            orchard_real_proof_request_hash_v1(&valid_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("valid test vector request hash");
+        let backend = TestVectorOrchardRealProofBackend { valid_request_hash };
+        assert_eq!(backend.backend(), OrchardRealVerifierBackend::OrchardV1);
+
+        let valid_request =
+            decode_orchard_real_proof_request_v1(&valid_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("valid test vector decodes");
+        assert_eq!(
+            verify_orchard_real_proof_backend_status_with_backend_v1(&valid_request, &backend),
+            OrchardRealProofStatus::Valid
+        );
+        assert_eq!(
+            orchard_real_proof_check_with_backend_v1(
+                &valid_proof_v1,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            OrchardRealProofCheck {
+                status: OrchardRealProofStatus::Valid,
+                request_hash: Some(valid_request_hash),
+            }
+        );
+
+        let valid_body_v1 = build_orchard_real_proof_body_with_context_v1(
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+            &valid_proof_bytes,
+        );
+        let valid_payload_v1 = build_orchard_proof_payload_with_body_v1(
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+            &valid_body_v1,
+        );
+        let valid_bundle_v4 =
+            build_proof_bundle_with_payload_v4(1, &EXPECTED_PUBLIC_INPUT_HASH, &valid_payload_v1);
+        assert_eq!(
+            check_proof_bundle_with_backend_v4(
+                &valid_bundle_v4,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(valid_request_hash),
+            }
+        );
+
+        let invalid_proof_bytes = [0x78; 192];
+        let invalid_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &invalid_proof_bytes);
+        let invalid_request_hash =
+            orchard_real_proof_request_hash_v1(&invalid_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("invalid test vector request hash");
+        assert_eq!(
+            orchard_real_proof_check_with_backend_v1(
+                &invalid_proof_v1,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            OrchardRealProofCheck {
+                status: OrchardRealProofStatus::Invalid,
+                request_hash: Some(invalid_request_hash),
+            }
+        );
+
+        let invalid_body_v1 = build_orchard_real_proof_body_with_context_v1(
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+            &invalid_proof_bytes,
+        );
+        let invalid_payload_v1 = build_orchard_proof_payload_with_body_v1(
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+            &invalid_body_v1,
+        );
+        let invalid_bundle_v4 =
+            build_proof_bundle_with_payload_v4(1, &EXPECTED_PUBLIC_INPUT_HASH, &invalid_payload_v1);
+        assert_eq!(
+            check_proof_bundle_with_backend_v4(
+                &invalid_bundle_v4,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Invalid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(invalid_request_hash),
+            }
+        );
+
+        assert_eq!(
+            check_proof_bundle_v4(&valid_bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Unsupported,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(valid_request_hash),
+            }
+        );
     }
 
     #[test]

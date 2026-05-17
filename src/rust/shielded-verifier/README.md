@@ -16,6 +16,9 @@ body mode, the typed status, and the real-proof request fingerprint when the
 bundle contains native proof bytes. The current v4 path moves consensus toward
 the real verifier boundary: C++ computes the consensus public-input hash, while
 Rust parses a versioned proof bundle and dispatches by proof-system id.
+Internally, real proof verification now goes through an explicit backend
+adapter, so native Orchard verification can be wired behind the same request
+contract without changing the consensus witness format again.
 
 The v4 bundle layout is:
 
