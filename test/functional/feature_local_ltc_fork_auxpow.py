@@ -4,6 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test a local Litecoin-style fork launch followed by AuxPoW merge mining."""
 
+import hashlib
+
 from decimal import Decimal
 
 from test_framework.auxpow import build_parent_auxpow
@@ -18,6 +20,10 @@ from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxOut
 from test_framework.script import CScript
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
+
+
+MARKER_PREFIX = b"zkc-shield-v0"
+ACTION_MINT = 0x01
 
 
 class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
@@ -74,10 +80,33 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         return [
             "-acceptnonstdtxn=1",
             "-auxpowheight=1",
+            "-shieldedheight=2",
             f"-ltcsnapshotheight={dump['base_height']}",
             f"-ltcsnapshotblockhash={verify['base_hash']}",
             f"-ltcsnapshotutxoroot={import_hash or verify['import_hash']}",
         ]
+
+    def shielded_commitment(self, label):
+        return hashlib.sha256(label.encode()).digest()
+
+    def create_shielded_mint_tx(self, node, outpoint, prev_txout, signing_key, destination, commitment):
+        prev_value = Decimal(str(prev_txout["value"]))
+        payload = MARKER_PREFIX + bytes([ACTION_MINT]) + commitment
+        raw_tx = node.createrawtransaction(
+            [outpoint],
+            [
+                {destination: prev_value - Decimal("0.00100000")},
+                {"data": payload.hex()},
+            ],
+        )
+        signed = node.signrawtransactionwithkey(raw_tx, [signing_key], [{
+            "txid": outpoint["txid"],
+            "vout": outpoint["vout"],
+            "scriptPubKey": prev_txout["scriptPubKey"]["hex"],
+            "amount": prev_value,
+        }])
+        assert_equal(signed["complete"], True)
+        return signed["hex"]
 
     def run_test(self):
         parent = self.nodes[0]
@@ -152,6 +181,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(imported["base_height"], dump["base_height"])
         assert_equal(imported["import_hash"], verify["import_hash"])
         self.assert_child_snapshot_imported(child, dump, verify)
+        assert_equal(child.getblockchaininfo()["shielded_pool"]["start_height"], 2)
+        assert_equal(child.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
 
         self.log.info("Replay the same local parent snapshot before mining starts")
         replayed = child.importsnapshotmanifest(dump["path"])
@@ -287,6 +318,49 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(Decimal(str(reloaded_spend["value"])), Decimal("4.99900000"))
         reloaded_miner_spend = child.gettxout(miner_spend_txid, 0, False)
         assert_equal(Decimal(str(reloaded_miner_spend["value"])), Decimal("49.99900000"))
+
+        self.log.info("Mine an activated shielded marker through local parent AuxPoW")
+        assert_equal(child.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
+        shielded_commitment = self.shielded_commitment("local-parent-fork-auxpow-shielded")
+        raw_shielded_mint = self.create_shielded_mint_tx(
+            child,
+            {"txid": spend_txid, "vout": 0},
+            reloaded_spend,
+            bob_key.key,
+            bob_key.address,
+            shielded_commitment,
+        )
+        shielded_txid = child.sendrawtransaction(raw_shielded_mint)
+
+        raw_duplicate_mint = self.create_shielded_mint_tx(
+            child,
+            {"txid": miner_spend_txid, "vout": 0},
+            reloaded_miner_spend,
+            bob_key.key,
+            bob_key.address,
+            shielded_commitment,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
+
+        if self.is_wallet_compiled():
+            shielded_candidate = child.getauxblock()
+        else:
+            shielded_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(shielded_candidate["height"], 2)
+        shielded_parent_block = self.mine_parent_block(parent, commitment_hex=shielded_candidate["auxpowcommitment"])
+        shielded_auxpow = build_parent_auxpow(shielded_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(shielded_candidate["hash"], shielded_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(shielded_candidate["hash"], shielded_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 2)
+        assert_equal(child.getbestblockhash(), shielded_candidate["hash"])
+        assert shielded_txid in child.getblock(shielded_candidate["hash"])["tx"]
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(child.gettxout(spend_txid, 0, False), None)
+        shielded_output = child.gettxout(shielded_txid, 0, False)
+        assert_equal(Decimal(str(shielded_output["value"])), Decimal("4.99800000"))
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
 
 
 if __name__ == "__main__":
