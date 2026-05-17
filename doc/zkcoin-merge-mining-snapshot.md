@@ -85,3 +85,35 @@ Both are intentionally present before behavior changes so tests and review can t
 - `getauxblock` exposes candidate creation and AuxPoW submission for merge-mining integration.
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.
 - `importsnapshotmanifest` imports the normalized snapshot UTXOs into the launch chainstate. It is guarded so it only runs at the genesis chain tip, and it enforces configured snapshot constants unless explicitly allowed on test chains.
+
+## Block-X Snapshot Constant Generation
+
+`contrib/devtools/zkcoin_ltc_snapshot.sh` is the operator tool for turning a selected Litecoin block X into launch constants. It requires:
+
+- the Litecoin snapshot height;
+- the expected Litecoin block hash at that height;
+- an output path for the `dumptxoutset` snapshot;
+- a `litecoin-cli` command pointed at the source Litecoin node;
+- a `zkcoin-cli` command pointed at a zkCoin node with `verifysnapshotmanifest`.
+
+The script fails closed if the source node does not report the expected block hash for height X. If the source node is already beyond height X, it refuses to rewind unless `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a dedicated disposable snapshot node because it invalidates block `X + 1` and then reconsiders it on exit.
+
+Example:
+
+```bash
+contrib/devtools/zkcoin_ltc_snapshot.sh \
+  3000000 \
+  <expected-litecoin-block-hash> \
+  /srv/snapshots/ltc-block-x.dat \
+  /srv/litecoin/src/litecoin-cli -datadir=/srv/litecoin-data \
+  -- \
+  ./src/litecoin-cli -datadir=/srv/zkcoin-data
+```
+
+It prints the exact launch-node arguments:
+
+```text
+-ltcsnapshotheight=<height>
+-ltcsnapshotblockhash=<block_hash>
+-ltcsnapshotutxoroot=<normalized_import_hash>
+```
