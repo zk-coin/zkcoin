@@ -37,7 +37,10 @@ zkc-orchard-fixture-proof-v1 || verifier_input_hash
 That fixture proves the public ABI, bundle parser, request hash, and verifier
 input hash can return `valid` through the same native-verifier boundary. It is
 not a production cryptographic proof system and is intentionally excluded from
-normal node builds.
+normal node builds. `scripts/fixture-consensus-smoke.sh` links that fixture
+backend into a standalone C++ consensus smoke test and proves a real-mode
+shielded witness is accepted with scaffold proofs disabled, while a tampered
+real-mode proof is still rejected.
 
 The v4 bundle layout is:
 
@@ -101,4 +104,5 @@ Run the Rust tests and C ABI smoke test with:
 cargo test --locked
 cargo test --locked --features verifier-fixture
 scripts/abi-smoke.sh
+scripts/fixture-consensus-smoke.sh
 ```
