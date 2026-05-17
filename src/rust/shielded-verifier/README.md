@@ -43,6 +43,9 @@ verifier-key commitments, and malformed lengths are rejected. The real-proof
 backend still returns unsupported until the Orchard verifier is wired; this
 keeps local Litecoin snapshot launch and Scrypt AuxPoW tests reproducible while
 preventing placeholder proof bytes from being accepted as production proofs.
+After parsing, the Rust verifier hands the backend a typed request containing
+the action kind, consensus public-input hash, verifier-key commitment, and raw
+proof bytes.
 
 The real-proof status ABI returns `1` for a valid proof, `0` for malformed
 bytes or context mismatch, `-1` for a parsed but invalid proof, and `-2` when a

@@ -63,6 +63,14 @@ impl OrchardRealProofStatus {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrchardRealProofRequest<'a> {
+    pub proof_kind: u8,
+    pub public_input_hash: [u8; HASH_SIZE],
+    pub verifier_key_hash: [u8; HASH_SIZE],
+    pub proof_bytes: &'a [u8],
+}
+
 pub fn expected_proof_payload_v1(
     field_hash: &[u8; HASH_SIZE],
     tx_binding_hash: &[u8; HASH_SIZE],
@@ -154,6 +162,15 @@ pub fn decode_orchard_real_proof_v1<'a>(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> Option<&'a [u8]> {
+    decode_orchard_real_proof_request_v1(proof, proof_kind, public_input_hash)
+        .map(|request| request.proof_bytes)
+}
+
+pub fn decode_orchard_real_proof_request_v1<'a>(
+    proof: &'a [u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> Option<OrchardRealProofRequest<'a>> {
     if proof.len() < ORCHARD_REAL_PROOF_HEADER_LEN_V1 {
         return None;
     }
@@ -177,9 +194,10 @@ pub fn decode_orchard_real_proof_v1<'a>(
     if &proof[public_input_offset..verifier_key_hash_offset] != public_input_hash {
         return None;
     }
-    if proof[verifier_key_hash_offset..proof_len_offset]
-        != expected_orchard_real_verifier_key_hash_v1()
-    {
+    let verifier_key_hash: [u8; HASH_SIZE] = proof[verifier_key_hash_offset..proof_len_offset]
+        .try_into()
+        .expect("verifier key hash slice has fixed length");
+    if verifier_key_hash != expected_orchard_real_verifier_key_hash_v1() {
         return None;
     }
 
@@ -192,7 +210,12 @@ pub fn decode_orchard_real_proof_v1<'a>(
         return None;
     }
 
-    Some(&proof[proof_offset..])
+    Some(OrchardRealProofRequest {
+        proof_kind,
+        public_input_hash: *public_input_hash,
+        verifier_key_hash,
+        proof_bytes: &proof[proof_offset..],
+    })
 }
 
 pub fn is_well_formed_orchard_real_proof_v1(
@@ -217,17 +240,15 @@ pub fn orchard_real_proof_status_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> OrchardRealProofStatus {
-    let Some(proof_bytes) = decode_orchard_real_proof_v1(proof, proof_kind, public_input_hash)
+    let Some(request) = decode_orchard_real_proof_request_v1(proof, proof_kind, public_input_hash)
     else {
         return OrchardRealProofStatus::Malformed;
     };
-    verify_orchard_real_proof_backend_status_v1(proof_bytes, proof_kind, public_input_hash)
+    verify_orchard_real_proof_backend_status_v1(&request)
 }
 
 fn verify_orchard_real_proof_backend_status_v1(
-    _proof_bytes: &[u8],
-    _proof_kind: u8,
-    _public_input_hash: &[u8; HASH_SIZE],
+    _request: &OrchardRealProofRequest<'_>,
 ) -> OrchardRealProofStatus {
     OrchardRealProofStatus::Unsupported
 }
@@ -768,6 +789,19 @@ mod tests {
         ));
         let real_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &[0x42; 192]);
+        let real_request_v1 =
+            decode_orchard_real_proof_request_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("real proof request decodes");
+        assert_eq!(real_request_v1.proof_kind, 1);
+        assert_eq!(
+            real_request_v1.public_input_hash,
+            EXPECTED_PUBLIC_INPUT_HASH
+        );
+        assert_eq!(
+            real_request_v1.verifier_key_hash,
+            EXPECTED_ORCHARD_REAL_VK_HASH
+        );
+        assert_eq!(real_request_v1.proof_bytes, &[0x42; 192][..]);
         assert!(is_well_formed_orchard_real_proof_v1(
             &real_proof_v1,
             1,
