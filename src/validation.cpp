@@ -2042,11 +2042,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     const Consensus::Params& consensus = chainparams.GetConsensus();
     if (pindex->nHeight == 1 && consensus.ltc_snapshot.IsEnabled()) {
-        uint256 imported_snapshot_hash;
-        if (!CoinsDB().ReadLtcSnapshotImportHash(imported_snapshot_hash)) {
+        LtcSnapshotImportInfo imported_snapshot;
+        if (!CoinsDB().ReadLtcSnapshotImportInfo(imported_snapshot)) {
             return state.Error("configured Litecoin snapshot has not been imported");
         }
-        if (imported_snapshot_hash != consensus.ltc_snapshot.hashUTXORoot) {
+        if (imported_snapshot.nHeight != consensus.ltc_snapshot.nHeight ||
+            imported_snapshot.hashBlock != consensus.ltc_snapshot.hashBlock ||
+            imported_snapshot.hashUTXORoot != consensus.ltc_snapshot.hashUTXORoot) {
             return state.Error("configured Litecoin snapshot import hash mismatch");
         }
     }

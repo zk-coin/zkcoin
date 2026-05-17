@@ -8,6 +8,10 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
 
 
+def reversed_hex(hex_string):
+    return bytes.fromhex(hex_string)[::-1].hex()
+
+
 class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
@@ -97,8 +101,93 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
         assert_equal(snapshot_info["imported"], True)
         assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+
+        self.log.info("Persist imported snapshot marker across restart and reject wrong-root reconfiguration")
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height']}",
+            f"-ltcsnapshotblockhash={verify['base_hash']}",
+            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+        ])
+        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], True)
+        assert_equal(snapshot_info["imported_height"], dump["base_height"])
+        assert_equal(snapshot_info["imported_block_hash"], verify["base_hash"])
+        assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height'] + 1}",
+            f"-ltcsnapshotblockhash={verify['base_hash']}",
+            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+        ])
+        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], False)
+        assert_equal(snapshot_info["imported_height"], dump["base_height"])
+        assert_equal(snapshot_info["imported_block_hash"], verify["base_hash"])
+        assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+        assert_raises_rpc_error(
+            -1,
+            "configured Litecoin snapshot import hash mismatch",
+            launch.generatetodescriptor,
+            1,
+            "raw(51)",
+        )
+        assert_equal(launch.getblockcount(), 0)
+
+        wrong_block_hash = ("00" if verify["base_hash"][:2] != "00" else "01") + verify["base_hash"][2:]
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height']}",
+            f"-ltcsnapshotblockhash={wrong_block_hash}",
+            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+        ])
+        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], False)
+        assert_equal(snapshot_info["imported_height"], dump["base_height"])
+        assert_equal(snapshot_info["imported_block_hash"], verify["base_hash"])
+        assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+        assert_raises_rpc_error(
+            -1,
+            "configured Litecoin snapshot import hash mismatch",
+            launch.generatetodescriptor,
+            1,
+            "raw(51)",
+        )
+        assert_equal(launch.getblockcount(), 0)
+
+        wrong_import_hash = ("00" if verify["import_hash"][:2] != "00" else "01") + verify["import_hash"][2:]
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height']}",
+            f"-ltcsnapshotblockhash={verify['base_hash']}",
+            f"-ltcsnapshotutxoroot={wrong_import_hash}",
+        ])
+        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], False)
+        assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+        assert_raises_rpc_error(
+            -1,
+            "configured Litecoin snapshot import hash mismatch",
+            launch.generatetodescriptor,
+            1,
+            "raw(51)",
+        )
+        assert_equal(launch.getblockcount(), 0)
+
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height']}",
+            f"-ltcsnapshotblockhash={verify['base_hash']}",
+            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+        ])
         assert_equal(launch.getauxblock()["height"], 1)
         assert_equal(launch.createauxblock(launch.get_deterministic_priv_key().address)["height"], 1)
+
+        block_template = launch.getblocktemplate({"rules": ["mweb", "segwit"]})
+        snapshot_commitment_hex = reversed_hex(verify["base_hash"])
+        assert_equal(block_template["coinbaseaux"]["zkcoin"], "7a6b636f696e")
+        assert_equal(block_template["coinbaseaux"]["zkcoin_snapshot"], snapshot_commitment_hex)
 
         self.log.info("Mine first launch block after importing balances")
         mined = launch.generatetodescriptor(1, "raw(51)")
@@ -107,6 +196,9 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         launch_info = launch.getblockchaininfo()
         assert_equal(launch_info["auxpow"]["next_block_active"], True)
         assert_equal(launch_info["ltc_snapshot"]["imported"], True)
+        coinbase_sig = launch.getblock(mined[0], 2)["tx"][0]["vin"][0]["coinbase"]
+        assert "7a6b636f696e" in coinbase_sig
+        assert snapshot_commitment_hex in coinbase_sig
 
         self.log.info("Reject snapshot import after launch has started")
         assert_raises_rpc_error(
