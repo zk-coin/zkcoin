@@ -27,6 +27,7 @@ MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 ACTION_SPEND = 0x02
 EMPTY_ROOT = "00" * 32
+PROOF_TAG_SIZE = 3
 
 
 class ShieldedPoolTest(BitcoinTestFramework):
@@ -50,12 +51,22 @@ class ShieldedPoolTest(BitcoinTestFramework):
     def root_hex_to_payload_bytes(self, root_hex):
         return bytes.fromhex(root_hex)[::-1]
 
-    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN):
+    def proof_tag(self, *, action, shielded_value, commitment=None, nullifier=None, anchor=None):
+        preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little")
+        if action == ACTION_MINT:
+            preimage += commitment
+        elif action == ACTION_SPEND:
+            preimage += nullifier + anchor
+        return hashlib.sha256(hashlib.sha256(preimage).digest()).digest()[:PROOF_TAG_SIZE]
+
+    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None):
         if commitment is None:
             commitment = self.unique_field("commitment")
 
         if action == ACTION_MINT:
-            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
+            if proof_tag is None:
+                proof_tag = self.proof_tag(action=action, shielded_value=shielded_value, commitment=commitment)
+            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment + proof_tag
             return payload, commitment, None
 
         if nullifier is None:
@@ -64,13 +75,15 @@ class ShieldedPoolTest(BitcoinTestFramework):
             anchor = self.unique_field("anchor")
 
         if action == ACTION_SPEND:
-            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier + anchor
+            if proof_tag is None:
+                proof_tag = self.proof_tag(action=action, shielded_value=shielded_value, nullifier=nullifier, anchor=anchor)
+            payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier + anchor + proof_tag
             return payload, commitment, nullifier
 
         payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
         return payload, commitment, nullifier
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -90,6 +103,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
             nullifier=nullifier,
             anchor=anchor,
             shielded_value=shielded_value,
+            proof_tag=proof_tag,
         )
         for _ in range(marker_count):
             tx.vout.append(CTxOut(marker_value, CScript([OP_RETURN, payload])))
@@ -154,6 +168,12 @@ class ShieldedPoolTest(BitcoinTestFramework):
 
         raw_zero_nullifier, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-nullifier", active.sendrawtransaction, raw_zero_nullifier)
+
+        bad_proof_commitment = self.unique_field("bad-proof-commitment")
+        good_proof_tag = self.proof_tag(action=ACTION_MINT, shielded_value=COIN, commitment=bad_proof_commitment)
+        bad_proof_tag = bytes([good_proof_tag[0] ^ 0x01]) + good_proof_tag[1:]
+        raw_bad_proof, _, _, _ = self.make_marker_tx(wallets[1], commitment=bad_proof_commitment, proof_tag=bad_proof_tag)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_proof)
 
         self.log.info("Reject shielded spends with unknown anchors")
         raw_unfunded_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND)

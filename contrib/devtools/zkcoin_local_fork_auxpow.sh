@@ -31,6 +31,9 @@ echo "Running AuxPoW unit tests"
 echo "Running UTXO snapshot unit tests"
 (cd src && ./test/test_litecoin --run_test=utxo_snapshot_tests)
 
+echo "Running shielded pool unit tests"
+(cd src && ./test/test_litecoin --run_test=shielded_tests)
+
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 

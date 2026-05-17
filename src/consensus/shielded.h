@@ -23,6 +23,7 @@ static constexpr uint8_t ACTION_MINT{0x01};
 static constexpr uint8_t ACTION_SPEND{0x02};
 static constexpr size_t FIELD_SIZE{32};
 static constexpr size_t VALUE_SIZE{8};
+static constexpr size_t PROOF_TAG_SIZE{3};
 
 struct Marker
 {
@@ -31,6 +32,7 @@ struct Marker
     uint256 anchor;
     uint256 commitment;
     uint256 nullifier;
+    std::vector<unsigned char> proof_tag;
 
     bool HasCommitment() const { return action == ACTION_MINT; }
     bool HasNullifier() const { return action == ACTION_SPEND; }
@@ -62,10 +64,10 @@ inline bool IsMarkerPayloadWellFormed(const std::vector<unsigned char>& payload)
     if (payload.size() < marker.size() + 1) return false;
     const uint8_t action = payload[marker.size()];
     if (action == ACTION_MINT) {
-        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE;
+        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE + PROOF_TAG_SIZE;
     }
     if (action == ACTION_SPEND) {
-        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE + FIELD_SIZE;
+        return payload.size() == marker.size() + 1 + VALUE_SIZE + FIELD_SIZE + FIELD_SIZE + PROOF_TAG_SIZE;
     }
     return false;
 }
@@ -102,6 +104,26 @@ inline uint256 AppendCommitmentRoot(const uint256& previous_root, uint64_t posit
     return Hash(data);
 }
 
+inline std::vector<unsigned char> BuildProofPreimage(const Marker& marker)
+{
+    std::vector<unsigned char> data{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '0'};
+    data.push_back(marker.action);
+    AppendAmount(data, marker.nValue);
+    if (marker.action == ACTION_MINT) {
+        data.insert(data.end(), marker.commitment.begin(), marker.commitment.end());
+    } else if (marker.action == ACTION_SPEND) {
+        data.insert(data.end(), marker.nullifier.begin(), marker.nullifier.end());
+        data.insert(data.end(), marker.anchor.begin(), marker.anchor.end());
+    }
+    return data;
+}
+
+inline std::vector<unsigned char> ExpectedProofTag(const Marker& marker)
+{
+    const uint256 proof_hash = Hash(BuildProofPreimage(marker));
+    return std::vector<unsigned char>(proof_hash.begin(), proof_hash.begin() + PROOF_TAG_SIZE);
+}
+
 inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marker& marker)
 {
     if (!IsMarkerPayloadWellFormed(payload)) return false;
@@ -116,11 +138,15 @@ inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marke
     marker.nValue = static_cast<CAmount>(encoded_value);
     if (marker.action == ACTION_MINT) {
         marker.commitment = ReadUint256Field(payload, field_offset);
+        const size_t proof_offset = field_offset + FIELD_SIZE;
+        marker.proof_tag.assign(payload.begin() + proof_offset, payload.begin() + proof_offset + PROOF_TAG_SIZE);
         return true;
     }
     if (marker.action == ACTION_SPEND) {
         marker.nullifier = ReadUint256Field(payload, field_offset);
         marker.anchor = ReadUint256Field(payload, field_offset + FIELD_SIZE);
+        const size_t proof_offset = field_offset + FIELD_SIZE + FIELD_SIZE;
+        marker.proof_tag.assign(payload.begin() + proof_offset, payload.begin() + proof_offset + PROOF_TAG_SIZE);
         return true;
     }
 
@@ -133,6 +159,12 @@ inline std::vector<unsigned char> BuildMintPayload(const uint256& commitment, CA
     payload.push_back(ACTION_MINT);
     AppendAmount(payload, amount);
     payload.insert(payload.end(), commitment.begin(), commitment.end());
+    Marker marker;
+    marker.action = ACTION_MINT;
+    marker.nValue = amount;
+    marker.commitment = commitment;
+    const auto proof_tag = ExpectedProofTag(marker);
+    payload.insert(payload.end(), proof_tag.begin(), proof_tag.end());
     return payload;
 }
 
@@ -143,12 +175,19 @@ inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, co
     AppendAmount(payload, amount);
     payload.insert(payload.end(), nullifier.begin(), nullifier.end());
     payload.insert(payload.end(), anchor.begin(), anchor.end());
+    Marker marker;
+    marker.action = ACTION_SPEND;
+    marker.nValue = amount;
+    marker.nullifier = nullifier;
+    marker.anchor = anchor;
+    const auto proof_tag = ExpectedProofTag(marker);
+    payload.insert(payload.end(), proof_tag.begin(), proof_tag.end());
     return payload;
 }
 
-inline bool VerifyStubbedProof(const Marker&)
+inline bool VerifyStubbedProof(const Marker& marker)
 {
-    return true;
+    return marker.proof_tag == ExpectedProofTag(marker);
 }
 
 inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)

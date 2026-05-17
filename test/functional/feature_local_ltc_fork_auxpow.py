@@ -24,6 +24,7 @@ from test_framework.util import assert_array_result, assert_equal, assert_raises
 
 MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
+PROOF_TAG_SIZE = 3
 
 
 class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
@@ -89,10 +90,20 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_commitment(self, label):
         return hashlib.sha256(label.encode()).digest()
 
+    def shielded_proof_tag(self, action, shielded_value, commitment):
+        preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
+        return hashlib.sha256(hashlib.sha256(preimage).digest()).digest()[:PROOF_TAG_SIZE]
+
     def create_shielded_mint_tx(self, node, outpoint, prev_txout, signing_key, destination, commitment, shielded_value=COIN):
         prev_value = Decimal(str(prev_txout["value"]))
         shielded_decimal = Decimal(shielded_value) / Decimal(COIN)
-        payload = MARKER_PREFIX + bytes([ACTION_MINT]) + shielded_value.to_bytes(8, "little") + commitment
+        payload = (
+            MARKER_PREFIX
+            + bytes([ACTION_MINT])
+            + shielded_value.to_bytes(8, "little")
+            + commitment
+            + self.shielded_proof_tag(ACTION_MINT, shielded_value, commitment)
+        )
         raw_tx = node.createrawtransaction(
             [outpoint],
             [
