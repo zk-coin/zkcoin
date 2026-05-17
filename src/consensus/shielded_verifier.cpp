@@ -102,6 +102,13 @@ static const std::vector<unsigned char>& OrchardRealVerifierKeyHashPreimagePrefi
     return prefix;
 }
 
+[[maybe_unused]] static const std::vector<unsigned char>& OrchardNativeProofHashPreimagePrefixV1()
+{
+    static const std::vector<unsigned char> prefix{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'n', 'a', 't', 'i', 'v', 'e', '-', 'p', 'r', 'o', 'o', 'f', '-', 'h', 'a', 's', 'h', '-', 'v', '1'};
+    return prefix;
+}
+
 static void AppendUint32(std::vector<unsigned char>& payload, uint32_t value)
 {
     for (size_t i = 0; i < sizeof(value); ++i) {
@@ -208,6 +215,23 @@ uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& publ
 uint256 ExpectedOrchardRealVerifierKeyHashV1()
 {
     return Hash(OrchardRealVerifierKeyHashPreimagePrefixV1());
+}
+
+uint256 ExpectedOrchardNativeProofHashV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& native_proof_bytes)
+{
+    const uint256 verifier_key_hash = ExpectedOrchardRealVerifierKeyHashV1();
+    std::vector<unsigned char> data = OrchardRealVerifierInputPreimagePrefixV1();
+    data.push_back(proof_kind);
+    data.insert(data.end(), public_input_hash.begin(), public_input_hash.end());
+    data.insert(data.end(), verifier_key_hash.begin(), verifier_key_hash.end());
+    const uint256 verifier_input_hash = Hash(data);
+
+    std::vector<unsigned char> preimage = OrchardNativeProofHashPreimagePrefixV1();
+    preimage.insert(preimage.end(), verifier_key_hash.begin(), verifier_key_hash.end());
+    preimage.insert(preimage.end(), verifier_input_hash.begin(), verifier_input_hash.end());
+    AppendUint32(preimage, static_cast<uint32_t>(native_proof_bytes.size()));
+    preimage.insert(preimage.end(), native_proof_bytes.begin(), native_proof_bytes.end());
+    return Hash(preimage);
 }
 
 std::vector<unsigned char> BuildOrchardRealProofV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_bytes)
@@ -355,6 +379,23 @@ bool OrchardRealVerifierInputHashV1(const std::vector<unsigned char>& proof, uin
     return true;
 }
 
+bool OrchardRealNativeProofHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& native_proof_hash)
+{
+    std::vector<unsigned char> native_proof_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    const int ok = zkc_shielded_orchard_real_native_proof_hash_v1(
+        proof.data(),
+        proof.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        native_proof_hash_bytes.data(),
+        native_proof_hash_bytes.size());
+    if (ok != 1) return false;
+
+    std::copy(native_proof_hash_bytes.begin(), native_proof_hash_bytes.end(), native_proof_hash.begin());
+    return true;
+}
+
 int CheckOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash)
 {
     std::vector<unsigned char> request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
@@ -386,6 +427,29 @@ int CheckOrchardRealProofV2(const std::vector<unsigned char>& proof, uint8_t pro
         verifier_input_hash_bytes.size());
     std::copy(request_hash_bytes.begin(), request_hash_bytes.end(), request_hash.begin());
     std::copy(verifier_input_hash_bytes.begin(), verifier_input_hash_bytes.end(), verifier_input_hash.begin());
+    return status;
+}
+
+int CheckOrchardRealProofV3(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash, uint256& verifier_input_hash, uint256& native_proof_hash)
+{
+    std::vector<unsigned char> request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    std::vector<unsigned char> verifier_input_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    std::vector<unsigned char> native_proof_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    const int status = zkc_shielded_orchard_real_proof_check_v3(
+        proof.data(),
+        proof.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        request_hash_bytes.data(),
+        request_hash_bytes.size(),
+        verifier_input_hash_bytes.data(),
+        verifier_input_hash_bytes.size(),
+        native_proof_hash_bytes.data(),
+        native_proof_hash_bytes.size());
+    std::copy(request_hash_bytes.begin(), request_hash_bytes.end(), request_hash.begin());
+    std::copy(verifier_input_hash_bytes.begin(), verifier_input_hash_bytes.end(), verifier_input_hash.begin());
+    std::copy(native_proof_hash_bytes.begin(), native_proof_hash_bytes.end(), native_proof_hash.begin());
     return status;
 }
 
@@ -585,6 +649,31 @@ int CheckProofBundleV5(const std::vector<unsigned char>& bundle, uint8_t proof_k
         real_verifier_input_hash_bytes.size());
     std::copy(real_request_hash_bytes.begin(), real_request_hash_bytes.end(), real_request_hash.begin());
     std::copy(real_verifier_input_hash_bytes.begin(), real_verifier_input_hash_bytes.end(), real_verifier_input_hash.begin());
+    return status;
+}
+
+int CheckProofBundleV6(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash, uint256& real_verifier_input_hash, uint256& real_native_proof_hash)
+{
+    std::vector<unsigned char> real_request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    std::vector<unsigned char> real_verifier_input_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    std::vector<unsigned char> real_native_proof_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    const int status = zkc_shielded_check_bundle_v6(
+        bundle.data(),
+        bundle.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        &proof_body_mode,
+        real_request_hash_bytes.data(),
+        real_request_hash_bytes.size(),
+        real_verifier_input_hash_bytes.data(),
+        real_verifier_input_hash_bytes.size(),
+        real_native_proof_hash_bytes.data(),
+        real_native_proof_hash_bytes.size());
+    std::copy(real_request_hash_bytes.begin(), real_request_hash_bytes.end(), real_request_hash.begin());
+    std::copy(real_verifier_input_hash_bytes.begin(), real_verifier_input_hash_bytes.end(), real_verifier_input_hash.begin());
+    std::copy(real_native_proof_hash_bytes.begin(), real_native_proof_hash_bytes.end(), real_native_proof_hash.begin());
     return status;
 }
 
@@ -810,6 +899,74 @@ extern "C" int zkc_shielded_check_bundle_v5(
     return status;
 }
 
+extern "C" int zkc_shielded_check_bundle_v6(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    uint8_t* proof_body_mode_out,
+    unsigned char* real_request_hash_out,
+    size_t real_request_hash_out_len,
+    unsigned char* real_verifier_input_hash_out,
+    size_t real_verifier_input_hash_out_len,
+    unsigned char* real_native_proof_hash_out,
+    size_t real_native_proof_hash_out_len)
+{
+    if (proof_body_mode_out == nullptr ||
+        real_request_hash_out == nullptr ||
+        real_request_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE ||
+        real_verifier_input_hash_out == nullptr ||
+        real_verifier_input_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE ||
+        real_native_proof_hash_out == nullptr ||
+        real_native_proof_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    *proof_body_mode_out = Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    std::fill(real_request_hash_out, real_request_hash_out + real_request_hash_out_len, 0);
+    std::fill(real_verifier_input_hash_out, real_verifier_input_hash_out + real_verifier_input_hash_out_len, 0);
+    std::fill(real_native_proof_hash_out, real_native_proof_hash_out + real_native_proof_hash_out_len, 0);
+
+    const int status = zkc_shielded_check_bundle_v5(
+        bundle,
+        bundle_len,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len,
+        proof_body_mode_out,
+        real_request_hash_out,
+        real_request_hash_out_len,
+        real_verifier_input_hash_out,
+        real_verifier_input_hash_out_len);
+    if (*proof_body_mode_out != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL ||
+        bundle == nullptr) {
+        return status;
+    }
+
+    const std::vector<unsigned char> bundle_bytes(bundle, bundle + bundle_len);
+    const size_t bundle_proof_offset = Consensus::ShieldedPool::ProofBundlePrefixV4().size() + 1 + 1 + 1 + 1 + Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE + sizeof(uint32_t);
+    if (bundle_bytes.size() < bundle_proof_offset) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    const std::vector<unsigned char> proof_payload(bundle_bytes.begin() + bundle_proof_offset, bundle_bytes.end());
+    const size_t payload_proof_offset = Consensus::ShieldedPool::OrchardProofPayloadPrefixV1().size() + 1 + Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE + sizeof(uint32_t);
+    const size_t real_proof_offset = payload_proof_offset + Consensus::ShieldedPool::OrchardProofBodyPrefixV1().size() + 1 + sizeof(uint32_t);
+    if (proof_payload.size() < real_proof_offset) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    zkc_shielded_orchard_real_native_proof_hash_v1(
+        proof_payload.data() + real_proof_offset,
+        proof_payload.size() - real_proof_offset,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len,
+        real_native_proof_hash_out,
+        real_native_proof_hash_out_len);
+    return status;
+}
+
 extern "C" int zkc_shielded_verify_orchard_proof_v1(
     const unsigned char* proof_body,
     size_t proof_body_len,
@@ -950,6 +1107,47 @@ extern "C" int zkc_shielded_orchard_real_verifier_input_hash_v1(
     return 1;
 }
 
+extern "C" int zkc_shielded_orchard_real_native_proof_hash_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* native_proof_hash_out,
+    size_t native_proof_hash_out_len)
+{
+    if (native_proof_hash_out == nullptr) return 0;
+    if (native_proof_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) return 0;
+    std::fill(native_proof_hash_out, native_proof_hash_out + native_proof_hash_out_len, 0);
+
+    if (proof == nullptr || public_input_hash == nullptr) return 0;
+    if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
+
+    const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
+    std::vector<unsigned char> proof_bytes;
+    if (!Consensus::ShieldedPool::DecodeOrchardRealProofV1(
+            std::vector<unsigned char>(proof, proof + proof_len),
+            proof_kind,
+            public_input_hash_value,
+            proof_bytes)) {
+        return 0;
+    }
+
+    std::vector<unsigned char> native_proof_bytes;
+    if (!Consensus::ShieldedPool::DecodeOrchardNativeProofBytesV1(
+            proof_bytes,
+            proof_kind,
+            public_input_hash_value,
+            native_proof_bytes)) {
+        return 0;
+    }
+
+    const uint256 native_proof_hash =
+        Consensus::ShieldedPool::ExpectedOrchardNativeProofHashV1(proof_kind, public_input_hash_value, native_proof_bytes);
+    std::copy(native_proof_hash.begin(), native_proof_hash.end(), native_proof_hash_out);
+    return 1;
+}
+
 extern "C" int zkc_shielded_orchard_real_proof_check_v1(
     const unsigned char* proof,
     size_t proof_len,
@@ -1028,5 +1226,55 @@ extern "C" int zkc_shielded_orchard_real_proof_check_v2(
         proof_kind,
         public_input_hash,
         public_input_hash_len);
+}
+
+extern "C" int zkc_shielded_orchard_real_proof_check_v3(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* request_hash_out,
+    size_t request_hash_out_len,
+    unsigned char* verifier_input_hash_out,
+    size_t verifier_input_hash_out_len,
+    unsigned char* native_proof_hash_out,
+    size_t native_proof_hash_out_len)
+{
+    if (request_hash_out == nullptr ||
+        request_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE ||
+        verifier_input_hash_out == nullptr ||
+        verifier_input_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE ||
+        native_proof_hash_out == nullptr ||
+        native_proof_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    std::fill(request_hash_out, request_hash_out + request_hash_out_len, 0);
+    std::fill(verifier_input_hash_out, verifier_input_hash_out + verifier_input_hash_out_len, 0);
+    std::fill(native_proof_hash_out, native_proof_hash_out + native_proof_hash_out_len, 0);
+
+    const int status = zkc_shielded_orchard_real_proof_check_v2(
+        proof,
+        proof_len,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len,
+        request_hash_out,
+        request_hash_out_len,
+        verifier_input_hash_out,
+        verifier_input_hash_out_len);
+    if (status == Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
+        return status;
+    }
+
+    zkc_shielded_orchard_real_native_proof_hash_v1(
+        proof,
+        proof_len,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len,
+        native_proof_hash_out,
+        native_proof_hash_out_len);
+    return status;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

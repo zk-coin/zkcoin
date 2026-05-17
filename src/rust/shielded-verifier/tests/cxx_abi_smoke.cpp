@@ -65,6 +65,12 @@ int main()
         0x91, 0x5c, 0x31, 0x91, 0x6a, 0xc8, 0x09, 0x27,
         0x91, 0x50, 0x23, 0x6c, 0xf9, 0x4d, 0x5b, 0xc7,
     };
+    static const std::vector<unsigned char> EXPECTED_ORCHARD_NATIVE_PROOF_HASH{
+        0xb9, 0x90, 0x35, 0x4b, 0x50, 0xf0, 0xa8, 0xf9,
+        0xed, 0x5b, 0x45, 0xae, 0x4f, 0x4b, 0xfc, 0xdb,
+        0xba, 0x7f, 0x30, 0x8d, 0x1f, 0x95, 0x5e, 0x1f,
+        0x8f, 0x44, 0xe1, 0xb7, 0xd2, 0xfd, 0x8e, 0xbe,
+    };
 
     const uint256 field_hash = FilledHash(0x11);
     const uint256 tx_binding_hash = FilledHash(0x22);
@@ -152,6 +158,12 @@ int main()
 
     if (decoded_native_proof_bytes != native_proof_bytes) {
         return 75;
+    }
+
+    const uint256 expected_native_proof_hash =
+        Consensus::ShieldedPool::ExpectedOrchardNativeProofHashV1(1, public_input_hash, native_proof_bytes);
+    if (std::vector<unsigned char>(expected_native_proof_hash.begin(), expected_native_proof_hash.end()) != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 76;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardRealProofV1(real_proof_v1, 1, public_input_hash)) {
@@ -278,6 +290,51 @@ int main()
         return 62;
     }
 
+    uint256 native_proof_hash;
+    if (!Consensus::ShieldedPool::OrchardRealNativeProofHashV1(real_proof_v1, 1, public_input_hash, native_proof_hash)) {
+        return 77;
+    }
+
+    if (std::vector<unsigned char>(native_proof_hash.begin(), native_proof_hash.end()) != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 78;
+    }
+
+    if (Consensus::ShieldedPool::OrchardRealNativeProofHashV1(real_proof_v1, 2, public_input_hash, native_proof_hash)) {
+        return 79;
+    }
+
+    std::vector<unsigned char> native_proof_hash_bytes(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE);
+    if (zkc_shielded_orchard_real_native_proof_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            native_proof_hash_bytes.data(),
+            native_proof_hash_bytes.size()) != 1) {
+        return 80;
+    }
+
+    if (native_proof_hash_bytes != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 81;
+    }
+
+    std::fill(native_proof_hash_bytes.begin(), native_proof_hash_bytes.end(), 0xaa);
+    if (zkc_shielded_orchard_real_native_proof_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            2,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            native_proof_hash_bytes.data(),
+            native_proof_hash_bytes.size()) != 0) {
+        return 82;
+    }
+
+    if (native_proof_hash_bytes != std::vector<unsigned char>(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE)) {
+        return 83;
+    }
+
     std::fill(request_hash_bytes.begin(), request_hash_bytes.end(), 0xaa);
     if (Consensus::ShieldedPool::CheckOrchardRealProofV1(real_proof_v1, 1, public_input_hash, request_hash) !=
         Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
@@ -299,6 +356,17 @@ int main()
 
     if (std::vector<unsigned char>(verifier_input_hash.begin(), verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
         return 65;
+    }
+
+    if (Consensus::ShieldedPool::CheckOrchardRealProofV3(real_proof_v1, 1, public_input_hash, request_hash, verifier_input_hash, native_proof_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 84;
+    }
+
+    if (std::vector<unsigned char>(request_hash.begin(), request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH ||
+        std::vector<unsigned char>(verifier_input_hash.begin(), verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH ||
+        std::vector<unsigned char>(native_proof_hash.begin(), native_proof_hash.end()) != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 85;
     }
 
     if (Consensus::ShieldedPool::CheckOrchardRealProofV2(real_proof_v1, 2, public_input_hash, request_hash, verifier_input_hash) !=
@@ -327,6 +395,28 @@ int main()
     if (request_hash_bytes != EXPECTED_ORCHARD_REAL_REQUEST_HASH ||
         verifier_input_hash_bytes != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
         return 69;
+    }
+
+    std::fill(native_proof_hash_bytes.begin(), native_proof_hash_bytes.end(), 0xaa);
+    if (zkc_shielded_orchard_real_proof_check_v3(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size(),
+            verifier_input_hash_bytes.data(),
+            verifier_input_hash_bytes.size(),
+            native_proof_hash_bytes.data(),
+            native_proof_hash_bytes.size()) != Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 86;
+    }
+
+    if (request_hash_bytes != EXPECTED_ORCHARD_REAL_REQUEST_HASH ||
+        verifier_input_hash_bytes != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH ||
+        native_proof_hash_bytes != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 87;
     }
 
     if (zkc_shielded_orchard_real_proof_check_v1(
@@ -459,6 +549,22 @@ int main()
 
     if (std::vector<unsigned char>(checked_verifier_input_hash.begin(), checked_verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
         return 73;
+    }
+
+    uint256 checked_native_proof_hash;
+    if (Consensus::ShieldedPool::CheckProofBundleV6(real_bundle_v4, 1, public_input_hash, checked_body_mode, checked_request_hash, checked_verifier_input_hash, checked_native_proof_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 88;
+    }
+
+    if (checked_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return 89;
+    }
+
+    if (std::vector<unsigned char>(checked_request_hash.begin(), checked_request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH ||
+        std::vector<unsigned char>(checked_verifier_input_hash.begin(), checked_verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH ||
+        std::vector<unsigned char>(checked_native_proof_hash.begin(), checked_native_proof_hash.end()) != EXPECTED_ORCHARD_NATIVE_PROOF_HASH) {
+        return 90;
     }
 
     if (Consensus::ShieldedPool::CheckProofBundleV4(real_bundle_v4, 2, public_input_hash, checked_body_mode, checked_request_hash) !=

@@ -16,6 +16,8 @@ const ORCHARD_PROOF_PAYLOAD_PREFIX_V1: &[u8] = b"zkc-orchard-proof-v1";
 const ORCHARD_PROOF_BODY_PREFIX_V1: &[u8] = b"zkc-orchard-body-v1";
 const ORCHARD_REAL_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-real-v1";
 const ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-native-proof-v1";
+const ORCHARD_REAL_NATIVE_PROOF_HASH_PREIMAGE_PREFIX_V1: &[u8] =
+    b"zkc-orchard-native-proof-hash-v1";
 const ORCHARD_REAL_PROOF_REQUEST_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-request-v1";
 const ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-input-v1";
 const ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-vk-v1";
@@ -133,6 +135,14 @@ pub struct OrchardRealProofCheckV2 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrchardRealProofCheckV3 {
+    pub status: OrchardRealProofStatus,
+    pub request_hash: Option<[u8; HASH_SIZE]>,
+    pub verifier_input_hash: Option<[u8; HASH_SIZE]>,
+    pub native_proof_hash: Option<[u8; HASH_SIZE]>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProofBundleCheck {
     pub status: OrchardRealProofStatus,
     pub proof_body_mode: Option<u8>,
@@ -147,11 +157,30 @@ pub struct ProofBundleCheckV2 {
     pub real_verifier_input_hash: Option<[u8; HASH_SIZE]>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProofBundleCheckV3 {
+    pub status: OrchardRealProofStatus,
+    pub proof_body_mode: Option<u8>,
+    pub real_request_hash: Option<[u8; HASH_SIZE]>,
+    pub real_verifier_input_hash: Option<[u8; HASH_SIZE]>,
+    pub real_native_proof_hash: Option<[u8; HASH_SIZE]>,
+}
+
 impl From<OrchardRealProofCheckV2> for OrchardRealProofCheck {
     fn from(check: OrchardRealProofCheckV2) -> Self {
         Self {
             status: check.status,
             request_hash: check.request_hash,
+        }
+    }
+}
+
+impl From<OrchardRealProofCheckV3> for OrchardRealProofCheckV2 {
+    fn from(check: OrchardRealProofCheckV3) -> Self {
+        Self {
+            status: check.status,
+            request_hash: check.request_hash,
+            verifier_input_hash: check.verifier_input_hash,
         }
     }
 }
@@ -162,6 +191,17 @@ impl From<ProofBundleCheckV2> for ProofBundleCheck {
             status: check.status,
             proof_body_mode: check.proof_body_mode,
             real_request_hash: check.real_request_hash,
+        }
+    }
+}
+
+impl From<ProofBundleCheckV3> for ProofBundleCheckV2 {
+    fn from(check: ProofBundleCheckV3) -> Self {
+        Self {
+            status: check.status,
+            proof_body_mode: check.proof_body_mode,
+            real_request_hash: check.real_request_hash,
+            real_verifier_input_hash: check.real_verifier_input_hash,
         }
     }
 }
@@ -177,13 +217,14 @@ impl ProofBundleCheck {
     }
 }
 
-impl ProofBundleCheckV2 {
+impl ProofBundleCheckV3 {
     fn malformed() -> Self {
         Self {
             status: OrchardRealProofStatus::Malformed,
             proof_body_mode: None,
             real_request_hash: None,
             real_verifier_input_hash: None,
+            real_native_proof_hash: None,
         }
     }
 
@@ -193,6 +234,7 @@ impl ProofBundleCheckV2 {
             proof_body_mode: Some(proof_body_mode),
             real_request_hash: None,
             real_verifier_input_hash: None,
+            real_native_proof_hash: None,
         }
     }
 }
@@ -313,6 +355,29 @@ impl OrchardRealVerifierInput {
         preimage.push(self.proof_kind);
         preimage.extend_from_slice(&self.public_input_hash);
         preimage.extend_from_slice(&self.verifier_key_hash);
+        hash256(&preimage)
+    }
+}
+
+impl OrchardNativeProof<'_> {
+    pub fn proof_hash_v1(&self) -> [u8; HASH_SIZE] {
+        let proof_len: u32 = self
+            .proof_bytes
+            .len()
+            .try_into()
+            .expect("native proof length fits in v1 envelope");
+        let mut preimage = Vec::with_capacity(
+            ORCHARD_REAL_NATIVE_PROOF_HASH_PREIMAGE_PREFIX_V1.len()
+                + HASH_SIZE
+                + HASH_SIZE
+                + core::mem::size_of::<u32>()
+                + self.proof_bytes.len(),
+        );
+        preimage.extend_from_slice(ORCHARD_REAL_NATIVE_PROOF_HASH_PREIMAGE_PREFIX_V1);
+        preimage.extend_from_slice(&self.verifier_key_hash);
+        preimage.extend_from_slice(&self.verifier_input_hash);
+        preimage.extend_from_slice(&proof_len.to_le_bytes());
+        preimage.extend_from_slice(self.proof_bytes);
         hash256(&preimage)
     }
 }
@@ -564,6 +629,15 @@ pub fn orchard_real_verifier_input_hash_v1(
         .map(|request| request.verifier_input_hash_v1())
 }
 
+pub fn orchard_real_native_proof_hash_v1(
+    proof: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> Option<[u8; HASH_SIZE]> {
+    let request = decode_orchard_real_proof_request_v1(proof, proof_kind, public_input_hash)?;
+    decode_orchard_native_proof_bytes_v1(&request).map(|native_proof| native_proof.proof_hash_v1())
+}
+
 pub fn orchard_real_proof_check_v1(
     proof: &[u8],
     proof_kind: u8,
@@ -577,8 +651,16 @@ pub fn orchard_real_proof_check_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> OrchardRealProofCheckV2 {
+    orchard_real_proof_check_v3(proof, proof_kind, public_input_hash).into()
+}
+
+pub fn orchard_real_proof_check_v3(
+    proof: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> OrchardRealProofCheckV3 {
     let backend = default_orchard_real_proof_backend_v1();
-    orchard_real_proof_check_with_backend_v2(proof, proof_kind, public_input_hash, &backend)
+    orchard_real_proof_check_with_backend_v3(proof, proof_kind, public_input_hash, &backend)
 }
 
 #[cfg(all(test, not(feature = "verifier-fixture")))]
@@ -591,26 +673,40 @@ fn orchard_real_proof_check_with_backend_v1<B: OrchardRealProofBackend>(
     orchard_real_proof_check_with_backend_v2(proof, proof_kind, public_input_hash, backend).into()
 }
 
+#[cfg(all(test, not(feature = "verifier-fixture")))]
 fn orchard_real_proof_check_with_backend_v2<B: OrchardRealProofBackend>(
     proof: &[u8],
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
     backend: &B,
 ) -> OrchardRealProofCheckV2 {
+    orchard_real_proof_check_with_backend_v3(proof, proof_kind, public_input_hash, backend).into()
+}
+
+fn orchard_real_proof_check_with_backend_v3<B: OrchardRealProofBackend>(
+    proof: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
+) -> OrchardRealProofCheckV3 {
     let Some(request) = decode_orchard_real_proof_request_v1(proof, proof_kind, public_input_hash)
     else {
-        return OrchardRealProofCheckV2 {
+        return OrchardRealProofCheckV3 {
             status: OrchardRealProofStatus::Malformed,
             request_hash: None,
             verifier_input_hash: None,
+            native_proof_hash: None,
         };
     };
     let request_hash = request.request_hash_v1();
     let verifier_input_hash = request.verifier_input_hash_v1();
-    OrchardRealProofCheckV2 {
+    let native_proof_hash = decode_orchard_native_proof_bytes_v1(&request)
+        .map(|native_proof| native_proof.proof_hash_v1());
+    OrchardRealProofCheckV3 {
         status: verify_orchard_real_proof_backend_status_with_backend_v1(&request, backend),
         request_hash: Some(request_hash),
         verifier_input_hash: Some(verifier_input_hash),
+        native_proof_hash,
     }
 }
 
@@ -740,8 +836,16 @@ pub fn check_orchard_proof_payload_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
+    check_orchard_proof_payload_v3(proof_payload, proof_kind, public_input_hash).into()
+}
+
+pub fn check_orchard_proof_payload_v3(
+    proof_payload: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheckV3 {
     let backend = default_orchard_real_proof_backend_v1();
-    check_orchard_proof_payload_with_backend_v2(
+    check_orchard_proof_payload_with_backend_v3(
         proof_payload,
         proof_kind,
         public_input_hash,
@@ -749,17 +853,17 @@ pub fn check_orchard_proof_payload_v2(
     )
 }
 
-fn check_orchard_proof_payload_with_backend_v2<B: OrchardRealProofBackend>(
+fn check_orchard_proof_payload_with_backend_v3<B: OrchardRealProofBackend>(
     proof_payload: &[u8],
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
     backend: &B,
-) -> ProofBundleCheckV2 {
+) -> ProofBundleCheckV3 {
     if proof_payload.len() < ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if !proof_payload.starts_with(ORCHARD_PROOF_PAYLOAD_PREFIX_V1) {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let kind_offset = ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len();
@@ -768,10 +872,10 @@ fn check_orchard_proof_payload_with_backend_v2<B: OrchardRealProofBackend>(
     let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
 
     if proof_payload[kind_offset] != proof_kind {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if &proof_payload[public_input_offset..proof_len_offset] != public_input_hash {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let proof_len = u32::from_le_bytes(
@@ -780,11 +884,11 @@ fn check_orchard_proof_payload_with_backend_v2<B: OrchardRealProofBackend>(
             .expect("proof length slice has fixed length"),
     ) as usize;
     if proof_len != proof_payload.len() - proof_offset {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let proof_body = &proof_payload[proof_offset..];
-    check_orchard_proof_body_with_backend_v2(proof_body, proof_kind, public_input_hash, backend)
+    check_orchard_proof_body_with_backend_v3(proof_body, proof_kind, public_input_hash, backend)
 }
 
 pub fn verify_orchard_proof_body_v1(
@@ -809,21 +913,29 @@ pub fn check_orchard_proof_body_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
-    let backend = default_orchard_real_proof_backend_v1();
-    check_orchard_proof_body_with_backend_v2(proof_body, proof_kind, public_input_hash, &backend)
+    check_orchard_proof_body_v3(proof_body, proof_kind, public_input_hash).into()
 }
 
-fn check_orchard_proof_body_with_backend_v2<B: OrchardRealProofBackend>(
+pub fn check_orchard_proof_body_v3(
+    proof_body: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheckV3 {
+    let backend = default_orchard_real_proof_backend_v1();
+    check_orchard_proof_body_with_backend_v3(proof_body, proof_kind, public_input_hash, &backend)
+}
+
+fn check_orchard_proof_body_with_backend_v3<B: OrchardRealProofBackend>(
     proof_body: &[u8],
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
     backend: &B,
-) -> ProofBundleCheckV2 {
+) -> ProofBundleCheckV3 {
     if proof_body.len() < ORCHARD_PROOF_BODY_HEADER_LEN_V1 {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if !proof_body.starts_with(ORCHARD_PROOF_BODY_PREFIX_V1) {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let mode_offset = ORCHARD_PROOF_BODY_PREFIX_V1.len();
@@ -837,11 +949,11 @@ fn check_orchard_proof_body_with_backend_v2<B: OrchardRealProofBackend>(
             .expect("body length slice has fixed length"),
     ) as usize;
     if body_len != proof_body.len() - body_offset {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     match body_mode {
-        ORCHARD_PROOF_BODY_MODE_SCAFFOLD => ProofBundleCheckV2::with_mode(
+        ORCHARD_PROOF_BODY_MODE_SCAFFOLD => ProofBundleCheckV3::with_mode(
             if proof_body[body_offset..] == expected_proof_payload_v4(proof_kind, public_input_hash)
             {
                 OrchardRealProofStatus::Valid
@@ -851,20 +963,21 @@ fn check_orchard_proof_body_with_backend_v2<B: OrchardRealProofBackend>(
             ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
         ),
         ORCHARD_PROOF_BODY_MODE_REAL => {
-            let check = orchard_real_proof_check_with_backend_v2(
+            let check = orchard_real_proof_check_with_backend_v3(
                 &proof_body[body_offset..],
                 proof_kind,
                 public_input_hash,
                 backend,
             );
-            ProofBundleCheckV2 {
+            ProofBundleCheckV3 {
                 status: check.status,
                 proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
                 real_request_hash: check.request_hash,
                 real_verifier_input_hash: check.verifier_input_hash,
+                real_native_proof_hash: check.native_proof_hash,
             }
         }
-        _ => ProofBundleCheckV2::with_mode(OrchardRealProofStatus::Malformed, body_mode),
+        _ => ProofBundleCheckV3::with_mode(OrchardRealProofStatus::Malformed, body_mode),
     }
 }
 
@@ -915,8 +1028,16 @@ pub fn check_proof_bundle_v5(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
+    check_proof_bundle_v6(bundle, proof_kind, public_input_hash).into()
+}
+
+pub fn check_proof_bundle_v6(
+    bundle: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheckV3 {
     let backend = default_orchard_real_proof_backend_v1();
-    check_proof_bundle_with_backend_v5(bundle, proof_kind, public_input_hash, &backend)
+    check_proof_bundle_with_backend_v6(bundle, proof_kind, public_input_hash, &backend)
 }
 
 #[cfg(all(test, not(feature = "verifier-fixture")))]
@@ -929,17 +1050,27 @@ fn check_proof_bundle_with_backend_v4<B: OrchardRealProofBackend>(
     check_proof_bundle_with_backend_v5(bundle, proof_kind, public_input_hash, backend).into()
 }
 
+#[cfg(all(test, not(feature = "verifier-fixture")))]
 fn check_proof_bundle_with_backend_v5<B: OrchardRealProofBackend>(
     bundle: &[u8],
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
     backend: &B,
 ) -> ProofBundleCheckV2 {
+    check_proof_bundle_with_backend_v6(bundle, proof_kind, public_input_hash, backend).into()
+}
+
+fn check_proof_bundle_with_backend_v6<B: OrchardRealProofBackend>(
+    bundle: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    backend: &B,
+) -> ProofBundleCheckV3 {
     if bundle.len() < PROOF_BUNDLE_HEADER_LEN_V4 {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if !bundle.starts_with(PROOF_BUNDLE_PREFIX_V4) {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let version_offset = PROOF_BUNDLE_PREFIX_V4.len();
@@ -951,19 +1082,19 @@ fn check_proof_bundle_with_backend_v5<B: OrchardRealProofBackend>(
     let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
 
     if bundle[version_offset] != PROOF_BUNDLE_VERSION_V4 {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if bundle[kind_offset] != proof_kind {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if bundle[proof_system_offset] != PROOF_SYSTEM_ORCHARD {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if bundle[flags_offset] != PROOF_BUNDLE_FLAGS_NONE {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
     if &bundle[public_input_offset..proof_len_offset] != public_input_hash {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
     let proof_len = u32::from_le_bytes(
@@ -972,10 +1103,10 @@ fn check_proof_bundle_with_backend_v5<B: OrchardRealProofBackend>(
             .expect("proof length slice has fixed length"),
     ) as usize;
     if proof_len != bundle.len() - proof_offset {
-        return ProofBundleCheckV2::malformed();
+        return ProofBundleCheckV3::malformed();
     }
 
-    check_orchard_proof_payload_with_backend_v2(
+    check_orchard_proof_payload_with_backend_v3(
         &bundle[proof_offset..],
         proof_kind,
         public_input_hash,
@@ -1178,6 +1309,68 @@ pub unsafe extern "C" fn zkc_shielded_check_bundle_v5(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_check_bundle_v6(
+    bundle: *const u8,
+    bundle_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+    proof_body_mode_out: *mut u8,
+    real_request_hash_out: *mut u8,
+    real_request_hash_out_len: usize,
+    real_verifier_input_hash_out: *mut u8,
+    real_verifier_input_hash_out_len: usize,
+    real_native_proof_hash_out: *mut u8,
+    real_native_proof_hash_out_len: usize,
+) -> i32 {
+    if proof_body_mode_out.is_null()
+        || real_request_hash_out.is_null()
+        || real_request_hash_out_len != HASH_SIZE
+        || real_verifier_input_hash_out.is_null()
+        || real_verifier_input_hash_out_len != HASH_SIZE
+        || real_native_proof_hash_out.is_null()
+        || real_native_proof_hash_out_len != HASH_SIZE
+    {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    *proof_body_mode_out = 0xff;
+    core::ptr::write_bytes(real_request_hash_out, 0, HASH_SIZE);
+    core::ptr::write_bytes(real_verifier_input_hash_out, 0, HASH_SIZE);
+    core::ptr::write_bytes(real_native_proof_hash_out, 0, HASH_SIZE);
+
+    if bundle.is_null() {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    };
+
+    let bundle = slice::from_raw_parts(bundle, bundle_len);
+    let check = check_proof_bundle_v6(bundle, proof_kind, public_input_hash);
+    if let Some(proof_body_mode) = check.proof_body_mode {
+        *proof_body_mode_out = proof_body_mode;
+    }
+    if let Some(request_hash) = check.real_request_hash {
+        core::ptr::copy_nonoverlapping(request_hash.as_ptr(), real_request_hash_out, HASH_SIZE);
+    }
+    if let Some(verifier_input_hash) = check.real_verifier_input_hash {
+        core::ptr::copy_nonoverlapping(
+            verifier_input_hash.as_ptr(),
+            real_verifier_input_hash_out,
+            HASH_SIZE,
+        );
+    }
+    if let Some(native_proof_hash) = check.real_native_proof_hash {
+        core::ptr::copy_nonoverlapping(
+            native_proof_hash.as_ptr(),
+            real_native_proof_hash_out,
+            HASH_SIZE,
+        );
+    }
+    check.status.as_ffi_code()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn zkc_shielded_verify_orchard_proof_v1(
     proof_body: *const u8,
     proof_body_len: usize,
@@ -1316,6 +1509,38 @@ pub unsafe extern "C" fn zkc_shielded_orchard_real_verifier_input_hash_v1(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_orchard_real_native_proof_hash_v1(
+    proof: *const u8,
+    proof_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+    native_proof_hash_out: *mut u8,
+    native_proof_hash_out_len: usize,
+) -> i32 {
+    if native_proof_hash_out.is_null() || native_proof_hash_out_len != HASH_SIZE {
+        return 0;
+    }
+    core::ptr::write_bytes(native_proof_hash_out, 0, HASH_SIZE);
+
+    if proof.is_null() {
+        return 0;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return 0;
+    };
+
+    let proof = slice::from_raw_parts(proof, proof_len);
+    let Some(native_proof_hash) =
+        orchard_real_native_proof_hash_v1(proof, proof_kind, public_input_hash)
+    else {
+        return 0;
+    };
+    core::ptr::copy_nonoverlapping(native_proof_hash.as_ptr(), native_proof_hash_out, HASH_SIZE);
+    1
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn zkc_shielded_orchard_real_proof_check_v1(
     proof: *const u8,
     proof_len: usize,
@@ -1389,6 +1614,62 @@ pub unsafe extern "C" fn zkc_shielded_orchard_real_proof_check_v2(
     check.status.as_ffi_code()
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_orchard_real_proof_check_v3(
+    proof: *const u8,
+    proof_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+    request_hash_out: *mut u8,
+    request_hash_out_len: usize,
+    verifier_input_hash_out: *mut u8,
+    verifier_input_hash_out_len: usize,
+    native_proof_hash_out: *mut u8,
+    native_proof_hash_out_len: usize,
+) -> i32 {
+    if request_hash_out.is_null()
+        || request_hash_out_len != HASH_SIZE
+        || verifier_input_hash_out.is_null()
+        || verifier_input_hash_out_len != HASH_SIZE
+        || native_proof_hash_out.is_null()
+        || native_proof_hash_out_len != HASH_SIZE
+    {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    core::ptr::write_bytes(request_hash_out, 0, HASH_SIZE);
+    core::ptr::write_bytes(verifier_input_hash_out, 0, HASH_SIZE);
+    core::ptr::write_bytes(native_proof_hash_out, 0, HASH_SIZE);
+
+    if proof.is_null() {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    };
+
+    let proof = slice::from_raw_parts(proof, proof_len);
+    let check = orchard_real_proof_check_v3(proof, proof_kind, public_input_hash);
+    if let Some(request_hash) = check.request_hash {
+        core::ptr::copy_nonoverlapping(request_hash.as_ptr(), request_hash_out, HASH_SIZE);
+    }
+    if let Some(verifier_input_hash) = check.verifier_input_hash {
+        core::ptr::copy_nonoverlapping(
+            verifier_input_hash.as_ptr(),
+            verifier_input_hash_out,
+            HASH_SIZE,
+        );
+    }
+    if let Some(native_proof_hash) = check.native_proof_hash {
+        core::ptr::copy_nonoverlapping(
+            native_proof_hash.as_ptr(),
+            native_proof_hash_out,
+            HASH_SIZE,
+        );
+    }
+    check.status.as_ffi_code()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1440,6 +1721,23 @@ mod tests {
         0x66, 0xb7, 0xae, 0xc4, 0xde, 0xa3, 0x68, 0x22, 0xc7, 0xe8, 0xef, 0xaf, 0x4b, 0x21, 0xed,
         0xd6, 0x91, 0x5c, 0x31, 0x91, 0x6a, 0xc8, 0x09, 0x27, 0x91, 0x50, 0x23, 0x6c, 0xf9, 0x4d,
         0x5b, 0xc7,
+    ];
+    const EXPECTED_ORCHARD_NATIVE_PROOF_HASH: [u8; HASH_SIZE] = [
+        0xb9, 0x90, 0x35, 0x4b, 0x50, 0xf0, 0xa8, 0xf9, 0xed, 0x5b, 0x45, 0xae, 0x4f, 0x4b, 0xfc,
+        0xdb, 0xba, 0x7f, 0x30, 0x8d, 0x1f, 0x95, 0x5e, 0x1f, 0x8f, 0x44, 0xe1, 0xb7, 0xd2, 0xfd,
+        0x8e, 0xbe,
+    ];
+    #[cfg(not(feature = "verifier-fixture"))]
+    const EXPECTED_ORCHARD_NATIVE_PROOF_HASH_77: [u8; HASH_SIZE] = [
+        0xb1, 0x29, 0x70, 0xb0, 0xf7, 0x27, 0xc4, 0x5c, 0x4f, 0x40, 0x7d, 0x94, 0x52, 0x0e, 0x43,
+        0x1d, 0xf6, 0x56, 0xfa, 0x10, 0x2e, 0x85, 0xca, 0xbf, 0xa9, 0xa3, 0x98, 0xec, 0xcf, 0x07,
+        0x73, 0xb2,
+    ];
+    #[cfg(not(feature = "verifier-fixture"))]
+    const EXPECTED_ORCHARD_NATIVE_PROOF_HASH_78: [u8; HASH_SIZE] = [
+        0x98, 0x3c, 0x0d, 0xbf, 0x85, 0x84, 0x36, 0x07, 0xcb, 0x7e, 0x91, 0xae, 0xef, 0x54, 0x8d,
+        0xe2, 0x32, 0x8d, 0xfe, 0xd4, 0x81, 0x75, 0x87, 0x6e, 0xdd, 0x41, 0xe0, 0x1f, 0x41, 0x56,
+        0x7c, 0xb2,
     ];
 
     fn expected_verifier_input() -> OrchardRealVerifierInput {
@@ -1514,6 +1812,10 @@ mod tests {
         assert_eq!(
             orchard_real_verifier_input_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH)
+        );
+        assert_eq!(
+            orchard_real_native_proof_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH)
         );
         assert_eq!(
             build_orchard_proof_payload_v1(1, &EXPECTED_PUBLIC_INPUT_HASH).len(),
@@ -1617,13 +1919,19 @@ mod tests {
         );
         assert_eq!(real_request_v1.proof_bytes, native_bytes.as_slice());
         let expected_native_proof_bytes = [0x42; 192];
+        let decoded_native_proof =
+            decode_orchard_native_proof_bytes_v1(&real_request_v1).expect("native proof decodes");
         assert_eq!(
-            decode_orchard_native_proof_bytes_v1(&real_request_v1),
-            Some(OrchardNativeProof {
+            decoded_native_proof,
+            OrchardNativeProof {
                 verifier_key_hash: EXPECTED_ORCHARD_REAL_VK_HASH,
                 verifier_input_hash: EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH,
                 proof_bytes: &expected_native_proof_bytes,
-            })
+            }
+        );
+        assert_eq!(
+            decoded_native_proof.proof_hash_v1(),
+            EXPECTED_ORCHARD_NATIVE_PROOF_HASH
         );
         assert_eq!(
             real_request_v1.request_hash_v1(),
@@ -1659,6 +1967,10 @@ mod tests {
             Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH)
         );
         assert_eq!(
+            orchard_real_native_proof_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH)
+        );
+        assert_eq!(
             orchard_real_proof_check_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofCheck {
                 status: OrchardRealProofStatus::Unsupported,
@@ -1671,6 +1983,15 @@ mod tests {
                 status: OrchardRealProofStatus::Unsupported,
                 request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+        assert_eq!(
+            orchard_real_proof_check_v3(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Unsupported,
+                request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH),
             }
         );
         assert!(!verify_orchard_real_proof_v1(
@@ -1693,6 +2014,15 @@ mod tests {
             }
         );
         assert_eq!(
+            orchard_real_proof_check_v3(&raw_real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Invalid,
+                request_hash: Some(EXPECTED_RAW_ORCHARD_REAL_REQUEST_HASH),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                native_proof_hash: None,
+            }
+        );
+        assert_eq!(
             orchard_real_proof_status_v1(&raw_real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofStatus::Invalid
         );
@@ -1701,11 +2031,7 @@ mod tests {
         let wrong_native_vk_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &wrong_native_vk_bytes);
         assert_eq!(
-            orchard_real_proof_status_v1(
-                &wrong_native_vk_proof_v1,
-                1,
-                &EXPECTED_PUBLIC_INPUT_HASH
-            ),
+            orchard_real_proof_status_v1(&wrong_native_vk_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofStatus::Invalid
         );
         let wrong_native_vk_request = decode_orchard_real_proof_request_v1(
@@ -1746,6 +2072,10 @@ mod tests {
             None
         );
         assert_eq!(
+            orchard_real_native_proof_hash_v1(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
+            None
+        );
+        assert_eq!(
             orchard_real_proof_check_v1(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofCheck {
                 status: OrchardRealProofStatus::Malformed,
@@ -1758,6 +2088,15 @@ mod tests {
                 status: OrchardRealProofStatus::Malformed,
                 request_hash: None,
                 verifier_input_hash: None,
+            }
+        );
+        assert_eq!(
+            orchard_real_proof_check_v3(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Malformed,
+                request_hash: None,
+                verifier_input_hash: None,
+                native_proof_hash: None,
             }
         );
         let mut wrong_real_proof_v1 = real_proof_v1.clone();
@@ -1844,6 +2183,16 @@ mod tests {
                 real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            check_proof_bundle_v6(&real_bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheckV3 {
+                status: OrchardRealProofStatus::Unsupported,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
+                real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                real_native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH),
+            }
+        );
         let mut unknown_body_mode = orchard_body_v1.clone();
         unknown_body_mode[ORCHARD_PROOF_BODY_PREFIX_V1.len()] = 0xff;
         assert!(!verify_orchard_proof_body_v1(
@@ -1889,6 +2238,16 @@ mod tests {
                 proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_SCAFFOLD),
                 real_request_hash: None,
                 real_verifier_input_hash: None,
+            }
+        );
+        assert_eq!(
+            check_proof_bundle_v6(&bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheckV3 {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_SCAFFOLD),
+                real_request_hash: None,
+                real_verifier_input_hash: None,
+                real_native_proof_hash: None,
             }
         );
         assert!(!verify_proof_bundle_v4(
@@ -2001,6 +2360,12 @@ mod tests {
             valid_request.verifier_input_hash_v1(),
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
         );
+        let valid_native_proof = decode_orchard_native_proof_bytes_v1(&valid_request)
+            .expect("valid native test vector decodes");
+        assert_eq!(
+            valid_native_proof.proof_hash_v1(),
+            EXPECTED_ORCHARD_NATIVE_PROOF_HASH_77
+        );
         assert_eq!(
             orchard_real_proof_check_with_backend_v1(
                 &valid_proof_v1,
@@ -2024,6 +2389,20 @@ mod tests {
                 status: OrchardRealProofStatus::Valid,
                 request_hash: Some(valid_request_hash),
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+        assert_eq!(
+            orchard_real_proof_check_with_backend_v3(
+                &valid_proof_v1,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Valid,
+                request_hash: Some(valid_request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH_77),
             }
         );
 
@@ -2066,6 +2445,21 @@ mod tests {
                 real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            check_proof_bundle_with_backend_v6(
+                &valid_bundle_v4,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            ProofBundleCheckV3 {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(valid_request_hash),
+                real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                real_native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH_77),
+            }
+        );
 
         let invalid_proof_bytes = native_proof_bytes(0x78);
         let invalid_proof_v1 =
@@ -2079,6 +2473,12 @@ mod tests {
         assert_eq!(
             invalid_request.verifier_input_hash_v1(),
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        let invalid_native_proof = decode_orchard_native_proof_bytes_v1(&invalid_request)
+            .expect("invalid native test vector decodes");
+        assert_eq!(
+            invalid_native_proof.proof_hash_v1(),
+            EXPECTED_ORCHARD_NATIVE_PROOF_HASH_78
         );
         assert_eq!(
             orchard_real_proof_check_with_backend_v1(
@@ -2105,6 +2505,20 @@ mod tests {
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            orchard_real_proof_check_with_backend_v3(
+                &invalid_proof_v1,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Invalid,
+                request_hash: Some(invalid_request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH_78),
+            }
+        );
 
         let invalid_body_v1 = build_orchard_real_proof_body_with_context_v1(
             1,
@@ -2129,6 +2543,21 @@ mod tests {
                 status: OrchardRealProofStatus::Invalid,
                 proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
                 real_request_hash: Some(invalid_request_hash),
+            }
+        );
+        assert_eq!(
+            check_proof_bundle_with_backend_v6(
+                &invalid_bundle_v4,
+                1,
+                &EXPECTED_PUBLIC_INPUT_HASH,
+                &backend,
+            ),
+            ProofBundleCheckV3 {
+                status: OrchardRealProofStatus::Invalid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(invalid_request_hash),
+                real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                real_native_proof_hash: Some(EXPECTED_ORCHARD_NATIVE_PROOF_HASH_78),
             }
         );
 
@@ -2173,15 +2602,15 @@ mod tests {
 
         let real_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &proof_bytes);
-        let real_request = decode_orchard_real_proof_request_v1(
-            &real_proof_v1,
-            1,
-            &EXPECTED_PUBLIC_INPUT_HASH,
-        )
-        .expect("fixture native proof request decodes");
-        let native_proof =
-            decode_orchard_native_proof_bytes_v1(&real_request).expect("fixture native proof decodes");
-        assert_eq!(native_proof.verifier_key_hash, EXPECTED_ORCHARD_REAL_VK_HASH);
+        let real_request =
+            decode_orchard_real_proof_request_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("fixture native proof request decodes");
+        let native_proof = decode_orchard_native_proof_bytes_v1(&real_request)
+            .expect("fixture native proof decodes");
+        assert_eq!(
+            native_proof.verifier_key_hash,
+            EXPECTED_ORCHARD_REAL_VK_HASH
+        );
         assert_eq!(
             native_proof.verifier_input_hash,
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
@@ -2196,6 +2625,11 @@ mod tests {
         assert_eq!(
             &native_proof.proof_bytes[ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len()..],
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        let native_proof_hash = native_proof.proof_hash_v1();
+        assert_eq!(
+            orchard_real_native_proof_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            Some(native_proof_hash)
         );
         let request_hash =
             orchard_real_proof_request_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
@@ -2222,9 +2656,19 @@ mod tests {
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            orchard_real_proof_check_v3(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV3 {
+                status: OrchardRealProofStatus::Valid,
+                request_hash: Some(request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                native_proof_hash: Some(native_proof_hash),
+            }
+        );
 
         let mut request_hash_out = [0xaa; HASH_SIZE];
         let mut verifier_input_hash_out = [0xaa; HASH_SIZE];
+        let mut native_proof_hash_out = [0xaa; HASH_SIZE];
         let status = unsafe {
             zkc_shielded_orchard_real_proof_check_v2(
                 real_proof_v1.as_ptr(),
@@ -2244,6 +2688,28 @@ mod tests {
             verifier_input_hash_out,
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
         );
+        let status_v3 = unsafe {
+            zkc_shielded_orchard_real_proof_check_v3(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                request_hash_out.as_mut_ptr(),
+                request_hash_out.len(),
+                verifier_input_hash_out.as_mut_ptr(),
+                verifier_input_hash_out.len(),
+                native_proof_hash_out.as_mut_ptr(),
+                native_proof_hash_out.len(),
+            )
+        };
+        assert_eq!(status_v3, ORCHARD_REAL_PROOF_STATUS_VALID);
+        assert_eq!(request_hash_out, request_hash);
+        assert_eq!(
+            verifier_input_hash_out,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        assert_eq!(native_proof_hash_out, native_proof_hash);
 
         let real_body_v1 = build_orchard_real_proof_body_with_context_v1(
             1,
@@ -2263,10 +2729,21 @@ mod tests {
                 real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            check_proof_bundle_v6(&real_bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheckV3 {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(request_hash),
+                real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+                real_native_proof_hash: Some(native_proof_hash),
+            }
+        );
 
         let mut proof_body_mode = 0xff;
         request_hash_out.fill(0xaa);
         verifier_input_hash_out.fill(0xaa);
+        native_proof_hash_out.fill(0xaa);
         let bundle_status = unsafe {
             zkc_shielded_check_bundle_v5(
                 real_bundle_v4.as_ptr(),
@@ -2288,6 +2765,30 @@ mod tests {
             verifier_input_hash_out,
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
         );
+        let bundle_status_v6 = unsafe {
+            zkc_shielded_check_bundle_v6(
+                real_bundle_v4.as_ptr(),
+                real_bundle_v4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash_out.as_mut_ptr(),
+                request_hash_out.len(),
+                verifier_input_hash_out.as_mut_ptr(),
+                verifier_input_hash_out.len(),
+                native_proof_hash_out.as_mut_ptr(),
+                native_proof_hash_out.len(),
+            )
+        };
+        assert_eq!(bundle_status_v6, ORCHARD_REAL_PROOF_STATUS_VALID);
+        assert_eq!(proof_body_mode, ORCHARD_PROOF_BODY_MODE_REAL);
+        assert_eq!(request_hash_out, request_hash);
+        assert_eq!(
+            verifier_input_hash_out,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        assert_eq!(native_proof_hash_out, native_proof_hash);
 
         let mut tampered_proof_bytes = proof_bytes.clone();
         *tampered_proof_bytes
@@ -2306,12 +2807,21 @@ mod tests {
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );
+        assert_eq!(
+            orchard_real_proof_check_v3(&tampered_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .native_proof_hash
+                .is_some(),
+            true
+        );
         let raw_fixture_payload = native_proof.proof_bytes.to_vec();
         let raw_fixture_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &raw_fixture_payload);
-        let raw_fixture_request_hash =
-            orchard_real_proof_request_hash_v1(&raw_fixture_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
-                .expect("raw fixture proof request hash");
+        let raw_fixture_request_hash = orchard_real_proof_request_hash_v1(
+            &raw_fixture_proof_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+        )
+        .expect("raw fixture proof request hash");
         assert_eq!(
             orchard_real_proof_check_v2(&raw_fixture_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
             OrchardRealProofCheckV2 {
@@ -2319,6 +2829,11 @@ mod tests {
                 request_hash: Some(raw_fixture_request_hash),
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
+        );
+        assert_eq!(
+            orchard_real_proof_check_v3(&raw_fixture_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .native_proof_hash,
+            None
         );
         assert_eq!(
             orchard_real_proof_status_v1(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
@@ -2660,6 +3175,36 @@ mod tests {
         };
         assert_eq!(verifier_input_hash_bad_out_len, 0);
 
+        let mut native_proof_hash = [0xaa; HASH_SIZE];
+        let native_proof_hash_ok = unsafe {
+            zkc_shielded_orchard_real_native_proof_hash_v1(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                native_proof_hash.as_mut_ptr(),
+                native_proof_hash.len(),
+            )
+        };
+        assert_eq!(native_proof_hash_ok, 1);
+        assert_eq!(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH);
+
+        native_proof_hash.fill(0xaa);
+        let native_proof_hash_bad_kind = unsafe {
+            zkc_shielded_orchard_real_native_proof_hash_v1(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                2,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                native_proof_hash.as_mut_ptr(),
+                native_proof_hash.len(),
+            )
+        };
+        assert_eq!(native_proof_hash_bad_kind, 0);
+        assert_eq!(native_proof_hash, [0u8; HASH_SIZE]);
+
         request_hash.fill(0xaa);
         let check_status = unsafe {
             zkc_shielded_orchard_real_proof_check_v1(
@@ -2695,6 +3240,30 @@ mod tests {
             verifier_input_hash,
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
         );
+
+        native_proof_hash.fill(0xaa);
+        let check_v3_status = unsafe {
+            zkc_shielded_orchard_real_proof_check_v3(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                request_hash.as_mut_ptr(),
+                request_hash.len(),
+                verifier_input_hash.as_mut_ptr(),
+                verifier_input_hash.len(),
+                native_proof_hash.as_mut_ptr(),
+                native_proof_hash.len(),
+            )
+        };
+        assert_eq!(check_v3_status, ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        assert_eq!(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH);
+        assert_eq!(
+            verifier_input_hash,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        assert_eq!(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH);
 
         let check_bad_kind_status = unsafe {
             zkc_shielded_orchard_real_proof_check_v1(
@@ -2796,6 +3365,32 @@ mod tests {
             verifier_input_hash,
             EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
         );
+
+        native_proof_hash.fill(0xaa);
+        let check_real_bundle_v6 = unsafe {
+            zkc_shielded_check_bundle_v6(
+                real_bundle_v4.as_ptr(),
+                real_bundle_v4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash.as_mut_ptr(),
+                request_hash.len(),
+                verifier_input_hash.as_mut_ptr(),
+                verifier_input_hash.len(),
+                native_proof_hash.as_mut_ptr(),
+                native_proof_hash.len(),
+            )
+        };
+        assert_eq!(check_real_bundle_v6, ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        assert_eq!(proof_body_mode, ORCHARD_PROOF_BODY_MODE_REAL);
+        assert_eq!(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH);
+        assert_eq!(
+            verifier_input_hash,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        assert_eq!(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH);
 
         let unsupported_real_body_v1 = unsafe {
             zkc_shielded_verify_orchard_proof_v1(

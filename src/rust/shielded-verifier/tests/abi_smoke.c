@@ -77,6 +77,13 @@ static const unsigned char EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH[32] = {
     0x91, 0x50, 0x23, 0x6c, 0xf9, 0x4d, 0x5b, 0xc7,
 };
 
+static const unsigned char EXPECTED_ORCHARD_NATIVE_PROOF_HASH[32] = {
+    0x03, 0x54, 0x50, 0xfe, 0x9b, 0x76, 0x7e, 0xca,
+    0x75, 0x05, 0xaa, 0x6f, 0x15, 0x93, 0xc9, 0x1d,
+    0xc4, 0xb3, 0x6d, 0xdb, 0x2a, 0xce, 0xd1, 0x78,
+    0xae, 0xca, 0x65, 0xbd, 0x6d, 0x4c, 0x86, 0xb7,
+};
+
 int main(void)
 {
     unsigned char expected_orchard_body_v1[56];
@@ -273,6 +280,24 @@ int main(void)
         return 40;
     }
 
+    unsigned char native_proof_hash[32];
+    if (zkc_shielded_orchard_real_native_proof_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), native_proof_hash, sizeof(native_proof_hash)) != 1) {
+        return 50;
+    }
+
+    if (memcmp(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH, sizeof(native_proof_hash)) != 0) {
+        return 51;
+    }
+
+    memset(native_proof_hash, 0xaa, sizeof(native_proof_hash));
+    if (zkc_shielded_orchard_real_native_proof_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), native_proof_hash, sizeof(native_proof_hash)) != 0) {
+        return 52;
+    }
+
+    if (memcmp(native_proof_hash, (unsigned char[32]){0}, sizeof(native_proof_hash)) != 0) {
+        return 53;
+    }
+
     memset(request_hash, 0xaa, sizeof(request_hash));
     if (zkc_shielded_orchard_real_proof_check_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), request_hash, sizeof(request_hash)) != ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
         return 22;
@@ -294,6 +319,19 @@ int main(void)
 
     if (memcmp(verifier_input_hash, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(verifier_input_hash)) != 0) {
         return 43;
+    }
+
+    memset(request_hash, 0xaa, sizeof(request_hash));
+    memset(verifier_input_hash, 0xaa, sizeof(verifier_input_hash));
+    memset(native_proof_hash, 0xaa, sizeof(native_proof_hash));
+    if (zkc_shielded_orchard_real_proof_check_v3(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), request_hash, sizeof(request_hash), verifier_input_hash, sizeof(verifier_input_hash), native_proof_hash, sizeof(native_proof_hash)) != ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 54;
+    }
+
+    if (memcmp(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH, sizeof(request_hash)) != 0 ||
+        memcmp(verifier_input_hash, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(verifier_input_hash)) != 0 ||
+        memcmp(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH, sizeof(native_proof_hash)) != 0) {
+        return 55;
     }
 
     memset(request_hash, 0xaa, sizeof(request_hash));
@@ -363,6 +401,21 @@ int main(void)
 
     if (memcmp(verifier_input_hash, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(verifier_input_hash)) != 0) {
         return 49;
+    }
+
+    memset(native_proof_hash, 0xaa, sizeof(native_proof_hash));
+    if (zkc_shielded_check_bundle_v6(real_bundle_v4, sizeof(real_bundle_v4), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), &proof_body_mode, request_hash, sizeof(request_hash), verifier_input_hash, sizeof(verifier_input_hash), native_proof_hash, sizeof(native_proof_hash)) != ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 56;
+    }
+
+    if (proof_body_mode != ZKC_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return 57;
+    }
+
+    if (memcmp(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH, sizeof(request_hash)) != 0 ||
+        memcmp(verifier_input_hash, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(verifier_input_hash)) != 0 ||
+        memcmp(native_proof_hash, EXPECTED_ORCHARD_NATIVE_PROOF_HASH, sizeof(native_proof_hash)) != 0) {
+        return 58;
     }
 
     if (zkc_shielded_check_bundle_v4(real_bundle_v4, sizeof(real_bundle_v4), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), &proof_body_mode, request_hash, sizeof(request_hash)) != ZKC_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {

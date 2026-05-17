@@ -280,6 +280,8 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         native_proof_bytes.end(),
         decoded_native_proof_bytes.begin(),
         decoded_native_proof_bytes.end());
+    const uint256 expected_real_native_proof_hash =
+        ExpectedOrchardNativeProofHashV1(ACTION_MINT, public_input_hash, native_proof_bytes);
     uint256 real_request_hash;
     BOOST_CHECK(OrchardRealProofRequestHashV1(real_proof_v1, ACTION_MINT, public_input_hash, real_request_hash));
     const uint256 expected_real_request_hash = ExpectedRealProofRequestHash(ACTION_MINT, public_input_hash, real_verifier_key_hash, real_proof_bytes);
@@ -330,6 +332,30 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         zero_hash.end(),
         real_verifier_input_hash_bytes.begin(),
         real_verifier_input_hash_bytes.end());
+    uint256 real_native_proof_hash;
+    BOOST_CHECK(OrchardRealNativeProofHashV1(real_proof_v1, ACTION_MINT, public_input_hash, real_native_proof_hash));
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_native_proof_hash.begin(),
+        expected_real_native_proof_hash.end(),
+        real_native_proof_hash.begin(),
+        real_native_proof_hash.end());
+    BOOST_CHECK(!OrchardRealNativeProofHashV1(real_proof_v1, ACTION_SPEND, public_input_hash, real_native_proof_hash));
+    std::vector<unsigned char> real_native_proof_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    BOOST_CHECK_EQUAL(
+        zkc_shielded_orchard_real_native_proof_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            ACTION_MINT,
+            public_input_hash.begin(),
+            SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            real_native_proof_hash_bytes.data(),
+            real_native_proof_hash_bytes.size()),
+        1);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_native_proof_hash.begin(),
+        expected_real_native_proof_hash.end(),
+        real_native_proof_hash_bytes.begin(),
+        real_native_proof_hash_bytes.end());
     uint256 checked_real_request_hash;
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash),
@@ -353,6 +379,25 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_verifier_input_hash.end(),
         checked_real_verifier_input_hash.begin(),
         checked_real_verifier_input_hash.end());
+    uint256 checked_real_native_proof_hash;
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV3(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash, checked_real_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_request_hash.begin(),
+        expected_real_request_hash.end(),
+        checked_real_request_hash.begin(),
+        checked_real_request_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        checked_real_verifier_input_hash.begin(),
+        checked_real_verifier_input_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_native_proof_hash.begin(),
+        expected_real_native_proof_hash.end(),
+        checked_real_native_proof_hash.begin(),
+        checked_real_native_proof_hash.end());
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV1(real_proof_v1, ACTION_SPEND, public_input_hash, checked_real_request_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
@@ -362,6 +407,12 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
     BOOST_CHECK(checked_real_request_hash.IsNull());
     BOOST_CHECK(checked_real_verifier_input_hash.IsNull());
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV3(real_proof_v1, ACTION_SPEND, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash, checked_real_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
+    BOOST_CHECK(checked_real_request_hash.IsNull());
+    BOOST_CHECK(checked_real_verifier_input_hash.IsNull());
+    BOOST_CHECK(checked_real_native_proof_hash.IsNull());
     BOOST_CHECK(!OrchardRealProofRequestHashV1(real_proof_v1, ACTION_SPEND, public_input_hash, real_request_hash));
     BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
     BOOST_CHECK_EQUAL(
@@ -382,6 +433,20 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_verifier_input_hash.end(),
         checked_real_verifier_input_hash.begin(),
         checked_real_verifier_input_hash.end());
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV3(raw_real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash, checked_real_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_raw_real_request_hash.begin(),
+        expected_raw_real_request_hash.end(),
+        checked_real_request_hash.begin(),
+        checked_real_request_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        checked_real_verifier_input_hash.begin(),
+        checked_real_verifier_input_hash.end());
+    BOOST_CHECK(checked_real_native_proof_hash.IsNull());
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(raw_real_proof_v1, ACTION_MINT, public_input_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID);
@@ -464,6 +529,26 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_verifier_input_hash.end(),
         checked_bundle_verifier_input_hash.begin(),
         checked_bundle_verifier_input_hash.end());
+    uint256 checked_bundle_native_proof_hash;
+    BOOST_CHECK_EQUAL(
+        CheckProofBundleV6(real_proof_bundle_v4, ACTION_MINT, public_input_hash, checked_body_mode, checked_bundle_request_hash, checked_bundle_verifier_input_hash, checked_bundle_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_request_hash.begin(),
+        expected_real_request_hash.end(),
+        checked_bundle_request_hash.begin(),
+        checked_bundle_request_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        checked_bundle_verifier_input_hash.begin(),
+        checked_bundle_verifier_input_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_native_proof_hash.begin(),
+        expected_real_native_proof_hash.end(),
+        checked_bundle_native_proof_hash.begin(),
+        checked_bundle_native_proof_hash.end());
     const auto real_proof_envelope_check = CheckProofEnvelope(marker, TransactionWithProof(payload, real_proof_bundle_v4));
     BOOST_CHECK(real_proof_envelope_check.found);
     BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
@@ -478,6 +563,11 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_verifier_input_hash.end(),
         real_proof_envelope_check.real_verifier_input_hash.begin(),
         real_proof_envelope_check.real_verifier_input_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_native_proof_hash.begin(),
+        expected_real_native_proof_hash.end(),
+        real_proof_envelope_check.real_native_proof_hash.begin(),
+        real_proof_envelope_check.real_native_proof_hash.end());
     BOOST_CHECK(!real_proof_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/true));
     BOOST_CHECK(!real_proof_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/false));
     BOOST_CHECK_EQUAL(
@@ -485,6 +575,13 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
     BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN);
     BOOST_CHECK(checked_bundle_request_hash.IsNull());
+    BOOST_CHECK_EQUAL(
+        CheckProofBundleV6(real_proof_bundle_v4, ACTION_SPEND, public_input_hash, checked_body_mode, checked_bundle_request_hash, checked_bundle_verifier_input_hash, checked_bundle_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
+    BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN);
+    BOOST_CHECK(checked_bundle_request_hash.IsNull());
+    BOOST_CHECK(checked_bundle_verifier_input_hash.IsNull());
+    BOOST_CHECK(checked_bundle_native_proof_hash.IsNull());
     TxValidationState real_proof_tx_state;
     BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, real_proof_bundle_v4), /*active=*/true, /*allow_scaffold_proofs=*/true, real_proof_tx_state));
     BOOST_CHECK_EQUAL(real_proof_tx_state.GetRejectReason(), "bad-shielded-proof");
@@ -501,6 +598,13 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID);
     BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
     BOOST_CHECK(checked_bundle_request_hash.IsNull());
+    BOOST_CHECK_EQUAL(
+        CheckProofBundleV6(proof_bundle_v4, ACTION_MINT, public_input_hash, checked_body_mode, checked_bundle_request_hash, checked_bundle_verifier_input_hash, checked_bundle_native_proof_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID);
+    BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    BOOST_CHECK(checked_bundle_request_hash.IsNull());
+    BOOST_CHECK(checked_bundle_verifier_input_hash.IsNull());
+    BOOST_CHECK(checked_bundle_native_proof_hash.IsNull());
     BOOST_CHECK(!VerifyProofBundleV4(proof_bundle_v4, ACTION_SPEND, public_input_hash));
     uint8_t decoded_proof_kind{0};
     uint256 decoded_public_input_hash;

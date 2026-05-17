@@ -48,6 +48,7 @@ struct ProofEnvelopeCheck
     uint8_t proof_body_mode{SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
     uint256 real_request_hash;
     uint256 real_verifier_input_hash;
+    uint256 real_native_proof_hash;
 
     bool IsAccepted(bool allow_scaffold_proofs) const
     {
@@ -286,6 +287,7 @@ inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransa
                 check.proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
                 check.real_request_hash.SetNull();
                 check.real_verifier_input_hash.SetNull();
+                check.real_native_proof_hash.SetNull();
                 return check;
             }
             check.found = true;
@@ -300,13 +302,14 @@ inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransa
                 check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
                 return check;
             }
-            check.proof_status = CheckProofBundleV5(
+            check.proof_status = CheckProofBundleV6(
                 stack_item,
                 marker.action,
                 expected_public_input_hash,
                 check.proof_body_mode,
                 check.real_request_hash,
-                check.real_verifier_input_hash);
+                check.real_verifier_input_hash,
+                check.real_native_proof_hash);
         }
     }
     return check;
