@@ -115,6 +115,23 @@ class AuxPowRPCTest(BitcoinTestFramework):
         miner.setmocktime(0)
         duplicate.setmocktime(0)
 
+    def assert_auxpow_block_relays_between_child_nodes(self):
+        miner = self.nodes[2]
+        peer = self.nodes[3]
+
+        self.connect_nodes(2, 3)
+
+        candidate = miner.createauxblock(miner.get_deterministic_priv_key().address)
+        auxpow = parse_auxpow(candidate["defaultauxpow"])
+        solve_parent_header(auxpow, int(candidate["bits"], 16))
+        assert_equal(miner.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
+
+        self.sync_blocks([miner, peer])
+        assert_equal(peer.getbestblockhash(), candidate["hash"])
+        relayed_header_hex = peer.getblockheader(candidate["hash"], False)
+        assert relayed_header_hex.startswith(candidate["header"])
+        assert len(relayed_header_hex) > len(candidate["header"])
+
     def make_parent_header_unsolved(self, auxpow, bits):
         target = uint256_from_compact(bits)
         auxpow.parent_header.nNonce = 0
@@ -131,6 +148,8 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")
         if not self.is_wallet_compiled():
             assert_raises_rpc_error(-18, "requires a loaded wallet", node.getauxblock)
+            self.log.info("Relay an AuxPoW block between no-wallet child nodes")
+            self.assert_auxpow_block_relays_between_child_nodes()
         elif not self.options.descriptors:
             self.log.info("Keep wallet reservation for duplicate-valid getauxblock submits")
             self.assert_duplicate_valid_getauxblock_keeps_wallet_reservation()
