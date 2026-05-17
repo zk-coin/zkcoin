@@ -25,6 +25,9 @@ fi
 echo "Building litecoind, litecoin-cli, and test_litecoin with ${JOBS} jobs"
 make -C src -j"$JOBS" litecoind litecoin-cli test/test_litecoin
 
+echo "Running Rust shielded verifier tests"
+(cd src/rust/shielded-verifier && cargo test --locked)
+
 echo "Running AuxPoW unit tests"
 (cd src && ./test/test_litecoin --run_test=auxpow_tests)
 

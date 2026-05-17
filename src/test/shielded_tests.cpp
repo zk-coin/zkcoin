@@ -93,6 +93,18 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK(!VerifyProofPayloadV1(short_proof_payload, field_hash, tx_binding_hash));
     BOOST_CHECK(!VerifyProofPayloadV1(proof_payload, Field(0x04), tx_binding_hash));
 
+    const std::vector<unsigned char> expected_vector{
+        0x8d, 0x88, 0xec, 0x0b, 0xaa, 0x50, 0x6b, 0x9d,
+        0x0a, 0xdd, 0x03, 0x36, 0x13, 0x74, 0x4b, 0x45,
+        0x1f, 0x87, 0xe0, 0xd1, 0x17, 0xe7, 0x5e, 0xe5,
+        0xd4, 0x8f, 0x48, 0x89, 0xa0, 0x7e, 0x59, 0x8c};
+    const auto vector_payload = BuildProofPayloadV1(Field(0x11), Field(0x22));
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_vector.begin(),
+        expected_vector.end(),
+        vector_payload.begin(),
+        vector_payload.end());
+
     auto tampered_payload = payload;
     tampered_payload.back() ^= 0x01;
     TxValidationState invalid_state;
