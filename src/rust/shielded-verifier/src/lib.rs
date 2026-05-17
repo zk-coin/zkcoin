@@ -12,6 +12,7 @@ const HASH_SIZE: usize = 32;
 const PROOF_ENVELOPE_PREIMAGE_PREFIX: &[u8] = b"zkc-proof-envelope-v1";
 const PROOF_ENVELOPE_PREIMAGE_PREFIX_V2: &[u8] = b"zkc-proof-envelope-v2";
 const PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX: &[u8] = b"zkc-public-input-v1";
+const SHIELDED_MARKER_PROOF_PREIMAGE_PREFIX: &[u8] = b"zkc-proof-v0";
 const PROOF_ENVELOPE_PREIMAGE_PREFIX_V3: &[u8] = b"zkc-proof-envelope-v3";
 const PROOF_BUNDLE_PREFIX_V4: &[u8] = b"zkc-p4";
 const PROOF_BUNDLE_PREIMAGE_PREFIX_V4: &[u8] = b"zkc-proof-bundle-v4";
@@ -20,7 +21,6 @@ const ORCHARD_PROOF_BODY_PREFIX_V1: &[u8] = b"zkc-orchard-body-v1";
 const ORCHARD_REAL_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-real-v1";
 const ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-native-proof-v1";
 const ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-halo2-action-v1";
-const ORCHARD_HALO2_ACTION_PUBLIC_INPUT_PREFIX_V1: &[u8] = b"zkc-orchard-halo2-action-input-v1";
 const ORCHARD_REAL_NATIVE_PROOF_HASH_PREIMAGE_PREFIX_V1: &[u8] =
     b"zkc-orchard-native-proof-hash-v1";
 const ORCHARD_REAL_PROOF_REQUEST_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-request-v1";
@@ -31,6 +31,8 @@ const ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-fixture-proof-
 const PROOF_BUNDLE_VERSION_V4: u8 = 1;
 const PROOF_SYSTEM_ORCHARD: u8 = 1;
 const PROOF_BUNDLE_FLAGS_NONE: u8 = 0;
+const SHIELDED_ACTION_MINT: u8 = 1;
+const SHIELDED_ACTION_SPEND: u8 = 2;
 const ORCHARD_PROOF_BODY_MODE_SCAFFOLD: u8 = 0;
 const ORCHARD_PROOF_BODY_MODE_REAL: u8 = 1;
 pub const ORCHARD_REAL_PROOF_STATUS_MALFORMED: i32 = 0;
@@ -58,6 +60,8 @@ const ORCHARD_REAL_NATIVE_PROOF_HEADER_LEN_V1: usize = ORCHARD_REAL_NATIVE_PROOF
     + core::mem::size_of::<u32>();
 const ORCHARD_HALO2_ACTION_PROOF_HEADER_LEN_V1: usize = ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1.len()
     + 1
+    + core::mem::size_of::<u64>()
+    + HASH_SIZE
     + (HASH_SIZE * 5)
     + 2
     + core::mem::size_of::<u32>();
@@ -134,6 +138,8 @@ pub struct OrchardNativeProof<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OrchardHalo2ActionProof<'a> {
     pub proof_kind: u8,
+    pub shielded_value: u64,
+    pub tx_binding_hash: [u8; HASH_SIZE],
     pub anchor: [u8; HASH_SIZE],
     pub cv_net: [u8; HASH_SIZE],
     pub nf_old: [u8; HASH_SIZE],
@@ -467,6 +473,29 @@ pub fn proof_public_input_hash(
     hash256(&preimage)
 }
 
+pub fn shielded_marker_field_hash_v1(
+    proof_kind: u8,
+    shielded_value: u64,
+    anchor: &[u8; HASH_SIZE],
+    nf_old: &[u8; HASH_SIZE],
+    cmx: &[u8; HASH_SIZE],
+) -> Option<[u8; HASH_SIZE]> {
+    let mut preimage =
+        Vec::with_capacity(SHIELDED_MARKER_PROOF_PREIMAGE_PREFIX.len() + 1 + 8 + (HASH_SIZE * 2));
+    preimage.extend_from_slice(SHIELDED_MARKER_PROOF_PREIMAGE_PREFIX);
+    preimage.push(proof_kind);
+    preimage.extend_from_slice(&shielded_value.to_le_bytes());
+    match proof_kind {
+        SHIELDED_ACTION_MINT => preimage.extend_from_slice(cmx),
+        SHIELDED_ACTION_SPEND => {
+            preimage.extend_from_slice(nf_old);
+            preimage.extend_from_slice(anchor);
+        }
+        _ => return None,
+    }
+    Some(hash256(&preimage))
+}
+
 pub fn expected_proof_payload_v3(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
@@ -528,33 +557,46 @@ pub fn build_orchard_native_proof_bytes_v1(
     proof
 }
 
+fn orchard_halo2_action_flags_match_marker_v1(
+    proof_kind: u8,
+    enable_spend: bool,
+    enable_output: bool,
+) -> bool {
+    match proof_kind {
+        SHIELDED_ACTION_MINT => !enable_spend && enable_output,
+        SHIELDED_ACTION_SPEND => enable_spend && !enable_output,
+        _ => false,
+    }
+}
+
 pub fn orchard_halo2_action_public_input_hash_v1(
     proof_kind: u8,
+    shielded_value: u64,
+    tx_binding_hash: &[u8; HASH_SIZE],
     anchor: &[u8; HASH_SIZE],
-    cv_net: &[u8; HASH_SIZE],
+    _cv_net: &[u8; HASH_SIZE],
     nf_old: &[u8; HASH_SIZE],
-    rk: &[u8; HASH_SIZE],
+    _rk: &[u8; HASH_SIZE],
     cmx: &[u8; HASH_SIZE],
     enable_spend: bool,
     enable_output: bool,
-) -> [u8; HASH_SIZE] {
-    let mut preimage = Vec::with_capacity(
-        ORCHARD_HALO2_ACTION_PUBLIC_INPUT_PREFIX_V1.len() + 1 + (HASH_SIZE * 5) + 2,
-    );
-    preimage.extend_from_slice(ORCHARD_HALO2_ACTION_PUBLIC_INPUT_PREFIX_V1);
-    preimage.push(proof_kind);
-    preimage.extend_from_slice(anchor);
-    preimage.extend_from_slice(cv_net);
-    preimage.extend_from_slice(nf_old);
-    preimage.extend_from_slice(rk);
-    preimage.extend_from_slice(cmx);
-    preimage.push(u8::from(enable_spend));
-    preimage.push(u8::from(enable_output));
-    hash256(&preimage)
+) -> Option<[u8; HASH_SIZE]> {
+    if !orchard_halo2_action_flags_match_marker_v1(proof_kind, enable_spend, enable_output) {
+        return None;
+    }
+    let field_hash =
+        shielded_marker_field_hash_v1(proof_kind, shielded_value, anchor, nf_old, cmx)?;
+    Some(proof_public_input_hash(
+        proof_kind,
+        &field_hash,
+        tx_binding_hash,
+    ))
 }
 
 pub fn build_orchard_halo2_action_proof_bytes_v1(
     proof_kind: u8,
+    shielded_value: u64,
+    tx_binding_hash: &[u8; HASH_SIZE],
     anchor: &[u8; HASH_SIZE],
     cv_net: &[u8; HASH_SIZE],
     nf_old: &[u8; HASH_SIZE],
@@ -568,6 +610,8 @@ pub fn build_orchard_halo2_action_proof_bytes_v1(
         Vec::with_capacity(ORCHARD_HALO2_ACTION_PROOF_HEADER_LEN_V1 + proof_bytes.len());
     payload.extend_from_slice(ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1);
     payload.push(proof_kind);
+    payload.extend_from_slice(&shielded_value.to_le_bytes());
+    payload.extend_from_slice(tx_binding_hash);
     payload.extend_from_slice(anchor);
     payload.extend_from_slice(cv_net);
     payload.extend_from_slice(nf_old);
@@ -713,7 +757,9 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
     }
 
     let kind_offset = ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1.len();
-    let anchor_offset = kind_offset + 1;
+    let value_offset = kind_offset + 1;
+    let tx_binding_offset = value_offset + core::mem::size_of::<u64>();
+    let anchor_offset = tx_binding_offset + HASH_SIZE;
     let cv_net_offset = anchor_offset + HASH_SIZE;
     let nf_old_offset = cv_net_offset + HASH_SIZE;
     let rk_offset = nf_old_offset + HASH_SIZE;
@@ -727,6 +773,14 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
         return None;
     }
 
+    let shielded_value = u64::from_le_bytes(
+        proof[value_offset..tx_binding_offset]
+            .try_into()
+            .expect("shielded value slice has fixed length"),
+    );
+    let tx_binding_hash: [u8; HASH_SIZE] = proof[tx_binding_offset..anchor_offset]
+        .try_into()
+        .expect("transaction binding hash slice has fixed length");
     let anchor: [u8; HASH_SIZE] = proof[anchor_offset..cv_net_offset]
         .try_into()
         .expect("anchor slice has fixed length");
@@ -754,8 +808,14 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
         _ => return None,
     };
 
+    if !orchard_halo2_action_flags_match_marker_v1(proof_kind, enable_spend, enable_output) {
+        return None;
+    }
+
     if orchard_halo2_action_public_input_hash_v1(
         proof_kind,
+        shielded_value,
+        &tx_binding_hash,
         &anchor,
         &cv_net,
         &nf_old,
@@ -763,7 +823,7 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
         &cmx,
         enable_spend,
         enable_output,
-    ) != *public_input_hash
+    )? != *public_input_hash
     {
         return None;
     }
@@ -779,6 +839,8 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
 
     Some(OrchardHalo2ActionProof {
         proof_kind,
+        shielded_value,
+        tx_binding_hash,
         anchor,
         cv_net,
         nf_old,
@@ -2040,17 +2102,30 @@ mod tests {
 
     fn halo2_action_proof_bytes(fill: u8) -> ([u8; HASH_SIZE], Vec<u8>) {
         let (anchor, cv_net, nf_old, rk, cmx) = halo2_action_fields();
+        let shielded_value = 100_000_000u64;
         let public_input_hash = orchard_halo2_action_public_input_hash_v1(
-            1, &anchor, &cv_net, &nf_old, &rk, &cmx, true, true,
-        );
-        let payload = build_orchard_halo2_action_proof_bytes_v1(
             1,
+            shielded_value,
+            &TX_BINDING_HASH,
             &anchor,
             &cv_net,
             &nf_old,
             &rk,
             &cmx,
+            false,
             true,
+        )
+        .expect("mint action public input hash");
+        let payload = build_orchard_halo2_action_proof_bytes_v1(
+            1,
+            shielded_value,
+            &TX_BINDING_HASH,
+            &anchor,
+            &cv_net,
+            &nf_old,
+            &rk,
+            &cmx,
+            false,
             true,
             &[fill; 192],
         );
@@ -2132,9 +2207,65 @@ mod tests {
         )
         .expect("halo2 action proof payload decodes");
         assert_eq!(halo2_action_proof.proof_kind, 1);
-        assert!(halo2_action_proof.enable_spend);
+        assert_eq!(halo2_action_proof.shielded_value, 100_000_000);
+        assert_eq!(halo2_action_proof.tx_binding_hash, TX_BINDING_HASH);
+        assert_eq!(
+            orchard_halo2_action_public_input_hash_v1(
+                halo2_action_proof.proof_kind,
+                halo2_action_proof.shielded_value,
+                &halo2_action_proof.tx_binding_hash,
+                &halo2_action_proof.anchor,
+                &halo2_action_proof.cv_net,
+                &halo2_action_proof.nf_old,
+                &halo2_action_proof.rk,
+                &halo2_action_proof.cmx,
+                halo2_action_proof.enable_spend,
+                halo2_action_proof.enable_output,
+            ),
+            Some(halo2_public_input_hash)
+        );
+        assert!(!halo2_action_proof.enable_spend);
         assert!(halo2_action_proof.enable_output);
         assert_eq!(halo2_action_proof.proof_bytes, &[0x42; 192]);
+        let (anchor, cv_net, nf_old, rk, cmx) = halo2_action_fields();
+        let spend_public_input_hash = orchard_halo2_action_public_input_hash_v1(
+            2,
+            200_000_000,
+            &TX_BINDING_HASH,
+            &anchor,
+            &cv_net,
+            &nf_old,
+            &rk,
+            &cmx,
+            true,
+            false,
+        )
+        .expect("spend action public input hash");
+        let spend_field_hash =
+            shielded_marker_field_hash_v1(2, 200_000_000, &anchor, &nf_old, &cmx)
+                .expect("spend marker field hash");
+        assert_eq!(
+            spend_public_input_hash,
+            proof_public_input_hash(2, &spend_field_hash, &TX_BINDING_HASH)
+        );
+        let spend_payload = build_orchard_halo2_action_proof_bytes_v1(
+            2,
+            200_000_000,
+            &TX_BINDING_HASH,
+            &anchor,
+            &cv_net,
+            &nf_old,
+            &rk,
+            &cmx,
+            true,
+            false,
+            &[0x24; 64],
+        );
+        let spend_action_proof =
+            decode_orchard_halo2_action_proof_bytes_v1(&spend_payload, 2, &spend_public_input_hash)
+                .expect("spend action proof payload decodes");
+        assert!(spend_action_proof.enable_spend);
+        assert!(!spend_action_proof.enable_output);
         let real_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &native_bytes);
         assert_eq!(
@@ -2408,8 +2539,22 @@ mod tests {
             &wrong_halo2_public_input_hash
         )
         .is_none());
+        let mut wrong_tx_binding_payload = halo2_native_proof.proof_bytes.to_vec();
+        let tx_binding_offset =
+            ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1.len() + 1 + core::mem::size_of::<u64>();
+        wrong_tx_binding_payload[tx_binding_offset] ^= 0x01;
+        assert!(decode_orchard_halo2_action_proof_bytes_v1(
+            &wrong_tx_binding_payload,
+            1,
+            &halo2_public_input_hash
+        )
+        .is_none());
         let mut tampered_halo2_payload = halo2_native_proof.proof_bytes.to_vec();
-        let enable_spend_offset = ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1.len() + 1 + (HASH_SIZE * 5);
+        let enable_spend_offset = ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1.len()
+            + 1
+            + core::mem::size_of::<u64>()
+            + HASH_SIZE
+            + (HASH_SIZE * 5);
         tampered_halo2_payload[enable_spend_offset] = 2;
         assert!(decode_orchard_halo2_action_proof_bytes_v1(
             &tampered_halo2_payload,
@@ -2976,17 +3121,31 @@ mod tests {
         let nf_old = [0u8; HASH_SIZE];
         let rk = first_valid_rk_bytes();
         let cmx = [0u8; HASH_SIZE];
+        let shielded_value = 100_000_000u64;
+        let tx_binding_hash = [0x77; HASH_SIZE];
         let public_input_hash = orchard_halo2_action_public_input_hash_v1(
-            1, &anchor, &cv_net, &nf_old, &rk, &cmx, true, true,
-        );
-        let action_payload = build_orchard_halo2_action_proof_bytes_v1(
             1,
+            shielded_value,
+            &tx_binding_hash,
             &anchor,
             &cv_net,
             &nf_old,
             &rk,
             &cmx,
+            false,
             true,
+        )
+        .expect("mint action public input hash");
+        let action_payload = build_orchard_halo2_action_proof_bytes_v1(
+            1,
+            shielded_value,
+            &tx_binding_hash,
+            &anchor,
+            &cv_net,
+            &nf_old,
+            &rk,
+            &cmx,
+            false,
             true,
             &[0x42; 4992],
         );
