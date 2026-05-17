@@ -32,10 +32,15 @@ PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
 PROOF_BUNDLE_PREIMAGE_PREFIX = b"zkc-proof-bundle-v4"
 ORCHARD_PROOF_PAYLOAD_PREFIX = b"zkc-orchard-proof-v1"
 ORCHARD_PROOF_BODY_PREFIX = b"zkc-orchard-body-v1"
+ORCHARD_REAL_PROOF_PREFIX = b"zkc-orchard-real-v1"
+ORCHARD_REAL_NATIVE_PROOF_PREFIX = b"zkc-orchard-native-proof-v1"
+ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX = b"zkc-orchard-real-input-v1"
+ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX = b"zkc-orchard-real-vk-v1"
 PROOF_BUNDLE_VERSION = 0x01
 PROOF_SYSTEM_ORCHARD = 0x01
 PROOF_BUNDLE_FLAGS_NONE = 0x00
 ORCHARD_PROOF_BODY_MODE_SCAFFOLD = 0x00
+ORCHARD_PROOF_BODY_MODE_REAL = 0x01
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -124,6 +129,53 @@ class ShieldedPoolTest(BitcoinTestFramework):
             + proof_payload
         )
 
+    def real_proof_envelope(self, tx, *, native_proof_bytes=None, **kwargs):
+        if native_proof_bytes is None:
+            native_proof_bytes = b"\x42" * 192
+
+        field_hash = self.proof_hash(**kwargs)
+        tx_binding_hash = self.hash256(tx.serialize_without_witness())
+        action = kwargs["action"]
+        public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + field_hash + tx_binding_hash)
+        verifier_key_hash = self.hash256(ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX)
+        verifier_input_hash = self.hash256(ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX + bytes([action]) + public_input_hash + verifier_key_hash)
+        native_proof = (
+            ORCHARD_REAL_NATIVE_PROOF_PREFIX
+            + bytes([PROOF_BUNDLE_FLAGS_NONE])
+            + verifier_key_hash
+            + verifier_input_hash
+            + len(native_proof_bytes).to_bytes(4, "little")
+            + native_proof_bytes
+        )
+        real_proof = (
+            ORCHARD_REAL_PROOF_PREFIX
+            + bytes([PROOF_BUNDLE_FLAGS_NONE, action])
+            + public_input_hash
+            + verifier_key_hash
+            + len(native_proof).to_bytes(4, "little")
+            + native_proof
+        )
+        proof_body = (
+            ORCHARD_PROOF_BODY_PREFIX
+            + bytes([ORCHARD_PROOF_BODY_MODE_REAL])
+            + len(real_proof).to_bytes(4, "little")
+            + real_proof
+        )
+        proof_payload = (
+            ORCHARD_PROOF_PAYLOAD_PREFIX
+            + bytes([action])
+            + public_input_hash
+            + len(proof_body).to_bytes(4, "little")
+            + proof_body
+        )
+        return (
+            PROOF_ENVELOPE_PREFIX
+            + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE])
+            + public_input_hash
+            + len(proof_payload).to_bytes(4, "little")
+            + proof_payload
+        )
+
     def flip_proof_byte(self, proof_envelope, offset):
         return proof_envelope[:offset] + bytes([proof_envelope[offset] ^ 0x01]) + proof_envelope[offset + 1 :]
 
@@ -151,7 +203,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
         return payload, commitment, nullifier, {"action": action, "shielded_value": shielded_value, "commitment": commitment}
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, include_proof=True, mutate_after_proof=False, mutate_public_input=False, mutate_proof_payload=False):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, proof_mode=ORCHARD_PROOF_BODY_MODE_SCAFFOLD, native_proof_bytes=None, include_proof=True, mutate_after_proof=False, mutate_public_input=False, mutate_proof_payload=False):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -176,8 +228,12 @@ class ShieldedPoolTest(BitcoinTestFramework):
         for _ in range(marker_count):
             tx.vout.append(CTxOut(marker_value, CScript([OP_RETURN, payload])))
 
-        if proof_envelope is None:
+        if proof_envelope is None and proof_mode == ORCHARD_PROOF_BODY_MODE_REAL:
+            proof_envelope = self.real_proof_envelope(tx, native_proof_bytes=native_proof_bytes, **proof_kwargs)
+        elif proof_envelope is None and proof_mode == ORCHARD_PROOF_BODY_MODE_SCAFFOLD:
             proof_envelope = self.proof_envelope(tx, **proof_kwargs)
+        elif proof_envelope is None:
+            raise AssertionError(f"unknown proof body mode {proof_mode}")
         if mutate_public_input:
             proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 4)
         if mutate_proof_payload:
@@ -231,6 +287,27 @@ class ShieldedPoolTest(BitcoinTestFramework):
             no_scaffold.generateblock,
             ADDRESS_BCRT1_P2WSH_OP_TRUE,
             [raw_no_scaffold],
+        )
+
+        self.log.info("Reject real-mode native proof packets until the verifier backend is linked")
+        raw_real_unsupported, _, _, _ = self.make_marker_tx(wallets[1], proof_mode=ORCHARD_PROOF_BODY_MODE_REAL)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_real_unsupported)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-proof",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_real_unsupported],
+        )
+
+        raw_real_no_scaffold, _, _, _ = self.make_marker_tx(wallets[3], proof_mode=ORCHARD_PROOF_BODY_MODE_REAL)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", no_scaffold.sendrawtransaction, raw_real_no_scaffold)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-proof",
+            no_scaffold.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_real_no_scaffold],
         )
 
         self.log.info("Reject shielded marker transactions before activation")

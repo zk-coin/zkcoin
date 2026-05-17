@@ -32,10 +32,15 @@ PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
 PROOF_BUNDLE_PREIMAGE_PREFIX = b"zkc-proof-bundle-v4"
 ORCHARD_PROOF_PAYLOAD_PREFIX = b"zkc-orchard-proof-v1"
 ORCHARD_PROOF_BODY_PREFIX = b"zkc-orchard-body-v1"
+ORCHARD_REAL_PROOF_PREFIX = b"zkc-orchard-real-v1"
+ORCHARD_REAL_NATIVE_PROOF_PREFIX = b"zkc-orchard-native-proof-v1"
+ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX = b"zkc-orchard-real-input-v1"
+ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX = b"zkc-orchard-real-vk-v1"
 PROOF_BUNDLE_VERSION = 0x01
 PROOF_SYSTEM_ORCHARD = 0x01
 PROOF_BUNDLE_FLAGS_NONE = 0x00
 ORCHARD_PROOF_BODY_MODE_SCAFFOLD = 0x00
+ORCHARD_PROOF_BODY_MODE_REAL = 0x01
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -151,10 +156,56 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             + proof_payload
         )
 
+    def shielded_real_proof_envelope(self, tx, action, shielded_value, commitment=None, nullifier=None, anchor=None, native_proof_bytes=None):
+        if native_proof_bytes is None:
+            native_proof_bytes = b"\x42" * 192
+
+        proof_hash = self.shielded_proof_hash(action, shielded_value, commitment=commitment, nullifier=nullifier, anchor=anchor)
+        tx_binding_hash = self.hash256(tx.serialize_without_witness())
+        public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + proof_hash + tx_binding_hash)
+        verifier_key_hash = self.hash256(ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX)
+        verifier_input_hash = self.hash256(ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX + bytes([action]) + public_input_hash + verifier_key_hash)
+        native_proof = (
+            ORCHARD_REAL_NATIVE_PROOF_PREFIX
+            + bytes([PROOF_BUNDLE_FLAGS_NONE])
+            + verifier_key_hash
+            + verifier_input_hash
+            + len(native_proof_bytes).to_bytes(4, "little")
+            + native_proof_bytes
+        )
+        real_proof = (
+            ORCHARD_REAL_PROOF_PREFIX
+            + bytes([PROOF_BUNDLE_FLAGS_NONE, action])
+            + public_input_hash
+            + verifier_key_hash
+            + len(native_proof).to_bytes(4, "little")
+            + native_proof
+        )
+        proof_body = (
+            ORCHARD_PROOF_BODY_PREFIX
+            + bytes([ORCHARD_PROOF_BODY_MODE_REAL])
+            + len(real_proof).to_bytes(4, "little")
+            + real_proof
+        )
+        proof_payload = (
+            ORCHARD_PROOF_PAYLOAD_PREFIX
+            + bytes([action])
+            + public_input_hash
+            + len(proof_body).to_bytes(4, "little")
+            + proof_body
+        )
+        return (
+            PROOF_ENVELOPE_PREFIX
+            + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE])
+            + public_input_hash
+            + len(proof_payload).to_bytes(4, "little")
+            + proof_payload
+        )
+
     def flip_proof_byte(self, proof_envelope, offset):
         return proof_envelope[:offset] + bytes([proof_envelope[offset] ^ 0x01]) + proof_envelope[offset + 1 :]
 
-    def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN, mutate_public_input=False, mutate_proof_payload=False):
+    def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN, proof_mode=ORCHARD_PROOF_BODY_MODE_SCAFFOLD, native_proof_bytes=None, mutate_public_input=False, mutate_proof_payload=False):
         prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
         payload = (
             MARKER_PREFIX
@@ -171,7 +222,18 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             CTxOut(prev_value - shielded_value - 100000, destination_script),
             CTxOut(0, CScript([OP_RETURN, payload])),
         ]
-        proof_envelope = self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment=commitment)
+        if proof_mode == ORCHARD_PROOF_BODY_MODE_REAL:
+            proof_envelope = self.shielded_real_proof_envelope(
+                tx,
+                ACTION_MINT,
+                shielded_value,
+                commitment=commitment,
+                native_proof_bytes=native_proof_bytes,
+            )
+        elif proof_mode == ORCHARD_PROOF_BODY_MODE_SCAFFOLD:
+            proof_envelope = self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment=commitment)
+        else:
+            raise AssertionError(f"unknown proof body mode {proof_mode}")
         if mutate_public_input:
             proof_envelope = self.flip_proof_byte(proof_envelope, len(PROOF_ENVELOPE_PREFIX) + 4)
         if mutate_proof_payload:
@@ -439,6 +501,17 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
 
         self.log.info("Mine an activated shielded marker through local parent AuxPoW")
         assert_equal(child.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
+        real_mode_commitment = self.shielded_commitment("local-parent-fork-real-mode-unsupported")
+        raw_real_mode_mint = self.create_shielded_mint_tx(
+            child,
+            duplicate_proof_outpoint,
+            reloaded_duplicate_proof,
+            bob_key.address,
+            real_mode_commitment,
+            proof_mode=ORCHARD_PROOF_BODY_MODE_REAL,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_real_mode_mint)
+
         shielded_commitment = self.shielded_commitment("local-parent-fork-auxpow-shielded")
         raw_shielded_mint = self.create_shielded_mint_tx(
             child,
