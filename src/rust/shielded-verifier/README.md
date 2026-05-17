@@ -52,6 +52,11 @@ C++ transaction consensus now checks witness envelopes through the v6 bundle
 boundary, so accepted real-mode fixture proofs and rejected production
 unsupported proofs exercise the same verifier-input and native proof digest
 path.
+`scripts/unsupported-consensus-smoke.sh` links the normal non-fixture Rust
+staticlib into the C++ consensus wrapper and proves production external-Rust
+builds remain fail-closed: real-mode native packets are parsed through v6 and
+fingerprinted, but rejected until a real backend is linked, while scaffold
+proofs keep their explicit consensus gate.
 
 The v4 bundle layout is:
 
@@ -139,5 +144,6 @@ Run the Rust tests and C ABI smoke test with:
 cargo test --locked
 cargo test --locked --features verifier-fixture
 scripts/abi-smoke.sh
+scripts/unsupported-consensus-smoke.sh
 scripts/fixture-consensus-smoke.sh
 ```
