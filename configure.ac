@@ -172,6 +172,12 @@ AC_ARG_ENABLE([fuzz],
     [enable_fuzz=$enableval],
     [enable_fuzz=no])
 
+AC_ARG_ENABLE([rust-shielded-verifier],
+    AS_HELP_STRING([--enable-rust-shielded-verifier],
+    [link consensus shielded proof checks against the Rust verifier staticlib (default no)]),
+    [enable_rust_shielded_verifier=$enableval],
+    [enable_rust_shielded_verifier=no])
+
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
   [enable QR code support (default is yes if qt is enabled and libqrencode is found)])],
@@ -1513,6 +1519,16 @@ if test x$build_bitcoin_libs = xyes; then
 fi
 AC_MSG_RESULT($build_bitcoin_libs)
 
+AC_MSG_CHECKING([whether to link the Rust shielded verifier])
+AM_CONDITIONAL([ENABLE_RUST_SHIELDED_VERIFIER], [test "x$enable_rust_shielded_verifier" = "xyes"])
+AC_MSG_RESULT($enable_rust_shielded_verifier)
+if test "x$enable_rust_shielded_verifier" = "xyes"; then
+  AC_PATH_PROG([CARGO], [cargo], [no])
+  if test "x$CARGO" = "xno"; then
+    AC_MSG_ERROR([cargo is required for --enable-rust-shielded-verifier])
+  fi
+fi
+
 AC_LANG_POP
 
 if test "x$use_ccache" != "xno"; then
@@ -1688,6 +1704,7 @@ AC_SUBST(BITCOIN_GUI_NAME)
 AC_SUBST(BITCOIN_CLI_NAME)
 AC_SUBST(BITCOIN_TX_NAME)
 AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
+AC_SUBST(CARGO)
 
 AC_SUBST(RELDFLAGS)
 AC_SUBST(DEBUG_CPPFLAGS)

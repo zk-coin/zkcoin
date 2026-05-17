@@ -63,6 +63,15 @@ LIBBITCOIN_CRYPTO_SHANI = crypto/libbitcoin_crypto_shani.a
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SHANI)
 endif
 
+if ENABLE_RUST_SHIELDED_VERIFIER
+RUST_SHIELDED_VERIFIER_LIB = $(srcdir)/rust/shielded-verifier/target/release/libzkc_shielded_verifier.a
+
+$(RUST_SHIELDED_VERIFIER_LIB): FORCE
+	$(AM_V_at)cd $(srcdir)/rust/shielded-verifier && $(CARGO) build --locked --release --lib
+else
+RUST_SHIELDED_VERIFIER_LIB =
+endif
+
 $(LIBSECP256K1): $(wildcard secp256k1-zkp/src/*.h) $(wildcard secp256k1-zkp/src/*.c) $(wildcard secp256k1-zkp/include/*)
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
 
@@ -341,6 +350,9 @@ libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 # from wallet and gui code (see node/README.md). Shared code should go in
 # libbitcoin_common or libbitcoin_util libraries, instead.
 libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS) $(LIBMW_CPPFLAGS)
+if ENABLE_RUST_SHIELDED_VERIFIER
+libbitcoin_server_a_CPPFLAGS += -DZKC_SHIELDED_VERIFIER_EXTERNAL
+endif
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrdb.cpp \
@@ -674,6 +686,8 @@ litecoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
   $(LIBMW)
+
+litecoin_bin_ldadd += $(RUST_SHIELDED_VERIFIER_LIB)
 
 litecoin_bin_ldadd += $(BOOST_LIBS) $(BDB_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS) $(MWEB_LIBS)
 
