@@ -11,8 +11,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 default = []
 verifier-fixture = []
-orchard-verifier = ["dep:orchard"]
+orchard-verifier = ["dep:orchard", "dep:rand"]
 
 [dependencies]
 orchard = { version = "0.13.1", optional = true }
+rand = { version = "0.8", optional = true }
 sha2 = "0.10"

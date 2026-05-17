@@ -21,6 +21,7 @@ const ORCHARD_PROOF_BODY_PREFIX_V1: &[u8] = b"zkc-orchard-body-v1";
 const ORCHARD_REAL_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-real-v1";
 const ORCHARD_REAL_NATIVE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-native-proof-v1";
 const ORCHARD_HALO2_ACTION_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-halo2-action-v1";
+const ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-halo2-bundle-v1";
 const ORCHARD_REAL_NATIVE_PROOF_HASH_PREIMAGE_PREFIX_V1: &[u8] =
     b"zkc-orchard-native-proof-hash-v1";
 const ORCHARD_REAL_PROOF_REQUEST_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-request-v1";
@@ -65,6 +66,15 @@ const ORCHARD_HALO2_ACTION_PROOF_HEADER_LEN_V1: usize = ORCHARD_HALO2_ACTION_PRO
     + (HASH_SIZE * 5)
     + 2
     + core::mem::size_of::<u32>();
+const ORCHARD_HALO2_ACTION_RECORD_LEN_V1: usize = HASH_SIZE * 5;
+const ORCHARD_HALO2_BUNDLE_PROOF_FIXED_HEADER_LEN_V1: usize = ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1
+    .len()
+    + 1
+    + core::mem::size_of::<u32>()
+    + core::mem::size_of::<u32>()
+    + core::mem::size_of::<u64>()
+    + HASH_SIZE
+    + 2;
 #[cfg(feature = "verifier-fixture")]
 const ORCHARD_REAL_FIXTURE_PROOF_LEN_V1: usize =
     ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len() + HASH_SIZE;
@@ -147,6 +157,27 @@ pub struct OrchardHalo2ActionProof<'a> {
     pub cmx: [u8; HASH_SIZE],
     pub enable_spend: bool,
     pub enable_output: bool,
+    pub proof_bytes: &'a [u8],
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OrchardHalo2ActionInstanceV1 {
+    pub anchor: [u8; HASH_SIZE],
+    pub cv_net: [u8; HASH_SIZE],
+    pub nf_old: [u8; HASH_SIZE],
+    pub rk: [u8; HASH_SIZE],
+    pub cmx: [u8; HASH_SIZE],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OrchardHalo2BundleProof<'a> {
+    pub proof_kind: u8,
+    pub marker_action_index: u32,
+    pub shielded_value: u64,
+    pub tx_binding_hash: [u8; HASH_SIZE],
+    pub enable_spend: bool,
+    pub enable_output: bool,
+    pub actions: Vec<OrchardHalo2ActionInstanceV1>,
     pub proof_bytes: &'a [u8],
 }
 
@@ -624,6 +655,42 @@ pub fn build_orchard_halo2_action_proof_bytes_v1(
     payload
 }
 
+pub fn build_orchard_halo2_bundle_proof_bytes_v1(
+    proof_kind: u8,
+    marker_action_index: u32,
+    shielded_value: u64,
+    tx_binding_hash: &[u8; HASH_SIZE],
+    actions: &[OrchardHalo2ActionInstanceV1],
+    enable_spend: bool,
+    enable_output: bool,
+    proof_bytes: &[u8],
+) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(
+        ORCHARD_HALO2_BUNDLE_PROOF_FIXED_HEADER_LEN_V1
+            + (actions.len() * ORCHARD_HALO2_ACTION_RECORD_LEN_V1)
+            + core::mem::size_of::<u32>()
+            + proof_bytes.len(),
+    );
+    payload.extend_from_slice(ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1);
+    payload.push(proof_kind);
+    payload.extend_from_slice(&(actions.len() as u32).to_le_bytes());
+    payload.extend_from_slice(&marker_action_index.to_le_bytes());
+    payload.extend_from_slice(&shielded_value.to_le_bytes());
+    payload.extend_from_slice(tx_binding_hash);
+    payload.push(u8::from(enable_spend));
+    payload.push(u8::from(enable_output));
+    for action in actions {
+        payload.extend_from_slice(&action.anchor);
+        payload.extend_from_slice(&action.cv_net);
+        payload.extend_from_slice(&action.nf_old);
+        payload.extend_from_slice(&action.rk);
+        payload.extend_from_slice(&action.cmx);
+    }
+    payload.extend_from_slice(&(proof_bytes.len() as u32).to_le_bytes());
+    payload.extend_from_slice(proof_bytes);
+    payload
+}
+
 #[cfg(feature = "verifier-fixture")]
 pub fn build_orchard_fixture_proof_bytes_v1(input: &OrchardRealVerifierInput) -> Vec<u8> {
     let input_hash = input.input_hash_v1();
@@ -852,6 +919,143 @@ pub fn decode_orchard_halo2_action_proof_bytes_v1<'a>(
     })
 }
 
+pub fn decode_orchard_halo2_bundle_proof_bytes_v1<'a>(
+    proof: &'a [u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> Option<OrchardHalo2BundleProof<'a>> {
+    if proof.len() < ORCHARD_HALO2_BUNDLE_PROOF_FIXED_HEADER_LEN_V1 + core::mem::size_of::<u32>() {
+        return None;
+    }
+    if !proof.starts_with(ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1) {
+        return None;
+    }
+
+    let kind_offset = ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1.len();
+    let action_count_offset = kind_offset + 1;
+    let marker_action_index_offset = action_count_offset + core::mem::size_of::<u32>();
+    let value_offset = marker_action_index_offset + core::mem::size_of::<u32>();
+    let tx_binding_offset = value_offset + core::mem::size_of::<u64>();
+    let enable_spend_offset = tx_binding_offset + HASH_SIZE;
+    let enable_output_offset = enable_spend_offset + 1;
+    let action_records_offset = enable_output_offset + 1;
+
+    if proof[kind_offset] != proof_kind {
+        return None;
+    }
+
+    let action_count = u32::from_le_bytes(
+        proof[action_count_offset..marker_action_index_offset]
+            .try_into()
+            .expect("action count slice has fixed length"),
+    ) as usize;
+    if action_count == 0 {
+        return None;
+    }
+    let marker_action_index = u32::from_le_bytes(
+        proof[marker_action_index_offset..value_offset]
+            .try_into()
+            .expect("marker action index slice has fixed length"),
+    );
+    if marker_action_index as usize >= action_count {
+        return None;
+    }
+
+    let shielded_value = u64::from_le_bytes(
+        proof[value_offset..tx_binding_offset]
+            .try_into()
+            .expect("shielded value slice has fixed length"),
+    );
+    let tx_binding_hash: [u8; HASH_SIZE] = proof[tx_binding_offset..enable_spend_offset]
+        .try_into()
+        .expect("transaction binding hash slice has fixed length");
+    let enable_spend = match proof[enable_spend_offset] {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
+    let enable_output = match proof[enable_output_offset] {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
+    if !orchard_halo2_action_flags_match_marker_v1(proof_kind, enable_spend, enable_output) {
+        return None;
+    }
+
+    let action_records_len = action_count.checked_mul(ORCHARD_HALO2_ACTION_RECORD_LEN_V1)?;
+    let proof_len_offset = action_records_offset.checked_add(action_records_len)?;
+    let proof_offset = proof_len_offset.checked_add(core::mem::size_of::<u32>())?;
+    if proof.len() < proof_offset {
+        return None;
+    }
+
+    let mut actions = Vec::with_capacity(action_count);
+    for index in 0..action_count {
+        let record_offset = action_records_offset + (index * ORCHARD_HALO2_ACTION_RECORD_LEN_V1);
+        let anchor_offset = record_offset;
+        let cv_net_offset = anchor_offset + HASH_SIZE;
+        let nf_old_offset = cv_net_offset + HASH_SIZE;
+        let rk_offset = nf_old_offset + HASH_SIZE;
+        let cmx_offset = rk_offset + HASH_SIZE;
+        let next_offset = cmx_offset + HASH_SIZE;
+        actions.push(OrchardHalo2ActionInstanceV1 {
+            anchor: proof[anchor_offset..cv_net_offset]
+                .try_into()
+                .expect("anchor slice has fixed length"),
+            cv_net: proof[cv_net_offset..nf_old_offset]
+                .try_into()
+                .expect("value commitment slice has fixed length"),
+            nf_old: proof[nf_old_offset..rk_offset]
+                .try_into()
+                .expect("nullifier slice has fixed length"),
+            rk: proof[rk_offset..cmx_offset]
+                .try_into()
+                .expect("randomized key slice has fixed length"),
+            cmx: proof[cmx_offset..next_offset]
+                .try_into()
+                .expect("note commitment slice has fixed length"),
+        });
+    }
+
+    let marker_action = actions[marker_action_index as usize];
+    if orchard_halo2_action_public_input_hash_v1(
+        proof_kind,
+        shielded_value,
+        &tx_binding_hash,
+        &marker_action.anchor,
+        &marker_action.cv_net,
+        &marker_action.nf_old,
+        &marker_action.rk,
+        &marker_action.cmx,
+        enable_spend,
+        enable_output,
+    )? != *public_input_hash
+    {
+        return None;
+    }
+
+    let proof_len = u32::from_le_bytes(
+        proof[proof_len_offset..proof_offset]
+            .try_into()
+            .expect("bundle proof length slice has fixed length"),
+    ) as usize;
+    if proof_len == 0 || proof_len != proof.len() - proof_offset {
+        return None;
+    }
+
+    Some(OrchardHalo2BundleProof {
+        proof_kind,
+        marker_action_index,
+        shielded_value,
+        tx_binding_hash,
+        enable_spend,
+        enable_output,
+        actions,
+        proof_bytes: &proof[proof_offset..],
+    })
+}
+
 pub fn is_well_formed_orchard_real_proof_v1(
     proof: &[u8],
     proof_kind: u8,
@@ -1013,58 +1217,86 @@ fn verify_orchard_halo2_action_proof_v1(
     let Some(native_proof) = decode_orchard_native_proof_bytes_v1(request) else {
         return OrchardRealProofStatus::Invalid;
     };
-    let Some(action_proof) = decode_orchard_halo2_action_proof_bytes_v1(
+
+    if let Some(action_proof) = decode_orchard_halo2_action_proof_bytes_v1(
         native_proof.proof_bytes,
         request.proof_kind,
         &request.public_input_hash,
-    ) else {
-        return OrchardRealProofStatus::Invalid;
-    };
+    ) {
+        let Some(instance) = orchard_instance_from_halo2_action_fields_v1(
+            &action_proof.anchor,
+            &action_proof.cv_net,
+            &action_proof.nf_old,
+            &action_proof.rk,
+            &action_proof.cmx,
+            action_proof.enable_spend,
+            action_proof.enable_output,
+        ) else {
+            return OrchardRealProofStatus::Invalid;
+        };
 
+        let proof = orchard::Proof::new(action_proof.proof_bytes.to_vec());
+        return match proof.verify(orchard_verifying_key_v1(), &[instance]) {
+            Ok(()) => OrchardRealProofStatus::Valid,
+            Err(_) => OrchardRealProofStatus::Invalid,
+        };
+    }
+
+    if let Some(bundle_proof) = decode_orchard_halo2_bundle_proof_bytes_v1(
+        native_proof.proof_bytes,
+        request.proof_kind,
+        &request.public_input_hash,
+    ) {
+        let Some(instances) = bundle_proof
+            .actions
+            .iter()
+            .map(|action| {
+                orchard_instance_from_halo2_action_fields_v1(
+                    &action.anchor,
+                    &action.cv_net,
+                    &action.nf_old,
+                    &action.rk,
+                    &action.cmx,
+                    bundle_proof.enable_spend,
+                    bundle_proof.enable_output,
+                )
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            return OrchardRealProofStatus::Invalid;
+        };
+
+        let proof = orchard::Proof::new(bundle_proof.proof_bytes.to_vec());
+        return match proof.verify(orchard_verifying_key_v1(), &instances) {
+            Ok(()) => OrchardRealProofStatus::Valid,
+            Err(_) => OrchardRealProofStatus::Invalid,
+        };
+    }
+
+    OrchardRealProofStatus::Invalid
+}
+
+#[cfg(all(feature = "orchard-verifier", not(feature = "verifier-fixture")))]
+fn orchard_instance_from_halo2_action_fields_v1(
+    anchor: &[u8; HASH_SIZE],
+    cv_net: &[u8; HASH_SIZE],
+    nf_old: &[u8; HASH_SIZE],
+    rk: &[u8; HASH_SIZE],
+    cmx: &[u8; HASH_SIZE],
+    enable_spend: bool,
+    enable_output: bool,
+) -> Option<orchard::circuit::Instance> {
     use orchard::circuit::Instance;
     use orchard::note::{ExtractedNoteCommitment, Nullifier};
     use orchard::primitives::redpallas::{SpendAuth, VerificationKey};
     use orchard::value::ValueCommitment;
 
-    let Some(anchor) =
-        Option::<orchard::Anchor>::from(orchard::Anchor::from_bytes(action_proof.anchor))
-    else {
-        return OrchardRealProofStatus::Invalid;
-    };
-    let Some(cv_net) =
-        Option::<ValueCommitment>::from(ValueCommitment::from_bytes(&action_proof.cv_net))
-    else {
-        return OrchardRealProofStatus::Invalid;
-    };
-    let Some(nf_old) = Option::<Nullifier>::from(Nullifier::from_bytes(&action_proof.nf_old))
-    else {
-        return OrchardRealProofStatus::Invalid;
-    };
-    let Ok(rk) = VerificationKey::<SpendAuth>::try_from(action_proof.rk) else {
-        return OrchardRealProofStatus::Invalid;
-    };
-    let Some(cmx) = Option::<ExtractedNoteCommitment>::from(ExtractedNoteCommitment::from_bytes(
-        &action_proof.cmx,
-    )) else {
-        return OrchardRealProofStatus::Invalid;
-    };
-    let Some(instance) = Instance::from_parts(
-        anchor,
-        cv_net,
-        nf_old,
-        rk,
-        cmx,
-        action_proof.enable_spend,
-        action_proof.enable_output,
-    ) else {
-        return OrchardRealProofStatus::Invalid;
-    };
-
-    let proof = orchard::Proof::new(action_proof.proof_bytes.to_vec());
-    match proof.verify(orchard_verifying_key_v1(), &[instance]) {
-        Ok(()) => OrchardRealProofStatus::Valid,
-        Err(_) => OrchardRealProofStatus::Invalid,
-    }
+    let anchor = Option::<orchard::Anchor>::from(orchard::Anchor::from_bytes(*anchor))?;
+    let cv_net = Option::<ValueCommitment>::from(ValueCommitment::from_bytes(cv_net))?;
+    let nf_old = Option::<Nullifier>::from(Nullifier::from_bytes(nf_old))?;
+    let rk = VerificationKey::<SpendAuth>::try_from(*rk).ok()?;
+    let cmx = Option::<ExtractedNoteCommitment>::from(ExtractedNoteCommitment::from_bytes(cmx))?;
+    Instance::from_parts(anchor, cv_net, nf_old, rk, cmx, enable_spend, enable_output)
 }
 
 pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
@@ -3166,6 +3398,150 @@ mod tests {
         assert!(check.request_hash.is_some());
         assert!(check.verifier_input_hash.is_some());
         assert!(check.native_proof_hash.is_some());
+    }
+
+    #[cfg(all(feature = "orchard-verifier", not(feature = "verifier-fixture")))]
+    #[test]
+    fn orchard_verifier_backend_accepts_generated_mint_proof() {
+        use orchard::builder::{Builder, BundleType};
+        use orchard::bundle::Flags;
+        use orchard::keys::{FullViewingKey, Scope, SpendingKey};
+        use orchard::value::NoteValue;
+        use rand::{rngs::StdRng, SeedableRng};
+
+        assert_eq!(
+            orchard_real_verifier_backend_v1(),
+            OrchardRealVerifierBackend::OrchardV1
+        );
+        assert!(orchard_real_verifier_supports_real_proofs_v1());
+
+        let mut rng = StdRng::from_seed([0x42; 32]);
+        let sk = SpendingKey::from_bytes([0x07; 32]).expect("deterministic spending key");
+        let fvk = FullViewingKey::from(&sk);
+        let recipient = fvk.address_at(0u32, Scope::External);
+        let shielded_value = 100_000_000u64;
+
+        let mut builder = Builder::new(
+            BundleType::Transactional {
+                flags: Flags::SPENDS_DISABLED,
+                bundle_required: true,
+            },
+            orchard::Anchor::empty_tree(),
+        );
+        builder
+            .add_output(
+                None,
+                recipient,
+                NoteValue::from_raw(shielded_value),
+                [0x24; 512],
+            )
+            .expect("output can be added to mint bundle");
+        let (unauthorized, _) = builder
+            .build::<i64>(&mut rng)
+            .expect("mint bundle builds")
+            .expect("mint bundle is required");
+        let sighash: [u8; HASH_SIZE] = unauthorized.commitment().into();
+        let proving_key = orchard::circuit::ProvingKey::build();
+        let proven = unauthorized
+            .create_proof(&proving_key, &mut rng)
+            .expect("valid mint proof can be generated");
+        let bundle = proven
+            .apply_signatures(&mut rng, sighash, &[])
+            .expect("dummy spend signatures finalize");
+        bundle
+            .verify_proof(orchard_verifying_key_v1())
+            .expect("upstream Orchard verifies generated mint proof");
+
+        let anchor = bundle.anchor().to_bytes();
+        let actions = bundle
+            .actions()
+            .iter()
+            .map(|action| OrchardHalo2ActionInstanceV1 {
+                anchor,
+                cv_net: action.cv_net().to_bytes(),
+                nf_old: action.nullifier().to_bytes(),
+                rk: <[u8; HASH_SIZE]>::from(action.rk()),
+                cmx: action.cmx().to_bytes(),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actions.len(), 2);
+        let marker_action_index = 0u32;
+        let marker_action = actions[marker_action_index as usize];
+        let public_input_hash = orchard_halo2_action_public_input_hash_v1(
+            SHIELDED_ACTION_MINT,
+            shielded_value,
+            &TX_BINDING_HASH,
+            &marker_action.anchor,
+            &marker_action.cv_net,
+            &marker_action.nf_old,
+            &marker_action.rk,
+            &marker_action.cmx,
+            false,
+            true,
+        )
+        .expect("generated mint public input hash binds marker fields");
+        let bundle_payload = build_orchard_halo2_bundle_proof_bytes_v1(
+            SHIELDED_ACTION_MINT,
+            marker_action_index,
+            shielded_value,
+            &TX_BINDING_HASH,
+            &actions,
+            false,
+            true,
+            bundle.authorization().proof().as_ref(),
+        );
+        assert_eq!(bundle.authorization().proof().as_ref().len(), 7264);
+        assert_eq!(
+            bundle_payload.len(),
+            ORCHARD_HALO2_BUNDLE_PROOF_FIXED_HEADER_LEN_V1
+                + (actions.len() * ORCHARD_HALO2_ACTION_RECORD_LEN_V1)
+                + core::mem::size_of::<u32>()
+                + 7264
+        );
+        let bundle_proof =
+            decode_orchard_halo2_bundle_proof_bytes_v1(&bundle_payload, 1, &public_input_hash)
+                .expect("generated bundle payload decodes");
+        assert_eq!(bundle_proof.marker_action_index, marker_action_index);
+        assert_eq!(bundle_proof.shielded_value, shielded_value);
+        assert_eq!(bundle_proof.tx_binding_hash, TX_BINDING_HASH);
+        assert_eq!(bundle_proof.actions, actions);
+        assert_eq!(bundle_proof.proof_bytes.len(), 7264);
+
+        let verifier_input = OrchardRealVerifierInput {
+            proof_kind: SHIELDED_ACTION_MINT,
+            public_input_hash,
+            verifier_key_hash: expected_orchard_real_verifier_key_hash_v1(),
+        };
+        let native_bytes = build_orchard_native_proof_bytes_v1(&verifier_input, &bundle_payload);
+        let real_proof =
+            build_orchard_real_proof_v1(SHIELDED_ACTION_MINT, &public_input_hash, &native_bytes);
+        let check =
+            orchard_real_proof_check_v3(&real_proof, SHIELDED_ACTION_MINT, &public_input_hash);
+        assert_eq!(check.status, OrchardRealProofStatus::Valid);
+        assert!(check.request_hash.is_some());
+        assert!(check.verifier_input_hash.is_some());
+        assert!(check.native_proof_hash.is_some());
+
+        let mut wrong_tx_binding_bundle_payload = bundle_payload.clone();
+        let tx_binding_offset = ORCHARD_HALO2_BUNDLE_PROOF_PREFIX_V1.len()
+            + 1
+            + core::mem::size_of::<u32>()
+            + core::mem::size_of::<u32>()
+            + core::mem::size_of::<u64>();
+        wrong_tx_binding_bundle_payload[tx_binding_offset] ^= 0x01;
+        let wrong_native_bytes =
+            build_orchard_native_proof_bytes_v1(&verifier_input, &wrong_tx_binding_bundle_payload);
+        let wrong_real_proof = build_orchard_real_proof_v1(
+            SHIELDED_ACTION_MINT,
+            &public_input_hash,
+            &wrong_native_bytes,
+        );
+        let wrong_check = orchard_real_proof_check_v3(
+            &wrong_real_proof,
+            SHIELDED_ACTION_MINT,
+            &public_input_hash,
+        );
+        assert_eq!(wrong_check.status, OrchardRealProofStatus::Invalid);
     }
 
     #[cfg(feature = "verifier-fixture")]
