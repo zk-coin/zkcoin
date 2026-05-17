@@ -53,6 +53,12 @@ int main()
         0x93, 0xbf, 0xff, 0x59, 0x71, 0x7f, 0x1b, 0x74,
         0x0f, 0xe2, 0x82, 0xaf, 0xe3, 0xf3, 0x2c, 0xd3,
     };
+    static const std::vector<unsigned char> EXPECTED_ORCHARD_REAL_REQUEST_HASH{
+        0xb5, 0xc0, 0x80, 0x93, 0xab, 0x92, 0x5b, 0x51,
+        0x3b, 0xa1, 0x01, 0xe8, 0x8a, 0x99, 0x52, 0x51,
+        0xed, 0x51, 0x5d, 0xbd, 0xce, 0x32, 0xbb, 0x17,
+        0x63, 0xad, 0xbc, 0x04, 0x6d, 0xff, 0x91, 0x52,
+    };
 
     const uint256 field_hash = FilledHash(0x11);
     const uint256 tx_binding_hash = FilledHash(0x22);
@@ -159,13 +165,53 @@ int main()
         return 22;
     }
 
-    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+    uint256 request_hash;
+    if (!Consensus::ShieldedPool::OrchardRealProofRequestHashV1(real_proof_v1, 1, public_input_hash, request_hash)) {
         return 23;
+    }
+
+    if (std::vector<unsigned char>(request_hash.begin(), request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 24;
+    }
+
+    if (Consensus::ShieldedPool::OrchardRealProofRequestHashV1(real_proof_v1, 2, public_input_hash, request_hash)) {
+        return 25;
+    }
+
+    std::vector<unsigned char> request_hash_bytes(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE);
+    if (zkc_shielded_orchard_real_proof_request_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size()) != 1) {
+        return 26;
+    }
+
+    if (request_hash_bytes != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 27;
+    }
+
+    if (zkc_shielded_orchard_real_proof_request_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size() - 1) != 0) {
+        return 28;
+    }
+
+    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+        return 29;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardRealProofStatusV1(real_proof_v1, 2, public_input_hash) !=
         Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
-        return 24;
+        return 30;
     }
 
     const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(1, public_input_hash, real_proof_bytes);
@@ -173,46 +219,46 @@ int main()
     const auto real_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash, real_orchard_payload_v1);
     uint8_t decoded_body_mode{0xff};
     if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(real_orchard_payload_v1, 1, public_input_hash, decoded_body_mode)) {
-        return 25;
+        return 31;
     }
 
     if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
-        return 26;
+        return 32;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
-        return 27;
+        return 33;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
-        return 28;
+        return 34;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
-        return 29;
+        return 35;
     }
 
     if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
-        return 30;
+        return 36;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
-        return 31;
+        return 37;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 32;
+        return 38;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 33;
+        return 39;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 34;
+        return 40;
     }
 
     return 0;

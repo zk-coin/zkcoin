@@ -6,7 +6,9 @@ This crate exposes the `zkc_shielded_verify_proof_v1`,
 `zkc_shielded_verify_orchard_real_proof_v1` C ABIs used by the C++ consensus
 shielded pool. A companion
 `zkc_shielded_verify_orchard_real_proof_status_v1` ABI returns a typed status
-for diagnostics and future verifier wiring. The current v4 path moves consensus
+for diagnostics and future verifier wiring, and
+`zkc_shielded_orchard_real_proof_request_hash_v1` exposes the canonical backend
+request fingerprint. The current v4 path moves consensus
 toward the real verifier boundary: C++ computes the consensus public-input
 hash, while Rust parses a versioned proof bundle and dispatches by
 proof-system id.
@@ -46,6 +48,11 @@ preventing placeholder proof bytes from being accepted as production proofs.
 After parsing, the Rust verifier hands the backend a typed request containing
 the action kind, consensus public-input hash, verifier-key commitment, and raw
 proof bytes.
+That request also has a canonical `zkc-orchard-real-request-v1` fingerprint:
+
+```text
+Hash256("zkc-orchard-real-request-v1" || kind || public_input_hash || verifier_key_hash || proof_len_le32 || proof_bytes)
+```
 
 The real-proof status ABI returns `1` for a valid proof, `0` for malformed
 bytes or context mismatch, `-1` for a parsed but invalid proof, and `-2` when a

@@ -81,6 +81,13 @@ static const std::vector<unsigned char>& OrchardRealVerifierKeyHashPreimagePrefi
     return prefix;
 }
 
+[[maybe_unused]] static const std::vector<unsigned char>& OrchardRealProofRequestPreimagePrefixV1()
+{
+    static const std::vector<unsigned char> prefix{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'r', 'e', 'a', 'l', '-', 'r', 'e', 'q', 'u', 'e', 's', 't', '-', 'v', '1'};
+    return prefix;
+}
+
 static void AppendUint32(std::vector<unsigned char>& payload, uint32_t value)
 {
     for (size_t i = 0; i < sizeof(value); ++i) {
@@ -248,6 +255,23 @@ int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint
         proof_kind,
         public_input_hash.begin(),
         SHIELDED_PUBLIC_INPUT_HASH_SIZE);
+}
+
+bool OrchardRealProofRequestHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash)
+{
+    std::vector<unsigned char> request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    const int ok = zkc_shielded_orchard_real_proof_request_hash_v1(
+        proof.data(),
+        proof.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        request_hash_bytes.data(),
+        request_hash_bytes.size());
+    if (ok != 1) return false;
+
+    std::copy(request_hash_bytes.begin(), request_hash_bytes.end(), request_hash.begin());
+    return true;
 }
 
 int OrchardRealVerifierBackendV1()
@@ -547,5 +571,41 @@ extern "C" int zkc_shielded_orchard_real_verifier_backend_v1()
 extern "C" int zkc_shielded_orchard_real_verifier_supports_proofs_v1()
 {
     return 0;
+}
+
+extern "C" int zkc_shielded_orchard_real_proof_request_hash_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* request_hash_out,
+    size_t request_hash_out_len)
+{
+    if (proof == nullptr || public_input_hash == nullptr || request_hash_out == nullptr) return 0;
+    if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
+    if (request_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) return 0;
+
+    const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
+    std::vector<unsigned char> proof_bytes;
+    if (!Consensus::ShieldedPool::DecodeOrchardRealProofV1(
+            std::vector<unsigned char>(proof, proof + proof_len),
+            proof_kind,
+            public_input_hash_value,
+            proof_bytes)) {
+        return 0;
+    }
+
+    const uint256 verifier_key_hash = Consensus::ShieldedPool::ExpectedOrchardRealVerifierKeyHashV1();
+    std::vector<unsigned char> data = Consensus::ShieldedPool::OrchardRealProofRequestPreimagePrefixV1();
+    data.push_back(proof_kind);
+    data.insert(data.end(), public_input_hash_value.begin(), public_input_hash_value.end());
+    data.insert(data.end(), verifier_key_hash.begin(), verifier_key_hash.end());
+    Consensus::ShieldedPool::AppendUint32(data, static_cast<uint32_t>(proof_bytes.size()));
+    data.insert(data.end(), proof_bytes.begin(), proof_bytes.end());
+
+    const uint256 request_hash = Hash(data);
+    std::copy(request_hash.begin(), request_hash.end(), request_hash_out);
+    return 1;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

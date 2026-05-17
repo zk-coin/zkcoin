@@ -75,6 +75,15 @@ int zkc_shielded_orchard_real_verifier_backend_v1(void);
 
 int zkc_shielded_orchard_real_verifier_supports_proofs_v1(void);
 
+int zkc_shielded_orchard_real_proof_request_hash_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* request_hash_out,
+    size_t request_hash_out_len);
+
 #ifdef __cplusplus
 }
 #endif

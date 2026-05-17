@@ -72,6 +72,26 @@ static void SetProofBundleLength(std::vector<unsigned char>& bundle)
     }
 }
 
+static void AppendUint32Field(std::vector<unsigned char>& payload, uint32_t value)
+{
+    for (size_t i = 0; i < sizeof(value); ++i) {
+        payload.push_back((value >> (8 * i)) & 0xff);
+    }
+}
+
+static uint256 ExpectedRealProofRequestHash(uint8_t proof_kind, const uint256& public_input_hash, const uint256& verifier_key_hash, const std::vector<unsigned char>& proof_bytes)
+{
+    std::vector<unsigned char> data{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'r', 'e',
+        'a', 'l', '-', 'r', 'e', 'q', 'u', 'e', 's', 't', '-', 'v', '1'};
+    data.push_back(proof_kind);
+    data.insert(data.end(), public_input_hash.begin(), public_input_hash.end());
+    data.insert(data.end(), verifier_key_hash.begin(), verifier_key_hash.end());
+    AppendUint32Field(data, static_cast<uint32_t>(proof_bytes.size()));
+    data.insert(data.end(), proof_bytes.begin(), proof_bytes.end());
+    return Hash(data);
+}
+
 static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins, const std::vector<unsigned char>& witness_item, uint32_t nonce)
 {
     const CScript witness_script = CScript() << OP_TRUE;
@@ -229,6 +249,15 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         real_proof_bytes.end(),
         decoded_real_proof_bytes.begin(),
         decoded_real_proof_bytes.end());
+    uint256 real_request_hash;
+    BOOST_CHECK(OrchardRealProofRequestHashV1(real_proof_v1, ACTION_MINT, public_input_hash, real_request_hash));
+    const uint256 expected_real_request_hash = ExpectedRealProofRequestHash(ACTION_MINT, public_input_hash, real_verifier_key_hash, real_proof_bytes);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_request_hash.begin(),
+        expected_real_request_hash.end(),
+        real_request_hash.begin(),
+        real_request_hash.end());
+    BOOST_CHECK(!OrchardRealProofRequestHashV1(real_proof_v1, ACTION_SPEND, public_input_hash, real_request_hash));
     BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_MINT, public_input_hash),
