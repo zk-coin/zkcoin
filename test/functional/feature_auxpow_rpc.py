@@ -8,7 +8,7 @@ import time
 from decimal import Decimal
 from io import BytesIO
 
-from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
+from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE, keyhash_to_p2pkh
 from test_framework.blocktools import COIN, create_block, create_coinbase
 from test_framework.messages import (
     CBlockHeader,
@@ -18,15 +18,15 @@ from test_framework.messages import (
 )
 from test_framework.auxpow import parse_auxpow, solve_parent_header
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error, hex_str_to_bytes
 
 
 class AuxPowRPCTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 2
+        self.num_nodes = 4
         self.setup_clean_chain = True
         self.supports_cli = False
-        self.extra_args = [["-auxpowheight=1"], ["-auxpowheight=2"]]
+        self.extra_args = [["-auxpowheight=1"], ["-auxpowheight=2"], ["-auxpowheight=1"], ["-auxpowheight=1"]]
 
     def setup_network(self):
         self.setup_nodes()
@@ -76,6 +76,45 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_array_result(wallet_tx["details"], {"category": "immature"}, {"amount": amount})
         assert_equal(node.getbalances()["mine"]["immature"], previous_immature + amount)
 
+    def assert_duplicate_valid_getauxblock_keeps_wallet_reservation(self):
+        if not self.is_wallet_compiled() or self.options.descriptors:
+            return
+
+        miner = self.nodes[2]
+        duplicate = self.nodes[3]
+
+        seed = duplicate.dumpprivkey(
+            keyhash_to_p2pkh(hex_str_to_bytes(duplicate.getwalletinfo()["hdseedid"])[::-1])
+        )
+        miner.sethdseed(seed=seed)
+        self.connect_nodes(3, 2)
+        self.sync_blocks([miner, duplicate])
+
+        mock_time = miner.getblockheader(miner.getbestblockhash())["time"] + 1
+        miner.setmocktime(mock_time)
+        duplicate.setmocktime(mock_time)
+
+        previous_immature = duplicate.getbalances()["mine"]["immature"]
+        candidate = duplicate.getauxblock()
+        pool_candidate = miner.getauxblock()
+        assert_equal(pool_candidate["hash"], candidate["hash"])
+
+        auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
+        solve_parent_header(auxpow, int(pool_candidate["bits"], 16))
+        auxpow_hex = auxpow.serialize().hex()
+        assert_equal(miner.getauxblock(pool_candidate["hash"], auxpow_hex), True)
+        self.sync_blocks([miner, duplicate])
+        duplicate.syncwithvalidationinterfacequeue()
+
+        coinbase_address = duplicate.getblock(candidate["hash"], 2)["tx"][0]["vout"][0]["scriptPubKey"]["addresses"][0]
+        assert_equal(duplicate.getauxblock(candidate["hash"], auxpow_hex), False)
+        self.assert_wallet_coinbase(duplicate, candidate["hash"], candidate["coinbasevalue"], previous_immature)
+        duplicate.syncwithvalidationinterfacequeue()
+        assert duplicate.getnewaddress("", "bech32") != coinbase_address
+
+        miner.setmocktime(0)
+        duplicate.setmocktime(0)
+
     def make_parent_header_unsolved(self, auxpow, bits):
         target = uint256_from_compact(bits)
         auxpow.parent_header.nNonce = 0
@@ -92,6 +131,9 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")
         if not self.is_wallet_compiled():
             assert_raises_rpc_error(-18, "requires a loaded wallet", node.getauxblock)
+        elif not self.options.descriptors:
+            self.log.info("Keep wallet reservation for duplicate-valid getauxblock submits")
+            self.assert_duplicate_valid_getauxblock_keeps_wallet_reservation()
 
         self.log.info("Create Dogecoin-style AuxPoW candidates keyed by payout address")
         address = node.get_deterministic_priv_key().address

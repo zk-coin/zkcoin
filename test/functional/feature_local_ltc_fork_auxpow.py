@@ -17,7 +17,7 @@ from test_framework.blocktools import (
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxOut
 from test_framework.script import CScript
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
 
 
 class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
@@ -60,6 +60,15 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(snapshot["imported_height"], dump["base_height"])
         assert_equal(snapshot["imported_block_hash"], verify["base_hash"])
         assert_equal(snapshot["imported_hash"], verify["import_hash"])
+
+    def assert_wallet_coinbase(self, node, block_hash, coinbasevalue, previous_immature):
+        amount = Decimal(coinbasevalue) / Decimal(COIN)
+        coinbase_txid = node.getblock(block_hash)["tx"][0]
+        wallet_tx = node.gettransaction(coinbase_txid)
+        assert_equal(wallet_tx["generated"], True)
+        assert_equal(wallet_tx["blockhash"], block_hash)
+        assert_array_result(wallet_tx["details"], {"category": "immature"}, {"amount": amount})
+        assert_equal(node.getbalances()["mine"]["immature"], previous_immature + amount)
 
     def child_launch_args(self, dump, verify, import_hash=None):
         return [
@@ -183,7 +192,14 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         miner_spend_txid = child.sendrawtransaction(raw_miner_spend)
 
         self.log.info("Reject a local parent AuxPoW proof with the wrong commitment")
-        candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        if self.is_wallet_compiled():
+            previous_immature = child.getbalances()["mine"]["immature"]
+            candidate = child.getauxblock()
+            wallet_candidate_repeat = child.getauxblock()
+            assert_equal(wallet_candidate_repeat["hash"], candidate["hash"])
+        else:
+            previous_immature = None
+            candidate = child.createauxblock(child.get_deterministic_priv_key().address)
         assert_equal(candidate["height"], 1)
         assert_equal(candidate["previousblockhash"], child.getbestblockhash())
         assert_equal(candidate["chainid"], child.getblockchaininfo()["auxpow"]["chain_id"])
@@ -216,9 +232,14 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         auxpow = build_parent_auxpow(parent_block)
         assert_equal(auxpow.index, 0)
         assert_equal(len(auxpow.merkle_branch), 1)
-        assert_equal(child.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(candidate["hash"], auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
         assert_equal(child.getblockcount(), 1)
         assert_equal(child.getbestblockhash(), candidate["hash"])
+        if self.is_wallet_compiled():
+            self.assert_wallet_coinbase(child, candidate["hash"], candidate["coinbasevalue"], previous_immature)
         assert spend_txid in child.getblock(candidate["hash"])["tx"]
         assert miner_spend_txid in child.getblock(candidate["hash"])["tx"]
         assert_equal(child.getrawmempool(), [])
