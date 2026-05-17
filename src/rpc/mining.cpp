@@ -46,11 +46,14 @@
 
 namespace {
 static constexpr size_t MAX_AUXPOW_CANDIDATES{32};
+static constexpr int64_t AUXPOW_MEMPOOL_REFRESH_SECONDS{60};
 
 std::map<uint256, std::shared_ptr<CBlock>> g_auxpow_candidates;
 std::deque<uint256> g_auxpow_candidate_order;
 std::map<CScriptID, uint256> g_auxpow_candidates_by_script;
 uint256 g_auxpow_candidate_tip;
+unsigned int g_auxpow_candidate_transactions_updated{0};
+int64_t g_auxpow_candidate_start_time{0};
 
 std::string SerializeAuxPowHex(const CAuxPow& auxpow)
 {
@@ -64,6 +67,12 @@ std::string SerializePureHeaderHex(const CPureBlockHeader& header)
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << header;
     return HexStr(stream);
+}
+
+std::string AuxPowTargetHex(const arith_uint256& target)
+{
+    const uint256 target_bytes = ArithToUint256(target);
+    return HexStr(target_bytes);
 }
 
 bool DecodeHexAuxPow(CAuxPow& auxpow, const std::string& hex_auxpow)
@@ -131,6 +140,16 @@ void ResetAuxPowCandidatesForTip(const uint256& tip_hash)
     }
 }
 
+void ExpireAuxPowScriptCandidatesForMempool(const CTxMemPool& mempool)
+{
+    const unsigned int transactions_updated = mempool.GetTransactionsUpdated();
+    if (!g_auxpow_candidates_by_script.empty() &&
+        transactions_updated != g_auxpow_candidate_transactions_updated &&
+        GetTime() - g_auxpow_candidate_start_time > AUXPOW_MEMPOOL_REFRESH_SECONDS) {
+        g_auxpow_candidates_by_script.clear();
+    }
+}
+
 std::shared_ptr<CBlock> FindAuxPowCandidate(const CScript& script_pub_key)
 {
     const auto script_it = g_auxpow_candidates_by_script.find(CScriptID(script_pub_key));
@@ -146,12 +165,14 @@ std::shared_ptr<CBlock> FindAuxPowCandidate(const CScript& script_pub_key)
     return candidate_it->second;
 }
 
-void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key)
+void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key, const CTxMemPool& mempool)
 {
     const uint256 hash = block.GetHash();
     g_auxpow_candidates[hash] = std::make_shared<CBlock>(block);
     g_auxpow_candidate_order.push_back(hash);
     g_auxpow_candidates_by_script[CScriptID(script_pub_key)] = hash;
+    g_auxpow_candidate_transactions_updated = mempool.GetTransactionsUpdated();
+    g_auxpow_candidate_start_time = GetTime();
 
     while (g_auxpow_candidates.size() > MAX_AUXPOW_CANDIDATES) {
         const uint256 evicted = g_auxpow_candidate_order.front();
@@ -1109,6 +1130,7 @@ static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CSc
         }
 
         ResetAuxPowCandidatesForTip(pindexPrev->GetBlockHash());
+        ExpireAuxPowScriptCandidatesForMempool(mempool);
         candidate = FindAuxPowCandidate(coinbase_script);
         if (!candidate) {
             std::unique_ptr<CBlockTemplate> blocktemplate = BlockAssembler(mempool, chainparams).CreateNewBlock(coinbase_script);
@@ -1121,7 +1143,7 @@ static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CSc
                 block.SetChainId(consensus.auxpow.nChainId);
                 CAuxPow::initAuxPow(block);
             }
-            StoreAuxPowCandidate(block, coinbase_script);
+            StoreAuxPowCandidate(block, coinbase_script, mempool);
             candidate = g_auxpow_candidates.at(block.GetHash());
         }
     }
@@ -1136,7 +1158,8 @@ static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CSc
     result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
     result.pushKV("coinbasevalue", static_cast<int64_t>(block.vtx[0]->vout[0].nValue));
     result.pushKV("bits", strprintf("%08x", block.nBits));
-    result.pushKV("target", hashTarget.GetHex());
+    result.pushKV("target", AuxPowTargetHex(hashTarget));
+    result.pushKV("_target", AuxPowTargetHex(hashTarget));
     result.pushKV("height", static_cast<int64_t>(height));
     result.pushKV("auxpowcommitment", HexStr(BuildAuxPowCommitment(hash)));
     result.pushKV("header", SerializePureHeaderHex(block));
@@ -1234,7 +1257,8 @@ static RPCHelpMan createauxblock()
                             {RPCResult::Type::STR_HEX, "previousblockhash", "Previous child-chain block hash"},
                             {RPCResult::Type::NUM, "coinbasevalue", "Maximum child-chain coinbase value in satoshis"},
                             {RPCResult::Type::STR_HEX, "bits", "Compressed child-chain target"},
-                            {RPCResult::Type::STR_HEX, "target", "Expanded child-chain target"},
+                            {RPCResult::Type::STR_HEX, "target", "Expanded child-chain target in Dogecoin AuxPoW byte order"},
+                            {RPCResult::Type::STR_HEX, "_target", "Expanded child-chain target in Namecoin-compatible byte order"},
                             {RPCResult::Type::NUM, "height", "Candidate child-chain height"},
                             {RPCResult::Type::STR_HEX, "auxpowcommitment", "Bytes to include in the Litecoin parent coinbase scriptSig"},
                             {RPCResult::Type::STR_HEX, "header", "Serialized child-chain block header"},
@@ -1302,14 +1326,15 @@ static RPCHelpMan getauxblock()
                             {RPCResult::Type::STR_HEX, "previousblockhash", "Previous child-chain block hash"},
                             {RPCResult::Type::NUM, "coinbasevalue", "Maximum child-chain coinbase value in satoshis"},
                             {RPCResult::Type::STR_HEX, "bits", "Compressed child-chain target"},
-                            {RPCResult::Type::STR_HEX, "target", "Expanded child-chain target"},
+                            {RPCResult::Type::STR_HEX, "target", "Expanded child-chain target in Dogecoin AuxPoW byte order"},
+                            {RPCResult::Type::STR_HEX, "_target", "Expanded child-chain target in Namecoin-compatible byte order"},
                             {RPCResult::Type::NUM, "height", "Candidate child-chain height"},
                             {RPCResult::Type::STR_HEX, "auxpowcommitment", "Bytes to include in the Litecoin parent coinbase scriptSig"},
                             {RPCResult::Type::STR_HEX, "header", "Serialized child-chain block header"},
                             {RPCResult::Type::STR_HEX, "defaultauxpow", "Serialized placeholder AuxPoW proof for local testing"},
                         }},
                     RPCResult{"if called with hash and auxpow",
-                        RPCResult::Type::NONE, "", "Returns JSON Null when valid, a string according to BIP22 otherwise"},
+                        RPCResult::Type::BOOL, "", "Whether the submitted AuxPoW proof was accepted"},
                 },
                 RPCExamples{
                     HelpExampleCli("getauxblock", "")
@@ -1334,7 +1359,7 @@ static RPCHelpMan getauxblock()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "AuxPoW decode failed");
     }
 
-    return SubmitAuxBlock(request, hash, std::move(auxpow), /* dogecoin_compat */ false);
+    return SubmitAuxBlock(request, hash, std::move(auxpow), /* dogecoin_compat */ true);
 },
     };
 }

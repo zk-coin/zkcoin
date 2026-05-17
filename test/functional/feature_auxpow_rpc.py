@@ -4,6 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test AuxPoW merge-mining RPC flow."""
 
+import time
+from decimal import Decimal
 from io import BytesIO
 
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
@@ -11,6 +13,8 @@ from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import (
     CBlockHeader,
     hash256,
+    ser_uint256,
+    uint256_from_compact,
 )
 from test_framework.auxpow import parse_auxpow, solve_parent_header
 from test_framework.test_framework import BitcoinTestFramework
@@ -58,6 +62,19 @@ class AuxPowRPCTest(BitcoinTestFramework):
         auxpow.parent_header.rehash()
         assert script_sig != auxpow.coinbase_tx.vin[0].scriptSig
 
+    def assert_auxpow_target(self, candidate):
+        expected_target = ser_uint256(uint256_from_compact(int(candidate["bits"], 16))).hex()
+        assert_equal(candidate["target"], expected_target)
+        assert_equal(candidate["_target"], expected_target)
+
+    def make_parent_header_unsolved(self, auxpow, bits):
+        target = uint256_from_compact(bits)
+        auxpow.parent_header.nNonce = 0
+        auxpow.parent_header.rehash()
+        while auxpow.parent_header.scrypt256 <= target:
+            auxpow.parent_header.nNonce += 1
+            auxpow.parent_header.rehash()
+
     def run_test(self):
         node = self.nodes[0]
         boundary_node = self.nodes[1]
@@ -79,6 +96,8 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(pool_candidate["height"], 1)
         assert_equal(pool_candidate["chainid"], node.getblockchaininfo()["auxpow"]["chain_id"])
         assert_equal(pool_candidate["auxpowcommitment"], "fabe6d6d" + pool_candidate["hash"] + "0100000000000000")
+        self.assert_auxpow_target(pool_candidate)
+        self.assert_auxpow_target(other_pool_candidate)
 
         self.log.info("Submit solved AuxPoW through Dogecoin-style RPC")
         other_pool_auxpow = parse_auxpow(other_pool_candidate["defaultauxpow"])
@@ -124,6 +143,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(candidate["chainid"], node.getblockchaininfo()["auxpow"]["chain_id"])
         assert_equal(candidate["previousblockhash"], node.getbestblockhash())
         assert_equal(candidate["auxpowcommitment"], "fabe6d6d" + candidate["hash"] + "0100000000000000")
+        self.assert_auxpow_target(candidate)
 
         header = CBlockHeader()
         header.deserialize(BytesIO(bytes.fromhex(candidate["header"])))
@@ -133,14 +153,14 @@ class AuxPowRPCTest(BitcoinTestFramework):
         self.log.info("Mine parent AuxPoW header and submit candidate")
         auxpow = parse_auxpow(candidate["defaultauxpow"])
         solve_parent_header(auxpow, int(candidate["bits"], 16))
-        assert_equal(node.getauxblock(candidate["hash"], auxpow.serialize().hex()), None)
+        assert_equal(node.getauxblock(candidate["hash"], auxpow.serialize().hex()), True)
         assert_equal(node.getblockcount(), 2)
         assert_equal(node.getbestblockhash(), candidate["hash"])
 
         self.log.info("Reject unknown AuxPoW candidate")
         assert_raises_rpc_error(
             -8,
-            "Unknown AuxPoW candidate",
+            "block hash unknown",
             node.getauxblock,
             candidate["hash"],
             auxpow.serialize().hex(),
@@ -155,14 +175,44 @@ class AuxPowRPCTest(BitcoinTestFramework):
         bad_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
         solve_parent_header(bad_auxpow, int(next_candidate["bits"], 16))
         bad_auxpow.index = 1
-        assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), "high-hash")
+        assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), False)
         assert_equal(node.getblockcount(), 2)
 
         self.log.info("Reject unsolved parent AuxPoW header")
         unsolved_candidate = node.createauxblock(ADDRESS_BCRT1_P2WSH_OP_TRUE)
         unsolved_auxpow = parse_auxpow(unsolved_candidate["defaultauxpow"])
+        self.make_parent_header_unsolved(unsolved_auxpow, int(unsolved_candidate["bits"], 16))
         assert_equal(node.submitauxblock(unsolved_candidate["hash"], unsolved_auxpow.serialize().hex()), False)
         assert_equal(node.getblockcount(), 2)
+
+        self.log.info("Refresh cached AuxPoW candidate after delayed mempool update")
+        mined_blocks = node.generatetodescriptor(100, f"addr({address})")
+        spend_coinbase = node.getblock(mined_blocks[0], 2)["tx"][0]
+        cached_candidate = node.createauxblock(address)
+        node.setmocktime(max(int(time.time()), node.getblockheader(node.getbestblockhash())["time"]) + 120)
+        raw_spend = node.createrawtransaction(
+            [{"txid": spend_coinbase["txid"], "vout": 0}],
+            {ADDRESS_BCRT1_P2WSH_OP_TRUE: Decimal("49.99900000")},
+        )
+        signed_spend = node.signrawtransactionwithkey(raw_spend, [node.get_deterministic_priv_key().key], [{
+            "txid": spend_coinbase["txid"],
+            "vout": 0,
+            "scriptPubKey": spend_coinbase["vout"][0]["scriptPubKey"]["hex"],
+            "amount": spend_coinbase["vout"][0]["value"],
+        }])
+        assert_equal(signed_spend["complete"], True)
+        spend_txid = node.sendrawtransaction(signed_spend["hex"])
+        refreshed_candidate = node.createauxblock(address)
+        assert refreshed_candidate["hash"] != cached_candidate["hash"]
+        assert_equal(refreshed_candidate["height"], cached_candidate["height"])
+        stale_auxpow = parse_auxpow(cached_candidate["defaultauxpow"])
+        self.make_parent_header_unsolved(stale_auxpow, int(cached_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(cached_candidate["hash"], stale_auxpow.serialize().hex()), False)
+        refreshed_auxpow = parse_auxpow(refreshed_candidate["defaultauxpow"])
+        solve_parent_header(refreshed_auxpow, int(refreshed_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(refreshed_candidate["hash"], refreshed_auxpow.serialize().hex()), True)
+        assert spend_txid in node.getblock(refreshed_candidate["hash"])["tx"]
+        node.setmocktime(0)
 
         self.log.info("Enforce AuxPoW activation boundary")
         assert_equal(boundary_node.getblockchaininfo()["auxpow"]["next_block_active"], False)
@@ -187,7 +237,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         height_two_candidate = boundary_node.getauxblock()
         height_two_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
         solve_parent_header(height_two_auxpow, int(height_two_candidate["bits"], 16))
-        assert_equal(boundary_node.getauxblock(height_two_candidate["hash"], height_two_auxpow.serialize().hex()), None)
+        assert_equal(boundary_node.getauxblock(height_two_candidate["hash"], height_two_auxpow.serialize().hex()), True)
         assert_equal(boundary_node.getblockcount(), 2)
         height_two_hex = boundary_node.getblock(height_two_candidate["hash"], False)
 
