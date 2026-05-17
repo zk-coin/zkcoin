@@ -50,6 +50,13 @@ int zkc_shielded_verify_orchard_proof_v1(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+int zkc_shielded_verify_orchard_real_proof_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 #ifdef __cplusplus
 }
 #endif

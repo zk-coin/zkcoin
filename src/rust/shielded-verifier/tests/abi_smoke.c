@@ -56,6 +56,13 @@ static const unsigned char EXPECTED_MINT_PROOF_V4[32] = {
     0xe6, 0x93, 0x1d, 0xb0, 0x34, 0x58, 0xc4, 0x24,
 };
 
+static const unsigned char EXPECTED_ORCHARD_REAL_VK_HASH[32] = {
+    0x44, 0x98, 0xa4, 0xda, 0xde, 0xe9, 0x35, 0xcc,
+    0x2a, 0x7a, 0xf6, 0x97, 0xc5, 0x7a, 0xc3, 0x55,
+    0x93, 0xbf, 0xff, 0x59, 0x71, 0x7f, 0x1b, 0x74,
+    0x0f, 0xe2, 0x82, 0xaf, 0xe3, 0xf3, 0x2c, 0xd3,
+};
+
 int main(void)
 {
     unsigned char expected_orchard_body_v1[56];
@@ -67,14 +74,26 @@ int main(void)
     expected_orchard_body_v1[23] = 0;
     memcpy(expected_orchard_body_v1 + 24, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
 
-    unsigned char real_orchard_body_v1[88];
+    unsigned char real_orchard_proof_v1[153];
+    memcpy(real_orchard_proof_v1, "zkc-orchard-real-v1", 19);
+    real_orchard_proof_v1[19] = 0;
+    real_orchard_proof_v1[20] = 1;
+    memcpy(real_orchard_proof_v1 + 21, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
+    memcpy(real_orchard_proof_v1 + 53, EXPECTED_ORCHARD_REAL_VK_HASH, sizeof(EXPECTED_ORCHARD_REAL_VK_HASH));
+    real_orchard_proof_v1[85] = 64;
+    real_orchard_proof_v1[86] = 0;
+    real_orchard_proof_v1[87] = 0;
+    real_orchard_proof_v1[88] = 0;
+    memset(real_orchard_proof_v1 + 89, 0x42, 64);
+
+    unsigned char real_orchard_body_v1[177];
     memcpy(real_orchard_body_v1, "zkc-orchard-body-v1", 19);
     real_orchard_body_v1[19] = 1;
-    real_orchard_body_v1[20] = 64;
+    real_orchard_body_v1[20] = 153;
     real_orchard_body_v1[21] = 0;
     real_orchard_body_v1[22] = 0;
     real_orchard_body_v1[23] = 0;
-    memset(real_orchard_body_v1 + 24, 0x42, 64);
+    memcpy(real_orchard_body_v1 + 24, real_orchard_proof_v1, sizeof(real_orchard_proof_v1));
 
     unsigned char expected_bundle_v4[159];
     memcpy(expected_bundle_v4, "zkc-p4", 6);
@@ -151,8 +170,12 @@ int main(void)
         return 13;
     }
 
-    if (zkc_shielded_verify_orchard_proof_v1(real_orchard_body_v1, sizeof(real_orchard_body_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+    if (zkc_shielded_verify_orchard_real_proof_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
         return 14;
+    }
+
+    if (zkc_shielded_verify_orchard_proof_v1(real_orchard_body_v1, sizeof(real_orchard_body_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 15;
     }
 
     return 0;

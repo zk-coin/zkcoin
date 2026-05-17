@@ -209,7 +209,36 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         decoded_body_mode));
     BOOST_CHECK_EQUAL(decoded_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
     const std::vector<unsigned char> real_proof_bytes(192, 0x42);
-    const auto real_orchard_body_v1 = BuildOrchardRealProofBodyV1(real_proof_bytes);
+    const uint256 real_verifier_key_hash = ExpectedOrchardRealVerifierKeyHashV1();
+    const std::vector<unsigned char> expected_real_verifier_key_hash{
+        0x44, 0x98, 0xa4, 0xda, 0xde, 0xe9, 0x35, 0xcc,
+        0x2a, 0x7a, 0xf6, 0x97, 0xc5, 0x7a, 0xc3, 0x55,
+        0x93, 0xbf, 0xff, 0x59, 0x71, 0x7f, 0x1b, 0x74,
+        0x0f, 0xe2, 0x82, 0xaf, 0xe3, 0xf3, 0x2c, 0xd3};
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_key_hash.begin(),
+        expected_real_verifier_key_hash.end(),
+        real_verifier_key_hash.begin(),
+        real_verifier_key_hash.end());
+    const auto real_proof_v1 = BuildOrchardRealProofV1(ACTION_MINT, public_input_hash, real_proof_bytes);
+    std::vector<unsigned char> decoded_real_proof_bytes;
+    BOOST_CHECK(DecodeOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash, decoded_real_proof_bytes));
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        real_proof_bytes.begin(),
+        real_proof_bytes.end(),
+        decoded_real_proof_bytes.begin(),
+        decoded_real_proof_bytes.end());
+    BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!DecodeOrchardRealProofV1(real_proof_v1, ACTION_SPEND, public_input_hash, decoded_real_proof_bytes));
+    auto wrong_real_proof_v1 = real_proof_v1;
+    const size_t real_proof_flags_offset = sizeof("zkc-orchard-real-v1") - 1;
+    wrong_real_proof_v1[real_proof_flags_offset] = 0x01;
+    BOOST_CHECK(!DecodeOrchardRealProofV1(wrong_real_proof_v1, ACTION_MINT, public_input_hash, decoded_real_proof_bytes));
+    wrong_real_proof_v1 = real_proof_v1;
+    const size_t real_verifier_key_hash_offset = real_proof_flags_offset + 1 + 1 + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    wrong_real_proof_v1[real_verifier_key_hash_offset] ^= 0x01;
+    BOOST_CHECK(!DecodeOrchardRealProofV1(wrong_real_proof_v1, ACTION_MINT, public_input_hash, decoded_real_proof_bytes));
+    const auto real_orchard_body_v1 = BuildOrchardRealProofBodyV1(ACTION_MINT, public_input_hash, real_proof_bytes);
     const auto real_orchard_payload_v1 = BuildOrchardProofPayloadV1(ACTION_MINT, public_input_hash, real_orchard_body_v1);
     const auto real_proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash, real_orchard_payload_v1);
     decoded_body_mode = 0xff;

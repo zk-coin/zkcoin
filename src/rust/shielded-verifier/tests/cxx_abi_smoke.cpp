@@ -46,6 +46,12 @@ int main()
         0xc8, 0xe6, 0xfa, 0xd5, 0xff, 0xaa, 0x06, 0xca,
         0xe6, 0x93, 0x1d, 0xb0, 0x34, 0x58, 0xc4, 0x24,
     };
+    static const std::vector<unsigned char> EXPECTED_ORCHARD_REAL_VK_HASH{
+        0x44, 0x98, 0xa4, 0xda, 0xde, 0xe9, 0x35, 0xcc,
+        0x2a, 0x7a, 0xf6, 0x97, 0xc5, 0x7a, 0xc3, 0x55,
+        0x93, 0xbf, 0xff, 0x59, 0x71, 0x7f, 0x1b, 0x74,
+        0x0f, 0xe2, 0x82, 0xaf, 0xe3, 0xf3, 0x2c, 0xd3,
+    };
 
     const uint256 field_hash = FilledHash(0x11);
     const uint256 tx_binding_hash = FilledHash(0x22);
@@ -94,66 +100,89 @@ int main()
         return 10;
     }
 
-    const auto orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardProofBodyV1(1, public_input_hash);
-    const auto orchard_payload_v1 = Consensus::ShieldedPool::BuildOrchardProofPayloadV1(1, public_input_hash);
-    if (!Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 1, public_input_hash)) {
+    const uint256 real_vk_hash = Consensus::ShieldedPool::ExpectedOrchardRealVerifierKeyHashV1();
+    if (std::vector<unsigned char>(real_vk_hash.begin(), real_vk_hash.end()) != EXPECTED_ORCHARD_REAL_VK_HASH) {
         return 11;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 2, public_input_hash)) {
+    const auto orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardProofBodyV1(1, public_input_hash);
+    const auto orchard_payload_v1 = Consensus::ShieldedPool::BuildOrchardProofPayloadV1(1, public_input_hash);
+    if (!Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 1, public_input_hash)) {
         return 12;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(EXPECTED_MINT_PROOF_V4, 1, public_input_hash)) {
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 2, public_input_hash)) {
         return 13;
     }
 
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(EXPECTED_MINT_PROOF_V4, 1, public_input_hash)) {
+        return 14;
+    }
+
     const std::vector<unsigned char> real_proof_bytes(192, 0x42);
-    const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(real_proof_bytes);
+    const auto real_proof_v1 = Consensus::ShieldedPool::BuildOrchardRealProofV1(1, public_input_hash, real_proof_bytes);
+    std::vector<unsigned char> decoded_real_proof_bytes;
+    if (!Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 1, public_input_hash, decoded_real_proof_bytes)) {
+        return 15;
+    }
+
+    if (decoded_real_proof_bytes != real_proof_bytes) {
+        return 16;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardRealProofV1(real_proof_v1, 1, public_input_hash)) {
+        return 17;
+    }
+
+    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+        return 18;
+    }
+
+    const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(1, public_input_hash, real_proof_bytes);
     const auto real_orchard_payload_v1 = Consensus::ShieldedPool::BuildOrchardProofPayloadV1(1, public_input_hash, real_orchard_body_v1);
     const auto real_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash, real_orchard_payload_v1);
     uint8_t decoded_body_mode{0xff};
     if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(real_orchard_payload_v1, 1, public_input_hash, decoded_body_mode)) {
-        return 14;
-    }
-
-    if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
-        return 15;
-    }
-
-    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
-        return 16;
-    }
-
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
-        return 17;
-    }
-
-    if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
-        return 18;
-    }
-
-    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
         return 19;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+    if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
         return 20;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
+        return 21;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
+        return 22;
+    }
+
+    if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
+        return 23;
+    }
+
+    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+        return 24;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+        return 25;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 21;
+        return 26;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 22;
+        return 27;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 23;
+        return 28;
     }
 
     return 0;
