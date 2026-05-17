@@ -59,6 +59,12 @@ int main()
         0xed, 0x51, 0x5d, 0xbd, 0xce, 0x32, 0xbb, 0x17,
         0x63, 0xad, 0xbc, 0x04, 0x6d, 0xff, 0x91, 0x52,
     };
+    static const std::vector<unsigned char> EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH{
+        0x66, 0xb7, 0xae, 0xc4, 0xde, 0xa3, 0x68, 0x22,
+        0xc7, 0xe8, 0xef, 0xaf, 0x4b, 0x21, 0xed, 0xd6,
+        0x91, 0x5c, 0x31, 0x91, 0x6a, 0xc8, 0x09, 0x27,
+        0x91, 0x50, 0x23, 0x6c, 0xf9, 0x4d, 0x5b, 0xc7,
+    };
 
     const uint256 field_hash = FilledHash(0x11);
     const uint256 tx_binding_hash = FilledHash(0x22);
@@ -203,6 +209,62 @@ int main()
             request_hash_bytes.data(),
             request_hash_bytes.size() - 1) != 0) {
         return 28;
+    }
+
+    uint256 verifier_input_hash;
+    if (!Consensus::ShieldedPool::OrchardRealVerifierInputHashV1(real_proof_v1, 1, public_input_hash, verifier_input_hash)) {
+        return 55;
+    }
+
+    if (std::vector<unsigned char>(verifier_input_hash.begin(), verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
+        return 56;
+    }
+
+    if (Consensus::ShieldedPool::OrchardRealVerifierInputHashV1(real_proof_v1, 2, public_input_hash, verifier_input_hash)) {
+        return 57;
+    }
+
+    std::vector<unsigned char> verifier_input_hash_bytes(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE);
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            verifier_input_hash_bytes.data(),
+            verifier_input_hash_bytes.size()) != 1) {
+        return 58;
+    }
+
+    if (verifier_input_hash_bytes != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
+        return 59;
+    }
+
+    std::fill(verifier_input_hash_bytes.begin(), verifier_input_hash_bytes.end(), 0xaa);
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            2,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            verifier_input_hash_bytes.data(),
+            verifier_input_hash_bytes.size()) != 0) {
+        return 60;
+    }
+
+    if (verifier_input_hash_bytes != std::vector<unsigned char>(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE)) {
+        return 61;
+    }
+
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            verifier_input_hash_bytes.data(),
+            verifier_input_hash_bytes.size() - 1) != 0) {
+        return 62;
     }
 
     std::fill(request_hash_bytes.begin(), request_hash_bytes.end(), 0xaa);

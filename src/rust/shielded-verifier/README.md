@@ -8,9 +8,11 @@ shielded pool. A companion
 `zkc_shielded_verify_orchard_real_proof_status_v1` ABI returns a typed status
 for diagnostics and future verifier wiring, and
 `zkc_shielded_orchard_real_proof_request_hash_v1` exposes the canonical backend
-request fingerprint. The `zkc_shielded_orchard_real_proof_check_v1` ABI returns
-both the typed status and request fingerprint in one call, which is the stable
-boundary a native verifier backend must preserve. `zkc_shielded_check_bundle_v4`
+request fingerprint. `zkc_shielded_orchard_real_verifier_input_hash_v1` exposes
+the proof-byte-independent verifier input digest that a native verifier should
+bind to its public instance. The `zkc_shielded_orchard_real_proof_check_v1` ABI
+returns both the typed status and request fingerprint in one call, which is the
+stable boundary a native verifier backend must preserve. `zkc_shielded_check_bundle_v4`
 extends that contract to the full witness bundle: it returns the parsed proof
 body mode, the typed status, and the real-proof request fingerprint when the
 bundle contains native proof bytes. The current v4 path moves consensus toward
@@ -59,6 +61,13 @@ That request also has a canonical `zkc-orchard-real-request-v1` fingerprint:
 
 ```text
 Hash256("zkc-orchard-real-request-v1" || kind || public_input_hash || verifier_key_hash || proof_len_le32 || proof_bytes)
+```
+
+The verifier input has a separate canonical `zkc-orchard-real-input-v1`
+fingerprint that deliberately excludes the raw proof bytes:
+
+```text
+Hash256("zkc-orchard-real-input-v1" || kind || public_input_hash || verifier_key_hash)
 ```
 
 The real-proof status ABI returns `1` for a valid proof, `0` for malformed

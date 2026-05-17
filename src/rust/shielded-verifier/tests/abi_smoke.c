@@ -70,6 +70,13 @@ static const unsigned char EXPECTED_ORCHARD_REAL_REQUEST_HASH[32] = {
     0x0a, 0xbd, 0xa9, 0x6d, 0xe2, 0xbf, 0x24, 0x19,
 };
 
+static const unsigned char EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH[32] = {
+    0x66, 0xb7, 0xae, 0xc4, 0xde, 0xa3, 0x68, 0x22,
+    0xc7, 0xe8, 0xef, 0xaf, 0x4b, 0x21, 0xed, 0xd6,
+    0x91, 0x5c, 0x31, 0x91, 0x6a, 0xc8, 0x09, 0x27,
+    0x91, 0x50, 0x23, 0x6c, 0xf9, 0x4d, 0x5b, 0xc7,
+};
+
 int main(void)
 {
     unsigned char expected_orchard_body_v1[56];
@@ -231,6 +238,28 @@ int main(void)
 
     if (zkc_shielded_orchard_real_proof_request_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), request_hash, sizeof(request_hash) - 1) != 0) {
         return 21;
+    }
+
+    unsigned char verifier_input_hash[32];
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), verifier_input_hash, sizeof(verifier_input_hash)) != 1) {
+        return 36;
+    }
+
+    if (memcmp(verifier_input_hash, EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH, sizeof(verifier_input_hash)) != 0) {
+        return 37;
+    }
+
+    memset(verifier_input_hash, 0xaa, sizeof(verifier_input_hash));
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), verifier_input_hash, sizeof(verifier_input_hash)) != 0) {
+        return 38;
+    }
+
+    if (memcmp(verifier_input_hash, (unsigned char[32]){0}, sizeof(verifier_input_hash)) != 0) {
+        return 39;
+    }
+
+    if (zkc_shielded_orchard_real_verifier_input_hash_v1(real_orchard_proof_v1, sizeof(real_orchard_proof_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH), verifier_input_hash, sizeof(verifier_input_hash) - 1) != 0) {
+        return 40;
     }
 
     memset(request_hash, 0xaa, sizeof(request_hash));

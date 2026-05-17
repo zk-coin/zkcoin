@@ -92,6 +92,17 @@ static uint256 ExpectedRealProofRequestHash(uint8_t proof_kind, const uint256& p
     return Hash(data);
 }
 
+static uint256 ExpectedRealVerifierInputHash(uint8_t proof_kind, const uint256& public_input_hash, const uint256& verifier_key_hash)
+{
+    std::vector<unsigned char> data{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'r', 'e',
+        'a', 'l', '-', 'i', 'n', 'p', 'u', 't', '-', 'v', '1'};
+    data.push_back(proof_kind);
+    data.insert(data.end(), public_input_hash.begin(), public_input_hash.end());
+    data.insert(data.end(), verifier_key_hash.begin(), verifier_key_hash.end());
+    return Hash(data);
+}
+
 static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins, const std::vector<unsigned char>& witness_item, uint32_t nonce)
 {
     const CScript witness_script = CScript() << OP_TRUE;
@@ -257,6 +268,48 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_request_hash.end(),
         real_request_hash.begin(),
         real_request_hash.end());
+    uint256 real_verifier_input_hash;
+    BOOST_CHECK(OrchardRealVerifierInputHashV1(real_proof_v1, ACTION_MINT, public_input_hash, real_verifier_input_hash));
+    const uint256 expected_real_verifier_input_hash = ExpectedRealVerifierInputHash(ACTION_MINT, public_input_hash, real_verifier_key_hash);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        real_verifier_input_hash.begin(),
+        real_verifier_input_hash.end());
+    BOOST_CHECK(!OrchardRealVerifierInputHashV1(real_proof_v1, ACTION_SPEND, public_input_hash, real_verifier_input_hash));
+    std::vector<unsigned char> real_verifier_input_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    BOOST_CHECK_EQUAL(
+        zkc_shielded_orchard_real_verifier_input_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            ACTION_MINT,
+            public_input_hash.begin(),
+            SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            real_verifier_input_hash_bytes.data(),
+            real_verifier_input_hash_bytes.size()),
+        1);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        real_verifier_input_hash_bytes.begin(),
+        real_verifier_input_hash_bytes.end());
+    std::fill(real_verifier_input_hash_bytes.begin(), real_verifier_input_hash_bytes.end(), 0xaa);
+    BOOST_CHECK_EQUAL(
+        zkc_shielded_orchard_real_verifier_input_hash_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            ACTION_SPEND,
+            public_input_hash.begin(),
+            SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            real_verifier_input_hash_bytes.data(),
+            real_verifier_input_hash_bytes.size()),
+        0);
+    const std::vector<unsigned char> zero_hash(SHIELDED_PROOF_HASH_SIZE);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        zero_hash.begin(),
+        zero_hash.end(),
+        real_verifier_input_hash_bytes.begin(),
+        real_verifier_input_hash_bytes.end());
     uint256 checked_real_request_hash;
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash),

@@ -86,6 +86,15 @@ extern "C" int zkc_shielded_orchard_real_proof_request_hash_v1(
     unsigned char* request_hash_out,
     size_t request_hash_out_len);
 
+extern "C" int zkc_shielded_orchard_real_verifier_input_hash_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* verifier_input_hash_out,
+    size_t verifier_input_hash_out_len);
+
 extern "C" int zkc_shielded_orchard_real_proof_check_v1(
     const unsigned char* proof,
     size_t proof_len,
@@ -130,6 +139,7 @@ bool DecodeOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t p
 bool VerifyOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 bool OrchardRealProofRequestHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash);
+bool OrchardRealVerifierInputHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& verifier_input_hash);
 int CheckOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash);
 int OrchardRealVerifierBackendV1();
 bool OrchardRealVerifierSupportsProofsV1();
