@@ -57,6 +57,7 @@ static constexpr size_t SHIELDED_PUBLIC_INPUT_HASH_SIZE{32};
 static constexpr uint8_t SHIELDED_PROOF_BUNDLE_VERSION_V4{1};
 static constexpr uint8_t SHIELDED_PROOF_SYSTEM_ORCHARD{1};
 static constexpr uint8_t SHIELDED_PROOF_BUNDLE_FLAGS_NONE{0};
+static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD{0};
 
 uint256 ExpectedProofEnvelopeHash(const uint256& field_hash, const uint256& tx_binding_hash);
 std::vector<unsigned char> BuildProofPayloadV1(const uint256& field_hash, const uint256& tx_binding_hash);
@@ -69,6 +70,7 @@ uint256 ExpectedProofEnvelopeHashV3(uint8_t proof_kind, const uint256& public_in
 std::vector<unsigned char> BuildProofPayloadV3(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash);
+std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash);

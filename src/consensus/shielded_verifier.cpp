@@ -60,6 +60,13 @@ static const std::vector<unsigned char>& OrchardProofPayloadPrefixV1()
     return prefix;
 }
 
+static const std::vector<unsigned char>& OrchardProofBodyPrefixV1()
+{
+    static const std::vector<unsigned char> prefix{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'b', 'o', 'd', 'y', '-', 'v', '1'};
+    return prefix;
+}
+
 static void AppendUint32(std::vector<unsigned char>& payload, uint32_t value)
 {
     for (size_t i = 0; i < sizeof(value); ++i) {
@@ -173,14 +180,24 @@ bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint
         SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
 }
 
+std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    const uint256 scaffold_body = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    std::vector<unsigned char> proof_body = OrchardProofBodyPrefixV1();
+    proof_body.push_back(SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    AppendUint32(proof_body, SHIELDED_PROOF_HASH_SIZE);
+    proof_body.insert(proof_body.end(), scaffold_body.begin(), scaffold_body.end());
+    return proof_body;
+}
+
 std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash)
 {
-    const uint256 proof_body_hash = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    const auto proof_body = BuildOrchardProofBodyV1(proof_kind, public_input_hash);
     std::vector<unsigned char> proof_payload = OrchardProofPayloadPrefixV1();
     proof_payload.push_back(proof_kind);
     proof_payload.insert(proof_payload.end(), public_input_hash.begin(), public_input_hash.end());
-    AppendUint32(proof_payload, SHIELDED_PROOF_HASH_SIZE);
-    proof_payload.insert(proof_payload.end(), proof_body_hash.begin(), proof_body_hash.end());
+    AppendUint32(proof_payload, static_cast<uint32_t>(proof_body.size()));
+    proof_payload.insert(proof_payload.end(), proof_body.begin(), proof_body.end());
     return proof_payload;
 }
 
@@ -317,7 +334,7 @@ extern "C" int zkc_shielded_verify_orchard_proof_v1(
     if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
 
     const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
-    const uint256 expected = Consensus::ShieldedPool::ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash_value);
+    const auto expected = Consensus::ShieldedPool::BuildOrchardProofBodyV1(proof_kind, public_input_hash_value);
     return expected.size() == proof_body_len && std::equal(expected.begin(), expected.end(), proof_body) ? 1 : 0;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

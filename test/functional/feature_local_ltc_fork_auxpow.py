@@ -31,9 +31,11 @@ PROOF_ENVELOPE_PREFIX = b"zkc-p4"
 PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
 PROOF_BUNDLE_PREIMAGE_PREFIX = b"zkc-proof-bundle-v4"
 ORCHARD_PROOF_PAYLOAD_PREFIX = b"zkc-orchard-proof-v1"
+ORCHARD_PROOF_BODY_PREFIX = b"zkc-orchard-body-v1"
 PROOF_BUNDLE_VERSION = 0x01
 PROOF_SYSTEM_ORCHARD = 0x01
 PROOF_BUNDLE_FLAGS_NONE = 0x00
+ORCHARD_PROOF_BODY_MODE_SCAFFOLD = 0x00
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -127,7 +129,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         proof_hash = self.shielded_proof_hash(action, shielded_value, commitment=commitment, nullifier=nullifier, anchor=anchor)
         tx_binding_hash = self.hash256(tx.serialize_without_witness())
         public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + proof_hash + tx_binding_hash)
-        proof_body = self.hash256(PROOF_BUNDLE_PREIMAGE_PREFIX + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE]) + public_input_hash)
+        proof_digest = self.hash256(PROOF_BUNDLE_PREIMAGE_PREFIX + bytes([PROOF_BUNDLE_VERSION, action, PROOF_SYSTEM_ORCHARD, PROOF_BUNDLE_FLAGS_NONE]) + public_input_hash)
+        proof_body = (
+            ORCHARD_PROOF_BODY_PREFIX
+            + bytes([ORCHARD_PROOF_BODY_MODE_SCAFFOLD])
+            + len(proof_digest).to_bytes(4, "little")
+            + proof_digest
+        )
         proof_payload = (
             ORCHARD_PROOF_PAYLOAD_PREFIX
             + bytes([action])

@@ -94,36 +94,41 @@ int main()
         return 10;
     }
 
+    const auto orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardProofBodyV1(1, public_input_hash);
     const auto orchard_payload_v1 = Consensus::ShieldedPool::BuildOrchardProofPayloadV1(1, public_input_hash);
-    if (!Consensus::ShieldedPool::VerifyOrchardProofBodyV1(EXPECTED_MINT_PROOF_V4, 1, public_input_hash)) {
+    if (!Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 1, public_input_hash)) {
         return 11;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(EXPECTED_MINT_PROOF_V4, 2, public_input_hash)) {
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(orchard_body_v1, 2, public_input_hash)) {
         return 12;
     }
 
-    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(EXPECTED_MINT_PROOF_V4, 1, public_input_hash)) {
         return 13;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
         return 14;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+        return 15;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 15;
+        return 16;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 16;
+        return 17;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 17;
+        return 18;
     }
 
     return 0;

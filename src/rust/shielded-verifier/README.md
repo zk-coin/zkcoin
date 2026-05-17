@@ -22,10 +22,17 @@ zkc-orchard-proof-v1 || kind || public_input_hash || proof_body_len_le32 || proo
 ```
 
 The `proof_body` is verified through the dedicated
-`zkc_shielded_verify_orchard_proof_v1` ABI. It remains a deterministic boundary
-payload so the consensus plumbing, local Litecoin snapshot launch, and Scrypt
-AuxPoW tests stay reproducible while the next milestone replaces only that body
-check with Orchard proof verification.
+`zkc_shielded_verify_orchard_proof_v1` ABI. It is also self-describing:
+
+```text
+zkc-orchard-body-v1 || mode || body_len_le32 || body
+```
+
+`mode = 0` is the deterministic scaffold mode. Unknown modes are rejected so
+the consensus boundary can later add a real Orchard verification mode without
+accepting ambiguous proof bytes. The scaffold body keeps local Litecoin snapshot
+launch and Scrypt AuxPoW tests reproducible while the next milestone replaces
+only that mode-specific body check with Orchard proof verification.
 
 Run the Rust tests and C ABI smoke test with:
 
