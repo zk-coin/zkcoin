@@ -61,10 +61,10 @@ CAuxPow DeserializeAuxPowForParentTx(
     int txIndex = 0,
     std::vector<uint256> merkleBranch = {},
     std::vector<uint256> chainMerkleBranch = {},
-    int chainIndex = 0)
+    int chainIndex = 0,
+    uint256 hashBlock = {})
 {
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    const uint256 hashBlock;
 
     stream << parentTx << hashBlock << merkleBranch << txIndex;
     stream << chainMerkleBranch << chainIndex << parentHeader;
@@ -353,6 +353,55 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_tampered_parent_merkle_proof)
     badParentHeader.hashMerkleRoot.SetHex("16");
     CAuxPow badRootAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, badParentHeader, 0, merkleBranch);
     BOOST_CHECK(!badRootAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_rejects_mismatched_serialized_parent_hash)
+{
+    const Consensus::Params& consensus = Params().GetConsensus();
+    CBlockHeader header = MakeAuxPowChildHeader("1d", "1e");
+    CTransactionRef coinbaseRef = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(header.GetHash(), true));
+
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+    parent.hashMerkleRoot = coinbaseRef->GetHash();
+
+    CAuxPow unsetHashAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent);
+    BOOST_CHECK(unsetHashAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CAuxPow matchingHashAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent, 0, {}, {}, 0, parent.GetHash());
+    BOOST_CHECK(matchingHashAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    uint256 wrongParentHash;
+    wrongParentHash.SetHex("1f");
+    CAuxPow wrongHashAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent, 0, {}, {}, 0, wrongParentHash);
+    BOOST_CHECK(!wrongHashAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_rejects_malformed_parent_coinbase_script)
+{
+    const Consensus::Params& consensus = Params().GetConsensus();
+    CBlockHeader header = MakeAuxPowChildHeader("20", "21");
+
+    CMutableTransaction emptyTx;
+    CTransactionRef emptyTxRef = MakeTransactionRef(emptyTx);
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+    parent.hashMerkleRoot = emptyTxRef->GetHash();
+    CAuxPow emptyTxAuxpow = DeserializeAuxPowForParentTx(emptyTxRef, parent);
+    BOOST_CHECK(!emptyTxAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    std::vector<unsigned char> truncatedCommitment = BuildAuxPowCommitmentBytes(header.GetHash(), true);
+    truncatedCommitment.resize(truncatedCommitment.size() - 1);
+    CTransactionRef truncatedCoinbaseRef = MakeCoinbaseWithCommitment(truncatedCommitment);
+    parent.hashMerkleRoot = truncatedCoinbaseRef->GetHash();
+    CAuxPow truncatedAuxpow = DeserializeAuxPowForParentTx(truncatedCoinbaseRef, parent);
+    BOOST_CHECK(!truncatedAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(auxpow_validates_chain_merkle_branch_metadata)

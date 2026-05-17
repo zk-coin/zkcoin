@@ -31,6 +31,10 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
         return false;
     }
 
+    if (!hashBlock.IsNull() && hashBlock != parentBlock.GetHash()) {
+        return false;
+    }
+
     if (vChainMerkleBranch.size() > 30) {
         return false;
     }
@@ -148,7 +152,6 @@ std::unique_ptr<CAuxPow> CAuxPow::createAuxPow(const CPureBlockHeader& header)
     auxpow->nIndex = 0;
     auxpow->nChainIndex = 0;
     auxpow->parentBlock = parent.GetBlockHeader();
-    auxpow->hashBlock = auxpow->parentBlock.GetHash();
 
     return auxpow;
 }
