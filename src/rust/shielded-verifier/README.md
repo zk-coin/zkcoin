@@ -28,19 +28,21 @@ contract without changing the consensus witness format again.
 The default build remains fail-closed and reports the real-proof backend as
 unsupported. For verifier-plumbing tests only, the Cargo feature
 `verifier-fixture` switches the Rust crate to a deterministic fixture backend
-that accepts proof bytes of the form:
+that accepts native proof packets whose inner payload has the form:
 
 ```text
 zkc-orchard-fixture-proof-v1 || verifier_input_hash
 ```
 
-That fixture proves the public ABI, bundle parser, request hash, and verifier
-input hash can return `valid` through the same native-verifier boundary. It is
-not a production cryptographic proof system and is intentionally excluded from
-normal node builds. `scripts/fixture-consensus-smoke.sh` links that fixture
-backend into a standalone C++ consensus smoke test and proves a real-mode
-shielded mint and spend witness are accepted with scaffold proofs disabled,
-while tampered real-mode proofs are still rejected.
+That fixture is nested inside the same `zkc-orchard-native-proof-v1` envelope
+used by production verifier packets. It proves the public ABI, bundle parser,
+request hash, verifier-key binding, and verifier input hash can return `valid`
+through the same native-verifier boundary. It is not a production cryptographic
+proof system and is intentionally excluded from normal node builds.
+`scripts/fixture-consensus-smoke.sh` links that fixture backend into a
+standalone C++ consensus smoke test and proves a real-mode shielded mint and
+spend witness are accepted with scaffold proofs disabled, while tampered
+real-mode proofs are still rejected.
 C++ transaction consensus now checks witness envelopes through the v5 bundle
 boundary, so accepted real-mode fixture proofs and rejected production
 unsupported proofs exercise the same verifier-input digest path.

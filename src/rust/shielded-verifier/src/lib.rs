@@ -230,10 +230,13 @@ impl OrchardRealProofBackend for FixtureOrchardRealProofBackend {
     }
 
     fn verify(&self, request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus {
-        if request.proof_bytes.len() != ORCHARD_REAL_FIXTURE_PROOF_LEN_V1 {
+        let Some(native_proof) = decode_orchard_native_proof_bytes_v1(request) else {
+            return OrchardRealProofStatus::Invalid;
+        };
+        if native_proof.proof_bytes.len() != ORCHARD_REAL_FIXTURE_PROOF_LEN_V1 {
             return OrchardRealProofStatus::Invalid;
         }
-        if !request
+        if !native_proof
             .proof_bytes
             .starts_with(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1)
         {
@@ -241,11 +244,11 @@ impl OrchardRealProofBackend for FixtureOrchardRealProofBackend {
         }
 
         let input_hash_offset = ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len();
-        let fixture_input_hash: [u8; HASH_SIZE] = request.proof_bytes
+        let fixture_input_hash: [u8; HASH_SIZE] = native_proof.proof_bytes
             [input_hash_offset..input_hash_offset + HASH_SIZE]
             .try_into()
             .expect("fixture proof input hash has fixed length");
-        if fixture_input_hash == request.verifier_input_hash_v1() {
+        if fixture_input_hash == native_proof.verifier_input_hash {
             OrchardRealProofStatus::Valid
         } else {
             OrchardRealProofStatus::Invalid
@@ -418,10 +421,10 @@ pub fn build_orchard_native_proof_bytes_v1(
 #[cfg(feature = "verifier-fixture")]
 pub fn build_orchard_fixture_proof_bytes_v1(input: &OrchardRealVerifierInput) -> Vec<u8> {
     let input_hash = input.input_hash_v1();
-    let mut proof_bytes = Vec::with_capacity(ORCHARD_REAL_FIXTURE_PROOF_LEN_V1);
-    proof_bytes.extend_from_slice(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1);
-    proof_bytes.extend_from_slice(&input_hash);
-    proof_bytes
+    let mut fixture_payload = Vec::with_capacity(ORCHARD_REAL_FIXTURE_PROOF_LEN_V1);
+    fixture_payload.extend_from_slice(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1);
+    fixture_payload.extend_from_slice(&input_hash);
+    build_orchard_native_proof_bytes_v1(input, &fixture_payload)
 }
 
 pub fn decode_orchard_real_proof_v1<'a>(
@@ -2163,15 +2166,37 @@ mod tests {
             verifier_key_hash: expected_orchard_real_verifier_key_hash_v1(),
         };
         let proof_bytes = build_orchard_fixture_proof_bytes_v1(&verifier_input);
-        assert_eq!(proof_bytes.len(), ORCHARD_REAL_FIXTURE_PROOF_LEN_V1);
-        assert!(proof_bytes.starts_with(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1));
         assert_eq!(
-            &proof_bytes[ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len()..],
-            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+            proof_bytes.len(),
+            ORCHARD_REAL_NATIVE_PROOF_HEADER_LEN_V1 + ORCHARD_REAL_FIXTURE_PROOF_LEN_V1
         );
 
         let real_proof_v1 =
             build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &proof_bytes);
+        let real_request = decode_orchard_real_proof_request_v1(
+            &real_proof_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+        )
+        .expect("fixture native proof request decodes");
+        let native_proof =
+            decode_orchard_native_proof_bytes_v1(&real_request).expect("fixture native proof decodes");
+        assert_eq!(native_proof.verifier_key_hash, EXPECTED_ORCHARD_REAL_VK_HASH);
+        assert_eq!(
+            native_proof.verifier_input_hash,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+        assert_eq!(
+            native_proof.proof_bytes.len(),
+            ORCHARD_REAL_FIXTURE_PROOF_LEN_V1
+        );
+        assert!(native_proof
+            .proof_bytes
+            .starts_with(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1));
+        assert_eq!(
+            &native_proof.proof_bytes[ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len()..],
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
         let request_hash =
             orchard_real_proof_request_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
                 .expect("fixture proof request hash");
@@ -2278,6 +2303,20 @@ mod tests {
             OrchardRealProofCheckV2 {
                 status: OrchardRealProofStatus::Invalid,
                 request_hash: Some(tampered_request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+        let raw_fixture_payload = native_proof.proof_bytes.to_vec();
+        let raw_fixture_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &raw_fixture_payload);
+        let raw_fixture_request_hash =
+            orchard_real_proof_request_hash_v1(&raw_fixture_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("raw fixture proof request hash");
+        assert_eq!(
+            orchard_real_proof_check_v2(&raw_fixture_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV2 {
+                status: OrchardRealProofStatus::Invalid,
+                request_hash: Some(raw_fixture_request_hash),
                 verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
             }
         );

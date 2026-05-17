@@ -43,7 +43,7 @@ static std::vector<unsigned char> BuildFixtureProofBytes(uint8_t proof_kind, con
 
     std::vector<unsigned char> proof_bytes = FixtureProofPrefix();
     proof_bytes.insert(proof_bytes.end(), verifier_input_hash.begin(), verifier_input_hash.end());
-    return proof_bytes;
+    return BuildOrchardNativeProofBytesV1(proof_kind, public_input_hash, proof_bytes);
 }
 
 static std::vector<unsigned char> BuildFixtureProofEnvelope(
