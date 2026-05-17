@@ -91,6 +91,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         child = self.nodes[1]
         imported = child.importsnapshotmanifest(dump["path"])
         assert_equal(imported["configured_snapshot"], True)
+        assert_equal(imported["base_height"], dump["base_height"])
         assert_equal(imported["import_hash"], verify["import_hash"])
 
         self.log.info("Verify Alice and Bob UTXOs exist on the child chain")

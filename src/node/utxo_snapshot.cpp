@@ -26,6 +26,7 @@ bool DecodeSnapshotManifestImpl(
     SnapshotManifestStats& stats,
     std::string& error,
     CCoinsViewCache* coins_cache = nullptr,
+    const int* expected_base_height = nullptr,
     const uint256* expected_base_hash = nullptr,
     const uint256* expected_import_hash = nullptr,
     const std::function<void()>& interruption_point = {})
@@ -91,6 +92,10 @@ bool DecodeSnapshotManifestImpl(
 
     stats.m_hash_serialized = manifest_hash.GetHash();
     stats.m_hash_import = import_hash.GetHash();
+    if (expected_base_height != nullptr && stats.m_metadata.m_base_height != *expected_base_height) {
+        error = strprintf("snapshot base height mismatch: expected=%d actual=%d", *expected_base_height, stats.m_metadata.m_base_height);
+        return false;
+    }
     if (expected_base_hash != nullptr && stats.m_metadata.m_base_blockhash != *expected_base_hash) {
         error = strprintf("snapshot base hash mismatch: expected=%s actual=%s", expected_base_hash->ToString(), stats.m_metadata.m_base_blockhash.ToString());
         return false;
@@ -140,12 +145,12 @@ bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& s
     return DecodeSnapshotManifestImpl(stream, done, stats, error);
 }
 
-bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
+bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
 {
-    return DecodeSnapshotManifestImpl(stream, [&stream]() { return stream.empty(); }, stats, error, &coins_cache, expected_base_hash, expected_import_hash, interruption_point);
+    return DecodeSnapshotManifestImpl(stream, [&stream]() { return stream.empty(); }, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point);
 }
 
-bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
+bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height, const uint256* expected_base_hash, const uint256* expected_import_hash, const std::function<void()>& interruption_point)
 {
     uintmax_t file_size{0};
     try {
@@ -170,5 +175,5 @@ bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins
         return static_cast<uintmax_t>(pos) >= file_size;
     };
 
-    return DecodeSnapshotManifestImpl(stream, done, stats, error, &coins_cache, expected_base_hash, expected_import_hash, interruption_point);
+    return DecodeSnapshotManifestImpl(stream, done, stats, error, &coins_cache, expected_base_height, expected_base_hash, expected_import_hash, interruption_point);
 }

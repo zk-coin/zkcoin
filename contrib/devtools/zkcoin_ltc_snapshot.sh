@@ -151,6 +151,9 @@ if dump["base_hash"].lower() != expected_hash:
 if verify["base_hash"].lower() != expected_hash:
     fail(f"verifysnapshotmanifest base_hash mismatch: expected={expected_hash} actual={verify['base_hash'].lower()}")
 
+if int(verify["base_height"]) != height:
+    fail(f"verifysnapshotmanifest base_height mismatch: expected={height} actual={verify['base_height']}")
+
 if int(verify["coins"]) != int(dump["coins_written"]):
     fail(f"coin count mismatch: dumptxoutset={dump['coins_written']} verified={verify['coins']}")
 

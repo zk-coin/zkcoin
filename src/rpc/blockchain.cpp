@@ -2649,7 +2649,7 @@ static RPCHelpMan dumptxoutset()
         CHECK_NONFATAL(tip);
     }
 
-    SnapshotMetadata metadata{tip->GetBlockHash(), stats.coins_count, tip->nChainTx};
+    SnapshotMetadata metadata{tip->nHeight, tip->GetBlockHash(), stats.coins_count, tip->nChainTx};
 
     afile << metadata;
 
@@ -2698,6 +2698,7 @@ static RPCHelpMan verifysnapshotmanifest()
             RPCResult::Type::OBJ, "", "",
                 {
                     {RPCResult::Type::STR_HEX, "base_hash", "the block hash reflected by the snapshot"},
+                    {RPCResult::Type::NUM, "base_height", "the height of the block reflected by the snapshot"},
                     {RPCResult::Type::NUM, "coins", "the number of UTXOs decoded from the snapshot"},
                     {RPCResult::Type::NUM, "metadata_coins", "the number of UTXOs declared by the snapshot metadata"},
                     {RPCResult::Type::NUM, "base_nchaintx", "the nChainTx value stored in snapshot metadata"},
@@ -2724,11 +2725,13 @@ static RPCHelpMan verifysnapshotmanifest()
     const Consensus::Params& consensus = Params().GetConsensus();
     const bool snapshot_enabled = consensus.ltc_snapshot.IsEnabled();
     const bool matches_configured_snapshot = snapshot_enabled &&
+        stats.m_metadata.m_base_height == consensus.ltc_snapshot.nHeight &&
         stats.m_metadata.m_base_blockhash == consensus.ltc_snapshot.hashBlock &&
         stats.m_hash_import == consensus.ltc_snapshot.hashUTXORoot;
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("base_hash", stats.m_metadata.m_base_blockhash.ToString());
+    result.pushKV("base_height", stats.m_metadata.m_base_height);
     result.pushKV("coins", static_cast<int64_t>(stats.m_coins_count));
     result.pushKV("metadata_coins", static_cast<int64_t>(stats.m_metadata.m_coins_count));
     result.pushKV("base_nchaintx", static_cast<int64_t>(stats.m_metadata.m_nchaintx));
@@ -2768,6 +2771,7 @@ static RPCHelpMan importsnapshotmanifest()
                 {
                     {RPCResult::Type::NUM, "coins_imported", "the number of UTXOs imported into chainstate"},
                     {RPCResult::Type::STR_HEX, "base_hash", "the Litecoin block hash reflected by the snapshot"},
+                    {RPCResult::Type::NUM, "base_height", "the Litecoin block height reflected by the snapshot"},
                     {RPCResult::Type::NUM, "base_nchaintx", "the nChainTx value stored in snapshot metadata"},
                     {RPCResult::Type::STR_HEX, "snapshot_hash", "deterministic hash of the serialized source snapshot manifest"},
                     {RPCResult::Type::STR_HEX, "import_hash", "deterministic hash of the normalized launch UTXO set"},
@@ -2811,9 +2815,10 @@ static RPCHelpMan importsnapshotmanifest()
             throw JSONRPCError(RPC_VERIFY_ERROR, "chainstate is not initialized");
         }
 
+        const int* expected_base_height = snapshot_enabled ? &consensus.ltc_snapshot.nHeight : nullptr;
         const uint256* expected_base_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashBlock : nullptr;
         const uint256* expected_import_hash = snapshot_enabled ? &consensus.ltc_snapshot.hashUTXORoot : nullptr;
-        if (!ImportSnapshotManifestFromFile(path, active_chainstate->CoinsTip(), stats, error, expected_base_hash, expected_import_hash, node.rpc_interruption_point)) {
+        if (!ImportSnapshotManifestFromFile(path, active_chainstate->CoinsTip(), stats, error, expected_base_height, expected_base_hash, expected_import_hash, node.rpc_interruption_point)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, error);
         }
     }
@@ -2829,6 +2834,7 @@ static RPCHelpMan importsnapshotmanifest()
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_imported", static_cast<int64_t>(stats.m_coins_count));
     result.pushKV("base_hash", stats.m_metadata.m_base_blockhash.ToString());
+    result.pushKV("base_height", stats.m_metadata.m_base_height);
     result.pushKV("base_nchaintx", static_cast<int64_t>(stats.m_metadata.m_nchaintx));
     result.pushKV("snapshot_hash", stats.m_hash_serialized.ToString());
     result.pushKV("import_hash", stats.m_hash_import.ToString());

@@ -28,6 +28,9 @@ make -C src -j"$JOBS" litecoind litecoin-cli test/test_litecoin
 echo "Running AuxPoW unit tests"
 (cd src && ./test/test_litecoin --run_test=auxpow_tests)
 
+echo "Running UTXO snapshot unit tests"
+(cd src && ./test/test_litecoin --run_test=utxo_snapshot_tests)
+
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 
