@@ -257,6 +257,19 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_request_hash.end(),
         real_request_hash.begin(),
         real_request_hash.end());
+    uint256 checked_real_request_hash;
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_request_hash.begin(),
+        expected_real_request_hash.end(),
+        checked_real_request_hash.begin(),
+        checked_real_request_hash.end());
+    BOOST_CHECK_EQUAL(
+        CheckOrchardRealProofV1(real_proof_v1, ACTION_SPEND, public_input_hash, checked_real_request_hash),
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
+    BOOST_CHECK(checked_real_request_hash.IsNull());
     BOOST_CHECK(!OrchardRealProofRequestHashV1(real_proof_v1, ACTION_SPEND, public_input_hash, real_request_hash));
     BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
     BOOST_CHECK_EQUAL(

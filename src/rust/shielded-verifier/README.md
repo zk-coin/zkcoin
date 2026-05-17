@@ -8,7 +8,9 @@ shielded pool. A companion
 `zkc_shielded_verify_orchard_real_proof_status_v1` ABI returns a typed status
 for diagnostics and future verifier wiring, and
 `zkc_shielded_orchard_real_proof_request_hash_v1` exposes the canonical backend
-request fingerprint. The current v4 path moves consensus
+request fingerprint. The `zkc_shielded_orchard_real_proof_check_v1` ABI returns
+both the typed status and request fingerprint in one call, which is the stable
+boundary a native verifier backend must preserve. The current v4 path moves consensus
 toward the real verifier boundary: C++ computes the consensus public-input
 hash, while Rust parses a versioned proof bundle and dispatches by
 proof-system id.

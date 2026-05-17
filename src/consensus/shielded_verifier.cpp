@@ -274,6 +274,21 @@ bool OrchardRealProofRequestHashV1(const std::vector<unsigned char>& proof, uint
     return true;
 }
 
+int CheckOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash)
+{
+    std::vector<unsigned char> request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    const int status = zkc_shielded_orchard_real_proof_check_v1(
+        proof.data(),
+        proof.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        request_hash_bytes.data(),
+        request_hash_bytes.size());
+    std::copy(request_hash_bytes.begin(), request_hash_bytes.end(), request_hash.begin());
+    return status;
+}
+
 int OrchardRealVerifierBackendV1()
 {
     return zkc_shielded_orchard_real_verifier_backend_v1();
@@ -607,5 +622,32 @@ extern "C" int zkc_shielded_orchard_real_proof_request_hash_v1(
     const uint256 request_hash = Hash(data);
     std::copy(request_hash.begin(), request_hash.end(), request_hash_out);
     return 1;
+}
+
+extern "C" int zkc_shielded_orchard_real_proof_check_v1(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* request_hash_out,
+    size_t request_hash_out_len)
+{
+    if (request_hash_out == nullptr || request_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    std::fill(request_hash_out, request_hash_out + request_hash_out_len, 0);
+
+    if (zkc_shielded_orchard_real_proof_request_hash_v1(
+            proof,
+            proof_len,
+            proof_kind,
+            public_input_hash,
+            public_input_hash_len,
+            request_hash_out,
+            request_hash_out_len) != 1) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

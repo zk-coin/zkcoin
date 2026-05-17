@@ -205,13 +205,53 @@ int main()
         return 28;
     }
 
-    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+    std::fill(request_hash_bytes.begin(), request_hash_bytes.end(), 0xaa);
+    if (Consensus::ShieldedPool::CheckOrchardRealProofV1(real_proof_v1, 1, public_input_hash, request_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
         return 29;
+    }
+
+    if (std::vector<unsigned char>(request_hash.begin(), request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 30;
+    }
+
+    if (zkc_shielded_orchard_real_proof_check_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size()) != Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 31;
+    }
+
+    if (request_hash_bytes != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 32;
+    }
+
+    if (zkc_shielded_orchard_real_proof_check_v1(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            2,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size()) != Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
+        return 33;
+    }
+
+    if (request_hash_bytes != std::vector<unsigned char>(Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE)) {
+        return 34;
+    }
+
+    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+        return 35;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardRealProofStatusV1(real_proof_v1, 2, public_input_hash) !=
         Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
-        return 30;
+        return 36;
     }
 
     const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(1, public_input_hash, real_proof_bytes);
@@ -219,46 +259,46 @@ int main()
     const auto real_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash, real_orchard_payload_v1);
     uint8_t decoded_body_mode{0xff};
     if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(real_orchard_payload_v1, 1, public_input_hash, decoded_body_mode)) {
-        return 31;
+        return 37;
     }
 
     if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
-        return 32;
+        return 38;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
-        return 33;
+        return 39;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
-        return 34;
+        return 40;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
-        return 35;
+        return 41;
     }
 
     if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
-        return 36;
+        return 42;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
-        return 37;
+        return 43;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 38;
+        return 44;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 39;
+        return 45;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 40;
+        return 46;
     }
 
     return 0;

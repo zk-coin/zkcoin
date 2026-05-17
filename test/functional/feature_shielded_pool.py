@@ -47,7 +47,10 @@ class ShieldedProofWallet:
         self._scriptPubKey = bytes.fromhex(self._test_node.validateaddress(self._address)["scriptPubKey"])
 
     def generate(self, num_blocks):
-        blocks = self._test_node.generatetoaddress(num_blocks, self._address)
+        blocks = []
+        while len(blocks) < num_blocks:
+            batch_size = min(25, num_blocks - len(blocks))
+            blocks.extend(self._test_node.generatetoaddress(batch_size, self._address))
         for block_hash in blocks:
             coinbase_tx = self._test_node.getblock(blockhash=block_hash, verbosity=2)["tx"][0]
             self._utxos.append({"txid": coinbase_tx["txid"], "vout": 0, "value": coinbase_tx["vout"][0]["value"]})
@@ -58,6 +61,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
         self.setup_clean_chain = True
+        self.rpc_timeout = 480
         self.supports_cli = False
         self.extra_args = [
             [],
