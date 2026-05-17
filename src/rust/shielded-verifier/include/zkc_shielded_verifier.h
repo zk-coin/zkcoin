@@ -29,6 +29,13 @@ int zkc_shielded_verify_proof_v2(
     const unsigned char* tx_binding_hash,
     size_t tx_binding_hash_len);
 
+int zkc_shielded_verify_proof_v3(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 #ifdef __cplusplus
 }
 #endif

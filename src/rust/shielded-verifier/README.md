@@ -1,10 +1,12 @@
 # zkCoin shielded verifier
 
-This crate exposes the `zkc_shielded_verify_proof_v1` and
-`zkc_shielded_verify_proof_v2` C ABIs used by the C++ consensus shielded pool.
-The current implementation is a deterministic scaffold that verifies the proof
-payload committed by the C++ tests. The v2 ABI additionally binds the proof kind
-so mint and spend witnesses live in separate verifier domains.
+This crate exposes the `zkc_shielded_verify_proof_v1`,
+`zkc_shielded_verify_proof_v2`, and `zkc_shielded_verify_proof_v3` C ABIs used
+by the C++ consensus shielded pool. The current implementation is a
+deterministic scaffold that verifies the proof payload committed by the C++
+tests. The v3 ABI binds the proof kind to a consensus public-input hash, so the
+C++ transaction parser can hand Rust one stable verifier digest before the
+scaffold is replaced by an Orchard or Sapling verifier.
 
 The ABI shape is intentionally stable for the next milestone: replacing this
 payload check with an Orchard proof verifier without changing transaction

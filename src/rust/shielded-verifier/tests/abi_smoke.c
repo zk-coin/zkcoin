@@ -35,6 +35,20 @@ static const unsigned char EXPECTED_MINT_PROOF_V2[32] = {
     0x4d, 0x2a, 0x99, 0x1c, 0xea, 0xb3, 0x9d, 0xa1,
 };
 
+static const unsigned char EXPECTED_PUBLIC_INPUT_HASH[32] = {
+    0x90, 0xd5, 0xa8, 0xbb, 0x82, 0x0b, 0x4f, 0x47,
+    0x4e, 0x1a, 0x44, 0x5f, 0x0b, 0x23, 0x03, 0x27,
+    0x18, 0xc0, 0x7e, 0xbc, 0x5b, 0x94, 0xec, 0x51,
+    0x23, 0x43, 0x63, 0xa0, 0x67, 0x82, 0x6e, 0x31,
+};
+
+static const unsigned char EXPECTED_MINT_PROOF_V3[32] = {
+    0x46, 0x50, 0x2b, 0x6c, 0x3c, 0xab, 0xfb, 0xe2,
+    0x17, 0x8f, 0xbb, 0x6e, 0x7c, 0xcb, 0x90, 0x14,
+    0x45, 0x91, 0xf8, 0xce, 0x03, 0x16, 0xf9, 0x0b,
+    0x5c, 0x0e, 0xb6, 0xc1, 0xa6, 0x3f, 0x5b, 0x3a,
+};
+
 int main(void)
 {
     if (zkc_shielded_verify_proof_v1(EXPECTED_PROOF, sizeof(EXPECTED_PROOF), FIELD_HASH, sizeof(FIELD_HASH), TX_BINDING_HASH, sizeof(TX_BINDING_HASH)) != 1) {
@@ -62,6 +76,14 @@ int main(void)
 
     if (zkc_shielded_verify_proof_v2(EXPECTED_MINT_PROOF_V2, sizeof(EXPECTED_MINT_PROOF_V2), 2, FIELD_HASH, sizeof(FIELD_HASH), TX_BINDING_HASH, sizeof(TX_BINDING_HASH)) != 0) {
         return 6;
+    }
+
+    if (zkc_shielded_verify_proof_v3(EXPECTED_MINT_PROOF_V3, sizeof(EXPECTED_MINT_PROOF_V3), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 1) {
+        return 7;
+    }
+
+    if (zkc_shielded_verify_proof_v3(EXPECTED_MINT_PROOF_V3, sizeof(EXPECTED_MINT_PROOF_V3), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 8;
     }
 
     return 0;

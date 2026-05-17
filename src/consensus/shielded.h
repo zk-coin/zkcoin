@@ -50,7 +50,7 @@ inline const std::vector<unsigned char>& MarkerPrefix()
 
 inline const std::vector<unsigned char>& ProofEnvelopePrefix()
 {
-    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '2'};
+    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '3'};
     return prefix;
 }
 
@@ -145,7 +145,9 @@ inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker, const
 {
     std::vector<unsigned char> envelope = ProofEnvelopePrefix();
     envelope.push_back(marker.action);
-    const auto proof_payload = BuildProofPayloadV2(marker.action, ExpectedProofHash(marker), TransactionBindingHash(tx));
+    const uint256 public_input_hash = BuildProofPublicInputHash(marker.action, ExpectedProofHash(marker), TransactionBindingHash(tx));
+    envelope.insert(envelope.end(), public_input_hash.begin(), public_input_hash.end());
+    const auto proof_payload = BuildProofPayloadV3(marker.action, public_input_hash);
     envelope.insert(envelope.end(), proof_payload.begin(), proof_payload.end());
     return envelope;
 }
@@ -156,14 +158,17 @@ inline bool HasProofEnvelopePrefix(const std::vector<unsigned char>& stack_item)
     return stack_item.size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), stack_item.begin());
 }
 
-inline bool DecodeProofEnvelope(const std::vector<unsigned char>& stack_item, uint8_t& proof_kind, std::vector<unsigned char>& proof_payload)
+inline bool DecodeProofEnvelope(const std::vector<unsigned char>& stack_item, uint8_t& proof_kind, uint256& public_input_hash, std::vector<unsigned char>& proof_payload)
 {
     if (!HasProofEnvelopePrefix(stack_item)) return false;
     const size_t proof_kind_offset = ProofEnvelopePrefix().size();
     if (stack_item.size() <= proof_kind_offset) return false;
+    const size_t public_input_offset = proof_kind_offset + 1;
+    const size_t proof_offset = public_input_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    if (stack_item.size() <= proof_offset) return false;
 
     proof_kind = stack_item[proof_kind_offset];
-    const size_t proof_offset = proof_kind_offset + 1;
+    public_input_hash = uint256(std::vector<unsigned char>(stack_item.begin() + public_input_offset, stack_item.begin() + proof_offset));
     proof_payload.assign(stack_item.begin() + proof_offset, stack_item.end());
     return true;
 }
@@ -236,16 +241,19 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
     bool found{false};
     const uint256 field_hash = ExpectedProofHash(marker);
     const uint256 tx_binding_hash = TransactionBindingHash(tx);
+    const uint256 expected_public_input_hash = BuildProofPublicInputHash(marker.action, field_hash, tx_binding_hash);
     for (const CTxIn& txin : tx.vin) {
         for (const auto& stack_item : txin.scriptWitness.stack) {
             if (!HasProofEnvelopePrefix(stack_item)) continue;
             if (found) return false;
             found = true;
             uint8_t proof_kind{0};
+            uint256 public_input_hash;
             std::vector<unsigned char> proof_payload;
-            if (!DecodeProofEnvelope(stack_item, proof_kind, proof_payload)) return false;
+            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) return false;
             if (proof_kind != marker.action) return false;
-            if (!VerifyProofPayloadV2(proof_payload, proof_kind, field_hash, tx_binding_hash)) return false;
+            if (public_input_hash != expected_public_input_hash) return false;
+            if (!VerifyProofPayloadV3(proof_payload, proof_kind, public_input_hash)) return false;
         }
     }
     return found;

@@ -27,8 +27,9 @@ ACTION_MINT = 0x01
 ACTION_SPEND = 0x02
 EMPTY_ROOT = "00" * 32
 PROOF_TAG_SIZE = 3
-PROOF_ENVELOPE_PREFIX = b"zkc-proof-v2"
-PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v2"
+PROOF_ENVELOPE_PREFIX = b"zkc-proof-v3"
+PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX = b"zkc-public-input-v1"
+PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v3"
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -86,7 +87,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
         field_hash = self.proof_hash(**kwargs)
         tx_binding_hash = self.hash256(tx.serialize_without_witness())
         action = kwargs["action"]
-        return PROOF_ENVELOPE_PREFIX + bytes([action]) + self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + field_hash + tx_binding_hash)
+        public_input_hash = self.hash256(PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX + bytes([action]) + field_hash + tx_binding_hash)
+        proof_payload = self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + public_input_hash)
+        return PROOF_ENVELOPE_PREFIX + bytes([action]) + public_input_hash + proof_payload
 
     def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None):
         if commitment is None:
@@ -220,7 +223,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         raw_bad_binding, _, _, _ = self.make_marker_tx(wallets[1], mutate_after_proof=True)
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_binding)
 
-        raw_wrong_kind, _, _, _ = self.make_marker_tx(wallets[1], proof_envelope=PROOF_ENVELOPE_PREFIX + bytes([ACTION_SPEND]) + bytes(32))
+        raw_wrong_kind, _, _, _ = self.make_marker_tx(wallets[1], proof_envelope=PROOF_ENVELOPE_PREFIX + bytes([ACTION_SPEND]) + bytes(64))
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_wrong_kind)
 
         self.log.info("Reject shielded spends with unknown anchors")
