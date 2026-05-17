@@ -27,6 +27,7 @@ MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 PROOF_TAG_SIZE = 3
 PROOF_ENVELOPE_PREFIX = b"zkc-proof-v1"
+PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v1"
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -102,8 +103,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_proof_tag(self, action, shielded_value, commitment):
         return self.shielded_proof_hash(action, shielded_value, commitment)[:PROOF_TAG_SIZE]
 
-    def shielded_proof_envelope(self, action, shielded_value, commitment):
-        return PROOF_ENVELOPE_PREFIX + self.shielded_proof_hash(action, shielded_value, commitment)
+    def hash256(self, data):
+        return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+    def shielded_proof_envelope(self, tx, action, shielded_value, commitment):
+        proof_hash = self.shielded_proof_hash(action, shielded_value, commitment)
+        tx_binding_hash = self.hash256(tx.serialize_without_witness())
+        return PROOF_ENVELOPE_PREFIX + self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + proof_hash + tx_binding_hash)
 
     def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN):
         prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
@@ -124,7 +130,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         ]
         tx.wit.vtxinwit = [CTxInWitness()]
         tx.wit.vtxinwit[0].scriptWitness.stack = [
-            self.shielded_proof_envelope(ACTION_MINT, shielded_value, commitment),
+            self.shielded_proof_envelope(tx, ACTION_MINT, shielded_value, commitment),
             PROOF_SCRIPT,
         ]
         tx.rehash()

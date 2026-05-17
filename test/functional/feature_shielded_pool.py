@@ -28,6 +28,7 @@ ACTION_SPEND = 0x02
 EMPTY_ROOT = "00" * 32
 PROOF_TAG_SIZE = 3
 PROOF_ENVELOPE_PREFIX = b"zkc-proof-v1"
+PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v1"
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -78,8 +79,13 @@ class ShieldedPoolTest(BitcoinTestFramework):
     def proof_tag(self, **kwargs):
         return self.proof_hash(**kwargs)[:PROOF_TAG_SIZE]
 
-    def proof_envelope(self, **kwargs):
-        return PROOF_ENVELOPE_PREFIX + self.proof_hash(**kwargs)
+    def hash256(self, data):
+        return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+    def proof_envelope(self, tx, **kwargs):
+        field_hash = self.proof_hash(**kwargs)
+        tx_binding_hash = self.hash256(tx.serialize_without_witness())
+        return PROOF_ENVELOPE_PREFIX + self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + field_hash + tx_binding_hash)
 
     def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None):
         if commitment is None:
@@ -89,8 +95,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
             if proof_tag is None:
                 proof_tag = self.proof_tag(action=action, shielded_value=shielded_value, commitment=commitment)
             payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment + proof_tag
-            proof_envelope = self.proof_envelope(action=action, shielded_value=shielded_value, commitment=commitment)
-            return payload, commitment, None, proof_envelope
+            return payload, commitment, None, {"action": action, "shielded_value": shielded_value, "commitment": commitment}
 
         if nullifier is None:
             nullifier = self.unique_field("nullifier")
@@ -101,13 +106,12 @@ class ShieldedPoolTest(BitcoinTestFramework):
             if proof_tag is None:
                 proof_tag = self.proof_tag(action=action, shielded_value=shielded_value, nullifier=nullifier, anchor=anchor)
             payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + nullifier + anchor + proof_tag
-            proof_envelope = self.proof_envelope(action=action, shielded_value=shielded_value, nullifier=nullifier, anchor=anchor)
-            return payload, commitment, nullifier, proof_envelope
+            return payload, commitment, nullifier, {"action": action, "shielded_value": shielded_value, "nullifier": nullifier, "anchor": anchor}
 
         payload = MARKER_PREFIX + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
-        return payload, commitment, nullifier, PROOF_ENVELOPE_PREFIX + bytes(32)
+        return payload, commitment, nullifier, {"action": action, "shielded_value": shielded_value, "commitment": commitment}
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, include_proof=True):
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None, anchor=None, shielded_value=COIN, proof_tag=None, proof_envelope=None, include_proof=True, mutate_after_proof=False):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -121,7 +125,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         tx.vin = [CTxIn(COutPoint(int(utxo["txid"], 16), utxo["vout"]))]
         tx.vout = [CTxOut(output_value, wallet._scriptPubKey)]
 
-        payload, commitment, nullifier, expected_proof_envelope = self.make_marker_payload(
+        payload, commitment, nullifier, proof_kwargs = self.make_marker_payload(
             action=action,
             commitment=commitment,
             nullifier=nullifier,
@@ -133,12 +137,14 @@ class ShieldedPoolTest(BitcoinTestFramework):
             tx.vout.append(CTxOut(marker_value, CScript([OP_RETURN, payload])))
 
         if proof_envelope is None:
-            proof_envelope = expected_proof_envelope
+            proof_envelope = self.proof_envelope(tx, **proof_kwargs)
         tx.wit.vtxinwit = [CTxInWitness()]
         tx.wit.vtxinwit[0].scriptWitness.stack = []
         if include_proof:
             tx.wit.vtxinwit[0].scriptWitness.stack.append(proof_envelope)
         tx.wit.vtxinwit[0].scriptWitness.stack.append(PROOF_SCRIPT)
+        if mutate_after_proof:
+            tx.vout[0].nValue -= 1
         tx.rehash()
         return tx.serialize().hex(), tx.hash, commitment, nullifier
 
@@ -209,6 +215,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
 
         raw_bad_envelope, _, _, _ = self.make_marker_tx(wallets[1], proof_envelope=PROOF_ENVELOPE_PREFIX + bytes(32))
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_envelope)
+
+        raw_bad_binding, _, _, _ = self.make_marker_tx(wallets[1], mutate_after_proof=True)
+        assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_bad_binding)
 
         self.log.info("Reject shielded spends with unknown anchors")
         raw_unfunded_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND)

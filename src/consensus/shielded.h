@@ -135,9 +135,24 @@ inline std::vector<unsigned char> ExpectedProofTag(const Marker& marker)
     return std::vector<unsigned char>(proof_hash.begin(), proof_hash.begin() + PROOF_TAG_SIZE);
 }
 
-inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker)
+inline uint256 TransactionBindingHash(const CTransaction& tx)
+{
+    return SerializeHash(tx, SER_GETHASH, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS | SERIALIZE_NO_MWEB);
+}
+
+inline uint256 ExpectedProofEnvelopeHash(const Marker& marker, const CTransaction& tx)
 {
     const uint256 proof_hash = ExpectedProofHash(marker);
+    const uint256 tx_binding_hash = TransactionBindingHash(tx);
+    std::vector<unsigned char> data{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'e', 'n', 'v', 'e', 'l', 'o', 'p', 'e', '-', 'v', '1'};
+    data.insert(data.end(), proof_hash.begin(), proof_hash.end());
+    data.insert(data.end(), tx_binding_hash.begin(), tx_binding_hash.end());
+    return Hash(data);
+}
+
+inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker, const CTransaction& tx)
+{
+    const uint256 proof_hash = ExpectedProofEnvelopeHash(marker, tx);
     std::vector<unsigned char> envelope = ProofEnvelopePrefix();
     envelope.insert(envelope.end(), proof_hash.begin(), proof_hash.end());
     return envelope;
@@ -215,7 +230,7 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
     if (marker.proof_tag != ExpectedProofTag(marker)) return false;
 
     bool found{false};
-    const std::vector<unsigned char> expected = BuildProofEnvelope(marker);
+    const std::vector<unsigned char> expected = BuildProofEnvelope(marker, tx);
     for (const CTxIn& txin : tx.vin) {
         for (const auto& stack_item : txin.scriptWitness.stack) {
             if (!HasProofEnvelopePrefix(stack_item)) continue;
