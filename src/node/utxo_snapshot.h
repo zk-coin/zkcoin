@@ -62,6 +62,8 @@ struct SnapshotManifestStats
     uint256 m_hash_import;
 };
 
+static constexpr uint32_t LTC_SNAPSHOT_IMPORT_COIN_HEIGHT{1};
+
 bool DecodeSnapshotManifest(CDataStream& stream, SnapshotManifestStats& stats, std::string& error);
 bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& stats, std::string& error);
 bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height = nullptr, const uint256* expected_base_hash = nullptr, const uint256* expected_import_hash = nullptr, const std::function<void()>& interruption_point = {}, bool resume_import = false);

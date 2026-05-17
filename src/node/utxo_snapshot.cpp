@@ -16,7 +16,11 @@
 namespace {
 Coin NormalizeSnapshotCoinForImport(const Coin& coin)
 {
-    return Coin(coin.out, /*nHeightIn=*/0, /*fCoinBaseIn=*/false, /*fPegoutIn=*/false);
+    // Height 0 has special meaning in tx undo records: legacy undo entries use
+    // it to signal that height/coinbase metadata must be recovered from a
+    // sibling output. Snapshot coins need explicit metadata so single-output
+    // parent transactions can disconnect cleanly after being spent.
+    return Coin(coin.out, LTC_SNAPSHOT_IMPORT_COIN_HEIGHT, /*fCoinBaseIn=*/false, /*fPegoutIn=*/false);
 }
 
 bool SnapshotCoinsEqual(const Coin& a, const Coin& b)

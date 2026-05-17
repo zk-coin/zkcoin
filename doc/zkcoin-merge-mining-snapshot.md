@@ -71,7 +71,7 @@ The validation path should switch at that height:
 
 The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash` for source-file auditability.
 
-It also returns an `import_hash`, which is the launch-consensus hash to use for imported balances. The import hash preserves each Litecoin outpoint, script, and value, but normalizes chain-local metadata such as UTXO height and coinbase status. That matters because Litecoin coinbase maturity must not make old, already-mature Litecoin outputs unspendable on the new chain.
+It also returns an `import_hash`, which is the launch-consensus hash to use for imported balances. The import hash preserves each Litecoin outpoint, script, and value, but normalizes chain-local metadata such as UTXO height and coinbase status. Imported coins are stored as non-coinbase outputs at launch import height `1`, so Litecoin coinbase maturity does not make old Litecoin outputs unspendable on the new chain and block undo has explicit height metadata for single-output parent transactions.
 
 Because imported balances preserve original Litecoin outpoints, built-in mining templates include a small `zkcoin` push in the child coinbase scriptSig after the BIP34 height/extranonce fields. When block-X snapshot parameters are configured, templates also push the configured Litecoin snapshot block hash. This keeps locally generated launch coinbases from accidentally recreating an imported Litecoin coinbase transaction id. `getblocktemplate` exposes the base tag in `coinbaseaux.zkcoin` and the configured snapshot block hash in `coinbaseaux.zkcoin_snapshot` for external miners.
 

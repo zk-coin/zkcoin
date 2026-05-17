@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_normalizes_chain_metadata)
     Coin imported;
     BOOST_REQUIRE(cache.GetCoin(outpoint, imported));
     BOOST_CHECK_EQUAL(imported.out.nValue, 5 * COIN);
-    BOOST_CHECK_EQUAL(imported.nHeight, 0U);
+    BOOST_CHECK_EQUAL(imported.nHeight, LTC_SNAPSHOT_IMPORT_COIN_HEIGHT);
     BOOST_CHECK(!imported.IsCoinBase());
     BOOST_CHECK(!imported.IsPegout());
     BOOST_CHECK_EQUAL(cache.GetBestBlock().ToString(), chainstate_base.ToString());
@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_resumes_identical_existing_coin)
 
     CCoinsView base;
     CCoinsViewCache cache(&base);
-    cache.AddCoin(existing_outpoint, SnapshotCoin(5 * COIN, 0), /*possible_overwrite=*/false);
+    cache.AddCoin(existing_outpoint, SnapshotCoin(5 * COIN, LTC_SNAPSHOT_IMPORT_COIN_HEIGHT), /*possible_overwrite=*/false);
     CDataStream stream = BuildSnapshotStream(metadata, coins);
     SnapshotManifestStats stats;
     std::string error;
@@ -165,13 +165,13 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_resumes_identical_existing_coin)
     Coin existing;
     BOOST_REQUIRE(cache.GetCoin(existing_outpoint, existing));
     BOOST_CHECK_EQUAL(existing.out.nValue, 5 * COIN);
-    BOOST_CHECK_EQUAL(existing.nHeight, 0U);
+    BOOST_CHECK_EQUAL(existing.nHeight, LTC_SNAPSHOT_IMPORT_COIN_HEIGHT);
     BOOST_CHECK(!existing.IsCoinBase());
 
     Coin imported;
     BOOST_REQUIRE(cache.GetCoin(new_outpoint, imported));
     BOOST_CHECK_EQUAL(imported.out.nValue, 7 * COIN);
-    BOOST_CHECK_EQUAL(imported.nHeight, 0U);
+    BOOST_CHECK_EQUAL(imported.nHeight, LTC_SNAPSHOT_IMPORT_COIN_HEIGHT);
     BOOST_CHECK(!imported.IsCoinBase());
 }
 
