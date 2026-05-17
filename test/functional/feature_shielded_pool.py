@@ -56,13 +56,14 @@ class ShieldedProofWallet:
 
 class ShieldedPoolTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 3
+        self.num_nodes = 4
         self.setup_clean_chain = True
         self.supports_cli = False
         self.extra_args = [
             [],
             ["-shieldedheight=1"],
             ["-shieldedheight=200"],
+            ["-shieldedheight=1", "-noshieldedscaffoldproofs"],
         ]
 
     def setup_network(self):
@@ -192,6 +193,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         disabled = self.nodes[0]
         active = self.nodes[1]
         future = self.nodes[2]
+        no_scaffold = self.nodes[3]
         wallets = [ShieldedProofWallet(node) for node in self.nodes]
 
         for wallet in wallets:
@@ -210,6 +212,20 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(active.getblockchaininfo()["shielded_pool"]["anchors"], 1)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["start_height"], 200)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
+        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["start_height"], 1)
+        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
+        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], False)
+
+        self.log.info("Reject scaffold proofs when the scaffold gate is disabled")
+        raw_no_scaffold, _, _, _ = self.make_marker_tx(wallets[3])
+        assert_raises_rpc_error(-26, "bad-shielded-proof", no_scaffold.sendrawtransaction, raw_no_scaffold)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-proof",
+            no_scaffold.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_no_scaffold],
+        )
 
         self.log.info("Reject shielded marker transactions before activation")
         raw_disabled, _, _, _ = self.make_marker_tx(wallets[0])
