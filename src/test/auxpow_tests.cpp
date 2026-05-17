@@ -6,6 +6,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
+#include <hash.h>
 #include <pow.h>
 #include <primitives/block.h>
 #include <streams.h>
@@ -17,7 +18,12 @@
 #include <algorithm>
 
 namespace {
-std::vector<unsigned char> BuildAuxPowCommitmentBytes(const uint256& hashAuxBlock, bool includeMergedMiningHeader = false, unsigned int leadingPadding = 0)
+std::vector<unsigned char> BuildAuxPowCommitmentBytes(
+    const uint256& hashAuxBlock,
+    bool includeMergedMiningHeader = false,
+    unsigned int leadingPadding = 0,
+    uint32_t chainSize = 1,
+    uint32_t nonce = 0)
 {
     std::vector<unsigned char> commitment(leadingPadding, 0);
     if (includeMergedMiningHeader) {
@@ -27,9 +33,26 @@ std::vector<unsigned char> BuildAuxPowCommitmentBytes(const uint256& hashAuxBloc
     std::vector<unsigned char> auxBlockHash(hashAuxBlock.begin(), hashAuxBlock.end());
     std::reverse(auxBlockHash.begin(), auxBlockHash.end());
     commitment.insert(commitment.end(), auxBlockHash.begin(), auxBlockHash.end());
-    commitment.push_back(1);
-    commitment.insert(commitment.end(), 7, 0);
+    for (int i = 0; i < 4; ++i) {
+        commitment.push_back((chainSize >> (8 * i)) & 0xff);
+    }
+    for (int i = 0; i < 4; ++i) {
+        commitment.push_back((nonce >> (8 * i)) & 0xff);
+    }
     return commitment;
+}
+
+uint256 CalcAuxPowMerkleRootForTest(uint256 hash, const std::vector<uint256>& branch, int index)
+{
+    for (const uint256& branchHash : branch) {
+        if (index & 1) {
+            hash = Hash(branchHash, hash);
+        } else {
+            hash = Hash(hash, branchHash);
+        }
+        index >>= 1;
+    }
+    return hash;
 }
 
 CAuxPow DeserializeAuxPowForParentTx(
@@ -330,6 +353,59 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_tampered_parent_merkle_proof)
     badParentHeader.hashMerkleRoot.SetHex("16");
     CAuxPow badRootAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, badParentHeader, 0, merkleBranch);
     BOOST_CHECK(!badRootAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_validates_chain_merkle_branch_metadata)
+{
+    const Consensus::Params& consensus = Params().GetConsensus();
+    CBlockHeader header = MakeAuxPowChildHeader("1a", "1b");
+
+    uint256 branchHash;
+    branchHash.SetHex("1c");
+    const std::vector<uint256> chainMerkleBranch{branchHash};
+    const uint32_t nonce = 0;
+    const int chainIndex = CAuxPow::getExpectedIndex(nonce, consensus.auxpow.nChainId, chainMerkleBranch.size());
+    const uint256 root = CalcAuxPowMerkleRootForTest(header.GetHash(), chainMerkleBranch, chainIndex);
+
+    CTransactionRef coinbaseRef = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(root, true, 0, 1u << chainMerkleBranch.size(), nonce));
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+    parent.hashMerkleRoot = coinbaseRef->GetHash();
+
+    CAuxPow validAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent, 0, {}, chainMerkleBranch, chainIndex);
+    BOOST_CHECK(validAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CAuxPow wrongIndexAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent, 0, {}, chainMerkleBranch, chainIndex ^ 1);
+    BOOST_CHECK(!wrongIndexAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    uint32_t wrongNonce = nonce + 1;
+    while (CAuxPow::getExpectedIndex(wrongNonce, consensus.auxpow.nChainId, chainMerkleBranch.size()) == chainIndex) {
+        ++wrongNonce;
+    }
+    CTransactionRef wrongNonceCoinbase = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(root, true, 0, 1u << chainMerkleBranch.size(), wrongNonce));
+    parent.hashMerkleRoot = wrongNonceCoinbase->GetHash();
+    CAuxPow wrongNonceAuxpow = DeserializeAuxPowForParentTx(wrongNonceCoinbase, parent, 0, {}, chainMerkleBranch, chainIndex);
+    BOOST_CHECK(!wrongNonceAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CTransactionRef wrongSizeCoinbase = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(root, true, 0, 1, nonce));
+    parent.hashMerkleRoot = wrongSizeCoinbase->GetHash();
+    CAuxPow wrongSizeAuxpow = DeserializeAuxPowForParentTx(wrongSizeCoinbase, parent, 0, {}, chainMerkleBranch, chainIndex);
+    BOOST_CHECK(!wrongSizeAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    std::vector<uint256> maxChainMerkleBranch(30, branchHash);
+    const int maxChainIndex = CAuxPow::getExpectedIndex(nonce, consensus.auxpow.nChainId, maxChainMerkleBranch.size());
+    const uint256 maxRoot = CalcAuxPowMerkleRootForTest(header.GetHash(), maxChainMerkleBranch, maxChainIndex);
+    CTransactionRef maxBranchCoinbase = MakeCoinbaseWithCommitment(BuildAuxPowCommitmentBytes(maxRoot, true, 0, 1u << maxChainMerkleBranch.size(), nonce));
+    parent.hashMerkleRoot = maxBranchCoinbase->GetHash();
+    CAuxPow maxBranchAuxpow = DeserializeAuxPowForParentTx(maxBranchCoinbase, parent, 0, {}, maxChainMerkleBranch, maxChainIndex);
+    BOOST_CHECK(maxBranchAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    std::vector<uint256> tooLongChainMerkleBranch(31, branchHash);
+    CAuxPow tooLongBranchAuxpow = DeserializeAuxPowForParentTx(maxBranchCoinbase, parent, 0, {}, tooLongChainMerkleBranch, maxChainIndex);
+    BOOST_CHECK(!tooLongBranchAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(auxpow_rejects_replayed_parent_work_for_mutated_child_header)
