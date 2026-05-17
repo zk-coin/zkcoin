@@ -119,6 +119,32 @@ CChain& ChainActive()
     return ::ChainstateActive().m_chain;
 }
 
+static bool LtcSnapshotImportInfoMatchesConfigured(
+    const LtcSnapshotImportInfo& imported_snapshot,
+    const Consensus::LitecoinSnapshotParams& configured_snapshot)
+{
+    return imported_snapshot.nHeight == configured_snapshot.nHeight &&
+        imported_snapshot.hashBlock == configured_snapshot.hashBlock &&
+        imported_snapshot.hashUTXORoot == configured_snapshot.hashUTXORoot;
+}
+
+static bool CheckConfiguredLtcSnapshotImported(
+    const CCoinsViewDB& coins_db,
+    const Consensus::Params& consensus,
+    std::string& error)
+{
+    LtcSnapshotImportInfo imported_snapshot;
+    if (!coins_db.ReadLtcSnapshotImportInfo(imported_snapshot)) {
+        error = "configured Litecoin snapshot has not been imported";
+        return false;
+    }
+    if (!LtcSnapshotImportInfoMatchesConfigured(imported_snapshot, consensus.ltc_snapshot)) {
+        error = "configured Litecoin snapshot import hash mismatch";
+        return false;
+    }
+    return true;
+}
+
 /**
  * Mutex to guard access to validation specific variables, such as reading
  * or changing the chainstate.
@@ -2042,14 +2068,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     const Consensus::Params& consensus = chainparams.GetConsensus();
     if (pindex->nHeight == 1 && consensus.ltc_snapshot.IsEnabled()) {
-        LtcSnapshotImportInfo imported_snapshot;
-        if (!CoinsDB().ReadLtcSnapshotImportInfo(imported_snapshot)) {
-            return state.Error("configured Litecoin snapshot has not been imported");
-        }
-        if (imported_snapshot.nHeight != consensus.ltc_snapshot.nHeight ||
-            imported_snapshot.hashBlock != consensus.ltc_snapshot.hashBlock ||
-            imported_snapshot.hashUTXORoot != consensus.ltc_snapshot.hashUTXORoot) {
-            return state.Error("configured Litecoin snapshot import hash mismatch");
+        std::string snapshot_error;
+        if (!CheckConfiguredLtcSnapshotImported(CoinsDB(), consensus, snapshot_error)) {
+            return state.Error(snapshot_error);
         }
     }
 
@@ -4405,9 +4426,21 @@ bool CChainState::LoadChainTip(const CChainParams& chainparams)
     const CCoinsViewCache& coins_cache = CoinsTip();
     assert(!coins_cache.GetBestBlock().IsNull()); // Never called when the coins view is empty
     const CBlockIndex* tip = m_chain.Tip();
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    auto check_configured_snapshot_loaded = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        if (!consensus.ltc_snapshot.IsEnabled() || m_chain.Height() < 1) {
+            return true;
+        }
+        std::string snapshot_error;
+        if (!CheckConfiguredLtcSnapshotImported(CoinsDB(), consensus, snapshot_error)) {
+            LogPrintf("LoadChainTip(): %s\n", snapshot_error);
+            return false;
+        }
+        return true;
+    };
 
     if (tip && tip->GetBlockHash() == coins_cache.GetBestBlock()) {
-        return true;
+        return check_configured_snapshot_loaded();
     }
 
     // Load pointer to end of best chain
@@ -4416,6 +4449,9 @@ bool CChainState::LoadChainTip(const CChainParams& chainparams)
         return false;
     }
     m_chain.SetTip(pindex);
+    if (!check_configured_snapshot_loaded()) {
+        return false;
+    }
     PruneBlockIndexCandidates();
 
     tip = m_chain.Tip();

@@ -7,6 +7,7 @@
 import errno
 import http.client
 
+from test_framework.test_node import ErrorMatch
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
 
@@ -81,6 +82,20 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(verify["coins"], dump["coins_written"])
         assert_equal(verify["metadata_coins"], dump["coins_written"])
         assert_equal(verify["matches_configured_snapshot"], False)
+
+        self.log.info("Reject configuring a snapshot on an already-started chain")
+        self.stop_node(0)
+        self.nodes[0].assert_start_raises_init_error(
+            extra_args=[
+                "-auxpowheight=1",
+                f"-ltcsnapshotheight={dump['base_height']}",
+                f"-ltcsnapshotblockhash={verify['base_hash']}",
+                f"-ltcsnapshotutxoroot={verify['import_hash']}",
+            ],
+            expected_msg="Error initializing block database",
+            match=ErrorMatch.PARTIAL_REGEX,
+        )
+        self.start_node(0)
 
         self.log.info("Reject snapshot configured with the right hash and root but wrong height")
         self.stop_node(1)
