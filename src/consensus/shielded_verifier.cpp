@@ -47,6 +47,7 @@ bool VerifyProofPayloadV1(const std::vector<unsigned char>& proof, const uint256
 } // namespace ShieldedPool
 } // namespace Consensus
 
+#ifndef ZKC_SHIELDED_VERIFIER_EXTERNAL
 extern "C" int zkc_shielded_verify_proof_v1(
     const unsigned char* proof,
     size_t proof_len,
@@ -65,3 +66,4 @@ extern "C" int zkc_shielded_verify_proof_v1(
     const auto expected = Consensus::ShieldedPool::BuildProofPayloadV1(field_hash_value, tx_binding_hash_value);
     return std::equal(expected.begin(), expected.end(), proof) ? 1 : 0;
 }
+#endif // ZKC_SHIELDED_VERIFIER_EXTERNAL
