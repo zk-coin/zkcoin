@@ -1381,8 +1381,8 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
             }
         }
         if (!duplicate_valid) {
-            const CBlockIndex* pindexPrev = ::ChainActive().Tip();
-            if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
+            const CBlockIndex* pindexPrev = LookupBlockIndex(block.hashPrevBlock);
+            if (!pindexPrev) {
                 RemoveAuxPowCandidate(hash);
                 if (dogecoin_compat) return false;
                 return "inconclusive-not-best-prevblk";
@@ -1403,12 +1403,24 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
     RegisterSharedValidationInterface(sc);
     bool accepted = EnsureChainman(request.context).ProcessNewBlock(chainparams, blockptr, /* fForceProcessing */ true, /* fNewBlock */ &new_block);
     UnregisterSharedValidationInterface(sc);
+    auto accepted_valid_block = [&hash]() EXCLUSIVE_LOCKS_REQUIRED(!cs_main) {
+        LOCK(cs_main);
+        const CBlockIndex* pindex = LookupBlockIndex(hash);
+        return pindex && pindex->IsValid(BLOCK_VALID_SCRIPTS) && (pindex->nStatus & BLOCK_HAVE_DATA);
+    };
     if (!new_block && accepted) {
+        const bool valid_block = accepted_valid_block();
         KeepAuxPowCandidateReservationAndRemove(hash);
-        if (dogecoin_compat) return false;
+        if (dogecoin_compat) return valid_block;
+        if (valid_block) return UniValue::VNULL;
         return "duplicate";
     }
     if (!sc->found) {
+        if (accepted && new_block) {
+            KeepAuxPowCandidateReservationAndRemove(hash);
+            if (dogecoin_compat) return true;
+            return UniValue::VNULL;
+        }
         if (dogecoin_compat) return false;
         return "inconclusive";
     }

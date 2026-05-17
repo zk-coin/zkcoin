@@ -179,17 +179,15 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.getbestblockhash(), other_pool_candidate["hash"])
         auxpow_height_one_hex = node.getblock(other_pool_candidate["hash"], False)
 
-        self.log.info("Reject stale Dogecoin-style AuxPoW candidate after tip advances")
+        self.log.info("Accept stale Dogecoin-style AuxPoW candidate as a side branch")
         pool_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
         solve_parent_header(pool_auxpow, int(pool_candidate["bits"], 16))
-        assert_equal(node.submitauxblock(pool_candidate["hash"], pool_auxpow.serialize().hex()), False)
-        assert_raises_rpc_error(
-            -8,
-            "block hash unknown",
-            node.submitauxblock,
-            pool_candidate["hash"],
-            pool_auxpow.serialize().hex(),
-        )
+        assert_equal(node.submitauxblock(pool_candidate["hash"], pool_auxpow.serialize().hex()), True)
+        assert_equal(node.getblockcount(), 1)
+        chain_tips = {tip["hash"]: tip for tip in node.getchaintips()}
+        assert_equal(chain_tips[other_pool_candidate["hash"]]["height"], 1)
+        assert_equal(chain_tips[pool_candidate["hash"]]["height"], 1)
+        assert_equal(chain_tips[pool_candidate["hash"]]["status"], "valid-headers")
 
         header_hex = node.getblockheader(other_pool_candidate["hash"], False)
         assert header_hex.startswith(other_pool_candidate["header"])
