@@ -7,8 +7,10 @@
 from io import BytesIO
 
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
+from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import (
     CBlockHeader,
+    hash256,
 )
 from test_framework.auxpow import parse_auxpow, solve_parent_header
 from test_framework.test_framework import BitcoinTestFramework
@@ -17,13 +19,48 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 
 class AuxPowRPCTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 1
+        self.num_nodes = 2
         self.setup_clean_chain = True
         self.supports_cli = False
-        self.extra_args = [["-auxpowheight=1"]]
+        self.extra_args = [["-auxpowheight=1"], ["-auxpowheight=2"]]
+
+    def setup_network(self):
+        self.setup_nodes()
+
+    def create_plain_block(self, node):
+        height = node.getblockcount() + 1
+        tip_hash = node.getbestblockhash()
+        block_time = node.getblockheader(tip_hash)["time"] + 1
+        block = create_block(int(tip_hash, 16), create_coinbase(height), block_time)
+        block.solve()
+        return block
+
+    def with_wrong_child_chain_id(self, header_hex):
+        version = int.from_bytes(bytes.fromhex(header_hex[:8]), "little")
+        wrong_version = version + (1 << 16)
+        header = wrong_version.to_bytes(4, "little").hex() + header_hex[8:]
+        child_hash = hash256(bytes.fromhex(header))[::-1].hex()
+        return header, child_hash
+
+    def make_auxpow_commitment(self, auxpow, original_child_hash, child_hash):
+        script_sig = auxpow.coinbase_tx.vin[0].scriptSig
+        if bytes.fromhex(original_child_hash)[::-1] in script_sig:
+            child_hash_bytes = bytes.fromhex(child_hash)[::-1]
+        elif bytes.fromhex(original_child_hash) in script_sig:
+            child_hash_bytes = bytes.fromhex(child_hash)
+        else:
+            raise AssertionError("default AuxPoW commitment does not contain the child hash")
+
+        input_data = child_hash_bytes + b"\x01" + b"\x00" * 7
+        auxpow.coinbase_tx.vin[0].scriptSig = bytes([len(input_data)]) + input_data
+        auxpow.coinbase_tx.rehash()
+        auxpow.parent_header.hashMerkleRoot = auxpow.coinbase_tx.sha256
+        auxpow.parent_header.rehash()
+        assert script_sig != auxpow.coinbase_tx.vin[0].scriptSig
 
     def run_test(self):
         node = self.nodes[0]
+        boundary_node = self.nodes[1]
 
         self.log.info("Reject partial getauxblock submission arguments")
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")
@@ -49,6 +86,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.submitauxblock(other_pool_candidate["hash"], other_pool_auxpow.serialize().hex()), True)
         assert_equal(node.getblockcount(), 1)
         assert_equal(node.getbestblockhash(), other_pool_candidate["hash"])
+        auxpow_height_one_hex = node.getblock(other_pool_candidate["hash"], False)
 
         self.log.info("Reject stale Dogecoin-style AuxPoW candidate after tip advances")
         pool_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
@@ -115,6 +153,43 @@ class AuxPowRPCTest(BitcoinTestFramework):
         bad_auxpow.index = 1
         assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), "high-hash")
         assert_equal(node.getblockcount(), 2)
+
+        self.log.info("Enforce AuxPoW activation boundary")
+        assert_equal(boundary_node.getblockchaininfo()["auxpow"]["next_block_active"], False)
+        assert_raises_rpc_error(-1, "AuxPoW is not active for the next block", boundary_node.getauxblock)
+        assert_raises_rpc_error(
+            -1,
+            "AuxPoW is not active for the next block",
+            boundary_node.createauxblock,
+            boundary_node.get_deterministic_priv_key().address,
+        )
+        assert_equal(boundary_node.submitblock(auxpow_height_one_hex), "bad-auxpow-unexpected")
+        assert_equal(boundary_node.getblockcount(), 0)
+
+        boundary_node.generatetodescriptor(1, "raw(51)")
+        assert_equal(boundary_node.getblockcount(), 1)
+        assert_equal(boundary_node.getblockchaininfo()["auxpow"]["next_block_active"], True)
+
+        plain_height_two = self.create_plain_block(boundary_node)
+        assert_equal(boundary_node.submitblock(plain_height_two.serialize().hex()), "bad-auxpow-missing")
+        assert_equal(boundary_node.getblockcount(), 1)
+
+        height_two_candidate = boundary_node.getauxblock()
+        height_two_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
+        solve_parent_header(height_two_auxpow, int(height_two_candidate["bits"], 16))
+        assert_equal(boundary_node.getauxblock(height_two_candidate["hash"], height_two_auxpow.serialize().hex()), None)
+        assert_equal(boundary_node.getblockcount(), 2)
+        height_two_hex = boundary_node.getblock(height_two_candidate["hash"], False)
+
+        boundary_node.invalidateblock(height_two_candidate["hash"])
+        assert_equal(boundary_node.getblockcount(), 1)
+        wrong_header, wrong_hash = self.with_wrong_child_chain_id(height_two_candidate["header"])
+        wrong_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
+        self.make_auxpow_commitment(wrong_auxpow, height_two_candidate["hash"], wrong_hash)
+        solve_parent_header(wrong_auxpow, int(height_two_candidate["bits"], 16))
+        tx_payload_hex = height_two_hex[160 + len(height_two_auxpow.serialize().hex()):]
+        assert_equal(boundary_node.submitblock(wrong_header + wrong_auxpow.serialize().hex() + tx_payload_hex), "bad-auxpow-chainid")
+        assert_equal(boundary_node.getblockcount(), 1)
 
 
 if __name__ == "__main__":

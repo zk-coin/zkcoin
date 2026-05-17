@@ -108,10 +108,6 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
 bool CheckBlockProofOfWork(const CBlockHeader& block, const Consensus::Params& params)
 {
-    if (block.IsAuxpow() && params.auxpow.fStrictChainId && block.GetChainId() != static_cast<int32_t>(params.auxpow.nChainId)) {
-        return false;
-    }
-
     if (!block.IsAuxpow()) {
         return CheckProofOfWork(block.GetPoWHash(), block.nBits, params);
     }
