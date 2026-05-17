@@ -6,6 +6,7 @@
 #include <chainparams.h>
 #include <pow.h>
 #include <test/util/setup_common.h>
+#include <util/system.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -154,6 +155,15 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     BOOST_CHECK(!over);
     BOOST_CHECK(UintToArith256(consensus.powLimit) >= pow_compact);
 
+    // zkCoin launch parameters are explicit but disabled until block X and
+    // AuxPoW activation are locked in.
+    BOOST_CHECK(!consensus.ltc_snapshot.IsEnabled());
+    BOOST_CHECK(consensus.ltc_snapshot.hashBlock.IsNull());
+    BOOST_CHECK(consensus.ltc_snapshot.hashUTXORoot.IsNull());
+    BOOST_CHECK(!consensus.auxpow.IsEnabled(0));
+    BOOST_CHECK_NE(consensus.auxpow.nChainId, 0U);
+    BOOST_CHECK_LT(consensus.auxpow.nChainId, 0x8000U);
+
     // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
     /* Litecoin: we allow overflowing by 1 bit
     if (!consensus.fPowNoRetargeting) {
@@ -182,6 +192,45 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
 BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
 {
     sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_height)
+{
+    ArgsManager args;
+    args.ForceSetArg("-auxpowheight", "7");
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const auto consensus = chainParams->GetConsensus();
+
+    BOOST_CHECK(!consensus.auxpow.IsEnabled(6));
+    BOOST_CHECK(consensus.auxpow.IsEnabled(7));
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_ltc_snapshot_args)
+{
+    const std::string block_hash{"0000000000000000000000000000000000000000000000000000000000000001"};
+    const std::string utxo_root{"0000000000000000000000000000000000000000000000000000000000000002"};
+
+    ArgsManager args;
+    args.ForceSetArg("-ltcsnapshotheight", "123");
+    args.ForceSetArg("-ltcsnapshotblockhash", block_hash);
+    args.ForceSetArg("-ltcsnapshotutxoroot", utxo_root);
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const auto consensus = chainParams->GetConsensus();
+
+    BOOST_CHECK(consensus.ltc_snapshot.IsEnabled());
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.nHeight, 123);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashBlock.ToString(), block_hash);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashUTXORoot.ToString(), utxo_root);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_ltc_snapshot_args_reject_partial)
+{
+    ArgsManager args;
+    args.ForceSetArg("-ltcsnapshotheight", "123");
+
+    BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::REGTEST), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

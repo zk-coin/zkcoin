@@ -368,6 +368,7 @@ libbitcoin_server_a_SOURCES = \
   node/context.cpp \
   node/psbt.cpp \
   node/transaction.cpp \
+  node/utxo_snapshot.cpp \
   node/ui_interface.cpp \
   noui.cpp \
   policy/fees.cpp \
@@ -518,6 +519,8 @@ libbitcoin_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
+  auxpow.cpp \
+  auxpow.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \
@@ -528,6 +531,8 @@ libbitcoin_consensus_a_SOURCES = \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \
+  primitives/pureheader.cpp \
+  primitives/pureheader.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
   pubkey.cpp \

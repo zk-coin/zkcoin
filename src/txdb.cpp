@@ -28,6 +28,8 @@ static const char DB_HEAD_BLOCKS = 'H';
 static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
+static const char DB_LTC_SNAPSHOT_IMPORT_INFO = 'S';
+static const char DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS = 's';
 
 namespace {
 
@@ -91,6 +93,39 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
         return std::vector<uint256>();
     }
     return vhashHeadBlocks;
+}
+
+bool CCoinsViewDB::ReadLtcSnapshotImportInfo(LtcSnapshotImportInfo& info) const
+{
+    return m_db->Read(DB_LTC_SNAPSHOT_IMPORT_INFO, info);
+}
+
+bool CCoinsViewDB::WriteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info)
+{
+    return m_db->Write(DB_LTC_SNAPSHOT_IMPORT_INFO, info, true);
+}
+
+bool CCoinsViewDB::ReadLtcSnapshotImportInProgress(LtcSnapshotImportInfo& info) const
+{
+    return m_db->Read(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, info);
+}
+
+bool CCoinsViewDB::WriteLtcSnapshotImportInProgress(const LtcSnapshotImportInfo& info)
+{
+    return m_db->Write(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, info, true);
+}
+
+bool CCoinsViewDB::ClearLtcSnapshotImportInProgress()
+{
+    return m_db->Erase(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS, true);
+}
+
+bool CCoinsViewDB::CompleteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info)
+{
+    CDBBatch batch(*m_db);
+    batch.Write(DB_LTC_SNAPSHOT_IMPORT_INFO, info);
+    batch.Erase(DB_LTC_SNAPSHOT_IMPORT_IN_PROGRESS);
+    return m_db->WriteBatch(batch, true);
 }
 
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, const mw::CoinsViewCache::Ptr& derivedView) {
@@ -294,6 +329,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->mweb_header    = diskindex.mweb_header;
                 pindexNew->hogex_hash     = diskindex.hogex_hash;
                 pindexNew->mweb_amount    = diskindex.mweb_amount;
+                pindexNew->auxpow         = diskindex.auxpow;
 
                 // Litecoin: Disable PoW Sanity check while loading block index from disk.
                 // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.

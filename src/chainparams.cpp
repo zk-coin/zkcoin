@@ -87,6 +87,9 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
+        consensus.ltc_snapshot.nHeight = -1;
+        consensus.auxpow.nStartHeight = -1;
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 6048; // 75% of 8064
         consensus.nMinerConfirmationWindow = 8064; // nPowTargetTimespan / nPowTargetSpacing * 4
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -209,6 +212,9 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
+        consensus.ltc_snapshot.nHeight = -1;
+        consensus.auxpow.nStartHeight = -1;
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -306,6 +312,9 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
+        consensus.ltc_snapshot.nHeight = -1;
+        consensus.auxpow.nStartHeight = -1;
+        consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
 
@@ -387,6 +396,44 @@ public:
 
 void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
 {
+    if (args.IsArgSet("-auxpowheight")) {
+        int64_t height = args.GetArg("-auxpowheight", consensus.auxpow.nStartHeight);
+        if (height < -1 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Activation height %ld for auxpow is out of valid range. Use -1 to disable auxpow.", height));
+        }
+        consensus.auxpow.nStartHeight = static_cast<int>(height);
+    }
+
+    const bool snapshot_height_set = args.IsArgSet("-ltcsnapshotheight");
+    const bool snapshot_blockhash_set = args.IsArgSet("-ltcsnapshotblockhash");
+    const bool snapshot_utxoroot_set = args.IsArgSet("-ltcsnapshotutxoroot");
+    if (snapshot_height_set || snapshot_blockhash_set || snapshot_utxoroot_set) {
+        if (!snapshot_height_set || !snapshot_blockhash_set || !snapshot_utxoroot_set) {
+            throw std::runtime_error("Litecoin snapshot parameters must include -ltcsnapshotheight, -ltcsnapshotblockhash, and -ltcsnapshotutxoroot together.");
+        }
+
+        const int64_t height = args.GetArg("-ltcsnapshotheight", consensus.ltc_snapshot.nHeight);
+        if (height < 0 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Litecoin snapshot height %ld is out of valid range.", height));
+        }
+
+        auto parse_hash_arg = [&args](const std::string& arg) {
+            const std::string value = args.GetArg(arg, "");
+            if (value.size() != 64 || !IsHex(value)) {
+                throw std::runtime_error(strprintf("%s must be exactly 64 hex characters.", arg));
+            }
+            const uint256 hash = uint256S(value);
+            if (hash.IsNull()) {
+                throw std::runtime_error(strprintf("%s must not be null.", arg));
+            }
+            return hash;
+        };
+
+        consensus.ltc_snapshot.nHeight = static_cast<int>(height);
+        consensus.ltc_snapshot.hashBlock = parse_hash_arg("-ltcsnapshotblockhash");
+        consensus.ltc_snapshot.hashUTXORoot = parse_hash_arg("-ltcsnapshotutxoroot");
+    }
+
     if (args.IsArgSet("-segwitheight")) {
         int64_t height = args.GetArg("-segwitheight", consensus.SegwitHeight);
         if (height < -1 || height >= std::numeric_limits<int>::max()) {

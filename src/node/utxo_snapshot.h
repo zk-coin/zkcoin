@@ -6,14 +6,27 @@
 #ifndef BITCOIN_NODE_UTXO_SNAPSHOT_H
 #define BITCOIN_NODE_UTXO_SNAPSHOT_H
 
+#include <amount.h>
+#include <fs.h>
+#include <streams.h>
 #include <uint256.h>
 #include <serialize.h>
+
+#include <cstdint>
+#include <functional>
+#include <string>
+
+class CCoinsViewCache;
 
 //! Metadata describing a serialized version of a UTXO set from which an
 //! assumeutxo CChainState can be constructed.
 class SnapshotMetadata
 {
 public:
+    //! The height of the block that reflects the tip of the chain for the
+    //! UTXO set contained in this snapshot.
+    int m_base_height = -1;
+
     //! The hash of the block that reflects the tip of the chain for the
     //! UTXO set contained in this snapshot.
     uint256 m_base_blockhash;
@@ -28,14 +41,32 @@ public:
 
     SnapshotMetadata() { }
     SnapshotMetadata(
+        int base_height,
         const uint256& base_blockhash,
         uint64_t coins_count,
         unsigned int nchaintx) :
+            m_base_height(base_height),
             m_base_blockhash(base_blockhash),
             m_coins_count(coins_count),
             m_nchaintx(nchaintx) { }
 
-    SERIALIZE_METHODS(SnapshotMetadata, obj) { READWRITE(obj.m_base_blockhash, obj.m_coins_count, obj.m_nchaintx); }
+    SERIALIZE_METHODS(SnapshotMetadata, obj) { READWRITE(obj.m_base_height, obj.m_base_blockhash, obj.m_coins_count, obj.m_nchaintx); }
 };
+
+struct SnapshotManifestStats
+{
+    SnapshotMetadata m_metadata;
+    uint64_t m_coins_count{0};
+    CAmount m_total_amount{0};
+    uint256 m_hash_serialized;
+    uint256 m_hash_import;
+};
+
+static constexpr uint32_t LTC_SNAPSHOT_IMPORT_COIN_HEIGHT{1};
+
+bool DecodeSnapshotManifest(CDataStream& stream, SnapshotManifestStats& stats, std::string& error);
+bool ReadSnapshotManifestFromFile(const fs::path& path, SnapshotManifestStats& stats, std::string& error);
+bool ImportSnapshotManifest(CDataStream& stream, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height = nullptr, const uint256* expected_base_hash = nullptr, const uint256* expected_import_hash = nullptr, const std::function<void()>& interruption_point = {}, bool resume_import = false);
+bool ImportSnapshotManifestFromFile(const fs::path& path, CCoinsViewCache& coins_cache, SnapshotManifestStats& stats, std::string& error, const int* expected_base_height = nullptr, const uint256* expected_base_hash = nullptr, const uint256* expected_import_hash = nullptr, const std::function<void()>& interruption_point = {}, bool resume_import = false);
 
 #endif // BITCOIN_NODE_UTXO_SNAPSHOT_H

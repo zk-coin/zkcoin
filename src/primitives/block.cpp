@@ -5,22 +5,15 @@
 
 #include <primitives/block.h>
 
-#include <hash.h>
 #include <tinyformat.h>
 #include <util/strencodings.h>
-#include <crypto/common.h>
-#include <crypto/scrypt.h>
 
-uint256 CBlockHeader::GetHash() const
-{
-    return SerializeHash(*this);
-}
+#include <utility>
 
-uint256 CBlockHeader::GetPoWHash() const
+void CBlockHeader::SetAuxpow(std::unique_ptr<CAuxPow> apow)
 {
-    uint256 thash;
-    scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
-    return thash;
+    auxpow = std::move(apow);
+    SetAuxpowVersion(auxpow != nullptr);
 }
 
 std::string CBlock::ToString() const

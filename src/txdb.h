@@ -11,6 +11,7 @@
 #include <chain.h>
 #include <mw/node/CoinsView.h>
 #include <primitives/block.h>
+#include <serialize.h>
 
 #include <memory>
 #include <string>
@@ -20,6 +21,18 @@
 class CBlockIndex;
 class CCoinsViewDBCursor;
 class uint256;
+
+struct LtcSnapshotImportInfo
+{
+    int nHeight{-1};
+    uint256 hashBlock;
+    uint256 hashUTXORoot;
+
+    SERIALIZE_METHODS(LtcSnapshotImportInfo, obj)
+    {
+        READWRITE(obj.nHeight, obj.hashBlock, obj.hashUTXORoot);
+    }
+};
 
 //! -dbcache default (MiB)
 static const int64_t nDefaultDbCache = 450;
@@ -61,6 +74,12 @@ public:
     bool HaveCoin(const OutputIndex& index) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
+    bool ReadLtcSnapshotImportInfo(LtcSnapshotImportInfo& info) const;
+    bool WriteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info);
+    bool ReadLtcSnapshotImportInProgress(LtcSnapshotImportInfo& info) const;
+    bool WriteLtcSnapshotImportInProgress(const LtcSnapshotImportInfo& info);
+    bool ClearLtcSnapshotImportInProgress();
+    bool CompleteLtcSnapshotImportInfo(const LtcSnapshotImportInfo& info);
     bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
     CCoinsViewCursor *Cursor() const override;
     CDBWrapper* GetDB() noexcept { return m_db.get(); }
