@@ -4,6 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the shielded pool consensus marker scaffold."""
 
+import hashlib
+
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
 from test_framework.messages import (
     COIN,
@@ -19,7 +21,7 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.wallet import MiniWallet
 
 
-MARKER_PREFIX = b"zkcoin-shielded-v0"
+MARKER_PREFIX = b"zkc-shield-v0"
 ACTION_MINT = 0x01
 ACTION_SPEND = 0x02
 
@@ -38,7 +40,29 @@ class ShieldedPoolTest(BitcoinTestFramework):
     def setup_network(self):
         self.setup_nodes()
 
-    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1):
+    def unique_field(self, label):
+        self.marker_nonce += 1
+        return hashlib.sha256(f"{label}-{self.marker_nonce}".encode()).digest()
+
+    def make_marker_payload(self, *, action=ACTION_MINT, commitment=None, nullifier=None):
+        if commitment is None:
+            commitment = self.unique_field("commitment")
+
+        if action == ACTION_MINT:
+            payload = MARKER_PREFIX + bytes([action]) + commitment
+            return payload, commitment, None
+
+        if nullifier is None:
+            nullifier = self.unique_field("nullifier")
+
+        if action == ACTION_SPEND:
+            payload = MARKER_PREFIX + bytes([action]) + nullifier + commitment
+            return payload, commitment, nullifier
+
+        payload = MARKER_PREFIX + bytes([action]) + commitment
+        return payload, commitment, nullifier
+
+    def make_marker_tx(self, wallet, *, action=ACTION_MINT, marker_value=0, marker_count=1, commitment=None, nullifier=None):
         utxo = wallet._utxos.pop(0)
         input_value = int(utxo["value"] * COIN)
         fee = 1000
@@ -47,16 +71,21 @@ class ShieldedPoolTest(BitcoinTestFramework):
         tx.vin = [CTxIn(COutPoint(int(utxo["txid"], 16), utxo["vout"]))]
         tx.vout = [CTxOut(input_value - fee, wallet._scriptPubKey)]
 
-        payload = MARKER_PREFIX + bytes([action])
+        payload, commitment, nullifier = self.make_marker_payload(
+            action=action,
+            commitment=commitment,
+            nullifier=nullifier,
+        )
         for _ in range(marker_count):
             tx.vout.append(CTxOut(marker_value, CScript([OP_RETURN, payload])))
 
         tx.wit.vtxinwit = [CTxInWitness()]
         tx.wit.vtxinwit[0].scriptWitness.stack = [CScript([OP_TRUE])]
         tx.rehash()
-        return tx.serialize().hex(), tx.hash
+        return tx.serialize().hex(), tx.hash, commitment, nullifier
 
     def run_test(self):
+        self.marker_nonce = 0
         disabled = self.nodes[0]
         active = self.nodes[1]
         future = self.nodes[2]
@@ -74,7 +103,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(future.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
 
         self.log.info("Reject shielded marker transactions before activation")
-        raw_disabled, _ = self.make_marker_tx(wallets[0])
+        raw_disabled, _, _, _ = self.make_marker_tx(wallets[0])
         assert_raises_rpc_error(-26, "bad-shielded-before-activation", disabled.sendrawtransaction, raw_disabled)
         assert_raises_rpc_error(
             -25,
@@ -84,25 +113,60 @@ class ShieldedPoolTest(BitcoinTestFramework):
             [raw_disabled],
         )
 
-        raw_future, _ = self.make_marker_tx(wallets[2])
+        raw_future, _, _, _ = self.make_marker_tx(wallets[2])
         assert_raises_rpc_error(-26, "bad-shielded-before-activation", future.sendrawtransaction, raw_future)
 
         self.log.info("Reject malformed active shielded marker transactions")
-        raw_bad_action, _ = self.make_marker_tx(wallets[1], action=0xFF)
+        raw_bad_action, _, _, _ = self.make_marker_tx(wallets[1], action=0xFF)
         assert_raises_rpc_error(-26, "bad-shielded-payload", active.sendrawtransaction, raw_bad_action)
 
-        raw_nonzero, _ = self.make_marker_tx(wallets[1], marker_value=1)
+        raw_nonzero, _, _, _ = self.make_marker_tx(wallets[1], marker_value=1)
         assert_raises_rpc_error(-26, "bad-shielded-value", active.sendrawtransaction, raw_nonzero)
 
-        raw_duplicate, _ = self.make_marker_tx(wallets[1], marker_count=2)
+        raw_duplicate, _, _, _ = self.make_marker_tx(wallets[1], marker_count=2)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate", active.sendrawtransaction, raw_duplicate)
 
-        self.log.info("Accept and mine activated shielded marker transactions")
-        raw_active, txid = self.make_marker_tx(wallets[1], action=ACTION_SPEND)
-        accepted_txid = active.sendrawtransaction(raw_active)
-        assert_equal(accepted_txid, txid)
+        raw_zero_commitment, _, _, _ = self.make_marker_tx(wallets[1], commitment=bytes(32))
+        assert_raises_rpc_error(-26, "bad-shielded-commitment", active.sendrawtransaction, raw_zero_commitment)
+
+        raw_zero_nullifier, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=bytes(32))
+        assert_raises_rpc_error(-26, "bad-shielded-nullifier", active.sendrawtransaction, raw_zero_nullifier)
+
+        self.log.info("Reject duplicate shielded state inside a candidate block")
+        duplicate_block_commitment = self.unique_field("duplicate-block-commitment")
+        raw_block_dup_a, _, _, _ = self.make_marker_tx(wallets[1], commitment=duplicate_block_commitment)
+        raw_block_dup_b, _, _, _ = self.make_marker_tx(wallets[1], commitment=duplicate_block_commitment)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-duplicate-commitment",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_block_dup_a, raw_block_dup_b],
+        )
+
+        self.log.info("Accept and mine activated shielded commitments")
+        raw_active, txid, mined_commitment, _ = self.make_marker_tx(wallets[1])
+        assert_equal(active.sendrawtransaction(raw_active), txid)
         block_hash = active.generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)[0]
         assert txid in active.getblock(block_hash)["tx"]
+
+        self.log.info("Reject duplicate shielded commitments from active-chain state")
+        raw_chain_duplicate, _, _, _ = self.make_marker_tx(wallets[1], commitment=mined_commitment)
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", active.sendrawtransaction, raw_chain_duplicate)
+
+        self.log.info("Reject duplicate shielded nullifiers from mempool and active-chain state")
+        shared_nullifier = self.unique_field("shared-nullifier")
+        raw_spend, spend_txid, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        assert_equal(active.sendrawtransaction(raw_spend), spend_txid)
+
+        raw_mempool_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", active.sendrawtransaction, raw_mempool_duplicate)
+
+        spend_block_hash = active.generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)[0]
+        assert spend_txid in active.getblock(spend_block_hash)["tx"]
+
+        raw_chain_nullifier_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier)
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", active.sendrawtransaction, raw_chain_nullifier_duplicate)
 
 
 if __name__ == "__main__":

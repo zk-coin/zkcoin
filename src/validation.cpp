@@ -53,6 +53,7 @@
 #include <validationinterface.h>
 #include <warnings.h>
 
+#include <set>
 #include <string>
 
 #include <boost/algorithm/string/replace.hpp>
@@ -577,6 +578,120 @@ private:
     size_t m_limit_descendant_size;
 };
 
+struct ShieldedValidationState
+{
+    std::set<uint256> commitments;
+    std::set<uint256> nullifiers;
+};
+
+static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& marker, ShieldedValidationState& shielded, std::string& reject_reason)
+{
+    if (marker.HasNullifier() && !shielded.nullifiers.insert(marker.nullifier).second) {
+        reject_reason = "bad-shielded-duplicate-nullifier";
+        return false;
+    }
+    if (marker.HasCommitment() && !shielded.commitments.insert(marker.commitment).second) {
+        reject_reason = "bad-shielded-duplicate-commitment";
+        return false;
+    }
+    return true;
+}
+
+static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, ShieldedValidationState& shielded, BlockValidationState& state)
+{
+    std::vector<Consensus::ShieldedPool::Marker> markers;
+    TxValidationState tx_state;
+    if (!Consensus::ShieldedPool::CheckTransaction(tx, active, tx_state, &markers)) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
+                             strprintf("Shielded pool transaction check failed (tx hash %s) %s",
+                                       tx.GetHash().ToString(), tx_state.GetDebugMessage()));
+    }
+
+    if (!active) return true;
+
+    for (const auto& marker : markers) {
+        std::string reject_reason;
+        if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, reject_reason);
+        }
+    }
+    return true;
+}
+
+static bool LoadShieldedChainState(const CBlockIndex* pindexPrev, const Consensus::Params& consensus, ShieldedValidationState& shielded, BlockValidationState& state)
+{
+    std::vector<const CBlockIndex*> shielded_blocks;
+    for (const CBlockIndex* pindex = pindexPrev; pindex != nullptr && consensus.shielded_pool.IsEnabled(pindex->nHeight); pindex = pindex->pprev) {
+        shielded_blocks.push_back(pindex);
+    }
+
+    for (auto it = shielded_blocks.rbegin(); it != shielded_blocks.rend(); ++it) {
+        CBlock block;
+        if (!ReadBlockFromDisk(block, *it, consensus)) {
+            return state.Error(strprintf("failed to read shielded state block %s", (*it)->GetBlockHash().ToString()));
+        }
+        for (const auto& tx : block.vtx) {
+            if (!AddShieldedTransactionToState(*tx, /*active=*/true, shielded, state)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool CheckShieldedBlockState(const CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensus, int nHeight, BlockValidationState& state)
+{
+    const bool active = consensus.shielded_pool.IsEnabled(nHeight);
+    ShieldedValidationState shielded;
+
+    if (active && !LoadShieldedChainState(pindexPrev, consensus, shielded, state)) {
+        return false;
+    }
+
+    for (const auto& tx : block.vtx) {
+        if (!AddShieldedTransactionToState(*tx, active, shielded, state)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool::Marker>& markers, const CTxMemPool& pool, const Consensus::Params& consensus, TxValidationState& state)
+{
+    if (markers.empty()) return true;
+
+    ShieldedValidationState shielded;
+    BlockValidationState block_state;
+    if (!LoadShieldedChainState(::ChainActive().Tip(), consensus, shielded, block_state)) {
+        return state.Error(strprintf("failed to read shielded chain state: %s", block_state.ToString()));
+    }
+
+    for (const TxMempoolInfo& info : pool.infoAll()) {
+        std::vector<Consensus::ShieldedPool::Marker> mempool_markers;
+        TxValidationState tx_state;
+        if (!Consensus::ShieldedPool::CheckTransaction(*info.tx, /*active=*/true, tx_state, &mempool_markers)) {
+            return state.Error(strprintf("bad shielded mempool state: %s", tx_state.ToString()));
+        }
+        for (const auto& marker : mempool_markers) {
+            std::string reject_reason;
+            if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+                return state.Error(strprintf("bad shielded mempool state: %s", reject_reason));
+            }
+        }
+    }
+
+    for (const auto& marker : markers) {
+        std::string reject_reason;
+        if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+            return state.Invalid(TxValidationResult::TX_CONFLICT, reject_reason);
+        }
+    }
+
+    return true;
+}
+
 bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 {
     const CTransactionRef& ptx = ws.m_ptx;
@@ -603,8 +718,13 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return false; // state filled in by CheckTransaction
     }
 
-    const bool shielded_pool_active = args.m_chainparams.GetConsensus().shielded_pool.IsEnabled(::ChainActive().Height() + 1);
-    if (!Consensus::ShieldedPool::CheckTransaction(tx, shielded_pool_active, state)) {
+    const Consensus::Params& consensus = args.m_chainparams.GetConsensus();
+    const bool shielded_pool_active = consensus.shielded_pool.IsEnabled(::ChainActive().Height() + 1);
+    std::vector<Consensus::ShieldedPool::Marker> shielded_markers;
+    if (!Consensus::ShieldedPool::CheckTransaction(tx, shielded_pool_active, state, &shielded_markers)) {
+        return false; // state filled in by CheckTransaction
+    }
+    if (shielded_pool_active && !CheckShieldedMempoolState(shielded_markers, m_pool, consensus, state)) {
         return false; // state filled in by CheckTransaction
     }
 
@@ -2078,6 +2198,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (!CheckConfiguredLtcSnapshotImported(CoinsDB(), consensus, snapshot_error)) {
             return state.Error(snapshot_error);
         }
+    }
+
+    if (!CheckShieldedBlockState(block, pindex->pprev, consensus, pindex->nHeight, state)) {
+        return error("%s: Consensus::CheckShieldedBlockState: %s", __func__, state.ToString());
     }
 
     bool fScriptChecks = true;
