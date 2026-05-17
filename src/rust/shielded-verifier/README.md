@@ -13,10 +13,17 @@ The v4 bundle layout is:
 zkc-p4 || version || kind || proof_system || flags || public_input_hash || proof_len_le32 || proof_bytes
 ```
 
-`proof_system = 1` is reserved for the Orchard verifier. The current proof bytes
-remain a deterministic boundary payload so the consensus plumbing, local
-Litecoin snapshot launch, and Scrypt AuxPoW tests stay reproducible while the
-next milestone replaces that payload check with Orchard proof verification.
+`proof_system = 1` is reserved for the Orchard verifier. For that proof system,
+`proof_bytes` is itself a structured payload:
+
+```text
+zkc-orchard-proof-v1 || kind || public_input_hash || proof_body_len_le32 || proof_body
+```
+
+The current proof body remains a deterministic boundary payload so the consensus
+plumbing, local Litecoin snapshot launch, and Scrypt AuxPoW tests stay
+reproducible while the next milestone replaces that body check with Orchard
+proof verification.
 
 Run the Rust tests and C ABI smoke test with:
 

@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(marker.action, ACTION_MINT);
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
     const CTransaction unsigned_tx = TransactionWithMarker(payload);
-    BOOST_CHECK_EQUAL(BuildProofEnvelope(marker, unsigned_tx).size(), ProofEnvelopePrefix().size() + 4 + SHIELDED_PUBLIC_INPUT_HASH_SIZE + sizeof(uint32_t) + FIELD_SIZE);
+    BOOST_CHECK_GT(BuildProofEnvelope(marker, unsigned_tx).size(), MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
 
     TxValidationState missing_proof_state;
     BOOST_CHECK(!CheckTransaction(unsigned_tx, /*active=*/true, missing_proof_state));
@@ -149,8 +149,22 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
             SHIELDED_PUBLIC_INPUT_HASH_SIZE),
         1);
     const auto proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash);
+    const auto orchard_payload_v1 = BuildOrchardProofPayloadV1(ACTION_MINT, public_input_hash);
+    BOOST_CHECK(VerifyOrchardProofPayloadV1(orchard_payload_v1, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!VerifyOrchardProofPayloadV1(orchard_payload_v1, ACTION_SPEND, public_input_hash));
     BOOST_CHECK(VerifyProofBundleV4(proof_bundle_v4, ACTION_MINT, public_input_hash));
     BOOST_CHECK(!VerifyProofBundleV4(proof_bundle_v4, ACTION_SPEND, public_input_hash));
+    uint8_t decoded_proof_kind{0};
+    uint256 decoded_public_input_hash;
+    std::vector<unsigned char> decoded_orchard_payload;
+    BOOST_CHECK(DecodeProofEnvelope(proof_bundle_v4, decoded_proof_kind, decoded_public_input_hash, decoded_orchard_payload));
+    BOOST_CHECK_EQUAL(decoded_proof_kind, ACTION_MINT);
+    BOOST_CHECK_EQUAL(decoded_public_input_hash.ToString(), public_input_hash.ToString());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        orchard_payload_v1.begin(),
+        orchard_payload_v1.end(),
+        decoded_orchard_payload.begin(),
+        decoded_orchard_payload.end());
     BOOST_CHECK_EQUAL(
         zkc_shielded_verify_bundle_v4(
             proof_bundle_v4.data(),
@@ -301,9 +315,7 @@ BOOST_AUTO_TEST_CASE(shielded_proof_bundle_witness_policy_allows_real_proof_size
 
     const uint256 public_input_hash = BuildProofPublicInputHash(ACTION_MINT, ExpectedProofHash(marker), Field(0x05));
     auto proof_bundle = BuildProofBundleV4(ACTION_MINT, public_input_hash);
-    BOOST_REQUIRE(proof_bundle.size() <= MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
-    proof_bundle.resize(MAX_STANDARD_P2WSH_STACK_ITEM_SIZE + 1, 0x42);
-    SetProofBundleLength(proof_bundle);
+    BOOST_REQUIRE(proof_bundle.size() > MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
     BOOST_REQUIRE(HasProofEnvelopePrefix(proof_bundle));
     BOOST_REQUIRE(proof_bundle.size() <= MAX_SCRIPT_ELEMENT_SIZE);
 

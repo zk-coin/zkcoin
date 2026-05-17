@@ -58,18 +58,25 @@ static const unsigned char EXPECTED_MINT_PROOF_V4[32] = {
 
 int main(void)
 {
-    unsigned char expected_bundle_v4[78];
+    unsigned char expected_bundle_v4[135];
     memcpy(expected_bundle_v4, "zkc-p4", 6);
     expected_bundle_v4[6] = 1;
     expected_bundle_v4[7] = 1;
     expected_bundle_v4[8] = 1;
     expected_bundle_v4[9] = 0;
     memcpy(expected_bundle_v4 + 10, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
-    expected_bundle_v4[42] = 32;
+    expected_bundle_v4[42] = 89;
     expected_bundle_v4[43] = 0;
     expected_bundle_v4[44] = 0;
     expected_bundle_v4[45] = 0;
-    memcpy(expected_bundle_v4 + 46, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
+    memcpy(expected_bundle_v4 + 46, "zkc-orchard-proof-v1", 20);
+    expected_bundle_v4[66] = 1;
+    memcpy(expected_bundle_v4 + 67, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH));
+    expected_bundle_v4[99] = 32;
+    expected_bundle_v4[100] = 0;
+    expected_bundle_v4[101] = 0;
+    expected_bundle_v4[102] = 0;
+    memcpy(expected_bundle_v4 + 103, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
 
     if (zkc_shielded_verify_proof_v1(EXPECTED_PROOF, sizeof(EXPECTED_PROOF), FIELD_HASH, sizeof(FIELD_HASH), TX_BINDING_HASH, sizeof(TX_BINDING_HASH)) != 1) {
         return 1;

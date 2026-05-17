@@ -12,11 +12,14 @@ const PROOF_PUBLIC_INPUT_PREIMAGE_PREFIX: &[u8] = b"zkc-public-input-v1";
 const PROOF_ENVELOPE_PREIMAGE_PREFIX_V3: &[u8] = b"zkc-proof-envelope-v3";
 const PROOF_BUNDLE_PREFIX_V4: &[u8] = b"zkc-p4";
 const PROOF_BUNDLE_PREIMAGE_PREFIX_V4: &[u8] = b"zkc-proof-bundle-v4";
+const ORCHARD_PROOF_PAYLOAD_PREFIX_V1: &[u8] = b"zkc-orchard-proof-v1";
 const PROOF_BUNDLE_VERSION_V4: u8 = 1;
 const PROOF_SYSTEM_ORCHARD: u8 = 1;
 const PROOF_BUNDLE_FLAGS_NONE: u8 = 0;
 const PROOF_BUNDLE_HEADER_LEN_V4: usize =
     6 + 1 + 1 + 1 + 1 + HASH_SIZE + core::mem::size_of::<u32>();
+const ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1: usize =
+    ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len() + 1 + HASH_SIZE + core::mem::size_of::<u32>();
 
 fn hash256(data: &[u8]) -> [u8; HASH_SIZE] {
     let first = Sha256::digest(data);
@@ -90,7 +93,7 @@ pub fn expected_proof_payload_v4(
 }
 
 pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
-    let proof_payload = expected_proof_payload_v4(proof_kind, public_input_hash);
+    let proof_payload = build_orchard_proof_payload_v1(proof_kind, public_input_hash);
     let mut bundle = Vec::with_capacity(PROOF_BUNDLE_HEADER_LEN_V4 + proof_payload.len());
     bundle.extend_from_slice(PROOF_BUNDLE_PREFIX_V4);
     bundle.push(PROOF_BUNDLE_VERSION_V4);
@@ -101,6 +104,58 @@ pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]
     bundle.extend_from_slice(&(proof_payload.len() as u32).to_le_bytes());
     bundle.extend_from_slice(&proof_payload);
     bundle
+}
+
+pub fn build_orchard_proof_payload_v1(
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> Vec<u8> {
+    let proof_body = expected_proof_payload_v4(proof_kind, public_input_hash);
+    let mut payload =
+        Vec::with_capacity(ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 + proof_body.len());
+    payload.extend_from_slice(ORCHARD_PROOF_PAYLOAD_PREFIX_V1);
+    payload.push(proof_kind);
+    payload.extend_from_slice(public_input_hash);
+    payload.extend_from_slice(&(proof_body.len() as u32).to_le_bytes());
+    payload.extend_from_slice(&proof_body);
+    payload
+}
+
+pub fn verify_orchard_proof_payload_v1(
+    proof_payload: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> bool {
+    if proof_payload.len() < ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 {
+        return false;
+    }
+    if !proof_payload.starts_with(ORCHARD_PROOF_PAYLOAD_PREFIX_V1) {
+        return false;
+    }
+
+    let kind_offset = ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len();
+    let public_input_offset = kind_offset + 1;
+    let proof_len_offset = public_input_offset + HASH_SIZE;
+    let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
+
+    if proof_payload[kind_offset] != proof_kind {
+        return false;
+    }
+    if &proof_payload[public_input_offset..proof_len_offset] != public_input_hash {
+        return false;
+    }
+
+    let proof_len = u32::from_le_bytes(
+        proof_payload[proof_len_offset..proof_offset]
+            .try_into()
+            .expect("proof length slice has fixed length"),
+    ) as usize;
+    if proof_len != proof_payload.len() - proof_offset {
+        return false;
+    }
+
+    let proof_body = &proof_payload[proof_offset..];
+    proof_body == expected_proof_payload_v4(proof_kind, public_input_hash)
 }
 
 pub fn verify_proof_payload_v1(
@@ -173,8 +228,7 @@ pub fn verify_proof_bundle_v4(
         return false;
     }
 
-    let proof = &bundle[proof_offset..];
-    proof == expected_proof_payload_v4(proof_kind, public_input_hash)
+    verify_orchard_proof_payload_v1(&bundle[proof_offset..], proof_kind, public_input_hash)
 }
 
 unsafe fn read_hash<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8; HASH_SIZE]> {
@@ -338,8 +392,12 @@ mod tests {
             EXPECTED_MINT_PROOF_V4
         );
         assert_eq!(
+            build_orchard_proof_payload_v1(1, &EXPECTED_PUBLIC_INPUT_HASH).len(),
+            ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 + HASH_SIZE
+        );
+        assert_eq!(
             build_proof_bundle_v4(1, &EXPECTED_PUBLIC_INPUT_HASH).len(),
-            PROOF_BUNDLE_HEADER_LEN_V4 + HASH_SIZE
+            PROOF_BUNDLE_HEADER_LEN_V4 + ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 + HASH_SIZE
         );
     }
 
@@ -378,6 +436,17 @@ mod tests {
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
         let bundle_v4 = build_proof_bundle_v4(1, &EXPECTED_PUBLIC_INPUT_HASH);
+        let orchard_payload_v1 = build_orchard_proof_payload_v1(1, &EXPECTED_PUBLIC_INPUT_HASH);
+        assert!(verify_orchard_proof_payload_v1(
+            &orchard_payload_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        assert!(!verify_orchard_proof_payload_v1(
+            &orchard_payload_v1,
+            2,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
         assert!(verify_proof_bundle_v4(
             &bundle_v4,
             1,
@@ -419,6 +488,14 @@ mod tests {
         wrong_bundle[0] ^= 1;
         assert!(!verify_proof_bundle_v4(
             &wrong_bundle,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+
+        let mut wrong_payload = orchard_payload_v1;
+        wrong_payload[ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len()] ^= 1;
+        assert!(!verify_orchard_proof_payload_v1(
+            &wrong_payload,
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));

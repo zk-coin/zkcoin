@@ -53,6 +53,13 @@ static const std::vector<unsigned char>& ProofBundlePreimagePrefixV4()
     return prefix;
 }
 
+static const std::vector<unsigned char>& OrchardProofPayloadPrefixV1()
+{
+    static const std::vector<unsigned char> prefix{
+        'z', 'k', 'c', '-', 'o', 'r', 'c', 'h', 'a', 'r', 'd', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '1'};
+    return prefix;
+}
+
 static void AppendUint32(std::vector<unsigned char>& payload, uint32_t value)
 {
     for (size_t i = 0; i < sizeof(value); ++i) {
@@ -156,17 +163,51 @@ uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& publ
     return Hash(data);
 }
 
+std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    const uint256 proof_body_hash = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    std::vector<unsigned char> proof_payload = OrchardProofPayloadPrefixV1();
+    proof_payload.push_back(proof_kind);
+    proof_payload.insert(proof_payload.end(), public_input_hash.begin(), public_input_hash.end());
+    AppendUint32(proof_payload, SHIELDED_PROOF_HASH_SIZE);
+    proof_payload.insert(proof_payload.end(), proof_body_hash.begin(), proof_body_hash.end());
+    return proof_payload;
+}
+
+bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash)
+{
+    const auto& prefix = OrchardProofPayloadPrefixV1();
+    const size_t kind_offset = prefix.size();
+    const size_t public_input_offset = kind_offset + 1;
+    const size_t proof_len_offset = public_input_offset + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
+    if (proof_payload.size() < proof_offset) return false;
+    if (!std::equal(prefix.begin(), prefix.end(), proof_payload.begin())) return false;
+    if (proof_payload[kind_offset] != proof_kind) return false;
+    if (!std::equal(public_input_hash.begin(), public_input_hash.end(), proof_payload.begin() + public_input_offset)) return false;
+
+    uint32_t proof_len{0};
+    for (size_t i = 0; i < sizeof(proof_len); ++i) {
+        proof_len |= uint32_t{proof_payload[proof_len_offset + i]} << (8 * i);
+    }
+    if (proof_len != proof_payload.size() - proof_offset) return false;
+
+    const uint256 expected_proof_body = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    return proof_len == SHIELDED_PROOF_HASH_SIZE &&
+           std::equal(expected_proof_body.begin(), expected_proof_body.end(), proof_payload.begin() + proof_offset);
+}
+
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash)
 {
-    const uint256 proof_hash = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    const auto proof_payload = BuildOrchardProofPayloadV1(proof_kind, public_input_hash);
     std::vector<unsigned char> bundle = ProofBundlePrefixV4();
     bundle.push_back(SHIELDED_PROOF_BUNDLE_VERSION_V4);
     bundle.push_back(proof_kind);
     bundle.push_back(SHIELDED_PROOF_SYSTEM_ORCHARD);
     bundle.push_back(SHIELDED_PROOF_BUNDLE_FLAGS_NONE);
     bundle.insert(bundle.end(), public_input_hash.begin(), public_input_hash.end());
-    AppendUint32(bundle, SHIELDED_PROOF_HASH_SIZE);
-    bundle.insert(bundle.end(), proof_hash.begin(), proof_hash.end());
+    AppendUint32(bundle, static_cast<uint32_t>(proof_payload.size()));
+    bundle.insert(bundle.end(), proof_payload.begin(), proof_payload.end());
     return bundle;
 }
 
