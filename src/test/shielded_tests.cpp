@@ -5,6 +5,7 @@
 #include <amount.h>
 #include <coins.h>
 #include <consensus/shielded.h>
+#include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
@@ -15,6 +16,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <cassert>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(shielded_tests, BasicTestingSetup)
@@ -86,6 +88,38 @@ static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins
     tx.vin[0].prevout = COutPoint(funding.GetHash(), 0);
     tx.vin[0].scriptWitness.stack.push_back(witness_item);
     tx.vin[0].scriptWitness.stack.emplace_back(witness_script.begin(), witness_script.end());
+}
+
+static COutPoint AddTransparentCoin(CCoinsViewCache& coins, CAmount amount, unsigned char nonce)
+{
+    CMutableTransaction funding_tx;
+    funding_tx.nLockTime = nonce;
+    funding_tx.vin.resize(1);
+    funding_tx.vin[0].prevout = COutPoint(Field(nonce), 0);
+    funding_tx.vout.emplace_back(amount, CScript() << OP_TRUE);
+    const CTransaction funding(funding_tx);
+    AddCoins(coins, funding, 1);
+    return COutPoint(funding.GetHash(), 0);
+}
+
+static CTransaction TransactionWithShieldedValueBalance(
+    CCoinsViewCache& coins,
+    CAmount transparent_input,
+    CAmount transparent_output,
+    const std::vector<unsigned char>& marker_payload,
+    unsigned char nonce)
+{
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout = AddTransparentCoin(coins, transparent_input, nonce);
+    tx.vout.emplace_back(transparent_output, CScript() << OP_TRUE);
+    tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
+
+    Consensus::ShieldedPool::Marker marker;
+    const bool decoded = Consensus::ShieldedPool::DecodeMarkerPayload(marker_payload, marker);
+    assert(decoded);
+    tx.vin[0].scriptWitness.stack.push_back(Consensus::ShieldedPool::BuildProofEnvelope(marker, CTransaction(tx)));
+    return CTransaction(tx);
 }
 
 BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
@@ -354,6 +388,65 @@ BOOST_AUTO_TEST_CASE(shielded_proof_bundle_witness_policy_allows_real_proof_size
     over_limit_tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
     AddP2WSHWitnessInput(over_limit_tx, coins, over_limit_bundle, 3);
     BOOST_CHECK(!IsWitnessStandard(CTransaction(over_limit_tx), coins));
+}
+
+struct ShieldedActiveTestingSetup : public BasicTestingSetup {
+    ShieldedActiveTestingSetup()
+        : BasicTestingSetup(CBaseChainParams::REGTEST, {"-shieldedheight=1"})
+    {
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE(check_tx_inputs_accounts_shielded_value_balance, ShieldedActiveTestingSetup)
+{
+    using namespace Consensus::ShieldedPool;
+
+    CCoinsView coins_dummy;
+    CCoinsViewCache coins(&coins_dummy);
+
+    CAmount txfee{0};
+    TxValidationState valid_mint_state;
+    const CTransaction valid_mint = TransactionWithShieldedValueBalance(
+        coins,
+        5 * COIN,
+        4 * COIN,
+        BuildMintPayload(Field(0x10), COIN),
+        0x10);
+    BOOST_CHECK(Consensus::CheckTxInputs(valid_mint, valid_mint_state, coins, /*nSpendHeight=*/1, txfee));
+    BOOST_CHECK_EQUAL(txfee, 0);
+
+    txfee = 0;
+    TxValidationState underfunded_mint_state;
+    const CTransaction underfunded_mint = TransactionWithShieldedValueBalance(
+        coins,
+        5 * COIN,
+        4 * COIN + 1,
+        BuildMintPayload(Field(0x11), COIN),
+        0x11);
+    BOOST_CHECK(!Consensus::CheckTxInputs(underfunded_mint, underfunded_mint_state, coins, /*nSpendHeight=*/1, txfee));
+    BOOST_CHECK_EQUAL(underfunded_mint_state.GetRejectReason(), "bad-txns-in-belowout");
+
+    txfee = 0;
+    TxValidationState valid_spend_state;
+    const CTransaction valid_spend = TransactionWithShieldedValueBalance(
+        coins,
+        5 * COIN,
+        6 * COIN,
+        BuildSpendPayload(Field(0x20), Field(0x21), COIN),
+        0x12);
+    BOOST_CHECK(Consensus::CheckTxInputs(valid_spend, valid_spend_state, coins, /*nSpendHeight=*/1, txfee));
+    BOOST_CHECK_EQUAL(txfee, 0);
+
+    txfee = 0;
+    TxValidationState overspent_spend_state;
+    const CTransaction overspent_spend = TransactionWithShieldedValueBalance(
+        coins,
+        5 * COIN,
+        6 * COIN + 1,
+        BuildSpendPayload(Field(0x22), Field(0x23), COIN),
+        0x13);
+    BOOST_CHECK(!Consensus::CheckTxInputs(overspent_spend, overspent_spend_state, coins, /*nSpendHeight=*/1, txfee));
+    BOOST_CHECK_EQUAL(overspent_spend_state.GetRejectReason(), "bad-txns-in-belowout");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
