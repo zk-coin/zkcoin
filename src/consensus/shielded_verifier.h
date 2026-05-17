@@ -52,6 +52,18 @@ extern "C" int zkc_shielded_check_bundle_v4(
     unsigned char* real_request_hash_out,
     size_t real_request_hash_out_len);
 
+extern "C" int zkc_shielded_check_bundle_v5(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    uint8_t* proof_body_mode_out,
+    unsigned char* real_request_hash_out,
+    size_t real_request_hash_out_len,
+    unsigned char* real_verifier_input_hash_out,
+    size_t real_verifier_input_hash_out_len);
+
 extern "C" int zkc_shielded_verify_orchard_proof_v1(
     const unsigned char* proof_body,
     size_t proof_body_len,
@@ -104,6 +116,17 @@ extern "C" int zkc_shielded_orchard_real_proof_check_v1(
     unsigned char* request_hash_out,
     size_t request_hash_out_len);
 
+extern "C" int zkc_shielded_orchard_real_proof_check_v2(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    unsigned char* request_hash_out,
+    size_t request_hash_out_len,
+    unsigned char* verifier_input_hash_out,
+    size_t verifier_input_hash_out_len);
+
 namespace Consensus {
 namespace ShieldedPool {
 
@@ -141,6 +164,7 @@ int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint
 bool OrchardRealProofRequestHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash);
 bool OrchardRealVerifierInputHashV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& verifier_input_hash);
 int CheckOrchardRealProofV1(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash);
+int CheckOrchardRealProofV2(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash, uint256& request_hash, uint256& verifier_input_hash);
 int OrchardRealVerifierBackendV1();
 bool OrchardRealVerifierSupportsProofsV1();
 const char* OrchardRealVerifierBackendName(int backend);
@@ -157,6 +181,7 @@ std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256&
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash);
 int CheckProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash);
+int CheckProofBundleV5(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash, uint256& real_verifier_input_hash);
 
 } // namespace ShieldedPool
 } // namespace Consensus

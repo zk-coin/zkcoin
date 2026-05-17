@@ -11,13 +11,17 @@ for diagnostics and future verifier wiring, and
 request fingerprint. `zkc_shielded_orchard_real_verifier_input_hash_v1` exposes
 the proof-byte-independent verifier input digest that a native verifier should
 bind to its public instance. The `zkc_shielded_orchard_real_proof_check_v1` ABI
-returns both the typed status and request fingerprint in one call, which is the
-stable boundary a native verifier backend must preserve. `zkc_shielded_check_bundle_v4`
-extends that contract to the full witness bundle: it returns the parsed proof
-body mode, the typed status, and the real-proof request fingerprint when the
-bundle contains native proof bytes. The current v4 path moves consensus toward
-the real verifier boundary: C++ computes the consensus public-input hash, while
-Rust parses a versioned proof bundle and dispatches by proof-system id.
+returns both the typed status and request fingerprint in one call. The v2 check
+ABI adds the verifier-input fingerprint to that same atomic parse result, which
+is the stable boundary a native verifier backend must preserve.
+`zkc_shielded_check_bundle_v4` extends the v1 contract to the full witness
+bundle: it returns the parsed proof body mode, the typed status, and the
+real-proof request fingerprint when the bundle contains native proof bytes.
+`zkc_shielded_check_bundle_v5` extends the full-bundle check with the
+verifier-input fingerprint, so callers do not need to peel the witness bundle
+twice. The current v4/v5 path moves consensus toward the real verifier boundary:
+C++ computes the consensus public-input hash, while Rust parses a versioned
+proof bundle and dispatches by proof-system id.
 Internally, real proof verification now goes through an explicit backend
 adapter, so native Orchard verification can be wired behind the same request
 contract without changing the consensus witness format again.

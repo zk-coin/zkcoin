@@ -277,6 +277,47 @@ int main()
         return 30;
     }
 
+    if (Consensus::ShieldedPool::CheckOrchardRealProofV2(real_proof_v1, 1, public_input_hash, request_hash, verifier_input_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 63;
+    }
+
+    if (std::vector<unsigned char>(request_hash.begin(), request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 64;
+    }
+
+    if (std::vector<unsigned char>(verifier_input_hash.begin(), verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
+        return 65;
+    }
+
+    if (Consensus::ShieldedPool::CheckOrchardRealProofV2(real_proof_v1, 2, public_input_hash, request_hash, verifier_input_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
+        return 66;
+    }
+
+    if (!request_hash.IsNull() || !verifier_input_hash.IsNull()) {
+        return 67;
+    }
+
+    std::fill(verifier_input_hash_bytes.begin(), verifier_input_hash_bytes.end(), 0xaa);
+    if (zkc_shielded_orchard_real_proof_check_v2(
+            real_proof_v1.data(),
+            real_proof_v1.size(),
+            1,
+            public_input_hash.begin(),
+            Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+            request_hash_bytes.data(),
+            request_hash_bytes.size(),
+            verifier_input_hash_bytes.data(),
+            verifier_input_hash_bytes.size()) != Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 68;
+    }
+
+    if (request_hash_bytes != EXPECTED_ORCHARD_REAL_REQUEST_HASH ||
+        verifier_input_hash_bytes != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
+        return 69;
+    }
+
     if (zkc_shielded_orchard_real_proof_check_v1(
             real_proof_v1.data(),
             real_proof_v1.size(),
@@ -389,6 +430,24 @@ int main()
 
     if (std::vector<unsigned char>(checked_request_hash.begin(), checked_request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
         return 52;
+    }
+
+    uint256 checked_verifier_input_hash;
+    if (Consensus::ShieldedPool::CheckProofBundleV5(real_bundle_v4, 1, public_input_hash, checked_body_mode, checked_request_hash, checked_verifier_input_hash) !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED) {
+        return 70;
+    }
+
+    if (checked_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return 71;
+    }
+
+    if (std::vector<unsigned char>(checked_request_hash.begin(), checked_request_hash.end()) != EXPECTED_ORCHARD_REAL_REQUEST_HASH) {
+        return 72;
+    }
+
+    if (std::vector<unsigned char>(checked_verifier_input_hash.begin(), checked_verifier_input_hash.end()) != EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH) {
+        return 73;
     }
 
     if (Consensus::ShieldedPool::CheckProofBundleV4(real_bundle_v4, 2, public_input_hash, checked_body_mode, checked_request_hash) !=
