@@ -10,6 +10,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
+#include <consensus/shielded.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <hash.h>
@@ -1395,6 +1396,50 @@ static void BuriedForkDescPushBack(UniValue& softforks, const std::string &name,
     softforks.pushKV(name, rv);
 }
 
+struct ShieldedPoolRpcState
+{
+    CAmount nValuePool{0};
+    size_t nCommitments{0};
+    size_t nNullifiers{0};
+};
+
+static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params& consensus, ShieldedPoolRpcState& pool_state, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+{
+    for (int height = 0; height <= chain.Height(); ++height) {
+        if (!consensus.shielded_pool.IsEnabled(height)) continue;
+
+        CBlock block;
+        const CBlockIndex* pindex = chain[height];
+        if (!ReadBlockFromDisk(block, pindex, consensus)) {
+            error = strprintf("failed to read shielded pool block %s", pindex->GetBlockHash().ToString());
+            return false;
+        }
+
+        for (const auto& tx : block.vtx) {
+            std::vector<Consensus::ShieldedPool::Marker> markers;
+            TxValidationState tx_state;
+            if (!Consensus::ShieldedPool::CheckTransaction(*tx, /*active=*/true, tx_state, &markers)) {
+                error = strprintf("failed to parse shielded pool transaction %s: %s", tx->GetHash().ToString(), tx_state.ToString());
+                return false;
+            }
+
+            for (const auto& marker : markers) {
+                const CAmount delta = marker.ValuePoolDelta();
+                if ((delta > 0 && pool_state.nValuePool > MAX_MONEY - delta) ||
+                    (delta < 0 && pool_state.nValuePool < -delta)) {
+                    error = "shielded pool value out of range";
+                    return false;
+                }
+                pool_state.nValuePool += delta;
+                if (marker.HasCommitment()) ++pool_state.nCommitments;
+                if (marker.HasNullifier()) ++pool_state.nNullifiers;
+            }
+        }
+    }
+
+    return true;
+}
+
 static void VBSoftForkDescPushBack(UniValue& softforks, const std::string &name, const Consensus::Params& consensusParams, Consensus::DeploymentPos id) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     // For BIP9 deployments.
@@ -1476,6 +1521,10 @@ RPCHelpMan getblockchaininfo()
                         {
                             {RPCResult::Type::BOOL, "next_block_active", "whether shielded pool marker transactions are valid for the next block"},
                             {RPCResult::Type::NUM, "start_height", "height at which shielded pool marker transactions activate, or -1 if disabled"},
+                            {RPCResult::Type::NUM, "value_pool", "current shielded value pool balance"},
+                            {RPCResult::Type::NUM, "commitments", "number of accepted shielded note commitments"},
+                            {RPCResult::Type::NUM, "nullifiers", "number of accepted shielded spend nullifiers"},
+                            {RPCResult::Type::STR, "state_error", /*optional=*/true, "state scan error, if the shielded pool summary could not be computed"},
                         }},
                         {RPCResult::Type::OBJ, "ltc_snapshot", "Litecoin block-X launch snapshot parameters",
                         {
@@ -1556,6 +1605,15 @@ RPCHelpMan getblockchaininfo()
     UniValue shielded_pool(UniValue::VOBJ);
     shielded_pool.pushKV("next_block_active", consensusParams.shielded_pool.IsEnabled(::ChainActive().Height() + 1));
     shielded_pool.pushKV("start_height", consensusParams.shielded_pool.nStartHeight);
+    ShieldedPoolRpcState shielded_pool_state;
+    std::string shielded_pool_error;
+    if (GetShieldedPoolRpcState(::ChainActive(), consensusParams, shielded_pool_state, shielded_pool_error)) {
+        shielded_pool.pushKV("value_pool", ValueFromAmount(shielded_pool_state.nValuePool));
+        shielded_pool.pushKV("commitments", static_cast<int64_t>(shielded_pool_state.nCommitments));
+        shielded_pool.pushKV("nullifiers", static_cast<int64_t>(shielded_pool_state.nNullifiers));
+    } else {
+        shielded_pool.pushKV("state_error", shielded_pool_error);
+    }
     obj.pushKV("shielded_pool", shielded_pool);
 
     UniValue ltc_snapshot(UniValue::VOBJ);

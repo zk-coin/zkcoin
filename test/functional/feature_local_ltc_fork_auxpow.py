@@ -184,6 +184,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         self.assert_child_snapshot_imported(child, dump, verify)
         assert_equal(child.getblockchaininfo()["shielded_pool"]["start_height"], 2)
         assert_equal(child.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
+        assert_equal(Decimal(str(child.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0.00000000"))
 
         self.log.info("Replay the same local parent snapshot before mining starts")
         replayed = child.importsnapshotmanifest(dump["path"])
@@ -361,6 +362,10 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.gettxout(spend_txid, 0, False), None)
         shielded_output = child.gettxout(shielded_txid, 0, False)
         assert_equal(Decimal(str(shielded_output["value"])), Decimal("3.99800000"))
+        shielded_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(shielded_info["commitments"], 1)
+        assert_equal(shielded_info["nullifiers"], 0)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
 
 
