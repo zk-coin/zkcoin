@@ -42,6 +42,13 @@ extern "C" int zkc_shielded_verify_bundle_v4(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+extern "C" int zkc_shielded_verify_orchard_proof_v1(
+    const unsigned char* proof_body,
+    size_t proof_body_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len);
+
 namespace Consensus {
 namespace ShieldedPool {
 
@@ -62,6 +69,7 @@ uint256 ExpectedProofEnvelopeHashV3(uint8_t proof_kind, const uint256& public_in
 std::vector<unsigned char> BuildProofPayloadV3(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyProofPayloadV3(const std::vector<unsigned char>& proof, uint8_t proof_kind, const uint256& public_input_hash);
 uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& public_input_hash);
+bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash);
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash);

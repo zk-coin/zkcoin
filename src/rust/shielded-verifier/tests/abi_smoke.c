@@ -121,5 +121,17 @@ int main(void)
         return 10;
     }
 
+    if (zkc_shielded_verify_orchard_proof_v1(EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 1) {
+        return 11;
+    }
+
+    if (zkc_shielded_verify_orchard_proof_v1(EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4), 2, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 12;
+    }
+
+    if (zkc_shielded_verify_orchard_proof_v1(EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4) - 1, 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 13;
+    }
+
     return 0;
 }

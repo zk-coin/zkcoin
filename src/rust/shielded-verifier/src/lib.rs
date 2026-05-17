@@ -155,6 +155,14 @@ pub fn verify_orchard_proof_payload_v1(
     }
 
     let proof_body = &proof_payload[proof_offset..];
+    verify_orchard_proof_body_v1(proof_body, proof_kind, public_input_hash)
+}
+
+pub fn verify_orchard_proof_body_v1(
+    proof_body: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> bool {
     proof_body == expected_proof_payload_v4(proof_kind, public_input_hash)
 }
 
@@ -337,6 +345,29 @@ pub unsafe extern "C" fn zkc_shielded_verify_bundle_v4(
     ))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_verify_orchard_proof_v1(
+    proof_body: *const u8,
+    proof_body_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+) -> i32 {
+    if proof_body.is_null() {
+        return 0;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return 0;
+    };
+
+    let proof_body = slice::from_raw_parts(proof_body, proof_body_len);
+    i32::from(verify_orchard_proof_body_v1(
+        proof_body,
+        proof_kind,
+        public_input_hash,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,6 +468,16 @@ mod tests {
         ));
         let bundle_v4 = build_proof_bundle_v4(1, &EXPECTED_PUBLIC_INPUT_HASH);
         let orchard_payload_v1 = build_orchard_proof_payload_v1(1, &EXPECTED_PUBLIC_INPUT_HASH);
+        assert!(verify_orchard_proof_body_v1(
+            &EXPECTED_MINT_PROOF_V4,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        assert!(!verify_orchard_proof_body_v1(
+            &EXPECTED_MINT_PROOF_V4,
+            2,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
         assert!(verify_orchard_proof_payload_v1(
             &orchard_payload_v1,
             1,
@@ -609,5 +650,38 @@ mod tests {
             )
         };
         assert_eq!(bad_kind_v4, 0);
+
+        let ok_orchard_body_v1 = unsafe {
+            zkc_shielded_verify_orchard_proof_v1(
+                EXPECTED_MINT_PROOF_V4.as_ptr(),
+                EXPECTED_MINT_PROOF_V4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(ok_orchard_body_v1, 1);
+
+        let bad_kind_orchard_body_v1 = unsafe {
+            zkc_shielded_verify_orchard_proof_v1(
+                EXPECTED_MINT_PROOF_V4.as_ptr(),
+                EXPECTED_MINT_PROOF_V4.len(),
+                2,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(bad_kind_orchard_body_v1, 0);
+
+        let bad_len_orchard_body_v1 = unsafe {
+            zkc_shielded_verify_orchard_proof_v1(
+                EXPECTED_MINT_PROOF_V4.as_ptr(),
+                EXPECTED_MINT_PROOF_V4.len() - 1,
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(bad_len_orchard_body_v1, 0);
     }
 }

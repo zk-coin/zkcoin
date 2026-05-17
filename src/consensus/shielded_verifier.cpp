@@ -163,6 +163,16 @@ uint256 ExpectedProofBundlePayloadHashV4(uint8_t proof_kind, const uint256& publ
     return Hash(data);
 }
 
+bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash)
+{
+    return zkc_shielded_verify_orchard_proof_v1(
+        proof_body.data(),
+        proof_body.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
+}
+
 std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash)
 {
     const uint256 proof_body_hash = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
@@ -192,9 +202,10 @@ bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload
     }
     if (proof_len != proof_payload.size() - proof_offset) return false;
 
-    const uint256 expected_proof_body = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
-    return proof_len == SHIELDED_PROOF_HASH_SIZE &&
-           std::equal(expected_proof_body.begin(), expected_proof_body.end(), proof_payload.begin() + proof_offset);
+    return VerifyOrchardProofBodyV1(
+        std::vector<unsigned char>(proof_payload.begin() + proof_offset, proof_payload.end()),
+        proof_kind,
+        public_input_hash);
 }
 
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash)
@@ -293,5 +304,20 @@ extern "C" int zkc_shielded_verify_bundle_v4(
     const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
     const auto expected = Consensus::ShieldedPool::BuildProofBundleV4(proof_kind, public_input_hash_value);
     return expected.size() == bundle_len && std::equal(expected.begin(), expected.end(), bundle) ? 1 : 0;
+}
+
+extern "C" int zkc_shielded_verify_orchard_proof_v1(
+    const unsigned char* proof_body,
+    size_t proof_body_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len)
+{
+    if (proof_body == nullptr || public_input_hash == nullptr) return 0;
+    if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) return 0;
+
+    const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
+    const uint256 expected = Consensus::ShieldedPool::ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash_value);
+    return expected.size() == proof_body_len && std::equal(expected.begin(), expected.end(), proof_body) ? 1 : 0;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

@@ -150,6 +150,15 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         1);
     const auto proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash);
     const auto orchard_payload_v1 = BuildOrchardProofPayloadV1(ACTION_MINT, public_input_hash);
+    const uint256 orchard_proof_body_v1 = ExpectedProofBundlePayloadHashV4(ACTION_MINT, public_input_hash);
+    BOOST_CHECK(VerifyOrchardProofBodyV1(
+        std::vector<unsigned char>(orchard_proof_body_v1.begin(), orchard_proof_body_v1.end()),
+        ACTION_MINT,
+        public_input_hash));
+    BOOST_CHECK(!VerifyOrchardProofBodyV1(
+        std::vector<unsigned char>(orchard_proof_body_v1.begin(), orchard_proof_body_v1.end()),
+        ACTION_SPEND,
+        public_input_hash));
     BOOST_CHECK(VerifyOrchardProofPayloadV1(orchard_payload_v1, ACTION_MINT, public_input_hash));
     BOOST_CHECK(!VerifyOrchardProofPayloadV1(orchard_payload_v1, ACTION_SPEND, public_input_hash));
     BOOST_CHECK(VerifyProofBundleV4(proof_bundle_v4, ACTION_MINT, public_input_hash));
