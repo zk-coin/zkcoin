@@ -7,3 +7,10 @@ that verifies the proof payload committed by the C++ tests.
 The ABI shape is intentionally stable for the next milestone: replacing this
 payload check with an Orchard proof verifier without changing transaction
 parsing, AuxPoW merge mining, or block-X snapshot import logic.
+
+Run the Rust tests and C ABI smoke test with:
+
+```sh
+cargo test --locked
+scripts/abi-smoke.sh
+```
