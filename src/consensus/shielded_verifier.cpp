@@ -250,6 +250,28 @@ int VerifyOrchardRealProofStatusV1(const std::vector<unsigned char>& proof, uint
         SHIELDED_PUBLIC_INPUT_HASH_SIZE);
 }
 
+int OrchardRealVerifierBackendV1()
+{
+    return zkc_shielded_orchard_real_verifier_backend_v1();
+}
+
+bool OrchardRealVerifierSupportsProofsV1()
+{
+    return zkc_shielded_orchard_real_verifier_supports_proofs_v1() == 1;
+}
+
+const char* OrchardRealVerifierBackendName(int backend)
+{
+    switch (backend) {
+    case SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED:
+        return "unsupported";
+    case SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1:
+        return "orchard-v1";
+    default:
+        return "unknown";
+    }
+}
+
 bool VerifyOrchardProofBodyV1(const std::vector<unsigned char>& proof_body, uint8_t proof_kind, const uint256& public_input_hash)
 {
     return zkc_shielded_verify_orchard_proof_v1(
@@ -515,5 +537,15 @@ extern "C" int zkc_shielded_verify_orchard_real_proof_status_v1(
     }
 
     return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED;
+}
+
+extern "C" int zkc_shielded_orchard_real_verifier_backend_v1()
+{
+    return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED;
+}
+
+extern "C" int zkc_shielded_orchard_real_verifier_supports_proofs_v1()
+{
+    return 0;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

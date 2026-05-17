@@ -25,6 +25,8 @@ pub const ORCHARD_REAL_PROOF_STATUS_MALFORMED: i32 = 0;
 pub const ORCHARD_REAL_PROOF_STATUS_VALID: i32 = 1;
 pub const ORCHARD_REAL_PROOF_STATUS_INVALID: i32 = -1;
 pub const ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED: i32 = -2;
+pub const ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED: i32 = 0;
+pub const ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1: i32 = 1;
 const PROOF_BUNDLE_HEADER_LEN_V4: usize =
     6 + 1 + 1 + 1 + 1 + HASH_SIZE + core::mem::size_of::<u32>();
 const ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1: usize =
@@ -60,6 +62,25 @@ impl OrchardRealProofStatus {
             OrchardRealProofStatus::Invalid => ORCHARD_REAL_PROOF_STATUS_INVALID,
             OrchardRealProofStatus::Unsupported => ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OrchardRealVerifierBackend {
+    Unsupported,
+    OrchardV1,
+}
+
+impl OrchardRealVerifierBackend {
+    pub fn as_ffi_code(self) -> i32 {
+        match self {
+            OrchardRealVerifierBackend::Unsupported => ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED,
+            OrchardRealVerifierBackend::OrchardV1 => ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1,
+        }
+    }
+
+    pub fn supports_real_proofs(self) -> bool {
+        matches!(self, OrchardRealVerifierBackend::OrchardV1)
     }
 }
 
@@ -245,6 +266,14 @@ pub fn orchard_real_proof_status_v1(
         return OrchardRealProofStatus::Malformed;
     };
     verify_orchard_real_proof_backend_status_v1(&request)
+}
+
+pub fn orchard_real_verifier_backend_v1() -> OrchardRealVerifierBackend {
+    OrchardRealVerifierBackend::Unsupported
+}
+
+pub fn orchard_real_verifier_supports_real_proofs_v1() -> bool {
+    orchard_real_verifier_backend_v1().supports_real_proofs()
 }
 
 fn verify_orchard_real_proof_backend_status_v1(
@@ -642,6 +671,16 @@ pub unsafe extern "C" fn zkc_shielded_verify_orchard_real_proof_status_v1(
     orchard_real_proof_status_v1(proof, proof_kind, public_input_hash).as_ffi_code()
 }
 
+#[no_mangle]
+pub extern "C" fn zkc_shielded_orchard_real_verifier_backend_v1() -> i32 {
+    orchard_real_verifier_backend_v1().as_ffi_code()
+}
+
+#[no_mangle]
+pub extern "C" fn zkc_shielded_orchard_real_verifier_supports_proofs_v1() -> i32 {
+    i32::from(orchard_real_verifier_supports_real_proofs_v1())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -952,6 +991,24 @@ mod tests {
     }
 
     #[test]
+    fn reports_orchard_real_verifier_backend_capability() {
+        assert_eq!(
+            orchard_real_verifier_backend_v1(),
+            OrchardRealVerifierBackend::Unsupported
+        );
+        assert!(!orchard_real_verifier_supports_real_proofs_v1());
+        assert_eq!(
+            orchard_real_verifier_backend_v1().as_ffi_code(),
+            ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED
+        );
+        assert_eq!(
+            OrchardRealVerifierBackend::OrchardV1.as_ffi_code(),
+            ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1
+        );
+        assert!(OrchardRealVerifierBackend::OrchardV1.supports_real_proofs());
+    }
+
+    #[test]
     fn c_abi_matches_safe_api() {
         let ok = unsafe {
             zkc_shielded_verify_proof_v1(
@@ -1133,6 +1190,11 @@ mod tests {
             malformed_real_proof_status_v1,
             ORCHARD_REAL_PROOF_STATUS_MALFORMED
         );
+        assert_eq!(
+            zkc_shielded_orchard_real_verifier_backend_v1(),
+            ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED
+        );
+        assert_eq!(zkc_shielded_orchard_real_verifier_supports_proofs_v1(), 0);
 
         let real_body_v1 = build_orchard_real_proof_body_with_context_v1(
             1,

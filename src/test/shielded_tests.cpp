@@ -17,6 +17,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <cassert>
+#include <string>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(shielded_tests, BasicTestingSetup)
@@ -232,6 +233,15 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_MINT, public_input_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL(OrchardRealVerifierBackendV1(), SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED);
+    BOOST_CHECK(!OrchardRealVerifierSupportsProofsV1());
+    BOOST_CHECK_EQUAL(
+        OrchardRealVerifierBackendName(SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED),
+        std::string("unsupported"));
+    BOOST_CHECK_EQUAL(
+        OrchardRealVerifierBackendName(SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1),
+        std::string("orchard-v1"));
+    BOOST_CHECK_EQUAL(OrchardRealVerifierBackendName(99), std::string("unknown"));
     BOOST_CHECK(!DecodeOrchardRealProofV1(real_proof_v1, ACTION_SPEND, public_input_hash, decoded_real_proof_bytes));
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_SPEND, public_input_hash),

@@ -12,6 +12,8 @@
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_VALID 1
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_INVALID -1
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED -2
+#define ZKC_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED 0
+#define ZKC_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +70,10 @@ int zkc_shielded_verify_orchard_real_proof_status_v1(
     uint8_t proof_kind,
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
+
+int zkc_shielded_orchard_real_verifier_backend_v1(void);
+
+int zkc_shielded_orchard_real_verifier_supports_proofs_v1(void);
 
 #ifdef __cplusplus
 }

@@ -50,6 +50,10 @@ proof bytes.
 The real-proof status ABI returns `1` for a valid proof, `0` for malformed
 bytes or context mismatch, `-1` for a parsed but invalid proof, and `-2` when a
 well-formed proof reaches a verifier backend that has not been wired yet.
+The backend capability ABI returns `0` for the current unsupported backend and
+`1` for the reserved native `orchard-v1` backend; nodes also expose this in
+`getblockchaininfo.shielded_pool` so launch/regression tests can prove whether
+real proof verification is actually linked.
 
 Run the Rust tests and C ABI smoke test with:
 

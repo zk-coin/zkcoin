@@ -205,6 +205,8 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert_equal(active.getblockchaininfo()["shielded_pool"]["start_height"], 1)
         assert_equal(active.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
         assert_equal(active.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], True)
+        assert_equal(active.getblockchaininfo()["shielded_pool"]["real_proof_backend"], "unsupported")
+        assert_equal(active.getblockchaininfo()["shielded_pool"]["real_proof_verification"], False)
         assert_equal(Decimal(str(active.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0E-8"))
         assert_equal(active.getblockchaininfo()["shielded_pool"]["commitments"], 0)
         assert_equal(active.getblockchaininfo()["shielded_pool"]["nullifiers"], 0)

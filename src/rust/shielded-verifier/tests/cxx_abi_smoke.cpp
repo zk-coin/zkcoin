@@ -5,6 +5,7 @@
 #include <consensus/shielded_verifier.h>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 static uint256 FilledHash(unsigned char value)
@@ -139,13 +140,32 @@ int main()
         return 18;
     }
 
-    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+    if (Consensus::ShieldedPool::OrchardRealVerifierBackendV1() !=
+        Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED) {
         return 19;
+    }
+
+    if (Consensus::ShieldedPool::OrchardRealVerifierSupportsProofsV1()) {
+        return 20;
+    }
+
+    if (std::string(Consensus::ShieldedPool::OrchardRealVerifierBackendName(
+            Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED)) != "unsupported") {
+        return 21;
+    }
+
+    if (std::string(Consensus::ShieldedPool::OrchardRealVerifierBackendName(
+            Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1)) != "orchard-v1") {
+        return 22;
+    }
+
+    if (Consensus::ShieldedPool::DecodeOrchardRealProofV1(real_proof_v1, 2, public_input_hash, decoded_real_proof_bytes)) {
+        return 23;
     }
 
     if (Consensus::ShieldedPool::VerifyOrchardRealProofStatusV1(real_proof_v1, 2, public_input_hash) !=
         Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED) {
-        return 20;
+        return 24;
     }
 
     const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(1, public_input_hash, real_proof_bytes);
@@ -153,46 +173,46 @@ int main()
     const auto real_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash, real_orchard_payload_v1);
     uint8_t decoded_body_mode{0xff};
     if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(real_orchard_payload_v1, 1, public_input_hash, decoded_body_mode)) {
-        return 21;
-    }
-
-    if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
-        return 22;
-    }
-
-    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
-        return 23;
-    }
-
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
-        return 24;
-    }
-
-    if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
         return 25;
     }
 
-    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+    if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
         return 26;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
         return 27;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
+        return 28;
+    }
+
+    if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
+        return 29;
+    }
+
+    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+        return 30;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+        return 31;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 28;
+        return 32;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 29;
+        return 33;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 30;
+        return 34;
     }
 
     return 0;
