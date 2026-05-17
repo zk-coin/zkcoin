@@ -18,6 +18,8 @@ const ORCHARD_REAL_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-real-v1";
 const ORCHARD_REAL_PROOF_REQUEST_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-request-v1";
 const ORCHARD_REAL_VERIFIER_INPUT_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-input-v1";
 const ORCHARD_REAL_VERIFIER_KEY_HASH_PREIMAGE_PREFIX_V1: &[u8] = b"zkc-orchard-real-vk-v1";
+#[cfg(feature = "verifier-fixture")]
+const ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1: &[u8] = b"zkc-orchard-fixture-proof-v1";
 const PROOF_BUNDLE_VERSION_V4: u8 = 1;
 const PROOF_SYSTEM_ORCHARD: u8 = 1;
 const PROOF_BUNDLE_FLAGS_NONE: u8 = 0;
@@ -41,6 +43,9 @@ const ORCHARD_REAL_PROOF_HEADER_LEN_V1: usize = ORCHARD_REAL_PROOF_PREFIX_V1.len
     + HASH_SIZE
     + HASH_SIZE
     + core::mem::size_of::<u32>();
+#[cfg(feature = "verifier-fixture")]
+const ORCHARD_REAL_FIXTURE_PROOF_LEN_V1: usize =
+    ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len() + HASH_SIZE;
 
 fn hash256(data: &[u8]) -> [u8; HASH_SIZE] {
     let first = Sha256::digest(data);
@@ -148,7 +153,7 @@ impl From<ProofBundleCheckV2> for ProofBundleCheck {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "verifier-fixture")))]
 impl ProofBundleCheck {
     fn malformed() -> Self {
         Self {
@@ -184,8 +189,10 @@ trait OrchardRealProofBackend {
     fn verify(&self, request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus;
 }
 
+#[cfg(not(feature = "verifier-fixture"))]
 struct UnsupportedOrchardRealProofBackend;
 
+#[cfg(not(feature = "verifier-fixture"))]
 impl OrchardRealProofBackend for UnsupportedOrchardRealProofBackend {
     fn backend(&self) -> OrchardRealVerifierBackend {
         OrchardRealVerifierBackend::Unsupported
@@ -193,6 +200,50 @@ impl OrchardRealProofBackend for UnsupportedOrchardRealProofBackend {
 
     fn verify(&self, _request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus {
         OrchardRealProofStatus::Unsupported
+    }
+}
+
+#[cfg(feature = "verifier-fixture")]
+struct FixtureOrchardRealProofBackend;
+
+#[cfg(feature = "verifier-fixture")]
+impl OrchardRealProofBackend for FixtureOrchardRealProofBackend {
+    fn backend(&self) -> OrchardRealVerifierBackend {
+        OrchardRealVerifierBackend::OrchardV1
+    }
+
+    fn verify(&self, request: &OrchardRealProofRequest<'_>) -> OrchardRealProofStatus {
+        if request.proof_bytes.len() != ORCHARD_REAL_FIXTURE_PROOF_LEN_V1 {
+            return OrchardRealProofStatus::Invalid;
+        }
+        if !request
+            .proof_bytes
+            .starts_with(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1)
+        {
+            return OrchardRealProofStatus::Invalid;
+        }
+
+        let input_hash_offset = ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len();
+        let fixture_input_hash: [u8; HASH_SIZE] = request.proof_bytes
+            [input_hash_offset..input_hash_offset + HASH_SIZE]
+            .try_into()
+            .expect("fixture proof input hash has fixed length");
+        if fixture_input_hash == request.verifier_input_hash_v1() {
+            OrchardRealProofStatus::Valid
+        } else {
+            OrchardRealProofStatus::Invalid
+        }
+    }
+}
+
+fn default_orchard_real_proof_backend_v1() -> impl OrchardRealProofBackend {
+    #[cfg(feature = "verifier-fixture")]
+    {
+        FixtureOrchardRealProofBackend
+    }
+    #[cfg(not(feature = "verifier-fixture"))]
+    {
+        UnsupportedOrchardRealProofBackend
     }
 }
 
@@ -332,6 +383,15 @@ pub fn build_orchard_real_proof_v1(
     proof
 }
 
+#[cfg(feature = "verifier-fixture")]
+pub fn build_orchard_fixture_proof_bytes_v1(input: &OrchardRealVerifierInput) -> Vec<u8> {
+    let input_hash = input.input_hash_v1();
+    let mut proof_bytes = Vec::with_capacity(ORCHARD_REAL_FIXTURE_PROOF_LEN_V1);
+    proof_bytes.extend_from_slice(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1);
+    proof_bytes.extend_from_slice(&input_hash);
+    proof_bytes
+}
+
 pub fn decode_orchard_real_proof_v1<'a>(
     proof: &'a [u8],
     proof_kind: u8,
@@ -432,11 +492,11 @@ pub fn orchard_real_proof_check_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> OrchardRealProofCheckV2 {
-    let backend = UnsupportedOrchardRealProofBackend;
+    let backend = default_orchard_real_proof_backend_v1();
     orchard_real_proof_check_with_backend_v2(proof, proof_kind, public_input_hash, &backend)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "verifier-fixture")))]
 fn orchard_real_proof_check_with_backend_v1<B: OrchardRealProofBackend>(
     proof: &[u8],
     proof_kind: u8,
@@ -487,7 +547,7 @@ pub fn orchard_real_proof_status_v1(
 }
 
 pub fn orchard_real_verifier_backend_v1() -> OrchardRealVerifierBackend {
-    let backend = UnsupportedOrchardRealProofBackend;
+    let backend = default_orchard_real_proof_backend_v1();
     backend.backend()
 }
 
@@ -595,7 +655,7 @@ pub fn check_orchard_proof_payload_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
-    let backend = UnsupportedOrchardRealProofBackend;
+    let backend = default_orchard_real_proof_backend_v1();
     check_orchard_proof_payload_with_backend_v2(
         proof_payload,
         proof_kind,
@@ -664,7 +724,7 @@ pub fn check_orchard_proof_body_v2(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
-    let backend = UnsupportedOrchardRealProofBackend;
+    let backend = default_orchard_real_proof_backend_v1();
     check_orchard_proof_body_with_backend_v2(proof_body, proof_kind, public_input_hash, &backend)
 }
 
@@ -770,11 +830,11 @@ pub fn check_proof_bundle_v5(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> ProofBundleCheckV2 {
-    let backend = UnsupportedOrchardRealProofBackend;
+    let backend = default_orchard_real_proof_backend_v1();
     check_proof_bundle_with_backend_v5(bundle, proof_kind, public_input_hash, &backend)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "verifier-fixture")))]
 fn check_proof_bundle_with_backend_v4<B: OrchardRealProofBackend>(
     bundle: &[u8],
     proof_kind: u8,
@@ -1291,10 +1351,12 @@ mod tests {
         0x5b, 0xc7,
     ];
 
+    #[cfg(not(feature = "verifier-fixture"))]
     struct TestVectorOrchardRealProofBackend {
         valid_request_hash: [u8; HASH_SIZE],
     }
 
+    #[cfg(not(feature = "verifier-fixture"))]
     impl OrchardRealProofBackend for TestVectorOrchardRealProofBackend {
         fn backend(&self) -> OrchardRealVerifierBackend {
             OrchardRealVerifierBackend::OrchardV1
@@ -1372,6 +1434,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "verifier-fixture"))]
     #[test]
     fn rejects_wrong_proof_context_and_lengths() {
         assert!(verify_proof_payload_v1(
@@ -1727,6 +1790,7 @@ mod tests {
         ));
     }
 
+    #[cfg(not(feature = "verifier-fixture"))]
     #[test]
     fn reports_orchard_real_verifier_backend_capability() {
         assert_eq!(
@@ -1745,6 +1809,7 @@ mod tests {
         assert!(OrchardRealVerifierBackend::OrchardV1.supports_real_proofs());
     }
 
+    #[cfg(not(feature = "verifier-fixture"))]
     #[test]
     fn injected_backend_drives_real_bundle_validity() {
         let valid_proof_bytes = [0x77; 192];
@@ -1908,6 +1973,155 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "verifier-fixture")]
+    #[test]
+    fn fixture_backend_drives_public_real_proof_abi() {
+        assert_eq!(
+            orchard_real_verifier_backend_v1(),
+            OrchardRealVerifierBackend::OrchardV1
+        );
+        assert!(orchard_real_verifier_supports_real_proofs_v1());
+        assert_eq!(
+            orchard_real_verifier_backend_v1().as_ffi_code(),
+            ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1
+        );
+        assert_eq!(
+            zkc_shielded_orchard_real_verifier_backend_v1(),
+            ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1
+        );
+        assert_eq!(zkc_shielded_orchard_real_verifier_supports_proofs_v1(), 1);
+
+        let verifier_input = OrchardRealVerifierInput {
+            proof_kind: 1,
+            public_input_hash: EXPECTED_PUBLIC_INPUT_HASH,
+            verifier_key_hash: expected_orchard_real_verifier_key_hash_v1(),
+        };
+        let proof_bytes = build_orchard_fixture_proof_bytes_v1(&verifier_input);
+        assert_eq!(proof_bytes.len(), ORCHARD_REAL_FIXTURE_PROOF_LEN_V1);
+        assert!(proof_bytes.starts_with(ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1));
+        assert_eq!(
+            &proof_bytes[ORCHARD_REAL_FIXTURE_PROOF_PREFIX_V1.len()..],
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+
+        let real_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &proof_bytes);
+        let request_hash =
+            orchard_real_proof_request_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("fixture proof request hash");
+        assert_ne!(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH);
+        assert_eq!(
+            orchard_real_verifier_input_hash_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH)
+        );
+        assert!(verify_orchard_real_proof_v1(
+            &real_proof_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        assert_eq!(
+            orchard_real_proof_status_v1(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofStatus::Valid
+        );
+        assert_eq!(
+            orchard_real_proof_check_v2(&real_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV2 {
+                status: OrchardRealProofStatus::Valid,
+                request_hash: Some(request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+
+        let mut request_hash_out = [0xaa; HASH_SIZE];
+        let mut verifier_input_hash_out = [0xaa; HASH_SIZE];
+        let status = unsafe {
+            zkc_shielded_orchard_real_proof_check_v2(
+                real_proof_v1.as_ptr(),
+                real_proof_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                request_hash_out.as_mut_ptr(),
+                request_hash_out.len(),
+                verifier_input_hash_out.as_mut_ptr(),
+                verifier_input_hash_out.len(),
+            )
+        };
+        assert_eq!(status, ORCHARD_REAL_PROOF_STATUS_VALID);
+        assert_eq!(request_hash_out, request_hash);
+        assert_eq!(
+            verifier_input_hash_out,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+
+        let real_body_v1 = build_orchard_real_proof_body_with_context_v1(
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH,
+            &proof_bytes,
+        );
+        let real_payload_v1 =
+            build_orchard_proof_payload_with_body_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_body_v1);
+        let real_bundle_v4 =
+            build_proof_bundle_with_payload_v4(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_payload_v1);
+        assert_eq!(
+            check_proof_bundle_v5(&real_bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheckV2 {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(request_hash),
+                real_verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+
+        let mut proof_body_mode = 0xff;
+        request_hash_out.fill(0xaa);
+        verifier_input_hash_out.fill(0xaa);
+        let bundle_status = unsafe {
+            zkc_shielded_check_bundle_v5(
+                real_bundle_v4.as_ptr(),
+                real_bundle_v4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash_out.as_mut_ptr(),
+                request_hash_out.len(),
+                verifier_input_hash_out.as_mut_ptr(),
+                verifier_input_hash_out.len(),
+            )
+        };
+        assert_eq!(bundle_status, ORCHARD_REAL_PROOF_STATUS_VALID);
+        assert_eq!(proof_body_mode, ORCHARD_PROOF_BODY_MODE_REAL);
+        assert_eq!(request_hash_out, request_hash);
+        assert_eq!(
+            verifier_input_hash_out,
+            EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH
+        );
+
+        let mut tampered_proof_bytes = proof_bytes.clone();
+        *tampered_proof_bytes
+            .last_mut()
+            .expect("fixture proof has input hash") ^= 1;
+        let tampered_proof_v1 =
+            build_orchard_real_proof_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &tampered_proof_bytes);
+        let tampered_request_hash =
+            orchard_real_proof_request_hash_v1(&tampered_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH)
+                .expect("tampered fixture proof request hash");
+        assert_eq!(
+            orchard_real_proof_check_v2(&tampered_proof_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofCheckV2 {
+                status: OrchardRealProofStatus::Invalid,
+                request_hash: Some(tampered_request_hash),
+                verifier_input_hash: Some(EXPECTED_ORCHARD_REAL_VERIFIER_INPUT_HASH),
+            }
+        );
+        assert_eq!(
+            orchard_real_proof_status_v1(&real_proof_v1, 2, &EXPECTED_PUBLIC_INPUT_HASH),
+            OrchardRealProofStatus::Malformed
+        );
+    }
+
+    #[cfg(not(feature = "verifier-fixture"))]
     #[test]
     fn c_abi_matches_safe_api() {
         let ok = unsafe {

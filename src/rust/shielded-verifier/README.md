@@ -25,6 +25,19 @@ proof bundle and dispatches by proof-system id.
 Internally, real proof verification now goes through an explicit backend
 adapter, so native Orchard verification can be wired behind the same request
 contract without changing the consensus witness format again.
+The default build remains fail-closed and reports the real-proof backend as
+unsupported. For verifier-plumbing tests only, the Cargo feature
+`verifier-fixture` switches the Rust crate to a deterministic fixture backend
+that accepts proof bytes of the form:
+
+```text
+zkc-orchard-fixture-proof-v1 || verifier_input_hash
+```
+
+That fixture proves the public ABI, bundle parser, request hash, and verifier
+input hash can return `valid` through the same native-verifier boundary. It is
+not a production cryptographic proof system and is intentionally excluded from
+normal node builds.
 
 The v4 bundle layout is:
 
@@ -86,5 +99,6 @@ Run the Rust tests and C ABI smoke test with:
 
 ```sh
 cargo test --locked
+cargo test --locked --features verifier-fixture
 scripts/abi-smoke.sh
 ```

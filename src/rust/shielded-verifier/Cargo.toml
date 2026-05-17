@@ -8,5 +8,9 @@ license = "MIT"
 name = "zkc_shielded_verifier"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+verifier-fixture = []
+
 [dependencies]
 sha2 = "0.10"
