@@ -218,22 +218,38 @@ bool DecodeOrchardProofBodyModeV1(const std::vector<unsigned char>& proof_payloa
 std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_kind, const uint256& public_input_hash)
 {
     const uint256 scaffold_body = ExpectedProofBundlePayloadHashV4(proof_kind, public_input_hash);
+    return BuildOrchardProofBodyV1(
+        SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
+        std::vector<unsigned char>(scaffold_body.begin(), scaffold_body.end()));
+}
+
+std::vector<unsigned char> BuildOrchardProofBodyV1(uint8_t proof_body_mode, const std::vector<unsigned char>& proof_bytes)
+{
     std::vector<unsigned char> proof_body = OrchardProofBodyPrefixV1();
-    proof_body.push_back(SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
-    AppendUint32(proof_body, SHIELDED_PROOF_HASH_SIZE);
-    proof_body.insert(proof_body.end(), scaffold_body.begin(), scaffold_body.end());
+    proof_body.push_back(proof_body_mode);
+    AppendUint32(proof_body, static_cast<uint32_t>(proof_bytes.size()));
+    proof_body.insert(proof_body.end(), proof_bytes.begin(), proof_bytes.end());
     return proof_body;
 }
 
-std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash)
+std::vector<unsigned char> BuildOrchardRealProofBodyV1(const std::vector<unsigned char>& proof_bytes)
 {
-    const auto proof_body = BuildOrchardProofBodyV1(proof_kind, public_input_hash);
+    return BuildOrchardProofBodyV1(SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL, proof_bytes);
+}
+
+std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_body)
+{
     std::vector<unsigned char> proof_payload = OrchardProofPayloadPrefixV1();
     proof_payload.push_back(proof_kind);
     proof_payload.insert(proof_payload.end(), public_input_hash.begin(), public_input_hash.end());
     AppendUint32(proof_payload, static_cast<uint32_t>(proof_body.size()));
     proof_payload.insert(proof_payload.end(), proof_body.begin(), proof_body.end());
     return proof_payload;
+}
+
+std::vector<unsigned char> BuildOrchardProofPayloadV1(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    return BuildOrchardProofPayloadV1(proof_kind, public_input_hash, BuildOrchardProofBodyV1(proof_kind, public_input_hash));
 }
 
 bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload, uint8_t proof_kind, const uint256& public_input_hash)
@@ -260,9 +276,8 @@ bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload
         public_input_hash);
 }
 
-std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash)
+std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_payload)
 {
-    const auto proof_payload = BuildOrchardProofPayloadV1(proof_kind, public_input_hash);
     std::vector<unsigned char> bundle = ProofBundlePrefixV4();
     bundle.push_back(SHIELDED_PROOF_BUNDLE_VERSION_V4);
     bundle.push_back(proof_kind);
@@ -272,6 +287,11 @@ std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256&
     AppendUint32(bundle, static_cast<uint32_t>(proof_payload.size()));
     bundle.insert(bundle.end(), proof_payload.begin(), proof_payload.end());
     return bundle;
+}
+
+std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash)
+{
+    return BuildProofBundleV4(proof_kind, public_input_hash, BuildOrchardProofPayloadV1(proof_kind, public_input_hash));
 }
 
 bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash)

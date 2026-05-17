@@ -67,6 +67,15 @@ int main(void)
     expected_orchard_body_v1[23] = 0;
     memcpy(expected_orchard_body_v1 + 24, EXPECTED_MINT_PROOF_V4, sizeof(EXPECTED_MINT_PROOF_V4));
 
+    unsigned char real_orchard_body_v1[88];
+    memcpy(real_orchard_body_v1, "zkc-orchard-body-v1", 19);
+    real_orchard_body_v1[19] = 1;
+    real_orchard_body_v1[20] = 64;
+    real_orchard_body_v1[21] = 0;
+    real_orchard_body_v1[22] = 0;
+    real_orchard_body_v1[23] = 0;
+    memset(real_orchard_body_v1 + 24, 0x42, 64);
+
     unsigned char expected_bundle_v4[159];
     memcpy(expected_bundle_v4, "zkc-p4", 6);
     expected_bundle_v4[6] = 1;
@@ -140,6 +149,10 @@ int main(void)
 
     if (zkc_shielded_verify_orchard_proof_v1(expected_orchard_body_v1, sizeof(expected_orchard_body_v1) - 1, 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
         return 13;
+    }
+
+    if (zkc_shielded_verify_orchard_proof_v1(real_orchard_body_v1, sizeof(real_orchard_body_v1), 1, EXPECTED_PUBLIC_INPUT_HASH, sizeof(EXPECTED_PUBLIC_INPUT_HASH)) != 0) {
+        return 14;
     }
 
     return 0;

@@ -18,6 +18,7 @@ const PROOF_BUNDLE_VERSION_V4: u8 = 1;
 const PROOF_SYSTEM_ORCHARD: u8 = 1;
 const PROOF_BUNDLE_FLAGS_NONE: u8 = 0;
 const ORCHARD_PROOF_BODY_MODE_SCAFFOLD: u8 = 0;
+const ORCHARD_PROOF_BODY_MODE_REAL: u8 = 1;
 const PROOF_BUNDLE_HEADER_LEN_V4: usize =
     6 + 1 + 1 + 1 + 1 + HASH_SIZE + core::mem::size_of::<u32>();
 const ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1: usize =
@@ -98,6 +99,14 @@ pub fn expected_proof_payload_v4(
 
 pub fn build_proof_bundle_v4(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
     let proof_payload = build_orchard_proof_payload_v1(proof_kind, public_input_hash);
+    build_proof_bundle_with_payload_v4(proof_kind, public_input_hash, &proof_payload)
+}
+
+pub fn build_proof_bundle_with_payload_v4(
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    proof_payload: &[u8],
+) -> Vec<u8> {
     let mut bundle = Vec::with_capacity(PROOF_BUNDLE_HEADER_LEN_V4 + proof_payload.len());
     bundle.extend_from_slice(PROOF_BUNDLE_PREFIX_V4);
     bundle.push(PROOF_BUNDLE_VERSION_V4);
@@ -115,8 +124,15 @@ pub fn build_orchard_proof_payload_v1(
     public_input_hash: &[u8; HASH_SIZE],
 ) -> Vec<u8> {
     let proof_body = build_orchard_proof_body_v1(proof_kind, public_input_hash);
-    let mut payload =
-        Vec::with_capacity(ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 + proof_body.len());
+    build_orchard_proof_payload_with_body_v1(proof_kind, public_input_hash, &proof_body)
+}
+
+pub fn build_orchard_proof_payload_with_body_v1(
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+    proof_body: &[u8],
+) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 + proof_body.len());
     payload.extend_from_slice(ORCHARD_PROOF_PAYLOAD_PREFIX_V1);
     payload.push(proof_kind);
     payload.extend_from_slice(public_input_hash);
@@ -125,18 +141,22 @@ pub fn build_orchard_proof_payload_v1(
     payload
 }
 
-pub fn build_orchard_proof_body_v1(
-    proof_kind: u8,
-    public_input_hash: &[u8; HASH_SIZE],
-) -> Vec<u8> {
+pub fn build_orchard_proof_body_v1(proof_kind: u8, public_input_hash: &[u8; HASH_SIZE]) -> Vec<u8> {
     let scaffold_body = expected_proof_payload_v4(proof_kind, public_input_hash);
-    let mut proof_body =
-        Vec::with_capacity(ORCHARD_PROOF_BODY_HEADER_LEN_V1 + scaffold_body.len());
+    build_orchard_proof_body_with_mode_v1(ORCHARD_PROOF_BODY_MODE_SCAFFOLD, &scaffold_body)
+}
+
+pub fn build_orchard_proof_body_with_mode_v1(mode: u8, proof_bytes: &[u8]) -> Vec<u8> {
+    let mut proof_body = Vec::with_capacity(ORCHARD_PROOF_BODY_HEADER_LEN_V1 + proof_bytes.len());
     proof_body.extend_from_slice(ORCHARD_PROOF_BODY_PREFIX_V1);
-    proof_body.push(ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
-    proof_body.extend_from_slice(&(scaffold_body.len() as u32).to_le_bytes());
-    proof_body.extend_from_slice(&scaffold_body);
+    proof_body.push(mode);
+    proof_body.extend_from_slice(&(proof_bytes.len() as u32).to_le_bytes());
+    proof_body.extend_from_slice(proof_bytes);
     proof_body
+}
+
+pub fn build_orchard_real_proof_body_v1(proof_bytes: &[u8]) -> Vec<u8> {
+    build_orchard_proof_body_with_mode_v1(ORCHARD_PROOF_BODY_MODE_REAL, proof_bytes)
 }
 
 pub fn verify_orchard_proof_payload_v1(
@@ -206,6 +226,7 @@ pub fn verify_orchard_proof_body_v1(
         ORCHARD_PROOF_BODY_MODE_SCAFFOLD => {
             &proof_body[body_offset..] == expected_proof_payload_v4(proof_kind, public_input_hash)
         }
+        ORCHARD_PROOF_BODY_MODE_REAL => false,
         _ => false,
     }
 }
@@ -481,6 +502,10 @@ mod tests {
                 + ORCHARD_PROOF_BODY_HEADER_LEN_V1
                 + HASH_SIZE
         );
+        assert_eq!(
+            build_orchard_real_proof_body_v1(&[0x42; 192]).len(),
+            ORCHARD_PROOF_BODY_HEADER_LEN_V1 + 192
+        );
     }
 
     #[test]
@@ -532,6 +557,26 @@ mod tests {
         ));
         assert!(!verify_orchard_proof_body_v1(
             &EXPECTED_MINT_PROOF_V4,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        let real_body_v1 = build_orchard_real_proof_body_v1(&[0x42; 192]);
+        let real_payload_v1 =
+            build_orchard_proof_payload_with_body_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_body_v1);
+        let real_bundle_v4 =
+            build_proof_bundle_with_payload_v4(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_payload_v1);
+        assert!(!verify_orchard_proof_body_v1(
+            &real_body_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        assert!(!verify_orchard_proof_payload_v1(
+            &real_payload_v1,
+            1,
+            &EXPECTED_PUBLIC_INPUT_HASH
+        ));
+        assert!(!verify_proof_bundle_v4(
+            &real_bundle_v4,
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
@@ -748,5 +793,17 @@ mod tests {
             )
         };
         assert_eq!(bad_len_orchard_body_v1, 0);
+
+        let real_body_v1 = build_orchard_real_proof_body_v1(&[0x42; 192]);
+        let unsupported_real_body_v1 = unsafe {
+            zkc_shielded_verify_orchard_proof_v1(
+                real_body_v1.as_ptr(),
+                real_body_v1.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+            )
+        };
+        assert_eq!(unsupported_real_body_v1, 0);
     }
 }

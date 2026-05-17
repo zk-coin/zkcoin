@@ -108,27 +108,52 @@ int main()
         return 13;
     }
 
-    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+    const std::vector<unsigned char> real_proof_bytes(192, 0x42);
+    const auto real_orchard_body_v1 = Consensus::ShieldedPool::BuildOrchardRealProofBodyV1(real_proof_bytes);
+    const auto real_orchard_payload_v1 = Consensus::ShieldedPool::BuildOrchardProofPayloadV1(1, public_input_hash, real_orchard_body_v1);
+    const auto real_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash, real_orchard_payload_v1);
+    uint8_t decoded_body_mode{0xff};
+    if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(real_orchard_payload_v1, 1, public_input_hash, decoded_body_mode)) {
         return 14;
     }
 
-    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+    if (decoded_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
         return 15;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofBodyV1(real_orchard_body_v1, 1, public_input_hash)) {
+        return 16;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(real_orchard_payload_v1, 1, public_input_hash)) {
+        return 17;
+    }
+
+    if (Consensus::ShieldedPool::VerifyProofBundleV4(real_bundle_v4, 1, public_input_hash)) {
+        return 18;
+    }
+
+    if (!Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 1, public_input_hash)) {
+        return 19;
+    }
+
+    if (Consensus::ShieldedPool::VerifyOrchardProofPayloadV1(orchard_payload_v1, 2, public_input_hash)) {
+        return 20;
     }
 
     const auto built_bundle_v4 = Consensus::ShieldedPool::BuildProofBundleV4(1, public_input_hash);
     if (!Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 1, public_input_hash)) {
-        return 16;
+        return 21;
     }
 
     if (Consensus::ShieldedPool::VerifyProofBundleV4(built_bundle_v4, 2, public_input_hash)) {
-        return 17;
+        return 22;
     }
 
     auto wrong_proof = EXPECTED_PROOF;
     wrong_proof[0] ^= 0x01;
     if (Consensus::ShieldedPool::VerifyProofPayloadV1(wrong_proof, field_hash, tx_binding_hash)) {
-        return 18;
+        return 23;
     }
 
     return 0;

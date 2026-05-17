@@ -208,6 +208,20 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         public_input_hash,
         decoded_body_mode));
     BOOST_CHECK_EQUAL(decoded_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    const std::vector<unsigned char> real_proof_bytes(192, 0x42);
+    const auto real_orchard_body_v1 = BuildOrchardRealProofBodyV1(real_proof_bytes);
+    const auto real_orchard_payload_v1 = BuildOrchardProofPayloadV1(ACTION_MINT, public_input_hash, real_orchard_body_v1);
+    const auto real_proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash, real_orchard_payload_v1);
+    decoded_body_mode = 0xff;
+    BOOST_CHECK(DecodeOrchardProofBodyModeV1(
+        real_orchard_payload_v1,
+        ACTION_MINT,
+        public_input_hash,
+        decoded_body_mode));
+    BOOST_CHECK_EQUAL(decoded_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
+    BOOST_CHECK(!VerifyOrchardProofBodyV1(real_orchard_body_v1, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!VerifyOrchardProofPayloadV1(real_orchard_payload_v1, ACTION_MINT, public_input_hash));
+    BOOST_CHECK(!VerifyProofBundleV4(real_proof_bundle_v4, ACTION_MINT, public_input_hash));
     auto unknown_body_mode = orchard_body_v1;
     const size_t body_mode_offset = sizeof("zkc-orchard-body-v1") - 1;
     BOOST_REQUIRE_GT(unknown_body_mode.size(), body_mode_offset);
