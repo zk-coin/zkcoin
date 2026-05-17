@@ -34,6 +34,19 @@ static CTransaction TransactionWithMarker(const std::vector<unsigned char>& payl
     return CTransaction(tx);
 }
 
+static CTransaction TransactionWithProof(const std::vector<unsigned char>& payload, const std::vector<unsigned char>& proof_envelope)
+{
+    uint256 prevout_hash;
+    prevout_hash.SetHex("01");
+
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout = COutPoint(prevout_hash, 0);
+    tx.vin[0].scriptWitness.stack.push_back(proof_envelope);
+    tx.vout.emplace_back(0, CScript() << OP_RETURN << payload);
+    return CTransaction(tx);
+}
+
 BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
 {
     using namespace Consensus::ShieldedPool;
@@ -45,16 +58,39 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK(DecodeMarkerPayload(payload, marker));
     BOOST_CHECK_EQUAL(marker.action, ACTION_MINT);
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
-    BOOST_CHECK(VerifyStubbedProof(marker));
+    BOOST_CHECK_EQUAL(BuildProofEnvelope(marker).size(), ProofEnvelopePrefix().size() + FIELD_SIZE);
+
+    TxValidationState missing_proof_state;
+    BOOST_CHECK(!CheckTransaction(TransactionWithMarker(payload), /*active=*/true, missing_proof_state));
+    BOOST_CHECK_EQUAL(missing_proof_state.GetRejectReason(), "bad-shielded-proof");
 
     TxValidationState valid_state;
-    BOOST_CHECK(CheckTransaction(TransactionWithMarker(payload), /*active=*/true, valid_state));
+    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, BuildProofEnvelope(marker)), /*active=*/true, valid_state));
 
     auto tampered_payload = payload;
     tampered_payload.back() ^= 0x01;
     TxValidationState invalid_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithMarker(tampered_payload), /*active=*/true, invalid_state));
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(tampered_payload, BuildProofEnvelope(marker)), /*active=*/true, invalid_state));
     BOOST_CHECK_EQUAL(invalid_state.GetRejectReason(), "bad-shielded-proof");
+
+    auto tampered_proof = BuildProofEnvelope(marker);
+    tampered_proof.back() ^= 0x01;
+    TxValidationState tampered_proof_state;
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, tampered_proof), /*active=*/true, tampered_proof_state));
+    BOOST_CHECK_EQUAL(tampered_proof_state.GetRejectReason(), "bad-shielded-proof");
+
+    auto duplicate_proof = BuildProofEnvelope(marker);
+    CMutableTransaction duplicate_proof_tx(TransactionWithProof(payload, duplicate_proof));
+    duplicate_proof_tx.vin[0].scriptWitness.stack.push_back(duplicate_proof);
+    TxValidationState duplicate_proof_state;
+    BOOST_CHECK(!CheckTransaction(CTransaction(duplicate_proof_tx), /*active=*/true, duplicate_proof_state));
+    BOOST_CHECK_EQUAL(duplicate_proof_state.GetRejectReason(), "bad-shielded-proof");
+
+    auto wrong_prefix_proof = BuildProofEnvelope(marker);
+    wrong_prefix_proof[0] ^= 0x01;
+    TxValidationState wrong_prefix_state;
+    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, wrong_prefix_proof), /*active=*/true, wrong_prefix_state));
+    BOOST_CHECK_EQUAL(wrong_prefix_state.GetRejectReason(), "bad-shielded-proof");
 }
 
 BOOST_AUTO_TEST_CASE(spend_markers_stay_standard_relay_sized)
@@ -71,7 +107,8 @@ BOOST_AUTO_TEST_CASE(spend_markers_stay_standard_relay_sized)
     BOOST_CHECK(DecodeMarkerPayload(payload, marker));
     BOOST_CHECK_EQUAL(marker.action, ACTION_SPEND);
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
-    BOOST_CHECK(VerifyStubbedProof(marker));
+    TxValidationState valid_state;
+    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, BuildProofEnvelope(marker)), /*active=*/true, valid_state));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -16,8 +16,9 @@ from test_framework.blocktools import (
     create_coinbase,
     script_BIP34_coinbase_height,
 )
-from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxOut
-from test_framework.script import CScript
+from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut
+from test_framework.script import CScript, OP_DROP, OP_RETURN, OP_TRUE
+from test_framework.script_util import script_to_p2wsh_script
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
 
@@ -25,6 +26,8 @@ from test_framework.util import assert_array_result, assert_equal, assert_raises
 MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 PROOF_TAG_SIZE = 3
+PROOF_ENVELOPE_PREFIX = b"zkc-proof-v1"
+PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
 class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
@@ -36,12 +39,14 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def setup_network(self):
         self.setup_nodes()
 
-    def create_parent_balance_tx(self, coinbase_tx, alice_script, bob_script):
+    def create_parent_balance_tx(self, coinbase_tx, alice_script, bob_script, proof_script):
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(coinbase_tx.sha256, 0), b"", 0xffffffff))
         tx.vout.append(CTxOut(5 * COIN, alice_script))
         tx.vout.append(CTxOut(7 * COIN, bob_script))
-        tx.vout.append(CTxOut(coinbase_tx.vout[0].nValue - 12 * COIN - 100000, bob_script))
+        tx.vout.append(CTxOut(5 * COIN, proof_script))
+        tx.vout.append(CTxOut(6 * COIN, proof_script))
+        tx.vout.append(CTxOut(coinbase_tx.vout[0].nValue - 23 * COIN - 100000, bob_script))
         tx.calc_sha256()
         return tx
 
@@ -90,13 +95,18 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_commitment(self, label):
         return hashlib.sha256(label.encode()).digest()
 
-    def shielded_proof_tag(self, action, shielded_value, commitment):
+    def shielded_proof_hash(self, action, shielded_value, commitment):
         preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little") + commitment
-        return hashlib.sha256(hashlib.sha256(preimage).digest()).digest()[:PROOF_TAG_SIZE]
+        return hashlib.sha256(hashlib.sha256(preimage).digest()).digest()
 
-    def create_shielded_mint_tx(self, node, outpoint, prev_txout, signing_key, destination, commitment, shielded_value=COIN):
-        prev_value = Decimal(str(prev_txout["value"]))
-        shielded_decimal = Decimal(shielded_value) / Decimal(COIN)
+    def shielded_proof_tag(self, action, shielded_value, commitment):
+        return self.shielded_proof_hash(action, shielded_value, commitment)[:PROOF_TAG_SIZE]
+
+    def shielded_proof_envelope(self, action, shielded_value, commitment):
+        return PROOF_ENVELOPE_PREFIX + self.shielded_proof_hash(action, shielded_value, commitment)
+
+    def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN):
+        prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
         payload = (
             MARKER_PREFIX
             + bytes([ACTION_MINT])
@@ -104,21 +114,21 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             + commitment
             + self.shielded_proof_tag(ACTION_MINT, shielded_value, commitment)
         )
-        raw_tx = node.createrawtransaction(
-            [outpoint],
-            [
-                {destination: prev_value - shielded_decimal - Decimal("0.00100000")},
-                {"data": payload.hex()},
-            ],
-        )
-        signed = node.signrawtransactionwithkey(raw_tx, [signing_key], [{
-            "txid": outpoint["txid"],
-            "vout": outpoint["vout"],
-            "scriptPubKey": prev_txout["scriptPubKey"]["hex"],
-            "amount": prev_value,
-        }])
-        assert_equal(signed["complete"], True)
-        return signed["hex"]
+        destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
+
+        tx = CTransaction()
+        tx.vin = [CTxIn(COutPoint(int(outpoint["txid"], 16), outpoint["vout"]))]
+        tx.vout = [
+            CTxOut(prev_value - shielded_value - 100000, destination_script),
+            CTxOut(0, CScript([OP_RETURN, payload])),
+        ]
+        tx.wit.vtxinwit = [CTxInWitness()]
+        tx.wit.vtxinwit[0].scriptWitness.stack = [
+            self.shielded_proof_envelope(ACTION_MINT, shielded_value, commitment),
+            PROOF_SCRIPT,
+        ]
+        tx.rehash()
+        return tx.serialize().hex()
 
     def run_test(self):
         parent = self.nodes[0]
@@ -129,18 +139,25 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         bob_key = parent.get_deterministic_priv_key()
         alice_script = bytes.fromhex(child.validateaddress(alice_key.address)["scriptPubKey"])
         bob_script = bytes.fromhex(child.validateaddress(bob_key.address)["scriptPubKey"])
+        proof_script = script_to_p2wsh_script(PROOF_SCRIPT)
         parent_blocks = [self.mine_parent_block(parent) for _ in range(101)]
-        parent_balance_tx = self.create_parent_balance_tx(parent_blocks[0].vtx[0], alice_script, bob_script)
+        parent_balance_tx = self.create_parent_balance_tx(parent_blocks[0].vtx[0], alice_script, bob_script, proof_script)
         block_x = self.mine_parent_block(parent, txlist=[parent_balance_tx])
 
         alice_outpoint = {"txid": parent_balance_tx.hash, "vout": 0}
         bob_outpoint = {"txid": parent_balance_tx.hash, "vout": 1}
+        proof_outpoint = {"txid": parent_balance_tx.hash, "vout": 2}
+        duplicate_proof_outpoint = {"txid": parent_balance_tx.hash, "vout": 3}
         miner_coinbase_outpoint = {"txid": block_x.vtx[0].hash, "vout": 0}
         parent_alice = parent.gettxout(alice_outpoint["txid"], alice_outpoint["vout"])
         parent_bob = parent.gettxout(bob_outpoint["txid"], bob_outpoint["vout"])
+        parent_proof = parent.gettxout(proof_outpoint["txid"], proof_outpoint["vout"])
+        parent_duplicate_proof = parent.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"])
         parent_miner_coinbase = parent.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"])
         assert_equal(Decimal(str(parent_alice["value"])), Decimal("5.00000000"))
         assert_equal(Decimal(str(parent_bob["value"])), Decimal("7.00000000"))
+        assert_equal(Decimal(str(parent_proof["value"])), Decimal("5.00000000"))
+        assert_equal(Decimal(str(parent_duplicate_proof["value"])), Decimal("6.00000000"))
         assert_equal(Decimal(str(parent_miner_coinbase["value"])), Decimal("50.00000000"))
         assert_equal(parent_miner_coinbase["coinbase"], True)
 
@@ -181,6 +198,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(snapshot_info["import_in_progress"], False)
         assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"]), None)
         assert_equal(child.gettxout(bob_outpoint["txid"], bob_outpoint["vout"]), None)
+        assert_equal(child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"]), None)
+        assert_equal(child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"]), None)
         assert_equal(child.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"]), None)
         assert_equal(child.gettxout(excluded_miner_coinbase_outpoint["txid"], excluded_miner_coinbase_outpoint["vout"]), None)
 
@@ -207,9 +226,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         self.log.info("Verify Alice, Bob, and block-X miner coinbase exist on the child chain")
         child_alice = child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"])
         child_bob = child.gettxout(bob_outpoint["txid"], bob_outpoint["vout"])
+        child_proof = child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"])
+        child_duplicate_proof = child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"])
         child_miner_coinbase = child.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"])
         assert_equal(Decimal(str(child_alice["value"])), Decimal("5.00000000"))
         assert_equal(Decimal(str(child_bob["value"])), Decimal("7.00000000"))
+        assert_equal(Decimal(str(child_proof["value"])), Decimal("5.00000000"))
+        assert_equal(Decimal(str(child_duplicate_proof["value"])), Decimal("6.00000000"))
         assert_equal(Decimal(str(child_miner_coinbase["value"])), Decimal("50.00000000"))
         assert_equal(child_miner_coinbase["coinbase"], False)
         assert_equal(child.gettxout(excluded_miner_coinbase_outpoint["txid"], excluded_miner_coinbase_outpoint["vout"]), None)
@@ -262,7 +285,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getbestblockhash(), child.getblockhash(0))
 
         self.log.info("Mine a child block using a real local parent block AuxPoW proof")
-        parent_aux_tx = self.create_parent_balance_tx(parent_blocks[1].vtx[0], bob_script, bob_script)
+        parent_aux_tx = self.create_parent_balance_tx(parent_blocks[1].vtx[0], bob_script, bob_script, proof_script)
         parent_block = self.mine_parent_block(parent, txlist=[parent_aux_tx], commitment_hex=candidate["auxpowcommitment"])
         non_coinbase_auxpow = build_parent_auxpow(parent_block, tx_index=1)
         assert_equal(non_coinbase_auxpow.index, 1)
@@ -289,6 +312,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getrawmempool(), [])
         assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False), None)
         assert_equal(child.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"], False), None)
+        assert_equal(Decimal(str(child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"], False)["value"])), Decimal("5.00000000"))
+        assert_equal(Decimal(str(child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)["value"])), Decimal("6.00000000"))
         child_spend = child.gettxout(spend_txid, 0, False)
         assert_equal(Decimal(str(child_spend["value"])), Decimal("4.99900000"))
         child_miner_spend = child.gettxout(miner_spend_txid, 0, False)
@@ -327,6 +352,10 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getblockcount(), 1)
         assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False), None)
         assert_equal(child.gettxout(miner_coinbase_outpoint["txid"], miner_coinbase_outpoint["vout"], False), None)
+        reloaded_proof = child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"], False)
+        reloaded_duplicate_proof = child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)
+        assert_equal(Decimal(str(reloaded_proof["value"])), Decimal("5.00000000"))
+        assert_equal(Decimal(str(reloaded_duplicate_proof["value"])), Decimal("6.00000000"))
         reloaded_spend = child.gettxout(spend_txid, 0, False)
         assert_equal(Decimal(str(reloaded_spend["value"])), Decimal("4.99900000"))
         reloaded_miner_spend = child.gettxout(miner_spend_txid, 0, False)
@@ -337,9 +366,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         shielded_commitment = self.shielded_commitment("local-parent-fork-auxpow-shielded")
         raw_shielded_mint = self.create_shielded_mint_tx(
             child,
-            {"txid": spend_txid, "vout": 0},
-            reloaded_spend,
-            bob_key.key,
+            proof_outpoint,
+            reloaded_proof,
             bob_key.address,
             shielded_commitment,
         )
@@ -347,9 +375,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
 
         raw_duplicate_mint = self.create_shielded_mint_tx(
             child,
-            {"txid": miner_spend_txid, "vout": 0},
-            reloaded_miner_spend,
-            bob_key.key,
+            duplicate_proof_outpoint,
+            reloaded_duplicate_proof,
             bob_key.address,
             shielded_commitment,
         )
@@ -370,9 +397,9 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getbestblockhash(), shielded_candidate["hash"])
         assert shielded_txid in child.getblock(shielded_candidate["hash"])["tx"]
         assert_equal(child.getrawmempool(), [])
-        assert_equal(child.gettxout(spend_txid, 0, False), None)
+        assert_equal(child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"], False), None)
         shielded_output = child.gettxout(shielded_txid, 0, False)
-        assert_equal(Decimal(str(shielded_output["value"])), Decimal("3.99800000"))
+        assert_equal(Decimal(str(shielded_output["value"])), Decimal("3.99900000"))
         shielded_info = child.getblockchaininfo()["shielded_pool"]
         assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("1.00000000"))
         assert_equal(shielded_info["commitments"], 1)

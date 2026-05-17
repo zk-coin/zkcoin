@@ -47,6 +47,12 @@ inline const std::vector<unsigned char>& MarkerPrefix()
     return marker;
 }
 
+inline const std::vector<unsigned char>& ProofEnvelopePrefix()
+{
+    static const std::vector<unsigned char> prefix{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '1'};
+    return prefix;
+}
+
 inline bool ExtractMarkerPayload(const CScript& script, std::vector<unsigned char>& payload)
 {
     CScript::const_iterator pc = script.begin();
@@ -118,10 +124,29 @@ inline std::vector<unsigned char> BuildProofPreimage(const Marker& marker)
     return data;
 }
 
+inline uint256 ExpectedProofHash(const Marker& marker)
+{
+    return Hash(BuildProofPreimage(marker));
+}
+
 inline std::vector<unsigned char> ExpectedProofTag(const Marker& marker)
 {
-    const uint256 proof_hash = Hash(BuildProofPreimage(marker));
+    const uint256 proof_hash = ExpectedProofHash(marker);
     return std::vector<unsigned char>(proof_hash.begin(), proof_hash.begin() + PROOF_TAG_SIZE);
+}
+
+inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker)
+{
+    const uint256 proof_hash = ExpectedProofHash(marker);
+    std::vector<unsigned char> envelope = ProofEnvelopePrefix();
+    envelope.insert(envelope.end(), proof_hash.begin(), proof_hash.end());
+    return envelope;
+}
+
+inline bool HasProofEnvelopePrefix(const std::vector<unsigned char>& stack_item)
+{
+    const auto& prefix = ProofEnvelopePrefix();
+    return stack_item.size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), stack_item.begin());
 }
 
 inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marker& marker)
@@ -185,9 +210,21 @@ inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, co
     return payload;
 }
 
-inline bool VerifyStubbedProof(const Marker& marker)
+inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx)
 {
-    return marker.proof_tag == ExpectedProofTag(marker);
+    if (marker.proof_tag != ExpectedProofTag(marker)) return false;
+
+    bool found{false};
+    const std::vector<unsigned char> expected = BuildProofEnvelope(marker);
+    for (const CTxIn& txin : tx.vin) {
+        for (const auto& stack_item : txin.scriptWitness.stack) {
+            if (!HasProofEnvelopePrefix(stack_item)) continue;
+            if (found) return false;
+            found = true;
+            if (stack_item != expected) return false;
+        }
+    }
+    return found;
 }
 
 inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)
@@ -223,7 +260,7 @@ inline bool CheckTransaction(const CTransaction& tx, bool active, TxValidationSt
         if (marker.HasAnchor() && marker.anchor.IsNull()) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-anchor");
         }
-        if (!VerifyStubbedProof(marker)) {
+        if (!VerifyProofEnvelope(marker, tx)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-shielded-proof");
         }
         if (markers_out) {
