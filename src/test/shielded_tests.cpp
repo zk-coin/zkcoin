@@ -3,8 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <amount.h>
+#include <coins.h>
 #include <consensus/shielded.h>
 #include <consensus/validation.h>
+#include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
@@ -51,6 +53,39 @@ static CTransaction TransactionWithProof(const std::vector<unsigned char>& paylo
     CMutableTransaction tx = MutableTransactionWithMarker(payload);
     tx.vin[0].scriptWitness.stack.push_back(Consensus::ShieldedPool::BuildProofEnvelope(marker, CTransaction(tx)));
     return CTransaction(tx);
+}
+
+static void SetProofBundleLength(std::vector<unsigned char>& bundle)
+{
+    using namespace Consensus::ShieldedPool;
+
+    const size_t proof_len_offset = ProofEnvelopePrefix().size() + 1 + 1 + 1 + 1 + SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
+    BOOST_REQUIRE(bundle.size() >= proof_offset);
+
+    const uint32_t proof_len = bundle.size() - proof_offset;
+    for (size_t i = 0; i < sizeof(proof_len); ++i) {
+        bundle[proof_len_offset + i] = (proof_len >> (8 * i)) & 0xff;
+    }
+}
+
+static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins, const std::vector<unsigned char>& witness_item, uint32_t nonce)
+{
+    const CScript witness_script = CScript() << OP_TRUE;
+    const CScript script_pubkey = GetScriptForDestination(WitnessV0ScriptHash(witness_script));
+
+    CMutableTransaction funding_tx;
+    funding_tx.nLockTime = nonce;
+    funding_tx.vin.resize(1);
+    funding_tx.vin[0].prevout.SetNull();
+    funding_tx.vout.emplace_back(COIN, script_pubkey);
+    const CTransaction funding(funding_tx);
+    AddCoins(coins, funding, 1);
+
+    tx.vin.resize(1);
+    tx.vin[0].prevout = COutPoint(funding.GetHash(), 0);
+    tx.vin[0].scriptWitness.stack.push_back(witness_item);
+    tx.vin[0].scriptWitness.stack.emplace_back(witness_script.begin(), witness_script.end());
 }
 
 BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
@@ -251,6 +286,43 @@ BOOST_AUTO_TEST_CASE(spend_markers_stay_standard_relay_sized)
     BOOST_CHECK_EQUAL(marker.nValue, COIN);
     TxValidationState valid_state;
     BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, valid_state));
+}
+
+BOOST_AUTO_TEST_CASE(shielded_proof_bundle_witness_policy_allows_real_proof_sizes)
+{
+    using namespace Consensus::ShieldedPool;
+
+    CCoinsView coins_dummy;
+    CCoinsViewCache coins(&coins_dummy);
+
+    const auto marker_payload = BuildMintPayload(Field(0x04), COIN);
+    Marker marker;
+    BOOST_REQUIRE(DecodeMarkerPayload(marker_payload, marker));
+
+    const uint256 public_input_hash = BuildProofPublicInputHash(ACTION_MINT, ExpectedProofHash(marker), Field(0x05));
+    auto proof_bundle = BuildProofBundleV4(ACTION_MINT, public_input_hash);
+    BOOST_REQUIRE(proof_bundle.size() <= MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
+    proof_bundle.resize(MAX_STANDARD_P2WSH_STACK_ITEM_SIZE + 1, 0x42);
+    SetProofBundleLength(proof_bundle);
+    BOOST_REQUIRE(HasProofEnvelopePrefix(proof_bundle));
+    BOOST_REQUIRE(proof_bundle.size() <= MAX_SCRIPT_ELEMENT_SIZE);
+
+    CMutableTransaction non_shielded_tx;
+    AddP2WSHWitnessInput(non_shielded_tx, coins, std::vector<unsigned char>(MAX_STANDARD_P2WSH_STACK_ITEM_SIZE + 1, 0x99), 1);
+    BOOST_CHECK(!IsWitnessStandard(CTransaction(non_shielded_tx), coins));
+
+    CMutableTransaction shielded_tx;
+    shielded_tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
+    AddP2WSHWitnessInput(shielded_tx, coins, proof_bundle, 2);
+    BOOST_CHECK(IsWitnessStandard(CTransaction(shielded_tx), coins));
+
+    auto over_limit_bundle = proof_bundle;
+    over_limit_bundle.resize(MAX_SCRIPT_ELEMENT_SIZE + 1, 0x42);
+    SetProofBundleLength(over_limit_bundle);
+    CMutableTransaction over_limit_tx;
+    over_limit_tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
+    AddP2WSHWitnessInput(over_limit_tx, coins, over_limit_bundle, 3);
+    BOOST_CHECK(!IsWitnessStandard(CTransaction(over_limit_tx), coins));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

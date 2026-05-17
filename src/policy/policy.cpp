@@ -7,10 +7,31 @@
 
 #include <policy/policy.h>
 
+#include <consensus/shielded.h>
 #include <consensus/validation.h>
 #include <mweb/mweb_policy.h>
 #include <coins.h>
 #include <span.h>
+
+static bool HasWellFormedShieldedMarker(const CTransaction& tx)
+{
+    for (const CTxOut& txout : tx.vout) {
+        std::vector<unsigned char> payload;
+        Consensus::ShieldedPool::Marker marker;
+        if (Consensus::ShieldedPool::ExtractMarkerPayload(txout.scriptPubKey, payload) &&
+            Consensus::ShieldedPool::DecodeMarkerPayload(payload, marker)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool IsStandardShieldedProofBundleWitnessItem(const std::vector<unsigned char>& stack_item)
+{
+    return stack_item.size() <= MAX_SCRIPT_ELEMENT_SIZE &&
+           Consensus::ShieldedPool::HasProofEnvelopePrefix(stack_item);
+}
 
 CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 {
@@ -209,6 +230,8 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     if (tx.IsCoinBase())
         return true; // Coinbases are skipped
 
+    const bool has_shielded_marker = HasWellFormedShieldedMarker(tx);
+
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         // We don't care if witness for this input is empty, since it must not be bloated.
@@ -250,8 +273,11 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             if (sizeWitnessStack > MAX_STANDARD_P2WSH_STACK_ITEMS)
                 return false;
             for (unsigned int j = 0; j < sizeWitnessStack; j++) {
-                if (tx.vin[i].scriptWitness.stack[j].size() > MAX_STANDARD_P2WSH_STACK_ITEM_SIZE)
+                const auto& stack_item = tx.vin[i].scriptWitness.stack[j];
+                if (stack_item.size() > MAX_STANDARD_P2WSH_STACK_ITEM_SIZE &&
+                    !(has_shielded_marker && IsStandardShieldedProofBundleWitnessItem(stack_item))) {
                     return false;
+                }
             }
         }
 
