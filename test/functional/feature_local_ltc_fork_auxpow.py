@@ -54,6 +54,13 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(parent.getbestblockhash(), block.hash)
         return block
 
+    def assert_child_snapshot_imported(self, child, dump, verify):
+        snapshot = child.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot["imported"], True)
+        assert_equal(snapshot["imported_height"], dump["base_height"])
+        assert_equal(snapshot["imported_block_hash"], verify["base_hash"])
+        assert_equal(snapshot["imported_hash"], verify["import_hash"])
+
     def run_test(self):
         parent = self.nodes[0]
         child = self.nodes[1]
@@ -93,6 +100,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(imported["configured_snapshot"], True)
         assert_equal(imported["base_height"], dump["base_height"])
         assert_equal(imported["import_hash"], verify["import_hash"])
+        self.assert_child_snapshot_imported(child, dump, verify)
 
         self.log.info("Verify Alice and Bob UTXOs exist on the child chain")
         child_alice = child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"])
@@ -114,11 +122,37 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(signed_spend["complete"], True)
         spend_txid = child.sendrawtransaction(signed_spend["hex"])
 
-        self.log.info("Mine a child block using a real local parent block AuxPoW proof")
+        self.log.info("Reject a local parent AuxPoW proof with the wrong commitment")
         candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(candidate["height"], 1)
+        assert_equal(candidate["previousblockhash"], child.getbestblockhash())
+        assert_equal(candidate["chainid"], child.getblockchaininfo()["auxpow"]["chain_id"])
+        assert_equal(candidate["auxpowcommitment"], "fabe6d6d" + candidate["hash"] + "0100000000000000")
+        wrong_commitment = (
+            candidate["auxpowcommitment"][:8] +
+            ("00" if candidate["auxpowcommitment"][8:10] != "00" else "01") +
+            candidate["auxpowcommitment"][10:]
+        )
+        bad_parent_block = self.mine_parent_block(parent, commitment_hex=wrong_commitment)
+        bad_auxpow = build_parent_auxpow(bad_parent_block)
+        assert_equal(child.getauxblock(candidate["hash"], bad_auxpow.serialize().hex()), "high-hash")
+        assert_equal(child.getblockcount(), 0)
+        assert spend_txid in child.getrawmempool()
+        assert_equal(child.getbestblockhash(), child.getblockhash(0))
+
+        self.log.info("Mine a child block using a real local parent block AuxPoW proof")
         parent_aux_tx = self.create_parent_balance_tx(parent_blocks[1].vtx[0], bob_script, bob_script)
         parent_block = self.mine_parent_block(parent, txlist=[parent_aux_tx], commitment_hex=candidate["auxpowcommitment"])
+        non_coinbase_auxpow = build_parent_auxpow(parent_block, tx_index=1)
+        assert_equal(non_coinbase_auxpow.index, 1)
+        assert_equal(len(non_coinbase_auxpow.merkle_branch), 1)
+        assert_equal(child.getauxblock(candidate["hash"], non_coinbase_auxpow.serialize().hex()), "high-hash")
+        assert_equal(child.getblockcount(), 0)
+        assert spend_txid in child.getrawmempool()
+        assert_equal(child.getbestblockhash(), child.getblockhash(0))
+
         auxpow = build_parent_auxpow(parent_block)
+        assert_equal(auxpow.index, 0)
         assert_equal(len(auxpow.merkle_branch), 1)
         assert_equal(child.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
         assert_equal(child.getblockcount(), 1)
@@ -146,6 +180,8 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
 
         self.log.info("Persist and reload child AuxPoW header from disk")
         child_header_hex = child.getblockheader(candidate["hash"], False)
+        assert child_header_hex.startswith(candidate["header"])
+        assert len(child_header_hex) > len(candidate["header"])
         self.restart_node(1, extra_args=[
             "-auxpowheight=1",
             f"-ltcsnapshotheight={dump['base_height']}",
@@ -154,6 +190,11 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         ])
         child = self.nodes[1]
         assert_equal(child.getblockheader(candidate["hash"], False), child_header_hex)
+        self.assert_child_snapshot_imported(child, dump, verify)
+        assert_equal(child.getblockcount(), 1)
+        assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False), None)
+        reloaded_spend = child.gettxout(spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_spend["value"])), Decimal("4.99900000"))
 
 
 if __name__ == "__main__":
