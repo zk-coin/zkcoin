@@ -90,6 +90,7 @@ public:
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
         consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
+        consensus.shielded_pool.nStartHeight = -1;
         consensus.nRuleChangeActivationThreshold = 6048; // 75% of 8064
         consensus.nMinerConfirmationWindow = 8064; // nPowTargetTimespan / nPowTargetSpacing * 4
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -215,6 +216,7 @@ public:
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
         consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
+        consensus.shielded_pool.nStartHeight = -1;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -315,6 +317,7 @@ public:
         consensus.ltc_snapshot.nHeight = -1;
         consensus.auxpow.nStartHeight = -1;
         consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field
+        consensus.shielded_pool.nStartHeight = -1;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
 
@@ -402,6 +405,14 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
             throw std::runtime_error(strprintf("Activation height %ld for auxpow is out of valid range. Use -1 to disable auxpow.", height));
         }
         consensus.auxpow.nStartHeight = static_cast<int>(height);
+    }
+
+    if (args.IsArgSet("-shieldedheight")) {
+        int64_t height = args.GetArg("-shieldedheight", consensus.shielded_pool.nStartHeight);
+        if (height < -1 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Activation height %ld for shielded pool is out of valid range. Use -1 to disable shielded pool.", height));
+        }
+        consensus.shielded_pool.nStartHeight = static_cast<int>(height);
     }
 
     const bool snapshot_height_set = args.IsArgSet("-ltcsnapshotheight");

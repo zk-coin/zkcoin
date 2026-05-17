@@ -1472,6 +1472,11 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::NUM, "chain_id", "AuxPoW child chain id"},
                             {RPCResult::Type::BOOL, "strict_chain_id", "whether parent and child chain ids must differ"},
                         }},
+                        {RPCResult::Type::OBJ, "shielded_pool", "Shielded pool marker transaction parameters",
+                        {
+                            {RPCResult::Type::BOOL, "next_block_active", "whether shielded pool marker transactions are valid for the next block"},
+                            {RPCResult::Type::NUM, "start_height", "height at which shielded pool marker transactions activate, or -1 if disabled"},
+                        }},
                         {RPCResult::Type::OBJ, "ltc_snapshot", "Litecoin block-X launch snapshot parameters",
                         {
                             {RPCResult::Type::BOOL, "enabled", "whether the Litecoin snapshot is configured"},
@@ -1547,6 +1552,11 @@ RPCHelpMan getblockchaininfo()
     auxpow.pushKV("chain_id", static_cast<int64_t>(consensusParams.auxpow.nChainId));
     auxpow.pushKV("strict_chain_id", consensusParams.auxpow.fStrictChainId);
     obj.pushKV("auxpow", auxpow);
+
+    UniValue shielded_pool(UniValue::VOBJ);
+    shielded_pool.pushKV("next_block_active", consensusParams.shielded_pool.IsEnabled(::ChainActive().Height() + 1));
+    shielded_pool.pushKV("start_height", consensusParams.shielded_pool.nStartHeight);
+    obj.pushKV("shielded_pool", shielded_pool);
 
     UniValue ltc_snapshot(UniValue::VOBJ);
     LtcSnapshotImportInfo imported_snapshot;

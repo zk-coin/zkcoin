@@ -78,6 +78,15 @@ struct AuxPowParams {
 };
 
 /**
+ * Parameters for the shielded transaction pool scaffold.
+ */
+struct ShieldedPoolParams {
+    int nStartHeight{-1};
+
+    bool IsEnabled(int nHeight) const { return nStartHeight >= 0 && nHeight >= nStartHeight; }
+};
+
+/**
  * Parameters that influence chain consensus.
  */
 struct Params {
@@ -129,6 +138,9 @@ struct Params {
 
     /** AuxPoW merge-mining activation and chain identity. */
     AuxPowParams auxpow;
+
+    /** Shielded pool activation. */
+    ShieldedPoolParams shielded_pool;
 
     /** Frozen MWEB output IDs that may not be spent. */
     std::vector<uint256> frozen_mweb_output_ids;

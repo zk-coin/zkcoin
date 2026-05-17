@@ -34,10 +34,13 @@ echo "Running UTXO snapshot unit tests"
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 
+echo "Running shielded pool scaffold functional test"
+test/functional/feature_shielded_pool.py
+
 echo "Running snapshot launch functional test"
 test/functional/feature_ltc_snapshot_launch.py
 
 echo "Running local parent-fork AuxPoW functional test"
 test/functional/feature_local_ltc_fork_auxpow.py
 
-echo "Local fork AuxPoW loop passed"
+echo "Local fork AuxPoW and shielded scaffold loop passed"

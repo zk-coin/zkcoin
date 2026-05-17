@@ -11,6 +11,7 @@
 #include <checkqueue.h>
 #include <consensus/consensus.h>
 #include <consensus/merkle.h>
+#include <consensus/shielded.h>
 #include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
@@ -599,6 +600,11 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     size_t& nConflictingSize = ws.m_conflicting_size;
 
     if (!CheckTransaction(tx, state)) {
+        return false; // state filled in by CheckTransaction
+    }
+
+    const bool shielded_pool_active = args.m_chainparams.GetConsensus().shielded_pool.IsEnabled(::ChainActive().Height() + 1);
+    if (!Consensus::ShieldedPool::CheckTransaction(tx, shielded_pool_active, state)) {
         return false; // state filled in by CheckTransaction
     }
 
@@ -3748,6 +3754,16 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     for (const auto& tx : block.vtx) {
         if (!IsFinalTx(*tx, nHeight, nLockTimeCutoff)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal", "non-final transaction");
+        }
+    }
+
+    const bool shielded_pool_active = consensusParams.shielded_pool.IsEnabled(nHeight);
+    for (const auto& tx : block.vtx) {
+        TxValidationState tx_state;
+        if (!Consensus::ShieldedPool::CheckTransaction(*tx, shielded_pool_active, tx_state)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
+                                 strprintf("Shielded pool transaction check failed (tx hash %s) %s",
+                                           tx->GetHash().ToString(), tx_state.GetDebugMessage()));
         }
     }
 
