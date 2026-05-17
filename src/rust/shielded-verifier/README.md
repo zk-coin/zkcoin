@@ -39,8 +39,8 @@ input hash can return `valid` through the same native-verifier boundary. It is
 not a production cryptographic proof system and is intentionally excluded from
 normal node builds. `scripts/fixture-consensus-smoke.sh` links that fixture
 backend into a standalone C++ consensus smoke test and proves a real-mode
-shielded witness is accepted with scaffold proofs disabled, while a tampered
-real-mode proof is still rejected.
+shielded mint and spend witness are accepted with scaffold proofs disabled,
+while tampered real-mode proofs are still rejected.
 
 The v4 bundle layout is:
 

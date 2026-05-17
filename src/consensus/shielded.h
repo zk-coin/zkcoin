@@ -141,10 +141,23 @@ inline uint256 TransactionBindingHash(const CTransaction& tx)
     return SerializeHash(tx, SER_GETHASH, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS | SERIALIZE_NO_MWEB);
 }
 
+inline uint256 BuildProofPublicInputHash(const Marker& marker, const CTransaction& tx)
+{
+    return BuildProofPublicInputHash(marker.action, ExpectedProofHash(marker), TransactionBindingHash(tx));
+}
+
 inline std::vector<unsigned char> BuildProofEnvelope(const Marker& marker, const CTransaction& tx)
 {
-    const uint256 public_input_hash = BuildProofPublicInputHash(marker.action, ExpectedProofHash(marker), TransactionBindingHash(tx));
+    const uint256 public_input_hash = BuildProofPublicInputHash(marker, tx);
     return BuildProofBundleV4(marker.action, public_input_hash);
+}
+
+inline std::vector<unsigned char> BuildRealProofEnvelope(const Marker& marker, const CTransaction& tx, const std::vector<unsigned char>& proof_bytes)
+{
+    const uint256 public_input_hash = BuildProofPublicInputHash(marker, tx);
+    const auto proof_body = BuildOrchardRealProofBodyV1(marker.action, public_input_hash, proof_bytes);
+    const auto proof_payload = BuildOrchardProofPayloadV1(marker.action, public_input_hash, proof_body);
+    return BuildProofBundleV4(marker.action, public_input_hash, proof_payload);
 }
 
 inline bool HasProofEnvelopePrefix(const std::vector<unsigned char>& stack_item)

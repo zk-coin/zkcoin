@@ -53,14 +53,9 @@ static std::vector<unsigned char> BuildFixtureProofEnvelope(
 {
     using namespace Consensus::ShieldedPool;
 
-    public_input_hash_out = BuildProofPublicInputHash(
-        marker.action,
-        ExpectedProofHash(marker),
-        TransactionBindingHash(tx));
+    public_input_hash_out = BuildProofPublicInputHash(marker, tx);
     const auto proof_bytes = BuildFixtureProofBytes(marker.action, public_input_hash_out);
-    const auto real_body = BuildOrchardRealProofBodyV1(marker.action, public_input_hash_out, proof_bytes);
-    const auto real_payload = BuildOrchardProofPayloadV1(marker.action, public_input_hash_out, real_body);
-    return BuildProofBundleV4(marker.action, public_input_hash_out, real_payload);
+    return BuildRealProofEnvelope(marker, tx, proof_bytes);
 }
 
 int main()
@@ -110,6 +105,15 @@ int main()
         return 7;
     }
 
+    CAmount mint_delta{0};
+    TxValidationState mint_delta_state;
+    if (!GetTransactionValuePoolDelta(CTransaction(real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, mint_delta, mint_delta_state)) {
+        return 24;
+    }
+    if (mint_delta != COIN) {
+        return 25;
+    }
+
     CMutableTransaction scaffold_tx = MutableTransactionWithMarker(payload);
     scaffold_tx.vin[0].scriptWitness.stack.push_back(BuildProofEnvelope(marker, CTransaction(scaffold_tx)));
     TxValidationState scaffold_state;
@@ -130,6 +134,76 @@ int main()
     }
     if (bad_state.GetRejectReason() != "bad-shielded-proof") {
         return 11;
+    }
+
+    const auto spend_payload = BuildSpendPayload(Field(0x31), Field(0x32), COIN);
+    Marker spend_marker;
+    if (!DecodeMarkerPayload(spend_payload, spend_marker)) {
+        return 12;
+    }
+    if (spend_marker.action != ACTION_SPEND || spend_marker.nullifier.IsNull() || spend_marker.anchor.IsNull()) {
+        return 13;
+    }
+
+    CMutableTransaction spend_base_tx = MutableTransactionWithMarker(spend_payload);
+    uint256 spend_public_input_hash;
+    const auto spend_real_envelope = BuildFixtureProofEnvelope(spend_marker, CTransaction(spend_base_tx), spend_public_input_hash);
+
+    proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    real_request_hash.SetNull();
+    real_verifier_input_hash.SetNull();
+    if (CheckProofBundleV5(
+            spend_real_envelope,
+            spend_marker.action,
+            spend_public_input_hash,
+            proof_body_mode,
+            real_request_hash,
+            real_verifier_input_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
+        return 14;
+    }
+    if (proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return 15;
+    }
+    if (real_request_hash.IsNull() || real_verifier_input_hash.IsNull()) {
+        return 16;
+    }
+
+    CMutableTransaction spend_real_tx = MutableTransactionWithMarker(spend_payload);
+    spend_real_tx.vin[0].scriptWitness.stack.push_back(spend_real_envelope);
+    TxValidationState spend_real_state;
+    if (!CheckTransaction(CTransaction(spend_real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_real_state)) {
+        return 17;
+    }
+
+    CAmount spend_delta{0};
+    TxValidationState spend_delta_state;
+    if (!GetTransactionValuePoolDelta(CTransaction(spend_real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_delta, spend_delta_state)) {
+        return 18;
+    }
+    if (spend_delta != -COIN) {
+        return 19;
+    }
+
+    CMutableTransaction spend_scaffold_tx = MutableTransactionWithMarker(spend_payload);
+    spend_scaffold_tx.vin[0].scriptWitness.stack.push_back(BuildProofEnvelope(spend_marker, CTransaction(spend_scaffold_tx)));
+    TxValidationState spend_scaffold_state;
+    if (CheckTransaction(CTransaction(spend_scaffold_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_scaffold_state)) {
+        return 20;
+    }
+    if (spend_scaffold_state.GetRejectReason() != "bad-shielded-proof") {
+        return 21;
+    }
+
+    auto bad_spend_envelope = spend_real_envelope;
+    bad_spend_envelope.back() ^= 0x01;
+    CMutableTransaction bad_spend_tx = MutableTransactionWithMarker(spend_payload);
+    bad_spend_tx.vin[0].scriptWitness.stack.push_back(bad_spend_envelope);
+    TxValidationState bad_spend_state;
+    if (CheckTransaction(CTransaction(bad_spend_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, bad_spend_state)) {
+        return 22;
+    }
+    if (bad_spend_state.GetRejectReason() != "bad-shielded-proof") {
+        return 23;
     }
 
     return 0;

@@ -374,6 +374,12 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     const auto real_orchard_body_v1 = BuildOrchardRealProofBodyV1(ACTION_MINT, public_input_hash, real_proof_bytes);
     const auto real_orchard_payload_v1 = BuildOrchardProofPayloadV1(ACTION_MINT, public_input_hash, real_orchard_body_v1);
     const auto real_proof_bundle_v4 = BuildProofBundleV4(ACTION_MINT, public_input_hash, real_orchard_payload_v1);
+    const auto real_proof_bundle_from_marker = BuildRealProofEnvelope(marker, unsigned_tx, real_proof_bytes);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        real_proof_bundle_v4.begin(),
+        real_proof_bundle_v4.end(),
+        real_proof_bundle_from_marker.begin(),
+        real_proof_bundle_from_marker.end());
     decoded_body_mode = 0xff;
     BOOST_CHECK(DecodeOrchardProofBodyModeV1(
         real_orchard_payload_v1,
