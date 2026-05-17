@@ -82,19 +82,21 @@ int main()
     uint8_t proof_body_mode{SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
     uint256 real_request_hash;
     uint256 real_verifier_input_hash;
-    if (CheckProofBundleV5(
+    uint256 real_native_proof_hash;
+    if (CheckProofBundleV6(
             real_envelope,
             marker.action,
             public_input_hash,
             proof_body_mode,
             real_request_hash,
-            real_verifier_input_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
+            real_verifier_input_hash,
+            real_native_proof_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
         return 4;
     }
     if (proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
         return 5;
     }
-    if (real_request_hash.IsNull() || real_verifier_input_hash.IsNull()) {
+    if (real_request_hash.IsNull() || real_verifier_input_hash.IsNull() || real_native_proof_hash.IsNull()) {
         return 6;
     }
 
@@ -106,7 +108,8 @@ int main()
     }
     if (real_envelope_check.proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL ||
         real_envelope_check.real_request_hash != real_request_hash ||
-        real_envelope_check.real_verifier_input_hash != real_verifier_input_hash) {
+        real_envelope_check.real_verifier_input_hash != real_verifier_input_hash ||
+        real_envelope_check.real_native_proof_hash != real_native_proof_hash) {
         return 27;
     }
     TxValidationState real_state;
@@ -161,19 +164,21 @@ int main()
     proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
     real_request_hash.SetNull();
     real_verifier_input_hash.SetNull();
-    if (CheckProofBundleV5(
+    real_native_proof_hash.SetNull();
+    if (CheckProofBundleV6(
             spend_real_envelope,
             spend_marker.action,
             spend_public_input_hash,
             proof_body_mode,
             real_request_hash,
-            real_verifier_input_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
+            real_verifier_input_hash,
+            real_native_proof_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
         return 14;
     }
     if (proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
         return 15;
     }
-    if (real_request_hash.IsNull() || real_verifier_input_hash.IsNull()) {
+    if (real_request_hash.IsNull() || real_verifier_input_hash.IsNull() || real_native_proof_hash.IsNull()) {
         return 16;
     }
 
@@ -185,7 +190,8 @@ int main()
     }
     if (spend_real_envelope_check.proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL ||
         spend_real_envelope_check.real_request_hash != real_request_hash ||
-        spend_real_envelope_check.real_verifier_input_hash != real_verifier_input_hash) {
+        spend_real_envelope_check.real_verifier_input_hash != real_verifier_input_hash ||
+        spend_real_envelope_check.real_native_proof_hash != real_native_proof_hash) {
         return 29;
     }
     TxValidationState spend_real_state;
