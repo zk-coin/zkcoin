@@ -12,6 +12,9 @@
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_VALID 1
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_INVALID -1
 #define ZKC_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED -2
+#define ZKC_ORCHARD_PROOF_BODY_MODE_SCAFFOLD 0
+#define ZKC_ORCHARD_PROOF_BODY_MODE_REAL 1
+#define ZKC_ORCHARD_PROOF_BODY_MODE_UNKNOWN 255
 #define ZKC_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED 0
 #define ZKC_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1 1
 
@@ -49,6 +52,16 @@ int zkc_shielded_verify_bundle_v4(
     uint8_t proof_kind,
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
+
+int zkc_shielded_check_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    uint8_t* proof_body_mode_out,
+    unsigned char* real_request_hash_out,
+    size_t real_request_hash_out_len);
 
 int zkc_shielded_verify_orchard_proof_v1(
     const unsigned char* proof_body,

@@ -450,6 +450,23 @@ bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof
         SHIELDED_PUBLIC_INPUT_HASH_SIZE) == 1;
 }
 
+int CheckProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash)
+{
+    std::vector<unsigned char> real_request_hash_bytes(SHIELDED_PROOF_HASH_SIZE);
+    proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    const int status = zkc_shielded_check_bundle_v4(
+        bundle.data(),
+        bundle.size(),
+        proof_kind,
+        public_input_hash.begin(),
+        SHIELDED_PUBLIC_INPUT_HASH_SIZE,
+        &proof_body_mode,
+        real_request_hash_bytes.data(),
+        real_request_hash_bytes.size());
+    std::copy(real_request_hash_bytes.begin(), real_request_hash_bytes.end(), real_request_hash.begin());
+    return status;
+}
+
 } // namespace ShieldedPool
 } // namespace Consensus
 
@@ -522,6 +539,92 @@ extern "C" int zkc_shielded_verify_bundle_v4(
     const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
     const auto expected = Consensus::ShieldedPool::BuildProofBundleV4(proof_kind, public_input_hash_value);
     return expected.size() == bundle_len && std::equal(expected.begin(), expected.end(), bundle) ? 1 : 0;
+}
+
+extern "C" int zkc_shielded_check_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    uint8_t* proof_body_mode_out,
+    unsigned char* real_request_hash_out,
+    size_t real_request_hash_out_len)
+{
+    if (proof_body_mode_out == nullptr || real_request_hash_out == nullptr || real_request_hash_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    *proof_body_mode_out = Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    std::fill(real_request_hash_out, real_request_hash_out + real_request_hash_out_len, 0);
+
+    if (bundle == nullptr || public_input_hash == nullptr) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    if (public_input_hash_len != Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    const uint256 public_input_hash_value(std::vector<unsigned char>(public_input_hash, public_input_hash + public_input_hash_len));
+    const std::vector<unsigned char> bundle_bytes(bundle, bundle + bundle_len);
+    const auto& prefix = Consensus::ShieldedPool::ProofBundlePrefixV4();
+    const size_t version_offset = prefix.size();
+    const size_t kind_offset = version_offset + 1;
+    const size_t proof_system_offset = kind_offset + 1;
+    const size_t flags_offset = proof_system_offset + 1;
+    const size_t public_input_offset = flags_offset + 1;
+    const size_t proof_len_offset = public_input_offset + Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE;
+    const size_t proof_offset = proof_len_offset + sizeof(uint32_t);
+    if (bundle_bytes.size() < proof_offset) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    if (!std::equal(prefix.begin(), prefix.end(), bundle_bytes.begin())) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    if (bundle_bytes[version_offset] != Consensus::ShieldedPool::SHIELDED_PROOF_BUNDLE_VERSION_V4 ||
+        bundle_bytes[kind_offset] != proof_kind ||
+        bundle_bytes[proof_system_offset] != Consensus::ShieldedPool::SHIELDED_PROOF_SYSTEM_ORCHARD ||
+        bundle_bytes[flags_offset] != Consensus::ShieldedPool::SHIELDED_PROOF_BUNDLE_FLAGS_NONE ||
+        !std::equal(public_input_hash_value.begin(), public_input_hash_value.end(), bundle_bytes.begin() + public_input_offset)) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    uint32_t proof_len{0};
+    for (size_t i = 0; i < sizeof(proof_len); ++i) {
+        proof_len |= uint32_t{bundle_bytes[proof_len_offset + i]} << (8 * i);
+    }
+    if (proof_len != bundle_bytes.size() - proof_offset) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    const std::vector<unsigned char> proof_payload(bundle_bytes.begin() + proof_offset, bundle_bytes.end());
+    uint8_t proof_body_mode{Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
+    if (!Consensus::ShieldedPool::DecodeOrchardProofBodyModeV1(proof_payload, proof_kind, public_input_hash_value, proof_body_mode)) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    *proof_body_mode_out = proof_body_mode;
+
+    if (proof_body_mode == Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD) {
+        return Consensus::ShieldedPool::VerifyProofBundleV4(bundle_bytes, proof_kind, public_input_hash_value)
+            ? Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID
+            : Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID;
+    }
+    if (proof_body_mode != Consensus::ShieldedPool::SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+
+    const size_t payload_proof_offset = Consensus::ShieldedPool::OrchardProofPayloadPrefixV1().size() + 1 + Consensus::ShieldedPool::SHIELDED_PUBLIC_INPUT_HASH_SIZE + sizeof(uint32_t);
+    const size_t real_proof_offset = payload_proof_offset + Consensus::ShieldedPool::OrchardProofBodyPrefixV1().size() + 1 + sizeof(uint32_t);
+    if (proof_payload.size() < real_proof_offset) {
+        return Consensus::ShieldedPool::SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    return zkc_shielded_orchard_real_proof_check_v1(
+        proof_payload.data() + real_proof_offset,
+        proof_payload.size() - real_proof_offset,
+        proof_kind,
+        public_input_hash,
+        public_input_hash_len,
+        real_request_hash_out,
+        real_request_hash_out_len);
 }
 
 extern "C" int zkc_shielded_verify_orchard_proof_v1(

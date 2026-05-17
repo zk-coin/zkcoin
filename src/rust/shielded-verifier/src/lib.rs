@@ -99,6 +99,31 @@ pub struct OrchardRealProofCheck {
     pub request_hash: Option<[u8; HASH_SIZE]>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProofBundleCheck {
+    pub status: OrchardRealProofStatus,
+    pub proof_body_mode: Option<u8>,
+    pub real_request_hash: Option<[u8; HASH_SIZE]>,
+}
+
+impl ProofBundleCheck {
+    fn malformed() -> Self {
+        Self {
+            status: OrchardRealProofStatus::Malformed,
+            proof_body_mode: None,
+            real_request_hash: None,
+        }
+    }
+
+    fn with_mode(status: OrchardRealProofStatus, proof_body_mode: u8) -> Self {
+        Self {
+            status,
+            proof_body_mode: Some(proof_body_mode),
+            real_request_hash: None,
+        }
+    }
+}
+
 impl OrchardRealProofRequest<'_> {
     pub fn request_hash_v1(&self) -> [u8; HASH_SIZE] {
         let proof_len: u32 = self
@@ -414,11 +439,20 @@ pub fn verify_orchard_proof_payload_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> bool {
+    check_orchard_proof_payload_v1(proof_payload, proof_kind, public_input_hash).status
+        == OrchardRealProofStatus::Valid
+}
+
+pub fn check_orchard_proof_payload_v1(
+    proof_payload: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheck {
     if proof_payload.len() < ORCHARD_PROOF_PAYLOAD_HEADER_LEN_V1 {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if !proof_payload.starts_with(ORCHARD_PROOF_PAYLOAD_PREFIX_V1) {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let kind_offset = ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len();
@@ -427,10 +461,10 @@ pub fn verify_orchard_proof_payload_v1(
     let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
 
     if proof_payload[kind_offset] != proof_kind {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if &proof_payload[public_input_offset..proof_len_offset] != public_input_hash {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let proof_len = u32::from_le_bytes(
@@ -439,11 +473,11 @@ pub fn verify_orchard_proof_payload_v1(
             .expect("proof length slice has fixed length"),
     ) as usize;
     if proof_len != proof_payload.len() - proof_offset {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let proof_body = &proof_payload[proof_offset..];
-    verify_orchard_proof_body_v1(proof_body, proof_kind, public_input_hash)
+    check_orchard_proof_body_v1(proof_body, proof_kind, public_input_hash)
 }
 
 pub fn verify_orchard_proof_body_v1(
@@ -451,11 +485,20 @@ pub fn verify_orchard_proof_body_v1(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> bool {
+    check_orchard_proof_body_v1(proof_body, proof_kind, public_input_hash).status
+        == OrchardRealProofStatus::Valid
+}
+
+pub fn check_orchard_proof_body_v1(
+    proof_body: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheck {
     if proof_body.len() < ORCHARD_PROOF_BODY_HEADER_LEN_V1 {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if !proof_body.starts_with(ORCHARD_PROOF_BODY_PREFIX_V1) {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let mode_offset = ORCHARD_PROOF_BODY_PREFIX_V1.len();
@@ -469,17 +512,32 @@ pub fn verify_orchard_proof_body_v1(
             .expect("body length slice has fixed length"),
     ) as usize;
     if body_len != proof_body.len() - body_offset {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     match body_mode {
-        ORCHARD_PROOF_BODY_MODE_SCAFFOLD => {
-            &proof_body[body_offset..] == expected_proof_payload_v4(proof_kind, public_input_hash)
-        }
+        ORCHARD_PROOF_BODY_MODE_SCAFFOLD => ProofBundleCheck::with_mode(
+            if proof_body[body_offset..] == expected_proof_payload_v4(proof_kind, public_input_hash)
+            {
+                OrchardRealProofStatus::Valid
+            } else {
+                OrchardRealProofStatus::Invalid
+            },
+            ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
+        ),
         ORCHARD_PROOF_BODY_MODE_REAL => {
-            verify_orchard_real_proof_v1(&proof_body[body_offset..], proof_kind, public_input_hash)
+            let check = orchard_real_proof_check_v1(
+                &proof_body[body_offset..],
+                proof_kind,
+                public_input_hash,
+            );
+            ProofBundleCheck {
+                status: check.status,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: check.request_hash,
+            }
         }
-        _ => false,
+        _ => ProofBundleCheck::with_mode(OrchardRealProofStatus::Malformed, body_mode),
     }
 }
 
@@ -513,11 +571,20 @@ pub fn verify_proof_bundle_v4(
     proof_kind: u8,
     public_input_hash: &[u8; HASH_SIZE],
 ) -> bool {
+    check_proof_bundle_v4(bundle, proof_kind, public_input_hash).status
+        == OrchardRealProofStatus::Valid
+}
+
+pub fn check_proof_bundle_v4(
+    bundle: &[u8],
+    proof_kind: u8,
+    public_input_hash: &[u8; HASH_SIZE],
+) -> ProofBundleCheck {
     if bundle.len() < PROOF_BUNDLE_HEADER_LEN_V4 {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if !bundle.starts_with(PROOF_BUNDLE_PREFIX_V4) {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let version_offset = PROOF_BUNDLE_PREFIX_V4.len();
@@ -529,19 +596,19 @@ pub fn verify_proof_bundle_v4(
     let proof_offset = proof_len_offset + core::mem::size_of::<u32>();
 
     if bundle[version_offset] != PROOF_BUNDLE_VERSION_V4 {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if bundle[kind_offset] != proof_kind {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if bundle[proof_system_offset] != PROOF_SYSTEM_ORCHARD {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if bundle[flags_offset] != PROOF_BUNDLE_FLAGS_NONE {
-        return false;
+        return ProofBundleCheck::malformed();
     }
     if &bundle[public_input_offset..proof_len_offset] != public_input_hash {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
     let proof_len = u32::from_le_bytes(
@@ -550,10 +617,10 @@ pub fn verify_proof_bundle_v4(
             .expect("proof length slice has fixed length"),
     ) as usize;
     if proof_len != bundle.len() - proof_offset {
-        return false;
+        return ProofBundleCheck::malformed();
     }
 
-    verify_orchard_proof_payload_v1(&bundle[proof_offset..], proof_kind, public_input_hash)
+    check_orchard_proof_payload_v1(&bundle[proof_offset..], proof_kind, public_input_hash)
 }
 
 unsafe fn read_hash<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8; HASH_SIZE]> {
@@ -660,6 +727,44 @@ pub unsafe extern "C" fn zkc_shielded_verify_bundle_v4(
         proof_kind,
         public_input_hash,
     ))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_check_bundle_v4(
+    bundle: *const u8,
+    bundle_len: usize,
+    proof_kind: u8,
+    public_input_hash: *const u8,
+    public_input_hash_len: usize,
+    proof_body_mode_out: *mut u8,
+    real_request_hash_out: *mut u8,
+    real_request_hash_out_len: usize,
+) -> i32 {
+    if proof_body_mode_out.is_null()
+        || real_request_hash_out.is_null()
+        || real_request_hash_out_len != HASH_SIZE
+    {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    *proof_body_mode_out = 0xff;
+    core::ptr::write_bytes(real_request_hash_out, 0, HASH_SIZE);
+
+    if bundle.is_null() {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    }
+    let Some(public_input_hash) = read_hash(public_input_hash, public_input_hash_len) else {
+        return ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+    };
+
+    let bundle = slice::from_raw_parts(bundle, bundle_len);
+    let check = check_proof_bundle_v4(bundle, proof_kind, public_input_hash);
+    if let Some(proof_body_mode) = check.proof_body_mode {
+        *proof_body_mode_out = proof_body_mode;
+    }
+    if let Some(request_hash) = check.real_request_hash {
+        core::ptr::copy_nonoverlapping(request_hash.as_ptr(), real_request_hash_out, HASH_SIZE);
+    }
+    check.status.as_ffi_code()
 }
 
 #[no_mangle]
@@ -1066,6 +1171,30 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            check_orchard_proof_body_v1(&real_body_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Unsupported,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
+            }
+        );
+        assert_eq!(
+            check_orchard_proof_payload_v1(&real_payload_v1, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Unsupported,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
+            }
+        );
+        assert_eq!(
+            check_proof_bundle_v4(&real_bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Unsupported,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_REAL),
+                real_request_hash: Some(EXPECTED_ORCHARD_REAL_REQUEST_HASH),
+            }
+        );
         let mut unknown_body_mode = orchard_body_v1.clone();
         unknown_body_mode[ORCHARD_PROOF_BODY_PREFIX_V1.len()] = 0xff;
         assert!(!verify_orchard_proof_body_v1(
@@ -1073,6 +1202,14 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            check_orchard_proof_body_v1(&unknown_body_mode, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Malformed,
+                proof_body_mode: Some(0xff),
+                real_request_hash: None,
+            }
+        );
         assert!(verify_orchard_proof_payload_v1(
             &orchard_payload_v1,
             1,
@@ -1088,11 +1225,34 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            check_proof_bundle_v4(&bundle_v4, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Valid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_SCAFFOLD),
+                real_request_hash: None,
+            }
+        );
         assert!(!verify_proof_bundle_v4(
             &bundle_v4,
             2,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            check_proof_bundle_v4(&bundle_v4, 2, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck::malformed()
+        );
+
+        let mut invalid_scaffold_body = orchard_body_v1.clone();
+        *invalid_scaffold_body.last_mut().expect("body has payload") ^= 1;
+        assert_eq!(
+            check_orchard_proof_body_v1(&invalid_scaffold_body, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck {
+                status: OrchardRealProofStatus::Invalid,
+                proof_body_mode: Some(ORCHARD_PROOF_BODY_MODE_SCAFFOLD),
+                real_request_hash: None,
+            }
+        );
 
         let mut wrong_field_hash = FIELD_HASH;
         wrong_field_hash[0] ^= 1;
@@ -1127,6 +1287,10 @@ mod tests {
             1,
             &EXPECTED_PUBLIC_INPUT_HASH
         ));
+        assert_eq!(
+            check_proof_bundle_v4(&wrong_bundle, 1, &EXPECTED_PUBLIC_INPUT_HASH),
+            ProofBundleCheck::malformed()
+        );
 
         let mut wrong_payload = orchard_payload_v1;
         wrong_payload[ORCHARD_PROOF_PAYLOAD_PREFIX_V1.len()] ^= 1;
@@ -1264,6 +1428,43 @@ mod tests {
         };
         assert_eq!(bad_kind_v4, 0);
 
+        let mut proof_body_mode = 0xff;
+        let mut request_hash = [0xaa; HASH_SIZE];
+        let check_bundle_v4 = unsafe {
+            zkc_shielded_check_bundle_v4(
+                bundle_v4.as_ptr(),
+                bundle_v4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash.as_mut_ptr(),
+                request_hash.len(),
+            )
+        };
+        assert_eq!(check_bundle_v4, ORCHARD_REAL_PROOF_STATUS_VALID);
+        assert_eq!(proof_body_mode, ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+        assert_eq!(request_hash, [0u8; HASH_SIZE]);
+
+        let check_bundle_bad_kind_v4 = unsafe {
+            zkc_shielded_check_bundle_v4(
+                bundle_v4.as_ptr(),
+                bundle_v4.len(),
+                2,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash.as_mut_ptr(),
+                request_hash.len(),
+            )
+        };
+        assert_eq!(
+            check_bundle_bad_kind_v4,
+            ORCHARD_REAL_PROOF_STATUS_MALFORMED
+        );
+        assert_eq!(proof_body_mode, 0xff);
+        assert_eq!(request_hash, [0u8; HASH_SIZE]);
+
         let orchard_body_v1 = build_orchard_proof_body_v1(1, &EXPECTED_PUBLIC_INPUT_HASH);
         let ok_orchard_body_v1 = unsafe {
             zkc_shielded_verify_orchard_proof_v1(
@@ -1343,7 +1544,7 @@ mod tests {
         );
         assert_eq!(zkc_shielded_orchard_real_verifier_supports_proofs_v1(), 0);
 
-        let mut request_hash = [0u8; HASH_SIZE];
+        request_hash.fill(0);
         let request_hash_ok = unsafe {
             zkc_shielded_orchard_real_proof_request_hash_v1(
                 real_proof_v1.as_ptr(),
@@ -1434,6 +1635,28 @@ mod tests {
             &EXPECTED_PUBLIC_INPUT_HASH,
             &[0x42; 192],
         );
+        let real_payload_v1 =
+            build_orchard_proof_payload_with_body_v1(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_body_v1);
+        let real_bundle_v4 =
+            build_proof_bundle_with_payload_v4(1, &EXPECTED_PUBLIC_INPUT_HASH, &real_payload_v1);
+        proof_body_mode = 0xff;
+        request_hash.fill(0xaa);
+        let check_real_bundle_v4 = unsafe {
+            zkc_shielded_check_bundle_v4(
+                real_bundle_v4.as_ptr(),
+                real_bundle_v4.len(),
+                1,
+                EXPECTED_PUBLIC_INPUT_HASH.as_ptr(),
+                EXPECTED_PUBLIC_INPUT_HASH.len(),
+                &mut proof_body_mode,
+                request_hash.as_mut_ptr(),
+                request_hash.len(),
+            )
+        };
+        assert_eq!(check_real_bundle_v4, ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        assert_eq!(proof_body_mode, ORCHARD_PROOF_BODY_MODE_REAL);
+        assert_eq!(request_hash, EXPECTED_ORCHARD_REAL_REQUEST_HASH);
+
         let unsupported_real_body_v1 = unsafe {
             zkc_shielded_verify_orchard_proof_v1(
                 real_body_v1.as_ptr(),

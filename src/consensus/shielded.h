@@ -259,10 +259,11 @@ inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx, bo
             std::vector<unsigned char> proof_payload;
             if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) return false;
             if (proof_kind != marker.action || public_input_hash != expected_public_input_hash) return false;
-            uint8_t proof_body_mode{0};
-            if (!DecodeOrchardProofBodyModeV1(proof_payload, marker.action, expected_public_input_hash, proof_body_mode)) return false;
+            uint8_t proof_body_mode{SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
+            uint256 real_request_hash;
+            const int proof_status = CheckProofBundleV4(stack_item, marker.action, expected_public_input_hash, proof_body_mode, real_request_hash);
+            if (proof_status != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) return false;
             if (!allow_scaffold_proofs && proof_body_mode == SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD) return false;
-            if (!VerifyProofBundleV4(stack_item, marker.action, expected_public_input_hash)) return false;
         }
     }
     return found;

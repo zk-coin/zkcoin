@@ -42,6 +42,16 @@ extern "C" int zkc_shielded_verify_bundle_v4(
     const unsigned char* public_input_hash,
     size_t public_input_hash_len);
 
+extern "C" int zkc_shielded_check_bundle_v4(
+    const unsigned char* bundle,
+    size_t bundle_len,
+    uint8_t proof_kind,
+    const unsigned char* public_input_hash,
+    size_t public_input_hash_len,
+    uint8_t* proof_body_mode_out,
+    unsigned char* real_request_hash_out,
+    size_t real_request_hash_out_len);
+
 extern "C" int zkc_shielded_verify_orchard_proof_v1(
     const unsigned char* proof_body,
     size_t proof_body_len,
@@ -95,6 +105,7 @@ static constexpr uint8_t SHIELDED_PROOF_SYSTEM_ORCHARD{1};
 static constexpr uint8_t SHIELDED_PROOF_BUNDLE_FLAGS_NONE{0};
 static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD{0};
 static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL{1};
+static constexpr uint8_t SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN{0xff};
 static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED{0};
 static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID{1};
 static constexpr int SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID{-1};
@@ -135,6 +146,7 @@ bool VerifyOrchardProofPayloadV1(const std::vector<unsigned char>& proof_payload
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash, const std::vector<unsigned char>& proof_payload);
 std::vector<unsigned char> BuildProofBundleV4(uint8_t proof_kind, const uint256& public_input_hash);
 bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash);
+int CheckProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash);
 
 } // namespace ShieldedPool
 } // namespace Consensus
