@@ -6,6 +6,7 @@
 #define ZKC_SHIELDED_VERIFIER_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +15,15 @@ extern "C" {
 int zkc_shielded_verify_proof_v1(
     const unsigned char* proof,
     size_t proof_len,
+    const unsigned char* field_hash,
+    size_t field_hash_len,
+    const unsigned char* tx_binding_hash,
+    size_t tx_binding_hash_len);
+
+int zkc_shielded_verify_proof_v2(
+    const unsigned char* proof,
+    size_t proof_len,
+    uint8_t proof_kind,
     const unsigned char* field_hash,
     size_t field_hash_len,
     const unsigned char* tx_binding_hash,

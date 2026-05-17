@@ -26,8 +26,8 @@ from test_framework.util import assert_array_result, assert_equal, assert_raises
 MARKER_PREFIX = b"zkc0"
 ACTION_MINT = 0x01
 PROOF_TAG_SIZE = 3
-PROOF_ENVELOPE_PREFIX = b"zkc-proof-v1"
-PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v1"
+PROOF_ENVELOPE_PREFIX = b"zkc-proof-v2"
+PROOF_ENVELOPE_PREIMAGE_PREFIX = b"zkc-proof-envelope-v2"
 PROOF_SCRIPT = CScript([OP_DROP, OP_TRUE])
 
 
@@ -109,7 +109,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
     def shielded_proof_envelope(self, tx, action, shielded_value, commitment):
         proof_hash = self.shielded_proof_hash(action, shielded_value, commitment)
         tx_binding_hash = self.hash256(tx.serialize_without_witness())
-        return PROOF_ENVELOPE_PREFIX + self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + proof_hash + tx_binding_hash)
+        return PROOF_ENVELOPE_PREFIX + bytes([action]) + self.hash256(PROOF_ENVELOPE_PREIMAGE_PREFIX + bytes([action]) + proof_hash + tx_binding_hash)
 
     def create_shielded_mint_tx(self, node, outpoint, prev_txout, destination, commitment, shielded_value=COIN):
         prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
