@@ -588,9 +588,10 @@ struct ShieldedValidationState
     uint64_t nCommitments{0};
 };
 
-static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& marker, ShieldedValidationState& shielded, std::string& reject_reason)
+static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& marker, ShieldedValidationState& shielded, std::string& reject_reason, const std::set<uint256>* spend_anchors = nullptr, CAmount* spend_value_limit = nullptr)
 {
-    if (marker.HasAnchor() && !shielded.anchors.count(marker.anchor)) {
+    const std::set<uint256>& valid_spend_anchors = spend_anchors ? *spend_anchors : shielded.anchors;
+    if (marker.HasAnchor() && !valid_spend_anchors.count(marker.anchor)) {
         reject_reason = "bad-shielded-anchor";
         return false;
     }
@@ -601,6 +602,13 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
     if (marker.HasCommitment() && !shielded.commitments.insert(marker.commitment).second) {
         reject_reason = "bad-shielded-duplicate-commitment";
         return false;
+    }
+    if (marker.HasNullifier() && spend_value_limit) {
+        if (*spend_value_limit < marker.nValue) {
+            reject_reason = "bad-shielded-value-pool";
+            return false;
+        }
+        *spend_value_limit -= marker.nValue;
     }
 
     const CAmount delta = marker.ValuePoolDelta();
@@ -622,7 +630,7 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
     return true;
 }
 
-static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, ShieldedValidationState& shielded, BlockValidationState& state)
+static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, ShieldedValidationState& shielded, BlockValidationState& state, const std::set<uint256>* spend_anchors = nullptr, CAmount* spend_value_limit = nullptr)
 {
     std::vector<Consensus::ShieldedPool::Marker> markers;
     TxValidationState tx_state;
@@ -636,7 +644,7 @@ static bool AddShieldedTransactionToState(const CTransaction& tx, bool active, S
 
     for (const auto& marker : markers) {
         std::string reject_reason;
-        if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+        if (!AddShieldedMarkerToState(marker, shielded, reject_reason, spend_anchors, spend_value_limit)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, reject_reason);
         }
     }
@@ -655,8 +663,10 @@ static bool LoadShieldedChainState(const CBlockIndex* pindexPrev, const Consensu
         if (!ReadBlockFromDisk(block, *it, consensus)) {
             return state.Error(strprintf("failed to read shielded state block %s", (*it)->GetBlockHash().ToString()));
         }
+        const std::set<uint256> block_spend_anchors = shielded.anchors;
+        CAmount block_spend_value_limit = shielded.nValuePool;
         for (const auto& tx : block.vtx) {
-            if (!AddShieldedTransactionToState(*tx, /*active=*/true, shielded, state)) {
+            if (!AddShieldedTransactionToState(*tx, /*active=*/true, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
                 return false;
             }
         }
@@ -675,8 +685,10 @@ static bool CheckShieldedBlockState(const CBlock& block, const CBlockIndex* pind
         return false;
     }
 
+    const std::set<uint256> block_spend_anchors = shielded.anchors;
+    CAmount block_spend_value_limit = shielded.nValuePool;
     for (const auto& tx : block.vtx) {
-        if (!AddShieldedTransactionToState(*tx, active, shielded, state)) {
+        if (!AddShieldedTransactionToState(*tx, active, shielded, state, &block_spend_anchors, &block_spend_value_limit)) {
             return false;
         }
     }
@@ -694,6 +706,8 @@ static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool:
     if (!LoadShieldedChainState(::ChainActive().Tip(), consensus, shielded, block_state)) {
         return state.Error(strprintf("failed to read shielded chain state: %s", block_state.ToString()));
     }
+    const std::set<uint256> chain_spend_anchors = shielded.anchors;
+    CAmount mempool_spend_value_limit = shielded.nValuePool;
 
     for (const TxMempoolInfo& info : pool.infoAll()) {
         std::vector<Consensus::ShieldedPool::Marker> mempool_markers;
@@ -703,7 +717,7 @@ static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool:
         }
         for (const auto& marker : mempool_markers) {
             std::string reject_reason;
-            if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+            if (!AddShieldedMarkerToState(marker, shielded, reject_reason, &chain_spend_anchors, &mempool_spend_value_limit)) {
                 return state.Error(strprintf("bad shielded mempool state: %s", reject_reason));
             }
         }
@@ -711,7 +725,7 @@ static bool CheckShieldedMempoolState(const std::vector<Consensus::ShieldedPool:
 
     for (const auto& marker : markers) {
         std::string reject_reason;
-        if (!AddShieldedMarkerToState(marker, shielded, reject_reason)) {
+        if (!AddShieldedMarkerToState(marker, shielded, reject_reason, &chain_spend_anchors, &mempool_spend_value_limit)) {
             return state.Invalid(TxValidationResult::TX_CONFLICT, reject_reason);
         }
     }

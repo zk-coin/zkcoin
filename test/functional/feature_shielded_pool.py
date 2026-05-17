@@ -69,6 +69,9 @@ class ShieldedPoolTest(BitcoinTestFramework):
     def root_hex_to_payload_bytes(self, root_hex):
         return bytes.fromhex(root_hex)[::-1]
 
+    def append_commitment_root(self, previous_root, position, commitment):
+        return self.hash256(b"zkc-note-root-v0" + previous_root + position.to_bytes(8, "little") + commitment)
+
     def proof_hash(self, *, action, shielded_value, commitment=None, nullifier=None, anchor=None):
         preimage = b"zkc-proof-v0" + bytes([action]) + shielded_value.to_bytes(8, "little")
         if action == ACTION_MINT:
@@ -167,7 +170,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
         wallets = [ShieldedProofWallet(node) for node in self.nodes]
 
         for wallet in wallets:
-            wallet.generate(120)
+            wallet.generate(140)
 
         self.log.info("Expose disabled and activated shielded pool state")
         assert_equal(disabled.getblockchaininfo()["shielded_pool"]["start_height"], -1)
@@ -269,9 +272,25 @@ class ShieldedPoolTest(BitcoinTestFramework):
             [raw_block_dup_a, raw_block_dup_b],
         )
 
+        self.log.info("Reject shielded spends anchored to same-block commitments")
+        same_block_commitment = self.unique_field("same-block-anchor-commitment")
+        same_block_anchor = self.append_commitment_root(bytes(32), 0, same_block_commitment)
+        raw_same_block_mint, _, _, _ = self.make_marker_tx(wallets[1], commitment=same_block_commitment)
+        raw_same_block_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, anchor=same_block_anchor)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-anchor",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_same_block_mint, raw_same_block_spend],
+        )
+
         self.log.info("Accept and mine activated shielded commitments")
         raw_active, txid, mined_commitment, _ = self.make_marker_tx(wallets[1])
+        pending_anchor = self.append_commitment_root(bytes(32), 0, mined_commitment)
         assert_equal(active.sendrawtransaction(raw_active), txid)
+        raw_pending_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, anchor=pending_anchor)
+        assert_raises_rpc_error(-26, "bad-shielded-anchor", active.sendrawtransaction, raw_pending_spend)
         block_hash = active.generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)[0]
         assert txid in active.getblock(block_hash)["tx"]
         coinbase_value = sum(Decimal(str(vout["value"])) for vout in active.getblock(block_hash, 2)["tx"][0]["vout"])
@@ -283,6 +302,19 @@ class ShieldedPoolTest(BitcoinTestFramework):
         assert shielded_info["root"] != EMPTY_ROOT
         assert_equal(shielded_info["anchors"], 2)
         mined_anchor = self.root_hex_to_payload_bytes(shielded_info["root"])
+        assert_equal(mined_anchor, pending_anchor)
+
+        self.log.info("Reject same-block mints from funding shielded spends")
+        same_block_pool_commitment = self.unique_field("same-block-pool-commitment")
+        raw_same_block_pool_mint, _, _, _ = self.make_marker_tx(wallets[1], commitment=same_block_pool_commitment)
+        raw_same_block_pool_spend, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, anchor=mined_anchor, shielded_value=2 * COIN)
+        assert_raises_rpc_error(
+            -25,
+            "TestBlockValidity failed: bad-shielded-value-pool",
+            active.generateblock,
+            ADDRESS_BCRT1_P2WSH_OP_TRUE,
+            [raw_same_block_pool_mint, raw_same_block_pool_spend],
+        )
 
         self.log.info("Reject duplicate shielded commitments from active-chain state")
         raw_chain_duplicate, _, _, _ = self.make_marker_tx(wallets[1], commitment=mined_commitment)

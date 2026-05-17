@@ -1418,6 +1418,8 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
             return false;
         }
 
+        const std::set<uint256> block_spend_anchors = pool_state.anchors;
+        CAmount block_spend_value_limit = pool_state.nValuePool;
         for (const auto& tx : block.vtx) {
             std::vector<Consensus::ShieldedPool::Marker> markers;
             TxValidationState tx_state;
@@ -1427,9 +1429,16 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
             }
 
             for (const auto& marker : markers) {
-                if (marker.HasAnchor() && !pool_state.anchors.count(marker.anchor)) {
+                if (marker.HasAnchor() && !block_spend_anchors.count(marker.anchor)) {
                     error = strprintf("shielded spend references unknown anchor %s", marker.anchor.ToString());
                     return false;
+                }
+                if (marker.HasNullifier()) {
+                    if (block_spend_value_limit < marker.nValue) {
+                        error = "shielded pool value out of range";
+                        return false;
+                    }
+                    block_spend_value_limit -= marker.nValue;
                 }
                 const CAmount delta = marker.ValuePoolDelta();
                 if ((delta > 0 && pool_state.nValuePool > MAX_MONEY - delta) ||
