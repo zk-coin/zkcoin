@@ -148,10 +148,20 @@ class AuxPowRPCTest(BitcoinTestFramework):
 
         self.log.info("Reject malformed AuxPoW proof")
         next_candidate = node.getauxblock()
+        for malformed_auxpow in ("zz", "00", next_candidate["defaultauxpow"] + "00"):
+            assert_raises_rpc_error(-22, "decode failed", node.getauxblock, next_candidate["hash"], malformed_auxpow)
+            assert_raises_rpc_error(-22, "decode failed", node.submitauxblock, next_candidate["hash"], malformed_auxpow)
+
         bad_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
         solve_parent_header(bad_auxpow, int(next_candidate["bits"], 16))
         bad_auxpow.index = 1
         assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), "high-hash")
+        assert_equal(node.getblockcount(), 2)
+
+        self.log.info("Reject unsolved parent AuxPoW header")
+        unsolved_candidate = node.createauxblock(ADDRESS_BCRT1_P2WSH_OP_TRUE)
+        unsolved_auxpow = parse_auxpow(unsolved_candidate["defaultauxpow"])
+        assert_equal(node.submitauxblock(unsolved_candidate["hash"], unsolved_auxpow.serialize().hex()), False)
         assert_equal(node.getblockcount(), 2)
 
         self.log.info("Enforce AuxPoW activation boundary")
