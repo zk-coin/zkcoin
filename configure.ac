@@ -178,6 +178,12 @@ AC_ARG_ENABLE([rust-shielded-verifier],
     [enable_rust_shielded_verifier=$enableval],
     [enable_rust_shielded_verifier=no])
 
+AC_ARG_ENABLE([rust-orchard-verifier],
+    AS_HELP_STRING([--enable-rust-orchard-verifier],
+    [build the Rust shielded verifier staticlib with its Orchard proof backend (default no)]),
+    [enable_rust_orchard_verifier=$enableval],
+    [enable_rust_orchard_verifier=no])
+
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
   [enable QR code support (default is yes if qt is enabled and libqrencode is found)])],
@@ -1522,10 +1528,16 @@ AC_MSG_RESULT($build_bitcoin_libs)
 AC_MSG_CHECKING([whether to link the Rust shielded verifier])
 AM_CONDITIONAL([ENABLE_RUST_SHIELDED_VERIFIER], [test "x$enable_rust_shielded_verifier" = "xyes"])
 AC_MSG_RESULT($enable_rust_shielded_verifier)
-if test "x$enable_rust_shielded_verifier" = "xyes"; then
+if test "x$enable_rust_orchard_verifier" = "xyes" && test "x$enable_rust_shielded_verifier" != "xyes"; then
+  AC_MSG_ERROR([--enable-rust-orchard-verifier requires --enable-rust-shielded-verifier])
+fi
+AC_MSG_CHECKING([whether to build the Rust Orchard proof backend])
+AM_CONDITIONAL([ENABLE_RUST_ORCHARD_VERIFIER], [test "x$enable_rust_orchard_verifier" = "xyes"])
+AC_MSG_RESULT($enable_rust_orchard_verifier)
+if test "x$enable_rust_shielded_verifier" = "xyes" || test "x$enable_rust_orchard_verifier" = "xyes"; then
   AC_PATH_PROG([CARGO], [cargo], [no])
   if test "x$CARGO" = "xno"; then
-    AC_MSG_ERROR([cargo is required for --enable-rust-shielded-verifier])
+    AC_MSG_ERROR([cargo is required for Rust shielded verifier builds])
   fi
 fi
 

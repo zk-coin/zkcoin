@@ -65,11 +65,17 @@ endif
 
 if ENABLE_RUST_SHIELDED_VERIFIER
 RUST_SHIELDED_VERIFIER_LIB = $(srcdir)/rust/shielded-verifier/target/release/libzkc_shielded_verifier.a
+if ENABLE_RUST_ORCHARD_VERIFIER
+RUST_SHIELDED_VERIFIER_FEATURES = --features orchard-verifier
+else
+RUST_SHIELDED_VERIFIER_FEATURES =
+endif
 
 $(RUST_SHIELDED_VERIFIER_LIB): FORCE
-	$(AM_V_at)cd $(srcdir)/rust/shielded-verifier && $(CARGO) build --locked --release --lib
+	$(AM_V_at)cd $(srcdir)/rust/shielded-verifier && $(CARGO) build --locked --release --lib $(RUST_SHIELDED_VERIFIER_FEATURES)
 else
 RUST_SHIELDED_VERIFIER_LIB =
+RUST_SHIELDED_VERIFIER_FEATURES =
 endif
 
 $(LIBSECP256K1): $(wildcard secp256k1-zkp/src/*.h) $(wildcard secp256k1-zkp/src/*.c) $(wildcard secp256k1-zkp/include/*)
