@@ -412,6 +412,22 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(shielded_info["nullifiers"], 0)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
 
+        self.log.info("Restart child after merge-mined shielded block and replay shielded state")
+        self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
+        child = self.nodes[1]
+        assert_equal(child.getblockcount(), 2)
+        assert_equal(child.getbestblockhash(), shielded_candidate["hash"])
+        self.assert_child_snapshot_imported(child, dump, verify)
+        assert shielded_txid in child.getblock(shielded_candidate["hash"])["tx"]
+        assert_equal(child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"], False), None)
+        reloaded_shielded_output = child.gettxout(shielded_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_shielded_output["value"])), Decimal("3.99900000"))
+        reloaded_shielded_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reloaded_shielded_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(reloaded_shielded_info["commitments"], 1)
+        assert_equal(reloaded_shielded_info["nullifiers"], 0)
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-commitment", child.sendrawtransaction, raw_duplicate_mint)
+
 
 if __name__ == "__main__":
     LocalLitecoinForkAuxPowTest().main()

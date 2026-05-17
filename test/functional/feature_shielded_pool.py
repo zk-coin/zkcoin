@@ -276,6 +276,22 @@ class ShieldedPoolTest(BitcoinTestFramework):
         raw_chain_nullifier_duplicate, _, _, _ = self.make_marker_tx(wallets[1], action=ACTION_SPEND, nullifier=shared_nullifier, anchor=mined_anchor)
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", active.sendrawtransaction, raw_chain_nullifier_duplicate)
 
+        self.log.info("Invalidate and reconsider shielded spend block to test state replay")
+        active.invalidateblock(spend_block_hash)
+        shielded_info = active.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(shielded_info["commitments"], 1)
+        assert_equal(shielded_info["nullifiers"], 0)
+        assert_equal(shielded_info["anchors"], 2)
+
+        active.reconsiderblock(spend_block_hash)
+        assert_equal(active.getbestblockhash(), spend_block_hash)
+        shielded_info = active.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("0E-8"))
+        assert_equal(shielded_info["commitments"], 1)
+        assert_equal(shielded_info["nullifiers"], 1)
+        assert_equal(shielded_info["anchors"], 2)
+
 
 if __name__ == "__main__":
     ShieldedPoolTest().main()
