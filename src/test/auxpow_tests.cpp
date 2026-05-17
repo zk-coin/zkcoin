@@ -153,6 +153,41 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_nonzero_parent_tx_index)
     BOOST_CHECK(!auxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
 }
 
+BOOST_AUTO_TEST_CASE(auxpow_rejects_parent_with_child_chain_id)
+{
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = 0x207fffff;
+    header.nNonce = 0;
+    header.hashPrevBlock.SetHex("0c");
+    header.hashMerkleRoot.SetHex("0d");
+    header.SetAuxpowVersion(true);
+
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].prevout.SetNull();
+    coinbase.vin[0].scriptSig = CScript() << BuildAuxPowCommitmentBytes(header.GetHash());
+    coinbase.vout.resize(1);
+    coinbase.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    CTransactionRef coinbaseRef = MakeTransactionRef(coinbase);
+
+    CPureBlockHeader parent;
+    parent.nVersion = 1;
+    parent.nTime = 1;
+    parent.nBits = 0x207fffff;
+    parent.nNonce = 0;
+    parent.hashMerkleRoot = coinbaseRef->GetHash();
+
+    const Consensus::Params& consensus = Params().GetConsensus();
+    CAuxPow auxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent);
+    BOOST_CHECK(auxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    parent.SetChainId(consensus.auxpow.nChainId);
+    CAuxPow selfMergedAuxpow = DeserializeAuxPowForParentTx(coinbaseRef, parent);
+    BOOST_CHECK(!selfMergedAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
 BOOST_AUTO_TEST_CASE(auxpow_merged_mining_header_allows_late_commitment)
 {
     CBlockHeader header;

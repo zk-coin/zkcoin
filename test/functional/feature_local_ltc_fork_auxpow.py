@@ -115,8 +115,10 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
 
         self.log.info("Mine a child block using a real local parent block AuxPoW proof")
         candidate = child.createauxblock(child.get_deterministic_priv_key().address)
-        parent_block = self.mine_parent_block(parent, commitment_hex=candidate["auxpowcommitment"])
+        parent_aux_tx = self.create_parent_balance_tx(parent_blocks[1].vtx[0], bob_script, bob_script)
+        parent_block = self.mine_parent_block(parent, txlist=[parent_aux_tx], commitment_hex=candidate["auxpowcommitment"])
         auxpow = build_parent_auxpow(parent_block)
+        assert_equal(len(auxpow.merkle_branch), 1)
         assert_equal(child.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
         assert_equal(child.getblockcount(), 1)
         assert_equal(child.getbestblockhash(), candidate["hash"])
@@ -125,6 +127,21 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False), None)
         child_spend = child.gettxout(spend_txid, 0, False)
         assert_equal(Decimal(str(child_spend["value"])), Decimal("4.99900000"))
+
+        self.log.info("Invalidate and reconsider the AuxPoW block to test imported UTXO undo")
+        child.invalidateblock(candidate["hash"])
+        assert_equal(child.getblockcount(), 0)
+        restored_alice = child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False)
+        assert_equal(Decimal(str(restored_alice["value"])), Decimal("5.00000000"))
+        assert_equal(child.gettxout(spend_txid, 0, False), None)
+
+        child.reconsiderblock(candidate["hash"])
+        assert_equal(child.getblockcount(), 1)
+        assert_equal(child.getbestblockhash(), candidate["hash"])
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(child.gettxout(alice_outpoint["txid"], alice_outpoint["vout"], False), None)
+        reconsidered_spend = child.gettxout(spend_txid, 0, False)
+        assert_equal(Decimal(str(reconsidered_spend["value"])), Decimal("4.99900000"))
 
         self.log.info("Persist and reload child AuxPoW header from disk")
         child_header_hex = child.getblockheader(candidate["hash"], False)

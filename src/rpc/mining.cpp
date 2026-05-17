@@ -107,6 +107,22 @@ void ClearAuxPowCandidates()
     g_auxpow_candidates_by_script.clear();
 }
 
+void RemoveAuxPowCandidate(const uint256& hash)
+{
+    g_auxpow_candidates.erase(hash);
+    g_auxpow_candidate_order.erase(
+        std::remove(g_auxpow_candidate_order.begin(), g_auxpow_candidate_order.end(), hash),
+        g_auxpow_candidate_order.end());
+
+    for (auto it = g_auxpow_candidates_by_script.begin(); it != g_auxpow_candidates_by_script.end();) {
+        if (it->second == hash) {
+            it = g_auxpow_candidates_by_script.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void ResetAuxPowCandidatesForTip(const uint256& tip_hash)
 {
     if (g_auxpow_candidate_tip != tip_hash) {
@@ -139,15 +155,7 @@ void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key)
 
     while (g_auxpow_candidates.size() > MAX_AUXPOW_CANDIDATES) {
         const uint256 evicted = g_auxpow_candidate_order.front();
-        g_auxpow_candidate_order.pop_front();
-        g_auxpow_candidates.erase(evicted);
-        for (auto it = g_auxpow_candidates_by_script.begin(); it != g_auxpow_candidates_by_script.end();) {
-            if (it->second == evicted) {
-                it = g_auxpow_candidates_by_script.erase(it);
-            } else {
-                ++it;
-            }
-        }
+        RemoveAuxPowCandidate(evicted);
     }
 }
 } // namespace
@@ -1156,6 +1164,8 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
     block.SetAuxpow(std::unique_ptr<CAuxPow>(new CAuxPow(std::move(auxpow))));
 
     if (block.GetHash() != hash) {
+        LOCK(cs_main);
+        RemoveAuxPowCandidate(hash);
         throw JSONRPCError(RPC_INVALID_PARAMETER, "AuxPoW candidate hash changed after attaching proof");
     }
 
@@ -1163,6 +1173,7 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
         LOCK(cs_main);
         const CBlockIndex* pindexPrev = ::ChainActive().Tip();
         if (!pindexPrev || block.hashPrevBlock != pindexPrev->GetBlockHash()) {
+            RemoveAuxPowCandidate(hash);
             if (dogecoin_compat) return false;
             return "inconclusive-not-best-prevblk";
         }
@@ -1172,10 +1183,12 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
         const CBlockIndex* pindex = LookupBlockIndex(hash);
         if (pindex) {
             if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                RemoveAuxPowCandidate(hash);
                 if (dogecoin_compat) return false;
                 return "duplicate";
             }
             if (pindex->nStatus & BLOCK_FAILED_MASK) {
+                RemoveAuxPowCandidate(hash);
                 if (dogecoin_compat) return false;
                 return "duplicate-invalid";
             }
@@ -1199,7 +1212,7 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
     UniValue result = BIP22ValidationResult(sc->state);
     if (sc->state.IsValid()) {
         LOCK(cs_main);
-        g_auxpow_candidates.erase(hash);
+        RemoveAuxPowCandidate(hash);
     }
 
     if (dogecoin_compat) return result.isNull();
