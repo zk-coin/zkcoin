@@ -100,6 +100,15 @@ int main()
 
     CMutableTransaction real_tx = MutableTransactionWithMarker(payload);
     real_tx.vin[0].scriptWitness.stack.push_back(real_envelope);
+    const auto real_envelope_check = CheckProofEnvelope(marker, CTransaction(real_tx));
+    if (!real_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/false)) {
+        return 26;
+    }
+    if (real_envelope_check.proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL ||
+        real_envelope_check.real_request_hash != real_request_hash ||
+        real_envelope_check.real_verifier_input_hash != real_verifier_input_hash) {
+        return 27;
+    }
     TxValidationState real_state;
     if (!CheckTransaction(CTransaction(real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, real_state)) {
         return 7;
@@ -170,6 +179,15 @@ int main()
 
     CMutableTransaction spend_real_tx = MutableTransactionWithMarker(spend_payload);
     spend_real_tx.vin[0].scriptWitness.stack.push_back(spend_real_envelope);
+    const auto spend_real_envelope_check = CheckProofEnvelope(spend_marker, CTransaction(spend_real_tx));
+    if (!spend_real_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/false)) {
+        return 28;
+    }
+    if (spend_real_envelope_check.proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL ||
+        spend_real_envelope_check.real_request_hash != real_request_hash ||
+        spend_real_envelope_check.real_verifier_input_hash != real_verifier_input_hash) {
+        return 29;
+    }
     TxValidationState spend_real_state;
     if (!CheckTransaction(CTransaction(spend_real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_real_state)) {
         return 17;

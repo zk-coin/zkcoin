@@ -41,6 +41,9 @@ normal node builds. `scripts/fixture-consensus-smoke.sh` links that fixture
 backend into a standalone C++ consensus smoke test and proves a real-mode
 shielded mint and spend witness are accepted with scaffold proofs disabled,
 while tampered real-mode proofs are still rejected.
+C++ transaction consensus now checks witness envelopes through the v5 bundle
+boundary, so accepted real-mode fixture proofs and rejected production
+unsupported proofs exercise the same verifier-input digest path.
 
 The v4 bundle layout is:
 

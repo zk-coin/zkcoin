@@ -171,11 +171,23 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     TxValidationState missing_proof_state;
     BOOST_CHECK(!CheckTransaction(unsigned_tx, /*active=*/true, /*allow_scaffold_proofs=*/true, missing_proof_state));
     BOOST_CHECK_EQUAL(missing_proof_state.GetRejectReason(), "bad-shielded-proof");
+    const auto missing_proof_check = CheckProofEnvelope(marker, unsigned_tx);
+    BOOST_CHECK(!missing_proof_check.found);
+    BOOST_CHECK(!missing_proof_check.IsAccepted(/*allow_scaffold_proofs=*/true));
 
+    const CTransaction scaffold_tx = TransactionWithProof(payload, marker);
     TxValidationState valid_state;
-    BOOST_CHECK(CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, /*allow_scaffold_proofs=*/true, valid_state));
+    BOOST_CHECK(CheckTransaction(scaffold_tx, /*active=*/true, /*allow_scaffold_proofs=*/true, valid_state));
+    const auto scaffold_check = CheckProofEnvelope(marker, scaffold_tx);
+    BOOST_CHECK(scaffold_check.found);
+    BOOST_CHECK_EQUAL(scaffold_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID);
+    BOOST_CHECK_EQUAL(scaffold_check.proof_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    BOOST_CHECK(scaffold_check.real_request_hash.IsNull());
+    BOOST_CHECK(scaffold_check.real_verifier_input_hash.IsNull());
+    BOOST_CHECK(scaffold_check.IsAccepted(/*allow_scaffold_proofs=*/true));
+    BOOST_CHECK(!scaffold_check.IsAccepted(/*allow_scaffold_proofs=*/false));
     TxValidationState scaffold_disabled_state;
-    BOOST_CHECK(!CheckTransaction(TransactionWithProof(payload, marker), /*active=*/true, /*allow_scaffold_proofs=*/false, scaffold_disabled_state));
+    BOOST_CHECK(!CheckTransaction(scaffold_tx, /*active=*/true, /*allow_scaffold_proofs=*/false, scaffold_disabled_state));
     BOOST_CHECK_EQUAL(scaffold_disabled_state.GetRejectReason(), "bad-shielded-proof");
 
     const uint256 field_hash = ExpectedProofHash(marker);
@@ -416,6 +428,22 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_verifier_input_hash.end(),
         checked_bundle_verifier_input_hash.begin(),
         checked_bundle_verifier_input_hash.end());
+    const auto real_proof_envelope_check = CheckProofEnvelope(marker, TransactionWithProof(payload, real_proof_bundle_v4));
+    BOOST_CHECK(real_proof_envelope_check.found);
+    BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_request_hash.begin(),
+        expected_real_request_hash.end(),
+        real_proof_envelope_check.real_request_hash.begin(),
+        real_proof_envelope_check.real_request_hash.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected_real_verifier_input_hash.begin(),
+        expected_real_verifier_input_hash.end(),
+        real_proof_envelope_check.real_verifier_input_hash.begin(),
+        real_proof_envelope_check.real_verifier_input_hash.end());
+    BOOST_CHECK(!real_proof_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/true));
+    BOOST_CHECK(!real_proof_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/false));
     BOOST_CHECK_EQUAL(
         CheckProofBundleV4(real_proof_bundle_v4, ACTION_SPEND, public_input_hash, checked_body_mode, checked_bundle_request_hash),
         SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
@@ -549,6 +577,12 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     auto duplicate_proof = BuildProofEnvelope(marker, unsigned_tx);
     CMutableTransaction duplicate_proof_tx(TransactionWithProof(payload, duplicate_proof));
     duplicate_proof_tx.vin[0].scriptWitness.stack.push_back(duplicate_proof);
+    const auto duplicate_proof_check = CheckProofEnvelope(marker, CTransaction(duplicate_proof_tx));
+    BOOST_CHECK(duplicate_proof_check.found);
+    BOOST_CHECK_EQUAL(duplicate_proof_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED);
+    BOOST_CHECK_EQUAL(duplicate_proof_check.proof_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN);
+    BOOST_CHECK(duplicate_proof_check.real_request_hash.IsNull());
+    BOOST_CHECK(duplicate_proof_check.real_verifier_input_hash.IsNull());
     TxValidationState duplicate_proof_state;
     BOOST_CHECK(!CheckTransaction(CTransaction(duplicate_proof_tx), /*active=*/true, /*allow_scaffold_proofs=*/true, duplicate_proof_state));
     BOOST_CHECK_EQUAL(duplicate_proof_state.GetRejectReason(), "bad-shielded-proof");

@@ -41,6 +41,22 @@ struct Marker
     CAmount ValuePoolDelta() const { return action == ACTION_MINT ? nValue : -nValue; }
 };
 
+struct ProofEnvelopeCheck
+{
+    bool found{false};
+    int proof_status{SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED};
+    uint8_t proof_body_mode{SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
+    uint256 real_request_hash;
+    uint256 real_verifier_input_hash;
+
+    bool IsAccepted(bool allow_scaffold_proofs) const
+    {
+        return found &&
+            proof_status == SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID &&
+            (allow_scaffold_proofs || proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    }
+};
+
 inline const std::vector<unsigned char>& MarkerPrefix()
 {
     // Keep the marker short enough for spend payloads with anchors to stay standard-relay sized.
@@ -254,32 +270,51 @@ inline std::vector<unsigned char> BuildSpendPayload(const uint256& nullifier, co
     return payload;
 }
 
-inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx, bool allow_scaffold_proofs)
+inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransaction& tx)
 {
-    if (marker.proof_tag != ExpectedProofTag(marker)) return false;
+    ProofEnvelopeCheck check;
+    if (marker.proof_tag != ExpectedProofTag(marker)) return check;
 
-    bool found{false};
     const uint256 field_hash = ExpectedProofHash(marker);
     const uint256 tx_binding_hash = TransactionBindingHash(tx);
     const uint256 expected_public_input_hash = BuildProofPublicInputHash(marker.action, field_hash, tx_binding_hash);
     for (const CTxIn& txin : tx.vin) {
         for (const auto& stack_item : txin.scriptWitness.stack) {
             if (!HasProofEnvelopePrefix(stack_item)) continue;
-            if (found) return false;
-            found = true;
+            if (check.found) {
+                check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+                check.proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+                check.real_request_hash.SetNull();
+                check.real_verifier_input_hash.SetNull();
+                return check;
+            }
+            check.found = true;
             uint8_t proof_kind{0};
             uint256 public_input_hash;
             std::vector<unsigned char> proof_payload;
-            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) return false;
-            if (proof_kind != marker.action || public_input_hash != expected_public_input_hash) return false;
-            uint8_t proof_body_mode{SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN};
-            uint256 real_request_hash;
-            const int proof_status = CheckProofBundleV4(stack_item, marker.action, expected_public_input_hash, proof_body_mode, real_request_hash);
-            if (proof_status != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) return false;
-            if (!allow_scaffold_proofs && proof_body_mode == SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD) return false;
+            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) {
+                check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+                return check;
+            }
+            if (proof_kind != marker.action || public_input_hash != expected_public_input_hash) {
+                check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
+                return check;
+            }
+            check.proof_status = CheckProofBundleV5(
+                stack_item,
+                marker.action,
+                expected_public_input_hash,
+                check.proof_body_mode,
+                check.real_request_hash,
+                check.real_verifier_input_hash);
         }
     }
-    return found;
+    return check;
+}
+
+inline bool VerifyProofEnvelope(const Marker& marker, const CTransaction& tx, bool allow_scaffold_proofs)
+{
+    return CheckProofEnvelope(marker, tx).IsAccepted(allow_scaffold_proofs);
 }
 
 inline bool CheckTransaction(const CTransaction& tx, bool active, bool allow_scaffold_proofs, TxValidationState& state, std::vector<Marker>* markers_out = nullptr)
