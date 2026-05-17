@@ -11,6 +11,7 @@
 #include <consensus/params.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <interfaces/wallet.h>
 #include <key_io.h>
 #include <miner.h>
 #include <net.h>
@@ -48,9 +49,30 @@ namespace {
 static constexpr size_t MAX_AUXPOW_CANDIDATES{32};
 static constexpr int64_t AUXPOW_MEMPOOL_REFRESH_SECONDS{60};
 
-std::map<uint256, std::shared_ptr<CBlock>> g_auxpow_candidates;
+struct AuxPowCandidate
+{
+    std::shared_ptr<CBlock> block;
+    std::unique_ptr<interfaces::Wallet> wallet;
+    std::shared_ptr<ReserveDestination> reserved_destination;
+};
+
+struct ReservedAuxPowPayout
+{
+    std::unique_ptr<interfaces::Wallet> wallet;
+    std::shared_ptr<ReserveDestination> reserved_destination;
+    CScript script_pub_key;
+};
+
+struct AuxPowReservation
+{
+    std::unique_ptr<interfaces::Wallet> wallet;
+    std::shared_ptr<ReserveDestination> reserved_destination;
+};
+
+std::map<uint256, AuxPowCandidate> g_auxpow_candidates;
 std::deque<uint256> g_auxpow_candidate_order;
 std::map<CScriptID, uint256> g_auxpow_candidates_by_script;
+uint256 g_auxpow_wallet_candidate;
 uint256 g_auxpow_candidate_tip;
 unsigned int g_auxpow_candidate_transactions_updated{0};
 int64_t g_auxpow_candidate_start_time{0};
@@ -114,6 +136,7 @@ void ClearAuxPowCandidates()
     g_auxpow_candidates.clear();
     g_auxpow_candidate_order.clear();
     g_auxpow_candidates_by_script.clear();
+    g_auxpow_wallet_candidate.SetNull();
 }
 
 void RemoveAuxPowCandidate(const uint256& hash)
@@ -129,6 +152,10 @@ void RemoveAuxPowCandidate(const uint256& hash)
         } else {
             ++it;
         }
+    }
+
+    if (g_auxpow_wallet_candidate == hash) {
+        g_auxpow_wallet_candidate.SetNull();
     }
 }
 
@@ -147,6 +174,7 @@ void ExpireAuxPowScriptCandidatesForMempool(const CTxMemPool& mempool)
         transactions_updated != g_auxpow_candidate_transactions_updated &&
         GetTime() - g_auxpow_candidate_start_time > AUXPOW_MEMPOOL_REFRESH_SECONDS) {
         g_auxpow_candidates_by_script.clear();
+        g_auxpow_wallet_candidate.SetNull();
     }
 }
 
@@ -162,15 +190,43 @@ std::shared_ptr<CBlock> FindAuxPowCandidate(const CScript& script_pub_key)
         g_auxpow_candidates_by_script.erase(script_it);
         return nullptr;
     }
-    return candidate_it->second;
+    return candidate_it->second.block;
 }
 
-void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key, const CTxMemPool& mempool)
+std::shared_ptr<CBlock> FindWalletAuxPowCandidate()
+{
+    if (g_auxpow_wallet_candidate.IsNull()) {
+        return nullptr;
+    }
+
+    const auto candidate_it = g_auxpow_candidates.find(g_auxpow_wallet_candidate);
+    if (candidate_it == g_auxpow_candidates.end()) {
+        g_auxpow_wallet_candidate.SetNull();
+        return nullptr;
+    }
+    return candidate_it->second.block;
+}
+
+void StoreAuxPowCandidate(
+    const CBlock& block,
+    const CScript& script_pub_key,
+    const CTxMemPool& mempool,
+    std::unique_ptr<interfaces::Wallet> wallet = nullptr,
+    std::shared_ptr<ReserveDestination> reserved_destination = nullptr,
+    bool wallet_candidate = false)
 {
     const uint256 hash = block.GetHash();
-    g_auxpow_candidates[hash] = std::make_shared<CBlock>(block);
+
+    AuxPowCandidate candidate;
+    candidate.block = std::make_shared<CBlock>(block);
+    candidate.wallet = std::move(wallet);
+    candidate.reserved_destination = std::move(reserved_destination);
+    g_auxpow_candidates[hash] = std::move(candidate);
     g_auxpow_candidate_order.push_back(hash);
     g_auxpow_candidates_by_script[CScriptID(script_pub_key)] = hash;
+    if (wallet_candidate) {
+        g_auxpow_wallet_candidate = hash;
+    }
     g_auxpow_candidate_transactions_updated = mempool.GetTransactionsUpdated();
     g_auxpow_candidate_start_time = GetTime();
 
@@ -178,6 +234,79 @@ void StoreAuxPowCandidate(const CBlock& block, const CScript& script_pub_key, co
         const uint256 evicted = g_auxpow_candidate_order.front();
         RemoveAuxPowCandidate(evicted);
     }
+}
+
+UniValue AuxBlockCandidateResult(const CBlock& block, int height, const Consensus::Params& consensus)
+{
+    const uint256 hash = block.GetHash();
+    arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("hash", hash.GetHex());
+    result.pushKV("chainid", static_cast<int64_t>(consensus.auxpow.nChainId));
+    result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
+    result.pushKV("coinbasevalue", static_cast<int64_t>(block.vtx[0]->vout[0].nValue));
+    result.pushKV("bits", strprintf("%08x", block.nBits));
+    result.pushKV("target", AuxPowTargetHex(hashTarget));
+    result.pushKV("_target", AuxPowTargetHex(hashTarget));
+    result.pushKV("height", static_cast<int64_t>(height));
+    result.pushKV("auxpowcommitment", HexStr(BuildAuxPowCommitment(hash)));
+    result.pushKV("header", SerializePureHeaderHex(block));
+    result.pushKV("defaultauxpow", SerializeAuxPowHex(*block.auxpow));
+    return result;
+}
+
+ReservedAuxPowPayout ReserveWalletAuxPowPayout(NodeContext& node)
+{
+    if (!node.wallet_client) {
+        throw JSONRPCError(RPC_WALLET_NOT_FOUND, "getauxblock without arguments requires a loaded wallet; use createauxblock with an explicit payout address");
+    }
+
+    std::vector<std::unique_ptr<interfaces::Wallet>> wallets = node.wallet_client->getWallets();
+    if (wallets.empty()) {
+        throw JSONRPCError(RPC_WALLET_NOT_FOUND, "getauxblock without arguments requires a loaded wallet; use createauxblock with an explicit payout address");
+    }
+
+    ReservedAuxPowPayout payout;
+    payout.wallet = std::move(wallets.front());
+
+    CTxDestination destination;
+    payout.reserved_destination = payout.wallet->reserveNewDestination(destination);
+    if (!payout.reserved_destination) {
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+    }
+
+    payout.script_pub_key = GetScriptForDestination(destination);
+    return payout;
+}
+
+AuxPowReservation TakeAuxPowCandidateReservation(const uint256& hash)
+{
+    AuxPowReservation reservation;
+    const auto it = g_auxpow_candidates.find(hash);
+    if (it != g_auxpow_candidates.end()) {
+        reservation.wallet = std::move(it->second.wallet);
+        reservation.reserved_destination = std::move(it->second.reserved_destination);
+    }
+    return reservation;
+}
+
+void KeepAuxPowReservation(AuxPowReservation&& reservation)
+{
+    if (reservation.wallet && reservation.reserved_destination) {
+        reservation.wallet->keepReservedDestination(reservation.reserved_destination);
+    }
+}
+
+void KeepAuxPowCandidateReservationAndRemove(const uint256& hash)
+{
+    AuxPowReservation reservation;
+    {
+        LOCK(cs_main);
+        reservation = TakeAuxPowCandidateReservation(hash);
+        RemoveAuxPowCandidate(hash);
+    }
+    KeepAuxPowReservation(std::move(reservation));
 }
 } // namespace
 
@@ -1095,7 +1224,12 @@ protected:
     }
 };
 
-static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CScript& coinbase_script)
+static UniValue CreateAuxBlockCandidate(
+    const JSONRPCRequest& request,
+    const CScript& coinbase_script,
+    std::unique_ptr<interfaces::Wallet> wallet = nullptr,
+    std::shared_ptr<ReserveDestination> reserved_destination = nullptr,
+    bool wallet_candidate = false)
 {
     NodeContext& node = EnsureNodeContext(request.context);
     if (!node.connman) {
@@ -1131,8 +1265,12 @@ static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CSc
 
         ResetAuxPowCandidatesForTip(pindexPrev->GetBlockHash());
         ExpireAuxPowScriptCandidatesForMempool(mempool);
-        candidate = FindAuxPowCandidate(coinbase_script);
+        candidate = wallet_candidate ? FindWalletAuxPowCandidate() : FindAuxPowCandidate(coinbase_script);
         if (!candidate) {
+            if (wallet_candidate && (!wallet || !reserved_destination || coinbase_script.empty())) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "missing wallet payout reservation for getauxblock");
+            }
+
             std::unique_ptr<CBlockTemplate> blocktemplate = BlockAssembler(mempool, chainparams).CreateNewBlock(coinbase_script);
             if (!blocktemplate) {
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
@@ -1143,28 +1281,61 @@ static UniValue CreateAuxBlockCandidate(const JSONRPCRequest& request, const CSc
                 block.SetChainId(consensus.auxpow.nChainId);
                 CAuxPow::initAuxPow(block);
             }
-            StoreAuxPowCandidate(block, coinbase_script, mempool);
-            candidate = g_auxpow_candidates.at(block.GetHash());
+            const uint256 block_hash = block.GetHash();
+            StoreAuxPowCandidate(block, coinbase_script, mempool, std::move(wallet), std::move(reserved_destination), wallet_candidate);
+            candidate = g_auxpow_candidates.at(block_hash).block;
         }
     }
 
     const CBlock& block = *candidate;
-    const uint256 hash = block.GetHash();
-    arith_uint256 hashTarget = arith_uint256().SetCompact(block.nBits);
+    return AuxBlockCandidateResult(block, height, consensus);
+}
 
-    UniValue result(UniValue::VOBJ);
-    result.pushKV("hash", hash.GetHex());
-    result.pushKV("chainid", static_cast<int64_t>(consensus.auxpow.nChainId));
-    result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
-    result.pushKV("coinbasevalue", static_cast<int64_t>(block.vtx[0]->vout[0].nValue));
-    result.pushKV("bits", strprintf("%08x", block.nBits));
-    result.pushKV("target", AuxPowTargetHex(hashTarget));
-    result.pushKV("_target", AuxPowTargetHex(hashTarget));
-    result.pushKV("height", static_cast<int64_t>(height));
-    result.pushKV("auxpowcommitment", HexStr(BuildAuxPowCommitment(hash)));
-    result.pushKV("header", SerializePureHeaderHex(block));
-    result.pushKV("defaultauxpow", SerializeAuxPowHex(*block.auxpow));
-    return result;
+static UniValue CreateWalletAuxBlockCandidate(const JSONRPCRequest& request)
+{
+    NodeContext& node = EnsureNodeContext(request.context);
+    if (!node.connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    const CChainParams& chainparams = Params();
+    if (!chainparams.IsTestChain()) {
+        if (node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0) {
+            throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
+        }
+        if (::ChainstateActive().IsInitialBlockDownload()) {
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
+        }
+    }
+
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const CTxMemPool& mempool = EnsureMemPool(request.context);
+    {
+        LOCK(cs_main);
+        CBlockIndex* pindexPrev = ::ChainActive().Tip();
+        if (!pindexPrev) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "No active chain tip");
+        }
+
+        const int height = pindexPrev->nHeight + 1;
+        if (!consensus.auxpow.IsEnabled(height)) {
+            throw JSONRPCError(RPC_MISC_ERROR, "AuxPoW is not active for the next block");
+        }
+
+        ResetAuxPowCandidatesForTip(pindexPrev->GetBlockHash());
+        ExpireAuxPowScriptCandidatesForMempool(mempool);
+        if (std::shared_ptr<CBlock> candidate = FindWalletAuxPowCandidate()) {
+            return AuxBlockCandidateResult(*candidate, height, consensus);
+        }
+    }
+
+    ReservedAuxPowPayout payout = ReserveWalletAuxPowPayout(node);
+    return CreateAuxBlockCandidate(
+        request,
+        payout.script_pub_key,
+        std::move(payout.wallet),
+        std::move(payout.reserved_destination),
+        /*wallet_candidate=*/true);
 }
 
 static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& hash, CAuxPow&& auxpow, bool dogecoin_compat)
@@ -1179,7 +1350,7 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
         if (it == g_auxpow_candidates.end()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, dogecoin_compat ? "block hash unknown" : "Unknown AuxPoW candidate");
         }
-        candidate = it->second;
+        candidate = it->second.block;
     }
 
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(*candidate);
@@ -1192,6 +1363,8 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
         throw JSONRPCError(RPC_INVALID_PARAMETER, "AuxPoW candidate hash changed after attaching proof");
     }
 
+    bool duplicate_valid{false};
+    AuxPowReservation duplicate_valid_reservation;
     {
         LOCK(cs_main);
         const CBlockIndex* pindexPrev = ::ChainActive().Tip();
@@ -1206,9 +1379,9 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
         const CBlockIndex* pindex = LookupBlockIndex(hash);
         if (pindex) {
             if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                duplicate_valid_reservation = TakeAuxPowCandidateReservation(hash);
                 RemoveAuxPowCandidate(hash);
-                if (dogecoin_compat) return false;
-                return "duplicate";
+                duplicate_valid = true;
             }
             if (pindex->nStatus & BLOCK_FAILED_MASK) {
                 RemoveAuxPowCandidate(hash);
@@ -1217,6 +1390,11 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
             }
         }
     }
+    if (duplicate_valid) {
+        KeepAuxPowReservation(std::move(duplicate_valid_reservation));
+        if (dogecoin_compat) return false;
+        return "duplicate";
+    }
 
     bool new_block;
     auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
@@ -1224,6 +1402,7 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
     bool accepted = EnsureChainman(request.context).ProcessNewBlock(chainparams, blockptr, /* fForceProcessing */ true, /* fNewBlock */ &new_block);
     UnregisterSharedValidationInterface(sc);
     if (!new_block && accepted) {
+        KeepAuxPowCandidateReservationAndRemove(hash);
         if (dogecoin_compat) return false;
         return "duplicate";
     }
@@ -1234,8 +1413,7 @@ static UniValue SubmitAuxBlock(const JSONRPCRequest& request, const uint256& has
 
     UniValue result = BIP22ValidationResult(sc->state);
     if (sc->state.IsValid()) {
-        LOCK(cs_main);
-        RemoveAuxPowCandidate(hash);
+        KeepAuxPowCandidateReservationAndRemove(hash);
     }
 
     if (dogecoin_compat) return result.isNull();
@@ -1349,7 +1527,7 @@ static RPCHelpMan getauxblock()
     }
 
     if (creating_candidate) {
-        return CreateAuxBlockCandidate(request, CScript() << OP_TRUE);
+        return CreateWalletAuxBlockCandidate(request);
     }
 
     uint256 hash(ParseHashV(request.params[0], "hash"));

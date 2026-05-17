@@ -9,7 +9,7 @@ from decimal import Decimal
 from io import BytesIO
 
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
-from test_framework.blocktools import create_block, create_coinbase
+from test_framework.blocktools import COIN, create_block, create_coinbase
 from test_framework.messages import (
     CBlockHeader,
     hash256,
@@ -18,7 +18,7 @@ from test_framework.messages import (
 )
 from test_framework.auxpow import parse_auxpow, solve_parent_header
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_array_result, assert_equal, assert_raises_rpc_error
 
 
 class AuxPowRPCTest(BitcoinTestFramework):
@@ -67,6 +67,15 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(candidate["target"], expected_target)
         assert_equal(candidate["_target"], expected_target)
 
+    def assert_wallet_coinbase(self, node, block_hash, coinbasevalue, previous_immature):
+        amount = Decimal(coinbasevalue) / Decimal(COIN)
+        coinbase_txid = node.getblock(block_hash)["tx"][0]
+        wallet_tx = node.gettransaction(coinbase_txid)
+        assert_equal(wallet_tx["generated"], True)
+        assert_equal(wallet_tx["blockhash"], block_hash)
+        assert_array_result(wallet_tx["details"], {"category": "immature"}, {"amount": amount})
+        assert_equal(node.getbalances()["mine"]["immature"], previous_immature + amount)
+
     def make_parent_header_unsolved(self, auxpow, bits):
         target = uint256_from_compact(bits)
         auxpow.parent_header.nNonce = 0
@@ -81,6 +90,8 @@ class AuxPowRPCTest(BitcoinTestFramework):
 
         self.log.info("Reject partial getauxblock submission arguments")
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")
+        if not self.is_wallet_compiled():
+            assert_raises_rpc_error(-18, "requires a loaded wallet", node.getauxblock)
 
         self.log.info("Create Dogecoin-style AuxPoW candidates keyed by payout address")
         address = node.get_deterministic_priv_key().address
@@ -138,7 +149,14 @@ class AuxPowRPCTest(BitcoinTestFramework):
         )
 
         self.log.info("Create AuxPoW candidate")
-        candidate = node.getauxblock()
+        if self.is_wallet_compiled():
+            previous_immature = node.getbalances()["mine"]["immature"]
+            candidate = node.getauxblock()
+            wallet_candidate_repeat = node.getauxblock()
+            assert_equal(wallet_candidate_repeat["hash"], candidate["hash"])
+        else:
+            previous_immature = None
+            candidate = node.createauxblock(address)
         assert_equal(candidate["height"], 2)
         assert_equal(candidate["chainid"], node.getblockchaininfo()["auxpow"]["chain_id"])
         assert_equal(candidate["previousblockhash"], node.getbestblockhash())
@@ -156,6 +174,8 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.getauxblock(candidate["hash"], auxpow.serialize().hex()), True)
         assert_equal(node.getblockcount(), 2)
         assert_equal(node.getbestblockhash(), candidate["hash"])
+        if self.is_wallet_compiled():
+            self.assert_wallet_coinbase(node, candidate["hash"], candidate["coinbasevalue"], previous_immature)
 
         self.log.info("Reject unknown AuxPoW candidate")
         assert_raises_rpc_error(
@@ -167,7 +187,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject malformed AuxPoW proof")
-        next_candidate = node.getauxblock()
+        next_candidate = node.createauxblock(address)
         for malformed_auxpow in ("zz", "00", next_candidate["defaultauxpow"] + "00"):
             assert_raises_rpc_error(-22, "decode failed", node.getauxblock, next_candidate["hash"], malformed_auxpow)
             assert_raises_rpc_error(-22, "decode failed", node.submitauxblock, next_candidate["hash"], malformed_auxpow)
@@ -234,7 +254,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(boundary_node.submitblock(plain_height_two.serialize().hex()), "bad-auxpow-missing")
         assert_equal(boundary_node.getblockcount(), 1)
 
-        height_two_candidate = boundary_node.getauxblock()
+        height_two_candidate = boundary_node.createauxblock(boundary_node.get_deterministic_priv_key().address)
         height_two_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
         solve_parent_header(height_two_auxpow, int(height_two_candidate["bits"], 16))
         assert_equal(boundary_node.getauxblock(height_two_candidate["hash"], height_two_auxpow.serialize().hex()), True)

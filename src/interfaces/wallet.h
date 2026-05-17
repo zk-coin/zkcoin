@@ -91,6 +91,9 @@ public:
     // Reserves a new key.
     virtual std::shared_ptr<ReserveDestination> reserveNewDestination(CTxDestination& dest) = 0;
 
+    // Keeps a reserved key.
+    virtual void keepReservedDestination(const std::shared_ptr<ReserveDestination>& reserved_dest) = 0;
+
     //! Get public key.
     virtual bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) = 0;
 

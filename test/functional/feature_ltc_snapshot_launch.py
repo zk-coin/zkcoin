@@ -32,11 +32,18 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             1,
             "raw(51)",
         )
-        assert_raises_rpc_error(
-            -1,
-            message,
-            node.getauxblock,
-        )
+        if self.is_wallet_compiled():
+            assert_raises_rpc_error(
+                -1,
+                message,
+                node.getauxblock,
+            )
+        else:
+            assert_raises_rpc_error(
+                -18,
+                "requires a loaded wallet",
+                node.getauxblock,
+            )
         assert_raises_rpc_error(
             -1,
             message,
@@ -255,7 +262,10 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             f"-ltcsnapshotblockhash={verify['base_hash']}",
             f"-ltcsnapshotutxoroot={verify['import_hash']}",
         ])
-        assert_equal(launch.getauxblock()["height"], 1)
+        if self.is_wallet_compiled():
+            assert_equal(launch.getauxblock()["height"], 1)
+        else:
+            assert_raises_rpc_error(-18, "requires a loaded wallet", launch.getauxblock)
         assert_equal(launch.createauxblock(launch.get_deterministic_priv_key().address)["height"], 1)
 
         block_template = launch.getblocktemplate({"rules": ["mweb", "segwit"]})

@@ -201,6 +201,13 @@ public:
 
         return nullptr;
     }
+    void keepReservedDestination(const std::shared_ptr<ReserveDestination>& reserved_dest) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        if (reserved_dest) {
+            reserved_dest->KeepDestination();
+        }
+    }
     bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) override
     {
         std::unique_ptr<SigningProvider> provider = m_wallet->GetSolvingProvider(script);

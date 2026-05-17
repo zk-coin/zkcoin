@@ -82,7 +82,8 @@ Both are intentionally present before behavior changes so tests and review can t
 - `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
 - `-ltcsnapshotheight=<n>`, `-ltcsnapshotblockhash=<hex>`, and `-ltcsnapshotutxoroot=<hex>` configure the block-X snapshot constants on regtest for launch rehearsal.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
-- `getauxblock` exposes candidate creation and AuxPoW submission for merge-mining integration.
+- `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
+- `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
 - `getauxblock` and `createauxblock` expose Dogecoin-style `target` plus `_target` for Namecoin-compatible pool software; both are the expanded target in AuxPoW byte order.
 - `getauxblock <hash> <auxpow>` and `submitauxblock <hash> <auxpow>` return Dogecoin-style booleans on submission.
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.
