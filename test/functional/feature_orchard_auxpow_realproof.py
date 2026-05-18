@@ -808,6 +808,26 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(late_peer_spend_output["value"])), Decimal("4.99800000"))
         assert_equal(late_peer.getrawmempool(), [])
 
+        self.log.info("Restart late peer after full-syncing real-proof AuxPoW chain")
+        self.restart_node(3, extra_args=self.child_launch_args(dump, verify))
+        late_peer = self.nodes[3]
+        self.assert_child_snapshot_imported(late_peer, dump, verify)
+        self.assert_orchard_child_config(late_peer)
+        assert_equal(late_peer.getblockcount(), 3)
+        assert_equal(late_peer.getbestblockhash(), spend_candidate["hash"])
+        assert real_mint_txid in late_peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in late_peer.getblock(spend_candidate["hash"])["tx"]
+        reloaded_late_peer_spend_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reloaded_late_peer_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reloaded_late_peer_spend_info["commitments"], 1)
+        assert_equal(reloaded_late_peer_spend_info["nullifiers"], 1)
+        assert_equal(reloaded_late_peer_spend_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(reloaded_late_peer_spend_info["root"]), spend_vector["anchor"])
+        assert_equal(late_peer.gettxout(real_mint_txid, 0, False), None)
+        reloaded_late_peer_spend_output = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_late_peer_spend_output["value"])), Decimal("4.99800000"))
+        assert_equal(late_peer.getrawmempool(), [])
+
         real_spend_outpoint = {"txid": real_spend_txid, "vout": 0}
         raw_duplicate_nullifier_spend, _ = self.create_real_orchard_spend_tx(
             child,
