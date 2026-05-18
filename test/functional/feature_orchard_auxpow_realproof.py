@@ -49,6 +49,29 @@ ORCHARD_SPEND_VECTOR_PATH = (
 )
 
 
+class AuxPowP2PBlock:
+    """P2P block wrapper for child block bytes with AuxPoW inserted after the header."""
+
+    def __init__(self, block_hex):
+        self.raw = bytes.fromhex(block_hex)
+        header = CBlockHeader()
+        header.deserialize(BytesIO(self.raw[:80]))
+        header.calc_sha256()
+
+        self.nVersion = header.nVersion
+        self.hashPrevBlock = header.hashPrevBlock
+        self.hashMerkleRoot = header.hashMerkleRoot
+        self.nTime = header.nTime
+        self.nBits = header.nBits
+        self.nNonce = header.nNonce
+        self.sha256 = header.sha256
+        self.hash = header.hash
+        self.scrypt256 = header.scrypt256
+
+    def serialize(self, *args, **kwargs):
+        return self.raw
+
+
 class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
     def set_test_params(self):
         super().set_test_params()
@@ -220,6 +243,48 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getbestblockhash(), peer_tip)
         assert_equal(child.getblockcount(), child_height)
         assert_equal(child.getbestblockhash(), child_tip)
+        assert_equal(self.shielded_pool_snapshot(peer), peer_shielded_state)
+        assert_equal(self.shielded_pool_snapshot(child), child_shielded_state)
+        assert_equal(
+            [peer.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints],
+            peer_utxos,
+        )
+        assert_equal(
+            [child.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints],
+            child_utxos,
+        )
+
+    def assert_peer_rejects_bad_auxpow_block_without_relay(self, peer, child, block_hex, block_hash, reject_reason, watched_outpoints=()):
+        assert_equal(peer.getbestblockhash(), child.getbestblockhash())
+        peer_tip = peer.getbestblockhash()
+        peer_height = peer.getblockcount()
+        child_tip = child.getbestblockhash()
+        child_height = child.getblockcount()
+        peer_shielded_state = self.shielded_pool_snapshot(peer)
+        child_shielded_state = self.shielded_pool_snapshot(child)
+        peer_utxos = [peer.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints]
+        child_utxos = [child.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints]
+
+        bad_block = AuxPowP2PBlock(block_hex)
+        assert_equal(bad_block.hash, block_hash)
+        block_peer = peer.add_p2p_connection(P2PDataStore())
+        block_peer.send_blocks_and_test(
+            [bad_block],
+            peer,
+            success=False,
+            force_send=True,
+            expect_disconnect=True,
+            reject_reason=reject_reason,
+        )
+
+        assert_equal(peer.getrawmempool(), [])
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(peer.getblockcount(), peer_height)
+        assert_equal(peer.getbestblockhash(), peer_tip)
+        assert_equal(child.getblockcount(), child_height)
+        assert_equal(child.getbestblockhash(), child_tip)
+        assert bad_block.hash not in [tip["hash"] for tip in peer.getchaintips() if tip["status"] != "invalid"]
+        assert bad_block.hash not in [tip["hash"] for tip in child.getchaintips() if tip["status"] != "invalid"]
         assert_equal(self.shielded_pool_snapshot(peer), peer_shielded_state)
         assert_equal(self.shielded_pool_snapshot(child), child_shielded_state)
         assert_equal(
@@ -479,6 +544,14 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         unspent_duplicate_proof = child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"])
         assert_equal(Decimal(str(unspent_duplicate_proof["value"])), Decimal("6.00000000"))
         assert bad_block_hash not in [tip["hash"] for tip in child.getchaintips() if tip["status"] != "invalid"]
+        self.assert_peer_rejects_bad_auxpow_block_without_relay(
+            peer,
+            child,
+            bad_block_hex,
+            bad_block_hash,
+            "bad-shielded-proof",
+            watched_outpoints=[duplicate_proof_outpoint],
+        )
 
         self.log.info("Accept a real Orchard shielded mint and mine it through local AuxPoW")
         raw_real_mint, real_mint_txid = self.create_real_orchard_mint_tx(
