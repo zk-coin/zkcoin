@@ -75,7 +75,7 @@ class AuxPowP2PBlock:
 class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
     def set_test_params(self):
         super().set_test_params()
-        self.num_nodes = 3
+        self.num_nodes = 4
 
     def child_launch_args(self, dump, verify, import_hash=None):
         return super().child_launch_args(dump, verify, import_hash) + ["-noshieldedscaffoldproofs"]
@@ -190,9 +190,12 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(shielded_info["real_proof_backend"], "orchard-v1")
         assert_equal(shielded_info["real_proof_verification"], True)
 
+    def connect_node_to_child(self, node_index):
+        if not any("testnode1" in peer["subver"] for peer in self.nodes[node_index].getpeerinfo()):
+            self.connect_nodes(node_index, 1)
+
     def connect_peer_to_child(self):
-        if not any("testnode1" in peer["subver"] for peer in self.nodes[2].getpeerinfo()):
-            self.connect_nodes(2, 1)
+        self.connect_node_to_child(2)
 
     def shielded_pool_snapshot(self, node):
         shielded_info = node.getblockchaininfo()["shielded_pool"]
@@ -422,6 +425,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         parent = self.nodes[0]
         child = self.nodes[1]
         peer = self.nodes[2]
+        self.stop_node(3)
 
         if child.getblockchaininfo()["shielded_pool"]["real_proof_backend"] != "orchard-v1":
             raise SkipTest("node was not built with --enable-rust-orchard-verifier")
@@ -778,6 +782,31 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
         peer_reconsidered_spend_output = peer.gettxout(real_spend_txid, 0, False)
         assert_equal(Decimal(str(peer_reconsidered_spend_output["value"])), Decimal("4.99800000"))
+
+        self.log.info("Start late peer and sync existing real-proof AuxPoW chain")
+        self.start_node(3, extra_args=self.child_launch_args(dump, verify))
+        late_peer = self.nodes[3]
+        late_peer.importsnapshotmanifest(dump["path"])
+        self.assert_child_snapshot_imported(late_peer, dump, verify)
+        self.assert_orchard_child_config(late_peer)
+        assert_equal(late_peer.getblockcount(), 0)
+        assert_equal(late_peer.getrawmempool(), [])
+        self.connect_node_to_child(3)
+        self.sync_blocks([child, peer, late_peer])
+        assert_equal(late_peer.getblockcount(), 3)
+        assert_equal(late_peer.getbestblockhash(), spend_candidate["hash"])
+        assert real_mint_txid in late_peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in late_peer.getblock(spend_candidate["hash"])["tx"]
+        late_peer_spend_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(late_peer_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(late_peer_spend_info["commitments"], 1)
+        assert_equal(late_peer_spend_info["nullifiers"], 1)
+        assert_equal(late_peer_spend_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(late_peer_spend_info["root"]), spend_vector["anchor"])
+        assert_equal(late_peer.gettxout(real_mint_txid, 0, False), None)
+        late_peer_spend_output = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(late_peer_spend_output["value"])), Decimal("4.99800000"))
+        assert_equal(late_peer.getrawmempool(), [])
 
         real_spend_outpoint = {"txid": real_spend_txid, "vout": 0}
         raw_duplicate_nullifier_spend, _ = self.create_real_orchard_spend_tx(
