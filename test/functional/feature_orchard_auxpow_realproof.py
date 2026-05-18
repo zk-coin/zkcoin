@@ -1001,6 +1001,61 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(continuation_late_peer_info["nullifiers"], 1)
         assert_equal(continuation_late_peer_info["anchors"], 2)
 
+        self.log.info("Reject malformed-proof AuxPoW block on late peer without poisoning later continuation")
+        if self.is_wallet_compiled():
+            bad_proof_late_candidate = child.getauxblock()
+        else:
+            bad_proof_late_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(bad_proof_late_candidate["height"], 5)
+        bad_proof_late_block_hex, bad_proof_late_block_hash = self.auxpow_block_hex_with_txs(
+            parent,
+            bad_proof_late_candidate,
+            [FromHex(CTransaction(), raw_bad_proof_mint)],
+        )
+        self.assert_peer_rejects_bad_auxpow_block_without_relay(
+            late_peer,
+            child,
+            bad_proof_late_block_hex,
+            bad_proof_late_block_hash,
+            "bad-shielded-proof",
+            watched_outpoints=[duplicate_proof_outpoint],
+        )
+
+        if self.is_wallet_compiled():
+            post_bad_proof_candidate = child.getauxblock()
+        else:
+            post_bad_proof_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(post_bad_proof_candidate["height"], 5)
+        assert post_bad_proof_candidate["hash"] != bad_proof_late_block_hash
+        post_bad_proof_parent_block = self.mine_parent_block(parent, commitment_hex=post_bad_proof_candidate["auxpowcommitment"])
+        post_bad_proof_auxpow = build_parent_auxpow(post_bad_proof_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(post_bad_proof_candidate["hash"], post_bad_proof_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(post_bad_proof_candidate["hash"], post_bad_proof_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 5)
+        assert_equal(child.getbestblockhash(), post_bad_proof_candidate["hash"])
+        self.connect_node_to_child(3)
+        self.sync_blocks([child, late_peer])
+        assert_equal(late_peer.getblockcount(), 5)
+        assert_equal(late_peer.getbestblockhash(), post_bad_proof_candidate["hash"])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            child,
+            bad_proof_late_block_hash,
+            post_bad_proof_candidate,
+        )
+        post_bad_proof_child_info = child.getblockchaininfo()["shielded_pool"]
+        post_bad_proof_late_peer_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(post_bad_proof_child_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(post_bad_proof_child_info["commitments"], 1)
+        assert_equal(post_bad_proof_child_info["nullifiers"], 1)
+        assert_equal(post_bad_proof_child_info["anchors"], 2)
+        assert_equal(Decimal(str(post_bad_proof_late_peer_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(post_bad_proof_late_peer_info["commitments"], 1)
+        assert_equal(post_bad_proof_late_peer_info["nullifiers"], 1)
+        assert_equal(post_bad_proof_late_peer_info["anchors"], 2)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
