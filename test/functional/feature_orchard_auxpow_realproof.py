@@ -191,7 +191,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         tx.rehash()
         return tx.serialize().hex(), tx.hash
 
-    def create_real_orchard_spend_tx(self, node, outpoint, prev_txout, destination, vector, *, nullifier=None, anchor=None, mutate_proof=False):
+    def create_real_orchard_spend_tx(self, node, outpoint, prev_txout, destination, vector, *, destination_script=None, nullifier=None, anchor=None, mutate_proof=False):
         shielded_value = vector["shielded_value"]
         marker_action = vector["actions"][vector["marker_action_index"]]
         if nullifier is None:
@@ -208,7 +208,8 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             + anchor
             + self.shielded_proof_tag(ACTION_SPEND, shielded_value, nullifier=nullifier, anchor=anchor)
         )
-        destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
+        if destination_script is None:
+            destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
 
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(outpoint["txid"], 16), outpoint["vout"]))]
@@ -421,6 +422,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             reloaded_real_mint_output,
             bob_key.address,
             spend_vector,
+            destination_script=spend_proof_script,
         )
         assert_equal(child.sendrawtransaction(raw_real_spend), real_spend_txid)
 
@@ -447,6 +449,16 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(spend_shielded_info["nullifiers"], 1)
         assert_equal(spend_shielded_info["anchors"], 2)
 
+        real_spend_outpoint = {"txid": real_spend_txid, "vout": 0}
+        raw_duplicate_nullifier_spend, _ = self.create_real_orchard_spend_tx(
+            child,
+            real_spend_outpoint,
+            real_spend_output,
+            bob_key.address,
+            spend_vector,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
+
         self.log.info("Restart child and replay the merge-mined real-proof spend state")
         self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
         child = self.nodes[1]
@@ -466,6 +478,36 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(child.gettxout(real_mint_txid, 0, False), None)
         reloaded_real_spend_output = child.gettxout(real_spend_txid, 0, False)
         assert_equal(Decimal(str(reloaded_real_spend_output["value"])), Decimal("4.99800000"))
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
+
+        self.log.info("Invalidate and reconsider the merge-mined real-proof spend block")
+        child.invalidateblock(spend_candidate["hash"])
+        assert_equal(child.getblockcount(), 2)
+        assert_equal(child.getbestblockhash(), shielded_candidate["hash"])
+        assert real_spend_txid in child.getrawmempool()
+        undo_spend_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(undo_spend_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(undo_spend_info["commitments"], 1)
+        assert_equal(undo_spend_info["nullifiers"], 0)
+        assert_equal(undo_spend_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(undo_spend_info["root"]), spend_vector["anchor"])
+        restored_mint_output = child.gettxout(real_mint_txid, 0, False)
+        assert_equal(Decimal(str(restored_mint_output["value"])), Decimal("3.99900000"))
+        assert_equal(child.gettxout(real_spend_txid, 0, False), None)
+
+        child.reconsiderblock(spend_candidate["hash"])
+        assert_equal(child.getblockcount(), 3)
+        assert_equal(child.getbestblockhash(), spend_candidate["hash"])
+        assert_equal(child.getrawmempool(), [])
+        reconsidered_spend_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reconsidered_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reconsidered_spend_info["commitments"], 1)
+        assert_equal(reconsidered_spend_info["nullifiers"], 1)
+        assert_equal(reconsidered_spend_info["anchors"], 2)
+        assert_equal(child.gettxout(real_mint_txid, 0, False), None)
+        reconsidered_real_spend_output = child.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reconsidered_real_spend_output["value"])), Decimal("4.99800000"))
+        assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
 
 
 if __name__ == "__main__":
