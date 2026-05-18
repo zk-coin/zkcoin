@@ -305,6 +305,12 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getblockcount(), good_candidate["height"])
         assert_equal(child.getblockcount(), good_candidate["height"])
 
+    def assert_valid_shielded_tx_relayed(self, source, peer, txid):
+        assert txid in source.getrawmempool()
+        self.sync_mempools([source, peer])
+        assert_equal(source.getrawmempool(), [txid])
+        assert_equal(peer.getrawmempool(), [txid])
+
     def real_orchard_proof_script(self, vector, *, action=ACTION_MINT):
         tx = CTransaction()
         marker_action = vector["actions"][vector["marker_action_index"]]
@@ -572,6 +578,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             destination_script=spend_proof_script,
         )
         assert_equal(child.sendrawtransaction(raw_real_mint), real_mint_txid)
+        self.assert_valid_shielded_tx_relayed(child, peer, real_mint_txid)
 
         if self.is_wallet_compiled():
             shielded_candidate = child.getauxblock()
@@ -603,6 +610,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getblockcount(), 2)
         assert_equal(peer.getbestblockhash(), shielded_candidate["hash"])
         assert real_mint_txid in peer.getblock(shielded_candidate["hash"])["tx"]
+        assert_equal(peer.getrawmempool(), [])
         self.assert_bad_auxpow_block_did_not_poison_valid_sibling(peer, child, bad_block_hash, shielded_candidate)
         peer_mint_info = peer.getblockchaininfo()["shielded_pool"]
         assert_equal(peer_mint_info["real_proof_backend"], "orchard-v1")
@@ -683,6 +691,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             destination_script=spend_proof_script,
         )
         assert_equal(child.sendrawtransaction(raw_real_spend), real_spend_txid)
+        self.assert_valid_shielded_tx_relayed(child, peer, real_spend_txid)
 
         if self.is_wallet_compiled():
             spend_candidate = child.getauxblock()
@@ -711,6 +720,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getblockcount(), 3)
         assert_equal(peer.getbestblockhash(), spend_candidate["hash"])
         assert real_spend_txid in peer.getblock(spend_candidate["hash"])["tx"]
+        assert_equal(peer.getrawmempool(), [])
         peer_spend_info = peer.getblockchaininfo()["shielded_pool"]
         assert_equal(peer_spend_info["real_proof_backend"], "orchard-v1")
         assert_equal(peer_spend_info["real_proof_verification"], True)
