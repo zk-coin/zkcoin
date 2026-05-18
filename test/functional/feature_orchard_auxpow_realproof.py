@@ -296,6 +296,15 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             child_utxos,
         )
 
+    def assert_bad_auxpow_block_did_not_poison_valid_sibling(self, peer, child, bad_block_hash, good_candidate):
+        assert good_candidate["hash"] != bad_block_hash
+        assert bad_block_hash not in [tip["hash"] for tip in peer.getchaintips() if tip["status"] != "invalid"]
+        assert bad_block_hash not in [tip["hash"] for tip in child.getchaintips() if tip["status"] != "invalid"]
+        assert_equal(peer.getbestblockhash(), good_candidate["hash"])
+        assert_equal(child.getbestblockhash(), good_candidate["hash"])
+        assert_equal(peer.getblockcount(), good_candidate["height"])
+        assert_equal(child.getblockcount(), good_candidate["height"])
+
     def real_orchard_proof_script(self, vector, *, action=ACTION_MINT):
         tx = CTransaction()
         marker_action = vector["actions"][vector["marker_action_index"]]
@@ -569,6 +578,8 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         else:
             shielded_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
         assert_equal(shielded_candidate["height"], 2)
+        assert_equal(shielded_candidate["height"], bad_block_candidate["height"])
+        assert shielded_candidate["hash"] != bad_block_hash
         shielded_parent_block = self.mine_parent_block(parent, commitment_hex=shielded_candidate["auxpowcommitment"])
         shielded_auxpow = build_parent_auxpow(shielded_parent_block)
         if self.is_wallet_compiled():
@@ -592,6 +603,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getblockcount(), 2)
         assert_equal(peer.getbestblockhash(), shielded_candidate["hash"])
         assert real_mint_txid in peer.getblock(shielded_candidate["hash"])["tx"]
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(peer, child, bad_block_hash, shielded_candidate)
         peer_mint_info = peer.getblockchaininfo()["shielded_pool"]
         assert_equal(peer_mint_info["real_proof_backend"], "orchard-v1")
         assert_equal(peer_mint_info["real_proof_verification"], True)
