@@ -18,7 +18,8 @@ from feature_local_ltc_fork_auxpow import (
 from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
 from test_framework.auxpow import build_parent_auxpow
 from test_framework.blocktools import COIN, add_witness_commitment, create_block, create_coinbase
-from test_framework.messages import CBlockHeader, COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut
+from test_framework.messages import CBlockHeader, COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, FromHex
+from test_framework.p2p import P2PDataStore
 from test_framework.script import CScript, OP_DROP, OP_RETURN, OP_TRUE
 from test_framework.script_util import script_to_p2wsh_script
 from test_framework.test_framework import SkipTest
@@ -169,6 +170,66 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
     def connect_peer_to_child(self):
         if not any("testnode1" in peer["subver"] for peer in self.nodes[2].getpeerinfo()):
             self.connect_nodes(2, 1)
+
+    def shielded_pool_snapshot(self, node):
+        shielded_info = node.getblockchaininfo()["shielded_pool"]
+        return {
+            "value_pool": Decimal(str(shielded_info["value_pool"])),
+            "commitments": shielded_info["commitments"],
+            "nullifiers": shielded_info["nullifiers"],
+            "anchors": shielded_info["anchors"],
+            "root": shielded_info["root"],
+            "scaffold_proofs": shielded_info["scaffold_proofs"],
+            "real_proof_backend": shielded_info["real_proof_backend"],
+            "real_proof_verification": shielded_info["real_proof_verification"],
+        }
+
+    def assert_peer_rejects_bad_shielded_tx_without_relay(
+        self,
+        peer,
+        child,
+        raw_tx,
+        reject_reason,
+        watched_outpoints=(),
+        expect_disconnect=True,
+    ):
+        assert_equal(peer.getbestblockhash(), child.getbestblockhash())
+        peer_tip = peer.getbestblockhash()
+        peer_height = peer.getblockcount()
+        child_tip = child.getbestblockhash()
+        child_height = child.getblockcount()
+        peer_shielded_state = self.shielded_pool_snapshot(peer)
+        child_shielded_state = self.shielded_pool_snapshot(child)
+        peer_utxos = [peer.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints]
+        child_utxos = [child.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints]
+
+        bad_tx = FromHex(CTransaction(), raw_tx)
+        if not hasattr(self, "bad_tx_peer") or not self.bad_tx_peer.is_connected:
+            self.bad_tx_peer = peer.add_p2p_connection(P2PDataStore())
+        self.bad_tx_peer.send_txs_and_test(
+            [bad_tx],
+            peer,
+            success=False,
+            expect_disconnect=expect_disconnect,
+            reject_reason=reject_reason,
+        )
+
+        assert_equal(peer.getrawmempool(), [])
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(peer.getblockcount(), peer_height)
+        assert_equal(peer.getbestblockhash(), peer_tip)
+        assert_equal(child.getblockcount(), child_height)
+        assert_equal(child.getbestblockhash(), child_tip)
+        assert_equal(self.shielded_pool_snapshot(peer), peer_shielded_state)
+        assert_equal(self.shielded_pool_snapshot(child), child_shielded_state)
+        assert_equal(
+            [peer.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints],
+            peer_utxos,
+        )
+        assert_equal(
+            [child.gettxout(outpoint["txid"], outpoint["vout"], False) for outpoint in watched_outpoints],
+            child_utxos,
+        )
 
     def real_orchard_proof_script(self, vector, *, action=ACTION_MINT):
         tx = CTransaction()
@@ -365,6 +426,13 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             proof_mode=ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_scaffold_mint)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_scaffold_mint,
+            "bad-shielded-proof",
+            watched_outpoints=[duplicate_proof_outpoint],
+        )
 
         raw_bad_proof_mint, _ = self.create_real_orchard_mint_tx(
             child,
@@ -375,6 +443,13 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             mutate_proof=True,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_bad_proof_mint)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_bad_proof_mint,
+            "bad-shielded-proof",
+            watched_outpoints=[duplicate_proof_outpoint],
+        )
 
         wrong_commitment = vector["actions"][1]["cmx"]
         raw_wrong_marker_mint, _ = self.create_real_orchard_mint_tx(
@@ -386,6 +461,13 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             commitment=wrong_commitment,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_wrong_marker_mint)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_wrong_marker_mint,
+            "bad-shielded-proof",
+            watched_outpoints=[duplicate_proof_outpoint],
+        )
 
         self.log.info("Reject a direct AuxPoW block containing a malformed real Orchard proof")
         bad_block_candidate = child.createauxblock(ADDRESS_BCRT1_P2WSH_OP_TRUE)
@@ -480,6 +562,13 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             mutate_proof=True,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_bad_spend_proof)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_bad_spend_proof,
+            "bad-shielded-proof",
+            watched_outpoints=[real_mint_outpoint],
+        )
 
         wrong_anchor = bytes([spend_vector["anchor"][0] ^ 0x01]) + spend_vector["anchor"][1:]
         raw_wrong_anchor_spend, _ = self.create_real_orchard_spend_tx(
@@ -491,6 +580,13 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             anchor=wrong_anchor,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_wrong_anchor_spend)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_wrong_anchor_spend,
+            "bad-shielded-proof",
+            watched_outpoints=[real_mint_outpoint],
+        )
 
         self.log.info("Accept a real Orchard shielded spend and mine it through local AuxPoW")
         raw_real_spend, real_spend_txid = self.create_real_orchard_spend_tx(
@@ -548,6 +644,14 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             spend_vector,
         )
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
+        self.assert_peer_rejects_bad_shielded_tx_without_relay(
+            peer,
+            child,
+            raw_duplicate_nullifier_spend,
+            "bad-shielded-duplicate-nullifier",
+            watched_outpoints=[real_spend_outpoint],
+            expect_disconnect=False,
+        )
 
         self.log.info("Restart child and replay the merge-mined real-proof spend state")
         self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
