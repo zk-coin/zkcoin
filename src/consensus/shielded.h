@@ -210,6 +210,33 @@ inline bool DecodeProofEnvelope(const std::vector<unsigned char>& stack_item, ui
     return true;
 }
 
+inline bool DecodeProofEnvelopeFromWitnessStack(const std::vector<std::vector<unsigned char>>& stack, size_t proof_index, uint8_t& proof_kind, uint256& public_input_hash, std::vector<unsigned char>& proof_payload, std::vector<unsigned char>& bundle, size_t& consumed_last)
+{
+    consumed_last = proof_index;
+    bundle = stack[proof_index];
+    if (DecodeProofEnvelope(bundle, proof_kind, public_input_hash, proof_payload)) {
+        return true;
+    }
+
+    // Real Orchard proofs are too large for a single P2WSH stack element. The
+    // proof-carrying spend uses stack chunks followed by the witnessScript; the
+    // transaction binding hash excludes witness data, so reassembly is stable.
+    if (proof_index + 2 > stack.size()) return false;
+    const size_t chunk_end = stack.size() - 1;
+    if (proof_index >= chunk_end) return false;
+
+    bundle.clear();
+    for (size_t chunk_index = proof_index; chunk_index < chunk_end; ++chunk_index) {
+        bundle.insert(bundle.end(), stack[chunk_index].begin(), stack[chunk_index].end());
+    }
+    if (!DecodeProofEnvelope(bundle, proof_kind, public_input_hash, proof_payload)) {
+        consumed_last = proof_index;
+        return false;
+    }
+    consumed_last = chunk_end - 1;
+    return true;
+}
+
 inline bool DecodeMarkerPayload(const std::vector<unsigned char>& payload, Marker& marker)
 {
     if (!IsMarkerPayloadWellFormed(payload)) return false;
@@ -280,7 +307,9 @@ inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransa
     const uint256 tx_binding_hash = TransactionBindingHash(tx);
     const uint256 expected_public_input_hash = BuildProofPublicInputHash(marker.action, field_hash, tx_binding_hash);
     for (const CTxIn& txin : tx.vin) {
-        for (const auto& stack_item : txin.scriptWitness.stack) {
+        const auto& stack = txin.scriptWitness.stack;
+        for (size_t stack_index = 0; stack_index < stack.size(); ++stack_index) {
+            const auto& stack_item = stack[stack_index];
             if (!HasProofEnvelopePrefix(stack_item)) continue;
             if (check.found) {
                 check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
@@ -294,7 +323,9 @@ inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransa
             uint8_t proof_kind{0};
             uint256 public_input_hash;
             std::vector<unsigned char> proof_payload;
-            if (!DecodeProofEnvelope(stack_item, proof_kind, public_input_hash, proof_payload)) {
+            std::vector<unsigned char> proof_bundle;
+            size_t consumed_last{stack_index};
+            if (!DecodeProofEnvelopeFromWitnessStack(stack, stack_index, proof_kind, public_input_hash, proof_payload, proof_bundle, consumed_last)) {
                 check.proof_status = SHIELDED_ORCHARD_REAL_PROOF_STATUS_MALFORMED;
                 return check;
             }
@@ -303,13 +334,14 @@ inline ProofEnvelopeCheck CheckProofEnvelope(const Marker& marker, const CTransa
                 return check;
             }
             check.proof_status = CheckProofBundleV6(
-                stack_item,
+                proof_bundle,
                 marker.action,
                 expected_public_input_hash,
                 check.proof_body_mode,
                 check.real_request_hash,
                 check.real_verifier_input_hash,
                 check.real_native_proof_hash);
+            stack_index = consumed_last;
         }
     }
     return check;

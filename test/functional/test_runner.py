@@ -236,6 +236,7 @@ BASE_SCRIPTS = [
     'feature_shielded_pool.py',
     'feature_ltc_snapshot_launch.py',
     'feature_local_ltc_fork_auxpow.py',
+    'feature_orchard_auxpow_realproof.py',
     'feature_signet.py',
     'wallet_bumpfee.py',
     'wallet_bumpfee.py --descriptors',

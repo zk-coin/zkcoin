@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# Copyright (c) 2026 The zkCoin developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#
+# Build and run the Orchard verifier + local Litecoin-style AuxPoW regression.
+
+export LC_ALL=C
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+cd "$ROOT_DIR"
+
+if [[ -z "${JOBS:-}" ]]; then
+  if command -v sysctl >/dev/null 2>&1; then
+    JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+  fi
+  if [[ -z "${JOBS:-}" ]] && command -v nproc >/dev/null 2>&1; then
+    JOBS="$(nproc 2>/dev/null || true)"
+  fi
+  JOBS="${JOBS:-4}"
+fi
+
+boost_args=()
+if [[ -n "${BOOST_PREFIX:-}" ]]; then
+  boost_args=("--with-boost=$BOOST_PREFIX")
+  if [[ -d "$BOOST_PREFIX/lib" ]]; then
+    boost_args+=("--with-boost-libdir=$BOOST_PREFIX/lib")
+  fi
+else
+  for prefix in /opt/homebrew/opt/boost@1.85 /opt/homebrew/opt/boost /usr/local/opt/boost@1.85 /usr/local/opt/boost; do
+    if [[ -d "$prefix/include/boost" ]]; then
+      boost_args=("--with-boost=$prefix")
+      if [[ -d "$prefix/lib" ]]; then
+        boost_args+=("--with-boost-libdir=$prefix/lib")
+      fi
+      break
+    fi
+  done
+fi
+
+cppflags="${CPPFLAGS:-}"
+ldflags="${LDFLAGS:-}"
+for prefix in \
+  /opt/homebrew/opt/fmt \
+  /usr/local/opt/fmt \
+  /opt/homebrew/opt/libevent \
+  /usr/local/opt/libevent \
+  /opt/homebrew/opt/openssl@3 \
+  /usr/local/opt/openssl@3 \
+  /opt/homebrew/opt/berkeley-db@4 \
+  /usr/local/opt/berkeley-db@4 \
+  /opt/homebrew/opt/berkeley-db4 \
+  /usr/local/opt/berkeley-db4; do
+  if [[ -d "$prefix/include" && " $cppflags " != *" -I$prefix/include "* ]]; then
+    cppflags="${cppflags:+$cppflags }-I$prefix/include"
+  fi
+  if [[ -d "$prefix/lib" && " $ldflags " != *" -L$prefix/lib "* ]]; then
+    ldflags="${ldflags:+$ldflags }-L$prefix/lib"
+  fi
+done
+
+echo "Configuring with the real Orchard Rust verifier backend"
+./configure \
+  --without-gui \
+  --disable-wallet \
+  --disable-zmq \
+  --disable-bench \
+  --disable-fuzz-binary \
+  --without-miniupnpc \
+  --without-natpmp \
+  "${boost_args[@]}" \
+  --enable-rust-shielded-verifier \
+  --enable-rust-orchard-verifier \
+  CPPFLAGS="$cppflags" \
+  LDFLAGS="$ldflags"
+
+echo "Cleaning C++ objects so verifier-linkage flags are rebuilt"
+make -C src clean
+
+echo "Building Orchard-enabled litecoind, litecoin-cli, and shielded unit tests with ${JOBS} jobs"
+make -C src -j"$JOBS" litecoind litecoin-cli test/test_litecoin
+
+echo "Running shielded unit tests"
+src/test/test_litecoin --run_test=shielded_tests
+
+echo "Running Orchard consensus smoke"
+src/rust/shielded-verifier/scripts/orchard-consensus-smoke.sh
+
+echo "Running Orchard AuxPoW functional test"
+test/functional/feature_orchard_auxpow_realproof.py
+
+echo "Orchard verifier AuxPoW real-proof loop passed"
