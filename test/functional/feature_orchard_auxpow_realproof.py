@@ -1084,6 +1084,49 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         reloaded_duplicate_proof_output = late_peer.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)
         assert_equal(Decimal(str(reloaded_duplicate_proof_output["value"])), Decimal("6.00000000"))
 
+        self.log.info("Extend late peer after restarting with prior malformed-proof rejection")
+        if self.is_wallet_compiled():
+            post_restart_candidate = child.getauxblock()
+        else:
+            post_restart_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(post_restart_candidate["height"], 6)
+        post_restart_parent_block = self.mine_parent_block(parent, commitment_hex=post_restart_candidate["auxpowcommitment"])
+        post_restart_auxpow = build_parent_auxpow(post_restart_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(post_restart_candidate["hash"], post_restart_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(post_restart_candidate["hash"], post_restart_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 6)
+        assert_equal(child.getbestblockhash(), post_restart_candidate["hash"])
+        self.connect_node_to_child(3)
+        self.sync_blocks([child, late_peer])
+        assert_equal(late_peer.getblockcount(), 6)
+        assert_equal(late_peer.getbestblockhash(), post_restart_candidate["hash"])
+        assert real_mint_txid in late_peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in late_peer.getblock(spend_candidate["hash"])["tx"]
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            child,
+            bad_proof_late_block_hash,
+            post_restart_candidate,
+        )
+        post_restart_late_peer_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(post_restart_late_peer_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(post_restart_late_peer_info["commitments"], 1)
+        assert_equal(post_restart_late_peer_info["nullifiers"], 1)
+        assert_equal(post_restart_late_peer_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(post_restart_late_peer_info["root"]), spend_vector["anchor"])
+        assert_equal(late_peer.getrawmempool(), [])
+        assert_equal(late_peer.gettxout(real_mint_txid, 0, False), None)
+        late_peer_post_restart_spend_output = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(late_peer_post_restart_spend_output["value"])), Decimal("4.99800000"))
+        late_peer_post_restart_duplicate_output = late_peer.gettxout(
+            duplicate_proof_outpoint["txid"],
+            duplicate_proof_outpoint["vout"],
+            False,
+        )
+        assert_equal(Decimal(str(late_peer_post_restart_duplicate_output["value"])), Decimal("6.00000000"))
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
