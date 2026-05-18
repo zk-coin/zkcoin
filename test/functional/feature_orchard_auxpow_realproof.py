@@ -864,6 +864,28 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             bob_key.address,
             spend_vector,
         )
+
+        self.log.info("Reject duplicate nullifier on late peer after synced restart and reorg replay")
+        late_peer_duplicate_state = self.shielded_pool_snapshot(late_peer)
+        late_peer_duplicate_utxo = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_raises_rpc_error(
+            -26,
+            "bad-shielded-duplicate-nullifier",
+            late_peer.sendrawtransaction,
+            raw_duplicate_nullifier_spend,
+        )
+        late_bad_tx_peer = late_peer.add_p2p_connection(P2PDataStore())
+        late_bad_tx_peer.send_txs_and_test(
+            [FromHex(CTransaction(), raw_duplicate_nullifier_spend)],
+            late_peer,
+            success=False,
+            expect_disconnect=False,
+            reject_reason="bad-shielded-duplicate-nullifier",
+        )
+        assert_equal(late_peer.getrawmempool(), [])
+        assert_equal(self.shielded_pool_snapshot(late_peer), late_peer_duplicate_state)
+        assert_equal(late_peer.gettxout(real_spend_txid, 0, False), late_peer_duplicate_utxo)
+
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
         self.assert_peer_rejects_bad_shielded_tx_without_relay(
             peer,
