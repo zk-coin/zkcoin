@@ -128,6 +128,17 @@ inline uint256 AppendCommitmentRoot(const uint256& previous_root, uint64_t posit
     return Hash(data);
 }
 
+inline uint256 NextCommitmentRoot(const std::vector<uint256>& commitments, const uint256& previous_root, uint64_t position, const uint256& commitment)
+{
+    std::vector<uint256> next_commitments = commitments;
+    next_commitments.push_back(commitment);
+    uint256 orchard_root;
+    if (OrchardRealVerifierSupportsProofsV1() && OrchardCommitmentRootV1(next_commitments, orchard_root)) {
+        return orchard_root;
+    }
+    return AppendCommitmentRoot(previous_root, position, commitment);
+}
+
 inline std::vector<unsigned char> BuildProofPreimage(const Marker& marker)
 {
     std::vector<unsigned char> data{'z', 'k', 'c', '-', 'p', 'r', 'o', 'o', 'f', '-', 'v', '0'};

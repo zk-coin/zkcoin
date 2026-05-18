@@ -163,6 +163,12 @@ extern "C" int zkc_shielded_orchard_real_proof_check_v3(
     unsigned char* native_proof_hash_out,
     size_t native_proof_hash_out_len);
 
+extern "C" int zkc_shielded_orchard_commitment_root_v1(
+    const unsigned char* commitments,
+    size_t commitments_len,
+    unsigned char* root_out,
+    size_t root_out_len);
+
 namespace Consensus {
 namespace ShieldedPool {
 
@@ -224,6 +230,7 @@ bool VerifyProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof
 int CheckProofBundleV4(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash);
 int CheckProofBundleV5(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash, uint256& real_verifier_input_hash);
 int CheckProofBundleV6(const std::vector<unsigned char>& bundle, uint8_t proof_kind, const uint256& public_input_hash, uint8_t& proof_body_mode, uint256& real_request_hash, uint256& real_verifier_input_hash, uint256& real_native_proof_hash);
+bool OrchardCommitmentRootV1(const std::vector<uint256>& commitments, uint256& root);
 
 } // namespace ShieldedPool
 } // namespace Consensus

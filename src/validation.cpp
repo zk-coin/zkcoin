@@ -583,6 +583,7 @@ struct ShieldedValidationState
     std::set<uint256> commitments;
     std::set<uint256> nullifiers;
     std::set<uint256> anchors;
+    std::vector<uint256> commitment_chain;
     CAmount nValuePool{0};
     uint256 commitment_root;
     uint64_t nCommitments{0};
@@ -623,7 +624,12 @@ static bool AddShieldedMarkerToState(const Consensus::ShieldedPool::Marker& mark
         return false;
     }
     if (marker.HasCommitment()) {
-        shielded.commitment_root = Consensus::ShieldedPool::AppendCommitmentRoot(shielded.commitment_root, shielded.nCommitments, marker.commitment);
+        shielded.commitment_root = Consensus::ShieldedPool::NextCommitmentRoot(
+            shielded.commitment_chain,
+            shielded.commitment_root,
+            shielded.nCommitments,
+            marker.commitment);
+        shielded.commitment_chain.push_back(marker.commitment);
         ++shielded.nCommitments;
         shielded.anchors.insert(shielded.commitment_root);
     }

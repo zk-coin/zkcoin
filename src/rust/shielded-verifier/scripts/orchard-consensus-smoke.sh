@@ -31,6 +31,10 @@ if [[ ! -f tests/vectors/orchard_mint_vector.txt ]]; then
     mkdir -p tests/vectors
     cargo run --locked --features orchard-verifier --example orchard_mint_vector > tests/vectors/orchard_mint_vector.txt
 fi
+if [[ ! -f tests/vectors/orchard_spend_vector.txt ]]; then
+    mkdir -p tests/vectors
+    cargo run --locked --features orchard-verifier --example orchard_spend_vector > tests/vectors/orchard_spend_vector.txt
+fi
 
 cargo build --locked --lib --features orchard-verifier
 

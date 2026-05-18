@@ -74,6 +74,11 @@ static uint64_t ReadU64(const std::map<std::string, std::string>& values, const 
     return std::stoull(iter->second);
 }
 
+static bool ReadBool(const std::map<std::string, std::string>& values, const std::string& key)
+{
+    return ReadU64(values, key) != 0;
+}
+
 static std::vector<unsigned char> ReadBytes(const std::map<std::string, std::string>& values, const std::string& key)
 {
     const auto iter = values.find(key);
@@ -119,6 +124,24 @@ struct OrchardActionVector
     uint256 rk;
     uint256 cmx;
 };
+
+static std::vector<OrchardActionVector> ReadActions(const std::map<std::string, std::string>& values)
+{
+    const uint64_t action_count = ReadU64(values, "action_count");
+    const uint256 anchor = ReadHash(values, "anchor");
+    std::vector<OrchardActionVector> actions;
+    actions.reserve(action_count);
+    for (uint64_t i = 0; i < action_count; ++i) {
+        const std::string prefix = "action" + std::to_string(i) + ".";
+        actions.push_back(OrchardActionVector{
+            anchor,
+            ReadHash(values, prefix + "cv_net"),
+            ReadHash(values, prefix + "nf_old"),
+            ReadHash(values, prefix + "rk"),
+            ReadHash(values, prefix + "cmx")});
+    }
+    return actions;
+}
 
 static std::vector<unsigned char> BuildHalo2BundleNativePayload(
     uint8_t action,
@@ -177,33 +200,23 @@ int main()
         return 2;
     }
 
-    const auto vector = ReadVector("tests/vectors/orchard_mint_vector.txt");
-    const uint64_t shielded_value = ReadU64(vector, "shielded_value");
+    const auto mint_vector = ReadVector("tests/vectors/orchard_mint_vector.txt");
+    const uint64_t shielded_value = ReadU64(mint_vector, "shielded_value");
     if (shielded_value != COIN) {
         return 3;
     }
-    const uint32_t marker_action_index = static_cast<uint32_t>(ReadU64(vector, "marker_action_index"));
+    const uint32_t marker_action_index = static_cast<uint32_t>(ReadU64(mint_vector, "marker_action_index"));
     if (marker_action_index != 0) {
         return 4;
     }
-    const uint64_t action_count = ReadU64(vector, "action_count");
-    if (action_count != 2) {
+    const auto actions = ReadActions(mint_vector);
+    if (actions.size() != 2) {
         return 5;
     }
-
-    std::vector<OrchardActionVector> actions;
-    actions.reserve(action_count);
-    const uint256 anchor = ReadHash(vector, "anchor");
-    for (uint64_t i = 0; i < action_count; ++i) {
-        const std::string prefix = "action" + std::to_string(i) + ".";
-        actions.push_back(OrchardActionVector{
-            anchor,
-            ReadHash(vector, prefix + "cv_net"),
-            ReadHash(vector, prefix + "nf_old"),
-            ReadHash(vector, prefix + "rk"),
-            ReadHash(vector, prefix + "cmx")});
+    if (ReadBool(mint_vector, "enable_spend") || !ReadBool(mint_vector, "enable_output")) {
+        return 23;
     }
-    const auto proof = ReadBytes(vector, "proof");
+    const auto proof = ReadBytes(mint_vector, "proof");
     if (proof.size() != 7264) {
         return 6;
     }
@@ -327,6 +340,114 @@ int main()
     }
     if (wrong_marker_state.GetRejectReason() != "bad-shielded-proof") {
         return 22;
+    }
+
+    const auto spend_vector = ReadVector("tests/vectors/orchard_spend_vector.txt");
+    if (ReadU64(spend_vector, "shielded_value") != shielded_value) {
+        return 24;
+    }
+    const auto spend_actions = ReadActions(spend_vector);
+    if (spend_actions.size() != 2) {
+        return 25;
+    }
+    if (!ReadBool(spend_vector, "enable_spend") || ReadBool(spend_vector, "enable_output")) {
+        return 26;
+    }
+    const uint32_t spend_marker_action_index = static_cast<uint32_t>(ReadU64(spend_vector, "marker_action_index"));
+    if (spend_marker_action_index >= spend_actions.size()) {
+        return 27;
+    }
+    if (ReadHash(spend_vector, "source_commitment") != marker_commitment) {
+        return 28;
+    }
+    uint256 orchard_root;
+    if (!OrchardCommitmentRootV1({marker_commitment}, orchard_root)) {
+        return 29;
+    }
+    const uint256 spend_anchor = ReadHash(spend_vector, "anchor");
+    if (orchard_root != spend_anchor) {
+        return 30;
+    }
+    const auto spend_proof = ReadBytes(spend_vector, "proof");
+    if (spend_proof.size() != 7264) {
+        return 31;
+    }
+
+    const uint256 marker_nullifier = spend_actions[spend_marker_action_index].nf_old;
+    const auto spend_payload = BuildSpendPayload(marker_nullifier, spend_anchor, COIN);
+    Marker spend_marker;
+    if (!DecodeMarkerPayload(spend_payload, spend_marker)) {
+        return 32;
+    }
+
+    CMutableTransaction spend_base_tx = MutableTransactionWithMarker(spend_payload);
+    const CTransaction spend_context_tx(spend_base_tx);
+    const uint256 spend_public_input_hash = BuildProofPublicInputHash(spend_marker, spend_context_tx);
+    const auto spend_native_payload = BuildHalo2BundleNativePayload(
+        spend_marker.action,
+        spend_marker_action_index,
+        shielded_value,
+        TransactionBindingHash(spend_context_tx),
+        /*enable_spend=*/true,
+        /*enable_output=*/false,
+        spend_actions,
+        spend_proof);
+    const auto spend_native_proof = BuildOrchardNativeProofBytesV1(spend_marker.action, spend_public_input_hash, spend_native_payload);
+    const auto spend_real_envelope = BuildRealProofEnvelope(spend_marker, spend_context_tx, spend_native_proof);
+
+    proof_body_mode = SHIELDED_ORCHARD_PROOF_BODY_MODE_UNKNOWN;
+    real_request_hash.SetNull();
+    real_verifier_input_hash.SetNull();
+    real_native_proof_hash.SetNull();
+    if (CheckProofBundleV6(
+            spend_real_envelope,
+            spend_marker.action,
+            spend_public_input_hash,
+            proof_body_mode,
+            real_request_hash,
+            real_verifier_input_hash,
+            real_native_proof_hash) != SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID) {
+        return 33;
+    }
+    if (proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL) {
+        return 34;
+    }
+
+    CMutableTransaction spend_real_tx = MutableTransactionWithMarker(spend_payload);
+    spend_real_tx.vin[0].scriptWitness.stack.push_back(spend_real_envelope);
+    const auto spend_envelope_check = CheckProofEnvelope(spend_marker, CTransaction(spend_real_tx));
+    if (!spend_envelope_check.IsAccepted(/*allow_scaffold_proofs=*/false)) {
+        return 35;
+    }
+    if (spend_envelope_check.real_request_hash != real_request_hash ||
+        spend_envelope_check.real_verifier_input_hash != real_verifier_input_hash ||
+        spend_envelope_check.real_native_proof_hash != real_native_proof_hash) {
+        return 36;
+    }
+    TxValidationState spend_valid_state;
+    if (!CheckTransaction(CTransaction(spend_real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_valid_state)) {
+        return 37;
+    }
+    CAmount spend_value_pool_delta{0};
+    TxValidationState spend_delta_state;
+    if (!GetTransactionValuePoolDelta(CTransaction(spend_real_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, spend_value_pool_delta, spend_delta_state)) {
+        return 38;
+    }
+    if (spend_value_pool_delta != -COIN) {
+        return 39;
+    }
+
+    auto bad_spend_native_payload = spend_native_payload;
+    bad_spend_native_payload.back() ^= 0x01;
+    const auto bad_spend_native_proof = BuildOrchardNativeProofBytesV1(spend_marker.action, spend_public_input_hash, bad_spend_native_payload);
+    CMutableTransaction bad_spend_tx = MutableTransactionWithMarker(spend_payload);
+    bad_spend_tx.vin[0].scriptWitness.stack.push_back(BuildRealProofEnvelope(spend_marker, spend_context_tx, bad_spend_native_proof));
+    TxValidationState bad_spend_state;
+    if (CheckTransaction(CTransaction(bad_spend_tx), /*active=*/true, /*allow_scaffold_proofs=*/false, bad_spend_state)) {
+        return 40;
+    }
+    if (bad_spend_state.GetRejectReason() != "bad-shielded-proof") {
+        return 41;
     }
 
     return 0;
