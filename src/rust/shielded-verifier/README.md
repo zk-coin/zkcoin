@@ -103,10 +103,21 @@ different proving-key identity.
 
 Unknown modes, unknown flags, wrong proof kinds, wrong public inputs, wrong
 verifier-key commitments, non-native proof bytes, and malformed lengths are
-rejected. The real-proof backend still returns unsupported until the Orchard
-verifier is wired; this keeps local Litecoin snapshot launch and Scrypt AuxPoW
-tests reproducible while preventing placeholder proof bytes from being accepted
-as production proofs.
+rejected. The default real-proof backend still returns unsupported unless the
+crate is built with `--features orchard-verifier`; this keeps local Litecoin
+snapshot launch and Scrypt AuxPoW tests reproducible while preventing
+placeholder proof bytes from being accepted as production proofs.
+With `orchard-verifier`, the native proof bytes can carry an Orchard Halo2
+action or padded bundle packet:
+
+```text
+zkc-orchard-halo2-action-v1 || kind || shielded_value || tx_binding_hash || anchor || cv_net || nf_old || rk || cmx || enable_spend || enable_output || proof_len_le32 || proof
+zkc-orchard-halo2-bundle-v1 || kind || action_count_le32 || marker_action_index_le32 || shielded_value || tx_binding_hash || enable_spend || enable_output || action_records || proof_len_le32 || proof
+```
+
+The bundle form lets consensus bind one marker output to a selected Orchard
+action while verifying the complete padded Orchard proof against every action
+instance in the bundle.
 After parsing, the Rust verifier hands the backend a typed request containing
 the action kind, consensus public-input hash, verifier-key commitment, and raw
 proof bytes.
@@ -146,4 +157,12 @@ cargo test --locked --features verifier-fixture
 scripts/abi-smoke.sh
 scripts/unsupported-consensus-smoke.sh
 scripts/fixture-consensus-smoke.sh
+scripts/orchard-consensus-smoke.sh
+```
+
+`tests/vectors/orchard_mint_vector.txt` is a deterministic generated Orchard
+mint bundle used by the Orchard consensus smoke test. Regenerate it with:
+
+```sh
+cargo run --locked --features orchard-verifier --example orchard_mint_vector > tests/vectors/orchard_mint_vector.txt
 ```
