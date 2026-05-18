@@ -5,6 +5,7 @@
 """Mine real Orchard shielded mint and spend transactions through local AuxPoW."""
 
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from feature_local_ltc_fork_auxpow import (
@@ -14,9 +15,10 @@ from feature_local_ltc_fork_auxpow import (
     ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
     LocalLitecoinForkAuxPowTest,
 )
+from test_framework.address import ADDRESS_BCRT1_P2WSH_OP_TRUE
 from test_framework.auxpow import build_parent_auxpow
-from test_framework.blocktools import COIN
-from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut
+from test_framework.blocktools import COIN, add_witness_commitment, create_block, create_coinbase
+from test_framework.messages import CBlockHeader, COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut
 from test_framework.script import CScript, OP_DROP, OP_RETURN, OP_TRUE
 from test_framework.script_util import script_to_p2wsh_script
 from test_framework.test_framework import SkipTest
@@ -129,6 +131,32 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
 
     def proof_drop_script(self, chunk_count):
         return CScript([OP_DROP] * chunk_count + [OP_TRUE])
+
+    def auxpow_block_hex_with_txs(self, parent, candidate, txs):
+        child_header = CBlockHeader()
+        child_header.deserialize(BytesIO(bytes.fromhex(candidate["header"])))
+
+        coinbase = create_coinbase(candidate["height"])
+        block = create_block(
+            int(candidate["previousblockhash"], 16),
+            coinbase,
+            child_header.nTime,
+            version=child_header.nVersion,
+            txlist=txs,
+        )
+        block.nBits = child_header.nBits
+        block.nNonce = child_header.nNonce
+        add_witness_commitment(block)
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.rehash()
+
+        parent_block = self.mine_parent_block(
+            parent,
+            commitment_hex="fabe6d6d" + block.hash + "0100000000000000",
+        )
+        auxpow = build_parent_auxpow(parent_block)
+        serialized_block = block.serialize()
+        return (serialized_block[:80] + auxpow.serialize() + serialized_block[80:]).hex(), block.hash
 
     def real_orchard_proof_script(self, vector, *, action=ACTION_MINT):
         tx = CTransaction()
@@ -336,6 +364,17 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             commitment=wrong_commitment,
         )
         assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_wrong_marker_mint)
+
+        self.log.info("Reject a direct AuxPoW block containing a malformed real Orchard proof")
+        bad_block_candidate = child.createauxblock(ADDRESS_BCRT1_P2WSH_OP_TRUE)
+        assert_equal(bad_block_candidate["height"], 2)
+        bad_block_hex, bad_block_hash = self.auxpow_block_hex_with_txs(parent, bad_block_candidate, [raw_bad_proof_mint])
+        assert_equal(child.submitblock(bad_block_hex), "bad-shielded-proof")
+        assert_equal(child.getblockcount(), 1)
+        assert_equal(child.getbestblockhash(), candidate["hash"])
+        unspent_duplicate_proof = child.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"])
+        assert_equal(Decimal(str(unspent_duplicate_proof["value"])), Decimal("6.00000000"))
+        assert bad_block_hash not in [tip["hash"] for tip in child.getchaintips() if tip["status"] != "invalid"]
 
         self.log.info("Accept a real Orchard shielded mint and mine it through local AuxPoW")
         raw_real_mint, real_mint_txid = self.create_real_orchard_mint_tx(
