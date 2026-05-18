@@ -730,6 +730,27 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer_spend_info["nullifiers"], 1)
         assert_equal(peer_spend_info["anchors"], 2)
 
+        self.log.info("Restart peer after relayed merge-mined real-proof spend state")
+        self.restart_node(2, extra_args=self.child_launch_args(dump, verify))
+        peer = self.nodes[2]
+        self.connect_peer_to_child()
+        self.sync_blocks([child, peer])
+        assert_equal(peer.getblockcount(), 3)
+        assert_equal(peer.getbestblockhash(), spend_candidate["hash"])
+        self.assert_child_snapshot_imported(peer, dump, verify)
+        self.assert_orchard_child_config(peer)
+        assert real_mint_txid in peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in peer.getblock(spend_candidate["hash"])["tx"]
+        replayed_peer_spend_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(replayed_peer_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(replayed_peer_spend_info["commitments"], 1)
+        assert_equal(replayed_peer_spend_info["nullifiers"], 1)
+        assert_equal(replayed_peer_spend_info["anchors"], 2)
+        assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
+        replayed_peer_spend_output = peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(replayed_peer_spend_output["value"])), Decimal("4.99800000"))
+        assert_equal(peer.getrawmempool(), [])
+
         real_spend_outpoint = {"txid": real_spend_txid, "vout": 0}
         raw_duplicate_nullifier_spend, _ = self.create_real_orchard_spend_tx(
             child,
