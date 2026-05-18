@@ -174,6 +174,12 @@ int zkc_shielded_orchard_real_proof_check_v3(
     unsigned char* native_proof_hash_out,
     size_t native_proof_hash_out_len);
 
+int zkc_shielded_orchard_commitment_root_v1(
+    const unsigned char* commitments,
+    size_t commitments_len,
+    unsigned char* root_out,
+    size_t root_out_len);
+
 #ifdef __cplusplus
 }
 #endif

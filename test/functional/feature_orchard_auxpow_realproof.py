@@ -2,17 +2,16 @@
 # Copyright (c) 2026 The zkCoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Mine a real Orchard shielded mint through local Litecoin-style AuxPoW."""
+"""Mine real Orchard shielded mint and spend transactions through local AuxPoW."""
 
 from decimal import Decimal
 from pathlib import Path
 
 from feature_local_ltc_fork_auxpow import (
     ACTION_MINT,
+    ACTION_SPEND,
     MARKER_PREFIX,
-    ORCHARD_PROOF_BODY_MODE_REAL,
     ORCHARD_PROOF_BODY_MODE_SCAFFOLD,
-    PROOF_SCRIPT,
     LocalLitecoinForkAuxPowTest,
 )
 from test_framework.auxpow import build_parent_auxpow
@@ -36,6 +35,15 @@ ORCHARD_VECTOR_PATH = (
     / "vectors"
     / "orchard_mint_vector.txt"
 )
+ORCHARD_SPEND_VECTOR_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "rust"
+    / "shielded-verifier"
+    / "tests"
+    / "vectors"
+    / "orchard_spend_vector.txt"
+)
 
 
 class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
@@ -45,9 +53,9 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
     def child_launch_args(self, dump, verify, import_hash=None):
         return super().child_launch_args(dump, verify, import_hash) + ["-noshieldedscaffoldproofs"]
 
-    def load_orchard_mint_vector(self):
+    def load_orchard_vector(self, path):
         values = {}
-        for line in ORCHARD_VECTOR_PATH.read_text(encoding="utf8").splitlines():
+        for line in path.read_text(encoding="utf8").splitlines():
             if not line or line.startswith("#"):
                 continue
             key, value = line.split("=", 1)
@@ -66,14 +74,24 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
                 "cmx": bytes.fromhex(values[prefix + "cmx"]),
             })
 
-        return {
+        vector = {
             "shielded_value": int(values["shielded_value"]),
             "marker_action_index": int(values["marker_action_index"]),
             "enable_spend": int(values["enable_spend"]) == 1,
             "enable_output": int(values["enable_output"]) == 1,
+            "anchor": anchor,
             "actions": actions,
             "proof": bytes.fromhex(values["proof"]),
         }
+        if "source_commitment" in values:
+            vector["source_commitment"] = bytes.fromhex(values["source_commitment"])
+        return vector
+
+    def load_orchard_mint_vector(self):
+        return self.load_orchard_vector(ORCHARD_VECTOR_PATH)
+
+    def load_orchard_spend_vector(self):
+        return self.load_orchard_vector(ORCHARD_SPEND_VECTOR_PATH)
 
     def orchard_halo2_bundle_native_payload(self, tx, vector, *, action=ACTION_MINT, mutate_proof=False):
         payload = bytearray()
@@ -112,20 +130,32 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
     def proof_drop_script(self, chunk_count):
         return CScript([OP_DROP] * chunk_count + [OP_TRUE])
 
-    def real_orchard_proof_script(self, vector):
+    def real_orchard_proof_script(self, vector, *, action=ACTION_MINT):
         tx = CTransaction()
-        commitment = vector["actions"][vector["marker_action_index"]]["cmx"]
-        native_proof_bytes = self.orchard_halo2_bundle_native_payload(tx, vector)
-        proof_envelope = self.shielded_real_proof_envelope(
-            tx,
-            ACTION_MINT,
-            vector["shielded_value"],
-            commitment=commitment,
-            native_proof_bytes=native_proof_bytes,
-        )
+        marker_action = vector["actions"][vector["marker_action_index"]]
+        native_proof_bytes = self.orchard_halo2_bundle_native_payload(tx, vector, action=action)
+        if action == ACTION_MINT:
+            proof_envelope = self.shielded_real_proof_envelope(
+                tx,
+                ACTION_MINT,
+                vector["shielded_value"],
+                commitment=marker_action["cmx"],
+                native_proof_bytes=native_proof_bytes,
+            )
+        elif action == ACTION_SPEND:
+            proof_envelope = self.shielded_real_proof_envelope(
+                tx,
+                ACTION_SPEND,
+                vector["shielded_value"],
+                nullifier=marker_action["nf_old"],
+                anchor=vector["anchor"],
+                native_proof_bytes=native_proof_bytes,
+            )
+        else:
+            raise AssertionError(f"unknown Orchard action {action}")
         return self.proof_drop_script(len(self.proof_chunks(proof_envelope)))
 
-    def create_real_orchard_mint_tx(self, node, outpoint, prev_txout, destination, vector, *, commitment=None, mutate_proof=False):
+    def create_real_orchard_mint_tx(self, node, outpoint, prev_txout, destination, vector, *, destination_script=None, commitment=None, mutate_proof=False):
         shielded_value = vector["shielded_value"]
         if commitment is None:
             commitment = vector["actions"][vector["marker_action_index"]]["cmx"]
@@ -138,7 +168,8 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             + commitment
             + self.shielded_proof_tag(ACTION_MINT, shielded_value, commitment=commitment)
         )
-        destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
+        if destination_script is None:
+            destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
 
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(outpoint["txid"], 16), outpoint["vout"]))]
@@ -160,6 +191,51 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         tx.rehash()
         return tx.serialize().hex(), tx.hash
 
+    def create_real_orchard_spend_tx(self, node, outpoint, prev_txout, destination, vector, *, nullifier=None, anchor=None, mutate_proof=False):
+        shielded_value = vector["shielded_value"]
+        marker_action = vector["actions"][vector["marker_action_index"]]
+        if nullifier is None:
+            nullifier = marker_action["nf_old"]
+        if anchor is None:
+            anchor = vector["anchor"]
+
+        prev_value = int(Decimal(str(prev_txout["value"])) * Decimal(COIN))
+        payload = (
+            MARKER_PREFIX
+            + bytes([ACTION_SPEND])
+            + shielded_value.to_bytes(8, "little")
+            + nullifier
+            + anchor
+            + self.shielded_proof_tag(ACTION_SPEND, shielded_value, nullifier=nullifier, anchor=anchor)
+        )
+        destination_script = bytes.fromhex(node.validateaddress(destination)["scriptPubKey"])
+
+        tx = CTransaction()
+        tx.vin = [CTxIn(COutPoint(int(outpoint["txid"], 16), outpoint["vout"]))]
+        tx.vout = [
+            CTxOut(prev_value + shielded_value - 100000, destination_script),
+            CTxOut(0, CScript([OP_RETURN, payload])),
+        ]
+        native_proof_bytes = self.orchard_halo2_bundle_native_payload(
+            tx,
+            vector,
+            action=ACTION_SPEND,
+            mutate_proof=mutate_proof,
+        )
+        proof_envelope = self.shielded_real_proof_envelope(
+            tx,
+            ACTION_SPEND,
+            shielded_value,
+            nullifier=nullifier,
+            anchor=anchor,
+            native_proof_bytes=native_proof_bytes,
+        )
+        proof_chunks = self.proof_chunks(proof_envelope)
+        tx.wit.vtxinwit = [CTxInWitness()]
+        tx.wit.vtxinwit[0].scriptWitness.stack = proof_chunks + [self.proof_drop_script(len(proof_chunks))]
+        tx.rehash()
+        return tx.serialize().hex(), tx.hash
+
     def run_test(self):
         parent = self.nodes[0]
         child = self.nodes[1]
@@ -169,10 +245,16 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
 
         self.log.info("Build a local Litecoin-style parent chain and block-X snapshot")
         vector = self.load_orchard_mint_vector()
+        spend_vector = self.load_orchard_spend_vector()
         assert_equal(vector["shielded_value"], COIN)
+        assert_equal(spend_vector["shielded_value"], COIN)
+        assert_equal(spend_vector["source_commitment"], vector["actions"][vector["marker_action_index"]]["cmx"])
         bob_key = parent.get_deterministic_priv_key()
         bob_script = bytes.fromhex(child.validateaddress(bob_key.address)["scriptPubKey"])
-        proof_script = script_to_p2wsh_script(self.real_orchard_proof_script(vector))
+        mint_drop_script = self.real_orchard_proof_script(vector, action=ACTION_MINT)
+        spend_drop_script = self.real_orchard_proof_script(spend_vector, action=ACTION_SPEND)
+        proof_script = script_to_p2wsh_script(mint_drop_script)
+        spend_proof_script = script_to_p2wsh_script(spend_drop_script)
         parent_blocks = [self.mine_parent_block(parent) for _ in range(101)]
         parent_balance_tx = self.create_parent_balance_tx(parent_blocks[0].vtx[0], bob_script, bob_script, proof_script)
         self.mine_parent_block(parent, txlist=[parent_balance_tx])
@@ -261,6 +343,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             child_proof,
             bob_key.address,
             vector,
+            destination_script=spend_proof_script,
         )
         assert_equal(child.sendrawtransaction(raw_real_mint), real_mint_txid)
 
@@ -285,8 +368,10 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("1.00000000"))
         assert_equal(shielded_info["commitments"], 1)
         assert_equal(shielded_info["nullifiers"], 0)
+        assert_equal(shielded_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(shielded_info["root"]), spend_vector["anchor"])
 
-        self.log.info("Restart child and replay the merge-mined real-proof shielded state")
+        self.log.info("Restart child and replay the merge-mined real-proof mint state")
         self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
         child = self.nodes[1]
         assert_equal(child.getblockcount(), 2)
@@ -300,9 +385,87 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(reloaded_shielded_info["value_pool"])), Decimal("1.00000000"))
         assert_equal(reloaded_shielded_info["commitments"], 1)
         assert_equal(reloaded_shielded_info["nullifiers"], 0)
+        assert_equal(reloaded_shielded_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(reloaded_shielded_info["root"]), spend_vector["anchor"])
         assert_equal(child.gettxout(proof_outpoint["txid"], proof_outpoint["vout"], False), None)
         reloaded_real_mint_output = child.gettxout(real_mint_txid, 0, False)
         assert_equal(Decimal(str(reloaded_real_mint_output["value"])), Decimal("3.99900000"))
+
+        self.log.info("Reject malformed real Orchard spends while scaffold is disabled")
+        real_mint_outpoint = {"txid": real_mint_txid, "vout": 0}
+        raw_bad_spend_proof, _ = self.create_real_orchard_spend_tx(
+            child,
+            real_mint_outpoint,
+            reloaded_real_mint_output,
+            bob_key.address,
+            spend_vector,
+            mutate_proof=True,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_bad_spend_proof)
+
+        wrong_anchor = bytes([spend_vector["anchor"][0] ^ 0x01]) + spend_vector["anchor"][1:]
+        raw_wrong_anchor_spend, _ = self.create_real_orchard_spend_tx(
+            child,
+            real_mint_outpoint,
+            reloaded_real_mint_output,
+            bob_key.address,
+            spend_vector,
+            anchor=wrong_anchor,
+        )
+        assert_raises_rpc_error(-26, "bad-shielded-proof", child.sendrawtransaction, raw_wrong_anchor_spend)
+
+        self.log.info("Accept a real Orchard shielded spend and mine it through local AuxPoW")
+        raw_real_spend, real_spend_txid = self.create_real_orchard_spend_tx(
+            child,
+            real_mint_outpoint,
+            reloaded_real_mint_output,
+            bob_key.address,
+            spend_vector,
+        )
+        assert_equal(child.sendrawtransaction(raw_real_spend), real_spend_txid)
+
+        if self.is_wallet_compiled():
+            spend_candidate = child.getauxblock()
+        else:
+            spend_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(spend_candidate["height"], 3)
+        spend_parent_block = self.mine_parent_block(parent, commitment_hex=spend_candidate["auxpowcommitment"])
+        spend_auxpow = build_parent_auxpow(spend_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(spend_candidate["hash"], spend_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(spend_candidate["hash"], spend_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 3)
+        assert real_spend_txid in child.getblock(spend_candidate["hash"])["tx"]
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(child.gettxout(real_mint_txid, 0, False), None)
+        real_spend_output = child.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(real_spend_output["value"])), Decimal("4.99800000"))
+        spend_shielded_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(spend_shielded_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(spend_shielded_info["commitments"], 1)
+        assert_equal(spend_shielded_info["nullifiers"], 1)
+        assert_equal(spend_shielded_info["anchors"], 2)
+
+        self.log.info("Restart child and replay the merge-mined real-proof spend state")
+        self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
+        child = self.nodes[1]
+        assert_equal(child.getblockcount(), 3)
+        assert_equal(child.getbestblockhash(), spend_candidate["hash"])
+        self.assert_child_snapshot_imported(child, dump, verify)
+        assert real_mint_txid in child.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in child.getblock(spend_candidate["hash"])["tx"]
+        reloaded_spend_info = child.getblockchaininfo()["shielded_pool"]
+        assert_equal(reloaded_spend_info["real_proof_backend"], "orchard-v1")
+        assert_equal(reloaded_spend_info["real_proof_verification"], True)
+        assert_equal(reloaded_spend_info["scaffold_proofs"], False)
+        assert_equal(Decimal(str(reloaded_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reloaded_spend_info["commitments"], 1)
+        assert_equal(reloaded_spend_info["nullifiers"], 1)
+        assert_equal(reloaded_spend_info["anchors"], 2)
+        assert_equal(child.gettxout(real_mint_txid, 0, False), None)
+        reloaded_real_spend_output = child.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_real_spend_output["value"])), Decimal("4.99800000"))
 
 
 if __name__ == "__main__":

@@ -966,6 +966,7 @@ dependencies = [
 name = "zkc-shielded-verifier"
 version = "0.1.0"
 dependencies = [
+ "incrementalmerkletree",
  "orchard",
  "rand",
  "sha2",

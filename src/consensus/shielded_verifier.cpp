@@ -677,6 +677,26 @@ int CheckProofBundleV6(const std::vector<unsigned char>& bundle, uint8_t proof_k
     return status;
 }
 
+bool OrchardCommitmentRootV1(const std::vector<uint256>& commitments, uint256& root)
+{
+    std::vector<unsigned char> commitment_bytes;
+    commitment_bytes.reserve(commitments.size() * SHIELDED_PROOF_HASH_SIZE);
+    for (const auto& commitment : commitments) {
+        commitment_bytes.insert(commitment_bytes.end(), commitment.begin(), commitment.end());
+    }
+
+    std::vector<unsigned char> root_bytes(SHIELDED_PROOF_HASH_SIZE);
+    const int ok = zkc_shielded_orchard_commitment_root_v1(
+        commitment_bytes.empty() ? nullptr : commitment_bytes.data(),
+        commitment_bytes.size(),
+        root_bytes.data(),
+        root_bytes.size());
+    if (ok != 1) return false;
+
+    std::copy(root_bytes.begin(), root_bytes.end(), root.begin());
+    return true;
+}
+
 } // namespace ShieldedPool
 } // namespace Consensus
 
@@ -1276,5 +1296,17 @@ extern "C" int zkc_shielded_orchard_real_proof_check_v3(
         native_proof_hash_out,
         native_proof_hash_out_len);
     return status;
+}
+
+extern "C" int zkc_shielded_orchard_commitment_root_v1(
+    const unsigned char* commitments,
+    size_t commitments_len,
+    unsigned char* root_out,
+    size_t root_out_len)
+{
+    if (root_out == nullptr || root_out_len != Consensus::ShieldedPool::SHIELDED_PROOF_HASH_SIZE) return 0;
+    std::fill(root_out, root_out + root_out_len, 0);
+    if (commitments == nullptr && commitments_len != 0) return 0;
+    return 0;
 }
 #endif // ZKC_SHIELDED_VERIFIER_EXTERNAL

@@ -1403,6 +1403,7 @@ struct ShieldedPoolRpcState
     size_t nCommitments{0};
     size_t nNullifiers{0};
     std::set<uint256> anchors{uint256()};
+    std::vector<uint256> commitment_chain;
     uint256 commitment_root;
 };
 
@@ -1448,7 +1449,12 @@ static bool GetShieldedPoolRpcState(const CChain& chain, const Consensus::Params
                 }
                 pool_state.nValuePool += delta;
                 if (marker.HasCommitment()) {
-                    pool_state.commitment_root = Consensus::ShieldedPool::AppendCommitmentRoot(pool_state.commitment_root, pool_state.nCommitments, marker.commitment);
+                    pool_state.commitment_root = Consensus::ShieldedPool::NextCommitmentRoot(
+                        pool_state.commitment_chain,
+                        pool_state.commitment_root,
+                        pool_state.nCommitments,
+                        marker.commitment);
+                    pool_state.commitment_chain.push_back(marker.commitment);
                     ++pool_state.nCommitments;
                     pool_state.anchors.insert(pool_state.commitment_root);
                 }

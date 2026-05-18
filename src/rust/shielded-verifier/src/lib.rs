@@ -6,6 +6,10 @@ use core::slice;
 #[cfg(all(feature = "orchard-verifier", not(feature = "verifier-fixture")))]
 use std::sync::OnceLock;
 
+#[cfg(feature = "orchard-verifier")]
+use incrementalmerkletree::frontier::Frontier;
+#[cfg(feature = "orchard-verifier")]
+use orchard::tree::MerkleHashOrchard;
 use sha2::{Digest, Sha256};
 
 const HASH_SIZE: usize = 32;
@@ -1197,6 +1201,19 @@ pub fn orchard_real_verifier_supports_real_proofs_v1() -> bool {
     orchard_real_verifier_backend_v1().supports_real_proofs()
 }
 
+#[cfg(feature = "orchard-verifier")]
+pub fn orchard_commitment_root_v1(commitments: &[[u8; HASH_SIZE]]) -> Option<[u8; HASH_SIZE]> {
+    let mut frontier = Frontier::<MerkleHashOrchard, 32>::empty();
+    for commitment in commitments {
+        let commitment =
+            Option::<MerkleHashOrchard>::from(MerkleHashOrchard::from_bytes(commitment))?;
+        if !frontier.append(commitment) {
+            return None;
+        }
+    }
+    Some(frontier.root().to_bytes())
+}
+
 fn verify_orchard_real_proof_backend_status_with_backend_v1<B: OrchardRealProofBackend>(
     request: &OrchardRealProofRequest<'_>,
     backend: &B,
@@ -2232,6 +2249,50 @@ pub unsafe extern "C" fn zkc_shielded_orchard_real_proof_check_v3(
         );
     }
     check.status.as_ffi_code()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn zkc_shielded_orchard_commitment_root_v1(
+    commitments: *const u8,
+    commitments_len: usize,
+    root_out: *mut u8,
+    root_out_len: usize,
+) -> i32 {
+    if root_out.is_null() || root_out_len != HASH_SIZE {
+        return 0;
+    }
+    core::ptr::write_bytes(root_out, 0, HASH_SIZE);
+    if commitments_len % HASH_SIZE != 0 {
+        return 0;
+    }
+    if commitments.is_null() && commitments_len != 0 {
+        return 0;
+    }
+
+    #[cfg(feature = "orchard-verifier")]
+    {
+        let bytes = if commitments_len == 0 {
+            &[]
+        } else {
+            slice::from_raw_parts(commitments, commitments_len)
+        };
+        let commitments = bytes
+            .chunks_exact(HASH_SIZE)
+            .map(|chunk| chunk.try_into().expect("chunk size is fixed"))
+            .collect::<Vec<[u8; HASH_SIZE]>>();
+        let Some(root) = orchard_commitment_root_v1(&commitments) else {
+            return 0;
+        };
+        core::ptr::copy_nonoverlapping(root.as_ptr(), root_out, HASH_SIZE);
+        1
+    }
+
+    #[cfg(not(feature = "orchard-verifier"))]
+    {
+        let _ = commitments;
+        let _ = commitments_len;
+        0
+    }
 }
 
 #[cfg(test)]
@@ -3337,6 +3398,71 @@ mod tests {
             }
         }
         panic!("failed to find deterministic valid value commitment bytes");
+    }
+
+    #[cfg(all(feature = "orchard-verifier", not(feature = "verifier-fixture")))]
+    #[test]
+    fn orchard_commitment_root_ffi_accepts_generated_commitment() {
+        use orchard::builder::{Builder, BundleType};
+        use orchard::bundle::Flags;
+        use orchard::keys::{FullViewingKey, Scope, SpendingKey};
+        use orchard::value::NoteValue;
+        use rand::{rngs::StdRng, SeedableRng};
+
+        let mut rng = StdRng::from_seed([0x42; 32]);
+        let sk = SpendingKey::from_bytes([0x07; 32]).expect("deterministic spending key");
+        let fvk = FullViewingKey::from(&sk);
+        let recipient = fvk.address_at(0u32, Scope::External);
+
+        let mut builder = Builder::new(
+            BundleType::Transactional {
+                flags: Flags::SPENDS_DISABLED,
+                bundle_required: true,
+            },
+            orchard::Anchor::empty_tree(),
+        );
+        builder
+            .add_output(
+                None,
+                recipient,
+                NoteValue::from_raw(100_000_000),
+                [0x24; 512],
+            )
+            .expect("output can be added to mint bundle");
+        let (unauthorized, meta) = builder
+            .build::<i64>(&mut rng)
+            .expect("mint bundle builds")
+            .expect("mint bundle is required");
+        let action_index = meta
+            .output_action_index(0)
+            .expect("mint output action is present");
+        let commitment = unauthorized.actions()[action_index].cmx().to_bytes();
+        let root =
+            orchard_commitment_root_v1(&[commitment]).expect("generated commitment has a root");
+
+        let mut ffi_root = [0xaa; HASH_SIZE];
+        let status = unsafe {
+            zkc_shielded_orchard_commitment_root_v1(
+                commitment.as_ptr(),
+                commitment.len(),
+                ffi_root.as_mut_ptr(),
+                ffi_root.len(),
+            )
+        };
+        assert_eq!(status, 1);
+        assert_eq!(ffi_root, root);
+
+        assert_eq!(
+            unsafe {
+                zkc_shielded_orchard_commitment_root_v1(
+                    commitment.as_ptr(),
+                    commitment.len() - 1,
+                    ffi_root.as_mut_ptr(),
+                    ffi_root.len(),
+                )
+            },
+            0
+        );
     }
 
     #[cfg(all(feature = "orchard-verifier", not(feature = "verifier-fixture")))]
