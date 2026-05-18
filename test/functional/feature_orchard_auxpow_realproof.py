@@ -946,6 +946,61 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(reconsidered_real_spend_output["value"])), Decimal("4.99800000"))
         assert_raises_rpc_error(-26, "bad-shielded-duplicate-nullifier", child.sendrawtransaction, raw_duplicate_nullifier_spend)
 
+        self.log.info("Reject duplicate-nullifier AuxPoW block on late peer without poisoning valid continuation")
+        if self.is_wallet_compiled():
+            duplicate_nullifier_candidate = child.getauxblock()
+        else:
+            duplicate_nullifier_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(duplicate_nullifier_candidate["height"], 4)
+        duplicate_nullifier_block_hex, duplicate_nullifier_block_hash = self.auxpow_block_hex_with_txs(
+            parent,
+            duplicate_nullifier_candidate,
+            [FromHex(CTransaction(), raw_duplicate_nullifier_spend)],
+        )
+        self.assert_peer_rejects_bad_auxpow_block_without_relay(
+            late_peer,
+            child,
+            duplicate_nullifier_block_hex,
+            duplicate_nullifier_block_hash,
+            "bad-shielded-duplicate-nullifier",
+            watched_outpoints=[real_spend_outpoint],
+        )
+
+        if self.is_wallet_compiled():
+            continuation_candidate = child.getauxblock()
+        else:
+            continuation_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(continuation_candidate["height"], 4)
+        assert continuation_candidate["hash"] != duplicate_nullifier_block_hash
+        continuation_parent_block = self.mine_parent_block(parent, commitment_hex=continuation_candidate["auxpowcommitment"])
+        continuation_auxpow = build_parent_auxpow(continuation_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(child.getauxblock(continuation_candidate["hash"], continuation_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(child.submitauxblock(continuation_candidate["hash"], continuation_auxpow.serialize().hex()), True)
+        assert_equal(child.getblockcount(), 4)
+        assert_equal(child.getbestblockhash(), continuation_candidate["hash"])
+        self.connect_node_to_child(3)
+        self.sync_blocks([child, late_peer])
+        assert_equal(late_peer.getblockcount(), 4)
+        assert_equal(late_peer.getbestblockhash(), continuation_candidate["hash"])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            child,
+            duplicate_nullifier_block_hash,
+            continuation_candidate,
+        )
+        continuation_child_info = child.getblockchaininfo()["shielded_pool"]
+        continuation_late_peer_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(continuation_child_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(continuation_child_info["commitments"], 1)
+        assert_equal(continuation_child_info["nullifiers"], 1)
+        assert_equal(continuation_child_info["anchors"], 2)
+        assert_equal(Decimal(str(continuation_late_peer_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(continuation_late_peer_info["commitments"], 1)
+        assert_equal(continuation_late_peer_info["nullifiers"], 1)
+        assert_equal(continuation_late_peer_info["anchors"], 2)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
