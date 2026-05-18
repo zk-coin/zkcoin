@@ -1084,6 +1084,29 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         reloaded_duplicate_proof_output = late_peer.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)
         assert_equal(Decimal(str(reloaded_duplicate_proof_output["value"])), Decimal("6.00000000"))
 
+        self.log.info("Verify restarted late peer persists malformed-proof AuxPoW rejection")
+        reloaded_bad_proof_state = self.shielded_pool_snapshot(late_peer)
+        assert_equal(late_peer.submitblock(bad_proof_late_block_hex), "duplicate-invalid")
+        assert_equal(late_peer.getblockcount(), 5)
+        assert_equal(late_peer.getbestblockhash(), post_bad_proof_candidate["hash"])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            child,
+            bad_proof_late_block_hash,
+            post_bad_proof_candidate,
+        )
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_bad_proof_state)
+        assert_equal(late_peer.getrawmempool(), [])
+        assert_equal(late_peer.gettxout(real_mint_txid, 0, False), None)
+        late_peer_after_duplicate_invalid_spend_output = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(late_peer_after_duplicate_invalid_spend_output["value"])), Decimal("4.99800000"))
+        late_peer_after_duplicate_invalid_proof_output = late_peer.gettxout(
+            duplicate_proof_outpoint["txid"],
+            duplicate_proof_outpoint["vout"],
+            False,
+        )
+        assert_equal(Decimal(str(late_peer_after_duplicate_invalid_proof_output["value"])), Decimal("6.00000000"))
+
         self.log.info("Extend late peer after restarting with prior malformed-proof rejection")
         if self.is_wallet_compiled():
             post_restart_candidate = child.getauxblock()
