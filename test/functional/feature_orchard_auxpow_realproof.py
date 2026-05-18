@@ -1056,6 +1056,34 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(post_bad_proof_late_peer_info["nullifiers"], 1)
         assert_equal(post_bad_proof_late_peer_info["anchors"], 2)
 
+        self.log.info("Restart late peer after malformed-proof rejection and replay valid continuation")
+        self.restart_node(3, extra_args=self.child_launch_args(dump, verify))
+        late_peer = self.nodes[3]
+        self.assert_child_snapshot_imported(late_peer, dump, verify)
+        self.assert_orchard_child_config(late_peer)
+        assert_equal(late_peer.getblockcount(), 5)
+        assert_equal(late_peer.getbestblockhash(), post_bad_proof_candidate["hash"])
+        assert real_mint_txid in late_peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in late_peer.getblock(spend_candidate["hash"])["tx"]
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            child,
+            bad_proof_late_block_hash,
+            post_bad_proof_candidate,
+        )
+        reloaded_post_bad_proof_info = late_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reloaded_post_bad_proof_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reloaded_post_bad_proof_info["commitments"], 1)
+        assert_equal(reloaded_post_bad_proof_info["nullifiers"], 1)
+        assert_equal(reloaded_post_bad_proof_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(reloaded_post_bad_proof_info["root"]), spend_vector["anchor"])
+        assert_equal(late_peer.getrawmempool(), [])
+        assert_equal(late_peer.gettxout(real_mint_txid, 0, False), None)
+        reloaded_post_bad_proof_spend_output = late_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_post_bad_proof_spend_output["value"])), Decimal("4.99800000"))
+        reloaded_duplicate_proof_output = late_peer.gettxout(duplicate_proof_outpoint["txid"], duplicate_proof_outpoint["vout"], False)
+        assert_equal(Decimal(str(reloaded_duplicate_proof_output["value"])), Decimal("6.00000000"))
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
