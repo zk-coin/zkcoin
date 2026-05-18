@@ -88,7 +88,10 @@ src/test/test_litecoin --run_test=shielded_tests
 echo "Running Orchard consensus smoke"
 src/rust/shielded-verifier/scripts/orchard-consensus-smoke.sh
 
-echo "Running Orchard AuxPoW functional test"
+echo "Running local Litecoin fork AuxPoW baseline functional test"
+test/functional/feature_local_ltc_fork_auxpow.py
+
+echo "Running Orchard AuxPoW real-proof functional test"
 test/functional/feature_orchard_auxpow_realproof.py
 
-echo "Orchard verifier AuxPoW real-proof loop passed"
+echo "Orchard verifier AuxPoW regression loop passed"
