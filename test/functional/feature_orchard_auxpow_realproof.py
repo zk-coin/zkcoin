@@ -751,6 +751,34 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(replayed_peer_spend_output["value"])), Decimal("4.99800000"))
         assert_equal(peer.getrawmempool(), [])
 
+        self.log.info("Invalidate and reconsider the relayed real-proof spend block on peer")
+        peer.invalidateblock(spend_candidate["hash"])
+        assert_equal(peer.getblockcount(), 2)
+        assert_equal(peer.getbestblockhash(), shielded_candidate["hash"])
+        assert real_spend_txid in peer.getrawmempool()
+        peer_undo_spend_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(peer_undo_spend_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(peer_undo_spend_info["commitments"], 1)
+        assert_equal(peer_undo_spend_info["nullifiers"], 0)
+        assert_equal(peer_undo_spend_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(peer_undo_spend_info["root"]), spend_vector["anchor"])
+        peer_restored_mint_output = peer.gettxout(real_mint_txid, 0, False)
+        assert_equal(Decimal(str(peer_restored_mint_output["value"])), Decimal("3.99900000"))
+        assert_equal(peer.gettxout(real_spend_txid, 0, False), None)
+
+        peer.reconsiderblock(spend_candidate["hash"])
+        assert_equal(peer.getblockcount(), 3)
+        assert_equal(peer.getbestblockhash(), spend_candidate["hash"])
+        assert_equal(peer.getrawmempool(), [])
+        peer_reconsidered_spend_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(peer_reconsidered_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(peer_reconsidered_spend_info["commitments"], 1)
+        assert_equal(peer_reconsidered_spend_info["nullifiers"], 1)
+        assert_equal(peer_reconsidered_spend_info["anchors"], 2)
+        assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
+        peer_reconsidered_spend_output = peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(peer_reconsidered_spend_output["value"])), Decimal("4.99800000"))
+
         real_spend_outpoint = {"txid": real_spend_txid, "vout": 0}
         raw_duplicate_nullifier_spend, _ = self.create_real_orchard_spend_tx(
             child,
