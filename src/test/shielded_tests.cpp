@@ -51,6 +51,18 @@ static CTransaction TransactionWithProof(const std::vector<unsigned char>& paylo
     return CTransaction(tx);
 }
 
+static CTransaction TransactionWithChunkedProof(const std::vector<unsigned char>& payload, const std::vector<unsigned char>& proof_envelope, size_t first_chunk_size)
+{
+    CMutableTransaction tx = MutableTransactionWithMarker(payload);
+    BOOST_REQUIRE(first_chunk_size > Consensus::ShieldedPool::ProofEnvelopePrefix().size());
+    BOOST_REQUIRE(first_chunk_size < proof_envelope.size());
+    tx.vin[0].scriptWitness.stack.emplace_back(proof_envelope.begin(), proof_envelope.begin() + first_chunk_size);
+    tx.vin[0].scriptWitness.stack.emplace_back(proof_envelope.begin() + first_chunk_size, proof_envelope.end());
+    const CScript witness_script = CScript() << OP_DROP << OP_DROP << OP_TRUE;
+    tx.vin[0].scriptWitness.stack.emplace_back(witness_script.begin(), witness_script.end());
+    return CTransaction(tx);
+}
+
 static CTransaction TransactionWithProof(const std::vector<unsigned char>& payload, const Consensus::ShieldedPool::Marker& marker)
 {
     CMutableTransaction tx = MutableTransactionWithMarker(payload);
@@ -122,6 +134,27 @@ static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins
     tx.vin[0].scriptWitness.stack.emplace_back(witness_script.begin(), witness_script.end());
 }
 
+static void AddP2WSHWitnessInput(CMutableTransaction& tx, CCoinsViewCache& coins, const std::vector<std::vector<unsigned char>>& witness_items, uint32_t nonce)
+{
+    const CScript witness_script = CScript() << OP_TRUE;
+    const CScript script_pubkey = GetScriptForDestination(WitnessV0ScriptHash(witness_script));
+
+    CMutableTransaction funding_tx;
+    funding_tx.nLockTime = nonce;
+    funding_tx.vin.resize(1);
+    funding_tx.vin[0].prevout.SetNull();
+    funding_tx.vout.emplace_back(COIN, script_pubkey);
+    const CTransaction funding(funding_tx);
+    AddCoins(coins, funding, 1);
+
+    tx.vin.resize(1);
+    tx.vin[0].prevout = COutPoint(funding.GetHash(), 0);
+    for (const auto& witness_item : witness_items) {
+        tx.vin[0].scriptWitness.stack.push_back(witness_item);
+    }
+    tx.vin[0].scriptWitness.stack.emplace_back(witness_script.begin(), witness_script.end());
+}
+
 static COutPoint AddTransparentCoin(CCoinsViewCache& coins, CAmount amount, unsigned char nonce)
 {
     CMutableTransaction funding_tx;
@@ -189,6 +222,16 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     TxValidationState scaffold_disabled_state;
     BOOST_CHECK(!CheckTransaction(scaffold_tx, /*active=*/true, /*allow_scaffold_proofs=*/false, scaffold_disabled_state));
     BOOST_CHECK_EQUAL(scaffold_disabled_state.GetRejectReason(), "bad-shielded-proof");
+
+    const auto chunked_proof = BuildProofEnvelope(marker, unsigned_tx);
+    const CTransaction chunked_tx = TransactionWithChunkedProof(payload, chunked_proof, ProofEnvelopePrefix().size() + 12);
+    TxValidationState chunked_state;
+    BOOST_CHECK(CheckTransaction(chunked_tx, /*active=*/true, /*allow_scaffold_proofs=*/true, chunked_state));
+    const auto chunked_check = CheckProofEnvelope(marker, chunked_tx);
+    BOOST_CHECK(chunked_check.found);
+    BOOST_CHECK_EQUAL(chunked_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_VALID);
+    BOOST_CHECK_EQUAL(chunked_check.proof_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
+    BOOST_CHECK(chunked_check.IsAccepted(/*allow_scaffold_proofs=*/true));
 
     const uint256 field_hash = ExpectedProofHash(marker);
     const uint256 tx_binding_hash = TransactionBindingHash(unsigned_tx);
@@ -356,10 +399,15 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         expected_real_native_proof_hash.end(),
         real_native_proof_hash_bytes.begin(),
         real_native_proof_hash_bytes.end());
+    const int real_backend = OrchardRealVerifierBackendV1();
+    const bool real_backend_supports_proofs = OrchardRealVerifierSupportsProofsV1();
+    const int fake_wrapped_real_proof_status = real_backend_supports_proofs ?
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_INVALID :
+        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED;
     uint256 checked_real_request_hash;
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
         expected_real_request_hash.end(),
@@ -368,7 +416,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     uint256 checked_real_verifier_input_hash;
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV2(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
         expected_real_request_hash.end(),
@@ -382,7 +430,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     uint256 checked_real_native_proof_hash;
     BOOST_CHECK_EQUAL(
         CheckOrchardRealProofV3(real_proof_v1, ACTION_MINT, public_input_hash, checked_real_request_hash, checked_real_verifier_input_hash, checked_real_native_proof_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
         expected_real_request_hash.end(),
@@ -417,7 +465,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK(!VerifyOrchardRealProofV1(real_proof_v1, ACTION_MINT, public_input_hash));
     BOOST_CHECK_EQUAL(
         VerifyOrchardRealProofStatusV1(real_proof_v1, ACTION_MINT, public_input_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     const auto raw_real_proof_v1 = BuildOrchardRealProofV1(ACTION_MINT, public_input_hash, native_proof_bytes);
     const uint256 expected_raw_real_request_hash = ExpectedRealProofRequestHash(ACTION_MINT, public_input_hash, real_verifier_key_hash, native_proof_bytes);
     BOOST_CHECK_EQUAL(
@@ -460,8 +508,11 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     BOOST_CHECK(DecodeOrchardRealProofV1(wrong_native_verifier_key_proof_v1, ACTION_MINT, public_input_hash, decoded_wrong_native_verifier_key));
     BOOST_CHECK(!DecodeOrchardNativeProofBytesV1(decoded_wrong_native_verifier_key, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
     BOOST_CHECK(!DecodeOrchardNativeProofBytesV1(native_proof_bytes, ACTION_MINT, public_input_hash, decoded_native_proof_bytes));
-    BOOST_CHECK_EQUAL(OrchardRealVerifierBackendV1(), SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED);
-    BOOST_CHECK(!OrchardRealVerifierSupportsProofsV1());
+    BOOST_CHECK(real_backend == SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED ||
+                real_backend == SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1);
+    BOOST_CHECK_EQUAL(
+        real_backend_supports_proofs,
+        real_backend == SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_ORCHARD_V1);
     BOOST_CHECK_EQUAL(
         OrchardRealVerifierBackendName(SHIELDED_ORCHARD_REAL_VERIFIER_BACKEND_UNSUPPORTED),
         std::string("unsupported"));
@@ -507,7 +558,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     uint256 checked_bundle_request_hash;
     BOOST_CHECK_EQUAL(
         CheckProofBundleV4(real_proof_bundle_v4, ACTION_MINT, public_input_hash, checked_body_mode, checked_bundle_request_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
@@ -517,7 +568,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     uint256 checked_bundle_verifier_input_hash;
     BOOST_CHECK_EQUAL(
         CheckProofBundleV5(real_proof_bundle_v4, ACTION_MINT, public_input_hash, checked_body_mode, checked_bundle_request_hash, checked_bundle_verifier_input_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
@@ -532,7 +583,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
     uint256 checked_bundle_native_proof_hash;
     BOOST_CHECK_EQUAL(
         CheckProofBundleV6(real_proof_bundle_v4, ACTION_MINT, public_input_hash, checked_body_mode, checked_bundle_request_hash, checked_bundle_verifier_input_hash, checked_bundle_native_proof_hash),
-        SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+        fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL(checked_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
@@ -551,7 +602,7 @@ BOOST_AUTO_TEST_CASE(proof_tag_is_required_for_mint_markers)
         checked_bundle_native_proof_hash.end());
     const auto real_proof_envelope_check = CheckProofEnvelope(marker, TransactionWithProof(payload, real_proof_bundle_v4));
     BOOST_CHECK(real_proof_envelope_check.found);
-    BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_status, SHIELDED_ORCHARD_REAL_PROOF_STATUS_UNSUPPORTED);
+    BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_status, fake_wrapped_real_proof_status);
     BOOST_CHECK_EQUAL(real_proof_envelope_check.proof_body_mode, SHIELDED_ORCHARD_PROOF_BODY_MODE_REAL);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         expected_real_request_hash.begin(),
@@ -785,6 +836,19 @@ BOOST_AUTO_TEST_CASE(shielded_proof_bundle_witness_policy_allows_real_proof_size
     shielded_tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
     AddP2WSHWitnessInput(shielded_tx, coins, proof_bundle, 2);
     BOOST_CHECK(IsWitnessStandard(CTransaction(shielded_tx), coins));
+
+    const size_t first_chunk_size = MAX_STANDARD_P2WSH_STACK_ITEM_SIZE + 1;
+    BOOST_REQUIRE(proof_bundle.size() > first_chunk_size);
+    std::vector<std::vector<unsigned char>> chunked_bundle{
+        std::vector<unsigned char>(proof_bundle.begin(), proof_bundle.begin() + first_chunk_size),
+        std::vector<unsigned char>(proof_bundle.begin() + first_chunk_size, proof_bundle.end()),
+    };
+    BOOST_REQUIRE(HasProofEnvelopePrefix(chunked_bundle[0]));
+    BOOST_REQUIRE(chunked_bundle[1].size() <= MAX_STANDARD_P2WSH_STACK_ITEM_SIZE);
+    CMutableTransaction chunked_shielded_tx;
+    chunked_shielded_tx.vout.emplace_back(0, CScript() << OP_RETURN << marker_payload);
+    AddP2WSHWitnessInput(chunked_shielded_tx, coins, chunked_bundle, 4);
+    BOOST_CHECK(IsWitnessStandard(CTransaction(chunked_shielded_tx), coins));
 
     auto over_limit_bundle = proof_bundle;
     over_limit_bundle.resize(MAX_SCRIPT_ELEMENT_SIZE + 1, 0x42);
