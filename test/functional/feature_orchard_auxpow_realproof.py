@@ -210,6 +210,40 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             "real_proof_verification": shielded_info["real_proof_verification"],
         }
 
+    def assert_final_realproof_auxpow_state(
+        self,
+        node,
+        final_block_hash,
+        shielded_block_hash,
+        spend_block_hash,
+        mint_txid,
+        spend_txid,
+        spend_anchor,
+        duplicate_proof_outpoint,
+    ):
+        assert_equal(node.getblockcount(), 6)
+        assert_equal(node.getbestblockhash(), final_block_hash)
+        assert mint_txid in node.getblock(shielded_block_hash)["tx"]
+        assert spend_txid in node.getblock(spend_block_hash)["tx"]
+
+        shielded_info = node.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(shielded_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(shielded_info["commitments"], 1)
+        assert_equal(shielded_info["nullifiers"], 1)
+        assert_equal(shielded_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(shielded_info["root"]), spend_anchor)
+        assert_equal(node.getrawmempool(), [])
+        assert_equal(node.gettxout(mint_txid, 0, False), None)
+
+        spend_output = node.gettxout(spend_txid, 0, False)
+        assert_equal(Decimal(str(spend_output["value"])), Decimal("4.99800000"))
+        duplicate_output = node.gettxout(
+            duplicate_proof_outpoint["txid"],
+            duplicate_proof_outpoint["vout"],
+            False,
+        )
+        assert_equal(Decimal(str(duplicate_output["value"])), Decimal("6.00000000"))
+
     def assert_peer_rejects_bad_shielded_tx_without_relay(
         self,
         peer,
@@ -1322,6 +1356,25 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         reindexed_cold_peer_bad_proof_state = self.shielded_pool_snapshot(cold_peer)
         assert_equal(cold_peer.submitblock(bad_proof_late_block_hex), "duplicate-invalid")
         assert_equal(self.shielded_pool_snapshot(cold_peer), reindexed_cold_peer_bad_proof_state)
+
+        self.log.info("Full-reindex cold peer block files and replay final real-proof AuxPoW chain")
+        self.restart_node(4, extra_args=self.child_launch_args(dump, verify) + ["-reindex"])
+        cold_peer = self.nodes[4]
+        self.assert_child_snapshot_imported(cold_peer, dump, verify)
+        self.assert_orchard_child_config(cold_peer)
+        self.assert_final_realproof_auxpow_state(
+            cold_peer,
+            post_restart_candidate["hash"],
+            shielded_candidate["hash"],
+            spend_candidate["hash"],
+            real_mint_txid,
+            real_spend_txid,
+            spend_vector["anchor"],
+            duplicate_proof_outpoint,
+        )
+        full_reindexed_cold_peer_bad_proof_state = self.shielded_pool_snapshot(cold_peer)
+        assert_equal(cold_peer.submitblock(bad_proof_late_block_hex), "bad-shielded-proof")
+        assert_equal(self.shielded_pool_snapshot(cold_peer), full_reindexed_cold_peer_bad_proof_state)
 
 
 if __name__ == "__main__":
