@@ -1516,6 +1516,32 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(cold_peer.gettxout(real_spend_txid, 0, False), rejoined_duplicate_spend_utxo)
         assert_equal(child.gettxout(real_spend_txid, 0, False), child_rejoined_duplicate_spend_utxo)
 
+        self.log.info("Reject duplicate-nullifier AuxPoW block after rejoined cold peer restart")
+        if self.is_wallet_compiled():
+            rejoined_duplicate_block_candidate = child.getauxblock()
+        else:
+            rejoined_duplicate_block_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(rejoined_duplicate_block_candidate["height"], 7)
+        rejoined_duplicate_block_hex, rejoined_duplicate_block_hash = self.auxpow_block_hex_with_txs(
+            parent,
+            rejoined_duplicate_block_candidate,
+            [FromHex(CTransaction(), raw_duplicate_nullifier_spend)],
+        )
+        self.assert_peer_rejects_bad_auxpow_block_without_relay(
+            cold_peer,
+            child,
+            rejoined_duplicate_block_hex,
+            rejoined_duplicate_block_hash,
+            "bad-shielded-duplicate-nullifier",
+            watched_outpoints=[real_spend_outpoint],
+        )
+        assert_equal(cold_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        assert_equal(self.shielded_pool_snapshot(cold_peer), rejoined_duplicate_state)
+        assert_equal(self.shielded_pool_snapshot(child), child_rejoined_duplicate_state)
+        assert_equal(cold_peer.gettxout(real_spend_txid, 0, False), rejoined_duplicate_spend_utxo)
+        assert_equal(child.gettxout(real_spend_txid, 0, False), child_rejoined_duplicate_spend_utxo)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
