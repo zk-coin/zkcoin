@@ -1376,6 +1376,60 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(cold_peer.submitblock(bad_proof_late_block_hex), "bad-shielded-proof")
         assert_equal(self.shielded_pool_snapshot(cold_peer), full_reindexed_cold_peer_bad_proof_state)
 
+        self.log.info("Mine a real-proof spend from the full-reindexed cold peer after rollback")
+        cold_peer.invalidateblock(spend_candidate["hash"])
+        assert_equal(cold_peer.getblockcount(), 2)
+        assert_equal(cold_peer.getbestblockhash(), shielded_candidate["hash"])
+        assert real_spend_txid in cold_peer.getrawmempool()
+        post_full_reindex_undo_info = cold_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(post_full_reindex_undo_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(post_full_reindex_undo_info["commitments"], 1)
+        assert_equal(post_full_reindex_undo_info["nullifiers"], 0)
+        assert_equal(post_full_reindex_undo_info["anchors"], 2)
+        assert_equal(cold_peer.gettxout(real_spend_txid, 0, False), None)
+        restored_cold_peer_mint_output = cold_peer.gettxout(real_mint_txid, 0, False)
+        assert_equal(Decimal(str(restored_cold_peer_mint_output["value"])), Decimal("3.99900000"))
+
+        if self.is_wallet_compiled():
+            post_full_reindex_spend_candidate = cold_peer.getauxblock()
+        else:
+            post_full_reindex_spend_candidate = cold_peer.createauxblock(cold_peer.get_deterministic_priv_key().address)
+        assert_equal(post_full_reindex_spend_candidate["height"], 3)
+        assert post_full_reindex_spend_candidate["hash"] != spend_candidate["hash"]
+        post_full_reindex_parent_block = self.mine_parent_block(
+            parent,
+            commitment_hex=post_full_reindex_spend_candidate["auxpowcommitment"],
+        )
+        post_full_reindex_auxpow = build_parent_auxpow(post_full_reindex_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(
+                cold_peer.getauxblock(
+                    post_full_reindex_spend_candidate["hash"],
+                    post_full_reindex_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        else:
+            assert_equal(
+                cold_peer.submitauxblock(
+                    post_full_reindex_spend_candidate["hash"],
+                    post_full_reindex_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        assert_equal(cold_peer.getblockcount(), 3)
+        assert_equal(cold_peer.getbestblockhash(), post_full_reindex_spend_candidate["hash"])
+        assert real_spend_txid in cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["tx"]
+        assert_equal(cold_peer.getrawmempool(), [])
+        post_full_reindex_spend_info = cold_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(post_full_reindex_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(post_full_reindex_spend_info["commitments"], 1)
+        assert_equal(post_full_reindex_spend_info["nullifiers"], 1)
+        assert_equal(post_full_reindex_spend_info["anchors"], 2)
+        assert_equal(cold_peer.gettxout(real_mint_txid, 0, False), None)
+        post_full_reindex_spend_output = cold_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(post_full_reindex_spend_output["value"])), Decimal("4.99800000"))
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
