@@ -1216,6 +1216,38 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         )
         assert_equal(Decimal(str(late_peer_post_restart_duplicate_output["value"])), Decimal("6.00000000"))
 
+        self.log.info("Restart child and late peer after post-restart continuation")
+        self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
+        self.restart_node(3, extra_args=self.child_launch_args(dump, verify))
+        child = self.nodes[1]
+        late_peer = self.nodes[3]
+        for node in (child, late_peer):
+            self.assert_child_snapshot_imported(node, dump, verify)
+            self.assert_orchard_child_config(node)
+            assert_equal(node.getblockcount(), 6)
+            assert_equal(node.getbestblockhash(), post_restart_candidate["hash"])
+            assert real_mint_txid in node.getblock(shielded_candidate["hash"])["tx"]
+            assert real_spend_txid in node.getblock(spend_candidate["hash"])["tx"]
+            reloaded_final_info = node.getblockchaininfo()["shielded_pool"]
+            assert_equal(Decimal(str(reloaded_final_info["value_pool"])), Decimal("0.00000000"))
+            assert_equal(reloaded_final_info["commitments"], 1)
+            assert_equal(reloaded_final_info["nullifiers"], 1)
+            assert_equal(reloaded_final_info["anchors"], 2)
+            assert_equal(self.root_hex_to_payload_bytes(reloaded_final_info["root"]), spend_vector["anchor"])
+            assert_equal(node.getrawmempool(), [])
+            assert_equal(node.gettxout(real_mint_txid, 0, False), None)
+            reloaded_final_spend_output = node.gettxout(real_spend_txid, 0, False)
+            assert_equal(Decimal(str(reloaded_final_spend_output["value"])), Decimal("4.99800000"))
+            reloaded_final_duplicate_output = node.gettxout(
+                duplicate_proof_outpoint["txid"],
+                duplicate_proof_outpoint["vout"],
+                False,
+            )
+            assert_equal(Decimal(str(reloaded_final_duplicate_output["value"])), Decimal("6.00000000"))
+        reloaded_final_bad_proof_state = self.shielded_pool_snapshot(late_peer)
+        assert_equal(late_peer.submitblock(bad_proof_late_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_final_bad_proof_state)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
