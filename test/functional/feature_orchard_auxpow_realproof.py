@@ -194,6 +194,10 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         if not any("testnode1" in peer["subver"] for peer in self.nodes[node_index].getpeerinfo()):
             self.connect_nodes(node_index, 1)
 
+    def connect_node_to_node(self, source_index, target_index):
+        if not any(f"testnode{target_index}" in peer["subver"] for peer in self.nodes[source_index].getpeerinfo()):
+            self.connect_nodes(source_index, target_index)
+
     def connect_peer_to_child(self):
         self.connect_node_to_child(2)
 
@@ -1655,6 +1659,38 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             self.stable_txout_snapshot(cold_peer.gettxout(real_spend_txid, 0, False)),
             self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
         )
+
+        self.log.info("Sync valid continuation from reindexed cold peer to lagging late peer")
+        self.connect_node_to_node(3, 4)
+        self.sync_blocks([cold_peer, late_peer])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            cold_peer,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_rejoined_duplicate_state)
+        assert_equal(
+            self.stable_txout_snapshot(late_peer.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
+        )
+
+        assert_equal(late_peer.submitblock(rejoined_duplicate_block_hex), "inconclusive")
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_rejoined_duplicate_state)
+
+        late_peer.invalidateblock(rejoined_continuation_candidate["hash"])
+        assert_equal(late_peer.getblockcount(), 6)
+        assert_equal(late_peer.getbestblockhash(), post_restart_candidate["hash"])
+        assert_equal(late_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        late_peer.reconsiderblock(rejoined_continuation_candidate["hash"])
+        self.sync_blocks([cold_peer, late_peer])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            cold_peer,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_rejoined_duplicate_state)
 
 
 if __name__ == "__main__":
