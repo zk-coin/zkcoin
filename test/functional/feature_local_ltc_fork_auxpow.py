@@ -104,6 +104,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             f"-ltcsnapshotheight={dump['base_height']}",
             f"-ltcsnapshotblockhash={verify['base_hash']}",
             f"-ltcsnapshotutxoroot={import_hash or verify['import_hash']}",
+            f"-ltcsnapshotfile={dump['path']}",
         ]
 
     def shielded_commitment(self, label):
