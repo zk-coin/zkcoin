@@ -797,6 +797,27 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         peer_remined_spend_output = peer.gettxout(real_spend_txid, 0, False)
         assert_equal(Decimal(str(peer_remined_spend_output["value"])), Decimal("4.99800000"))
 
+        self.log.info("Restart peer and replay the re-mined real-proof AuxPoW sibling")
+        self.restart_node(2, extra_args=self.child_launch_args(dump, verify))
+        peer = self.nodes[2]
+        self.assert_child_snapshot_imported(peer, dump, verify)
+        self.assert_orchard_child_config(peer)
+        assert_equal(peer.getblockcount(), 3)
+        assert_equal(peer.getbestblockhash(), peer_remined_spend_candidate["hash"])
+        assert real_mint_txid in peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in peer.getblock(peer_remined_spend_candidate["hash"])["tx"]
+        reloaded_peer_remined_spend_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reloaded_peer_remined_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reloaded_peer_remined_spend_info["commitments"], 1)
+        assert_equal(reloaded_peer_remined_spend_info["nullifiers"], 1)
+        assert_equal(reloaded_peer_remined_spend_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(reloaded_peer_remined_spend_info["root"]), spend_vector["anchor"])
+        assert_equal(peer.getrawmempool(), [])
+        assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
+        reloaded_peer_remined_spend_output = peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reloaded_peer_remined_spend_output["value"])), Decimal("4.99800000"))
+        assert_equal(child.getbestblockhash(), spend_candidate["hash"])
+
         self.log.info("Invalidate re-mined real-proof spend sibling and restore original AuxPoW spend")
         peer.invalidateblock(peer_remined_spend_candidate["hash"])
         assert_equal(peer.getblockcount(), 2)
