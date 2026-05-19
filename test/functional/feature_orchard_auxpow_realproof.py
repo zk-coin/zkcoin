@@ -1456,6 +1456,22 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         )
         assert_equal(Decimal(str(restarted_post_full_reindex_duplicate_output["value"])), Decimal("6.00000000"))
 
+        self.log.info("Reconsider original real-proof chain after replacement restart")
+        cold_peer.reconsiderblock(spend_candidate["hash"])
+        self.connect_node_to_child(4)
+        self.sync_blocks([child, cold_peer])
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        self.assert_final_realproof_auxpow_state(
+            cold_peer,
+            post_restart_candidate["hash"],
+            shielded_candidate["hash"],
+            spend_candidate["hash"],
+            real_mint_txid,
+            real_spend_txid,
+            spend_vector["anchor"],
+            duplicate_proof_outpoint,
+        )
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
