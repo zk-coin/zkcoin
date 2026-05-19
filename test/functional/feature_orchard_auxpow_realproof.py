@@ -756,6 +756,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.getrawmempool(), [])
 
         self.log.info("Invalidate and reconsider the relayed real-proof spend block on peer")
+        self.disconnect_nodes(2, 1)
         peer.invalidateblock(spend_candidate["hash"])
         assert_equal(peer.getblockcount(), 2)
         assert_equal(peer.getbestblockhash(), shielded_candidate["hash"])
@@ -770,6 +771,47 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(Decimal(str(peer_restored_mint_output["value"])), Decimal("3.99900000"))
         assert_equal(peer.gettxout(real_spend_txid, 0, False), None)
 
+        self.log.info("Mine reaccepted real-proof spend from peer mempool into an AuxPoW sibling")
+        if self.is_wallet_compiled():
+            peer_remined_spend_candidate = peer.getauxblock()
+        else:
+            peer_remined_spend_candidate = peer.createauxblock(peer.get_deterministic_priv_key().address)
+        assert_equal(peer_remined_spend_candidate["height"], 3)
+        assert peer_remined_spend_candidate["hash"] != spend_candidate["hash"]
+        peer_remined_parent_block = self.mine_parent_block(parent, commitment_hex=peer_remined_spend_candidate["auxpowcommitment"])
+        peer_remined_auxpow = build_parent_auxpow(peer_remined_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(peer.getauxblock(peer_remined_spend_candidate["hash"], peer_remined_auxpow.serialize().hex()), True)
+        else:
+            assert_equal(peer.submitauxblock(peer_remined_spend_candidate["hash"], peer_remined_auxpow.serialize().hex()), True)
+        assert_equal(peer.getblockcount(), 3)
+        assert_equal(peer.getbestblockhash(), peer_remined_spend_candidate["hash"])
+        assert real_spend_txid in peer.getblock(peer_remined_spend_candidate["hash"])["tx"]
+        assert_equal(peer.getrawmempool(), [])
+        peer_remined_spend_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(peer_remined_spend_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(peer_remined_spend_info["commitments"], 1)
+        assert_equal(peer_remined_spend_info["nullifiers"], 1)
+        assert_equal(peer_remined_spend_info["anchors"], 2)
+        assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
+        peer_remined_spend_output = peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(peer_remined_spend_output["value"])), Decimal("4.99800000"))
+
+        self.log.info("Invalidate re-mined real-proof spend sibling and restore original AuxPoW spend")
+        peer.invalidateblock(peer_remined_spend_candidate["hash"])
+        assert_equal(peer.getblockcount(), 2)
+        assert_equal(peer.getbestblockhash(), shielded_candidate["hash"])
+        assert real_spend_txid in peer.getrawmempool()
+        peer_remined_undo_info = peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(peer_remined_undo_info["value_pool"])), Decimal("1.00000000"))
+        assert_equal(peer_remined_undo_info["commitments"], 1)
+        assert_equal(peer_remined_undo_info["nullifiers"], 0)
+        assert_equal(peer_remined_undo_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(peer_remined_undo_info["root"]), spend_vector["anchor"])
+        peer_remined_restored_mint_output = peer.gettxout(real_mint_txid, 0, False)
+        assert_equal(Decimal(str(peer_remined_restored_mint_output["value"])), Decimal("3.99900000"))
+        assert_equal(peer.gettxout(real_spend_txid, 0, False), None)
+
         peer.reconsiderblock(spend_candidate["hash"])
         assert_equal(peer.getblockcount(), 3)
         assert_equal(peer.getbestblockhash(), spend_candidate["hash"])
@@ -782,6 +824,9 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(peer.gettxout(real_mint_txid, 0, False), None)
         peer_reconsidered_spend_output = peer.gettxout(real_spend_txid, 0, False)
         assert_equal(Decimal(str(peer_reconsidered_spend_output["value"])), Decimal("4.99800000"))
+        assert_equal(child.getbestblockhash(), spend_candidate["hash"])
+        self.connect_peer_to_child()
+        self.sync_blocks([child, peer])
 
         self.log.info("Start late peer and sync existing real-proof AuxPoW chain")
         self.start_node(3, extra_args=self.child_launch_args(dump, verify))
