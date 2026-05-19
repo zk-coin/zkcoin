@@ -1294,6 +1294,35 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         )
         assert_equal(Decimal(str(cold_peer_after_bad_proof_duplicate_output["value"])), Decimal("6.00000000"))
 
+        self.log.info("Reindex cold peer chainstate and replay final real-proof AuxPoW chain")
+        self.restart_node(4, extra_args=self.child_launch_args(dump, verify) + ["-reindex-chainstate"])
+        cold_peer = self.nodes[4]
+        self.assert_child_snapshot_imported(cold_peer, dump, verify)
+        self.assert_orchard_child_config(cold_peer)
+        assert_equal(cold_peer.getblockcount(), 6)
+        assert_equal(cold_peer.getbestblockhash(), post_restart_candidate["hash"])
+        assert real_mint_txid in cold_peer.getblock(shielded_candidate["hash"])["tx"]
+        assert real_spend_txid in cold_peer.getblock(spend_candidate["hash"])["tx"]
+        reindexed_cold_peer_info = cold_peer.getblockchaininfo()["shielded_pool"]
+        assert_equal(Decimal(str(reindexed_cold_peer_info["value_pool"])), Decimal("0.00000000"))
+        assert_equal(reindexed_cold_peer_info["commitments"], 1)
+        assert_equal(reindexed_cold_peer_info["nullifiers"], 1)
+        assert_equal(reindexed_cold_peer_info["anchors"], 2)
+        assert_equal(self.root_hex_to_payload_bytes(reindexed_cold_peer_info["root"]), spend_vector["anchor"])
+        assert_equal(cold_peer.getrawmempool(), [])
+        assert_equal(cold_peer.gettxout(real_mint_txid, 0, False), None)
+        reindexed_cold_peer_spend_output = cold_peer.gettxout(real_spend_txid, 0, False)
+        assert_equal(Decimal(str(reindexed_cold_peer_spend_output["value"])), Decimal("4.99800000"))
+        reindexed_cold_peer_duplicate_output = cold_peer.gettxout(
+            duplicate_proof_outpoint["txid"],
+            duplicate_proof_outpoint["vout"],
+            False,
+        )
+        assert_equal(Decimal(str(reindexed_cold_peer_duplicate_output["value"])), Decimal("6.00000000"))
+        reindexed_cold_peer_bad_proof_state = self.shielded_pool_snapshot(cold_peer)
+        assert_equal(cold_peer.submitblock(bad_proof_late_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(cold_peer), reindexed_cold_peer_bad_proof_state)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()

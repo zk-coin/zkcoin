@@ -33,6 +33,7 @@
 #include <netbase.h>
 #include <node/context.h>
 #include <node/ui_interface.h>
+#include <node/utxo_snapshot.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -529,6 +530,7 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-ltcsnapshotheight=<n>", "Set the Litecoin block-X snapshot height on regtest. Must be used with -ltcsnapshotblockhash and -ltcsnapshotutxoroot.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-ltcsnapshotblockhash=<hex>", "Set the Litecoin block-X hash on regtest as 64 hex characters. Must be used with -ltcsnapshotheight and -ltcsnapshotutxoroot.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-ltcsnapshotutxoroot=<hex>", "Set the normalized Litecoin block-X import UTXO root on regtest as 64 hex characters. Must be used with -ltcsnapshotheight and -ltcsnapshotblockhash.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-ltcsnapshotfile=<path>", "Path to the configured Litecoin block-X snapshot manifest. On test chains, this lets -reindex and -reindex-chainstate reseed the imported snapshot before replaying fork-chain blocks.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-deprecatedrpc=<method>", "Allows deprecated RPC method(s) to be used", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-dropmessagestest=<n>", "Randomly drop 1 of every <n> network messages", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-stopafterblockimport", strprintf("Stop running after importing blocks from disk (default: %u)", DEFAULT_STOPAFTERBLOCKIMPORT), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
@@ -691,6 +693,103 @@ static void CleanupBlockRevFiles()
     }
 }
 
+static bool LtcSnapshotImportInfoMatches(const LtcSnapshotImportInfo& a, const LtcSnapshotImportInfo& b)
+{
+    return a.nHeight == b.nHeight &&
+        a.hashBlock == b.hashBlock &&
+        a.hashUTXORoot == b.hashUTXORoot;
+}
+
+static bool ImportConfiguredLtcSnapshotForChainstate(
+    const CChainParams& chainparams,
+    const ArgsManager& args,
+    std::string& error)
+{
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    if (!consensus.ltc_snapshot.IsEnabled()) {
+        return true;
+    }
+
+    const std::string snapshot_path_arg = args.GetArg("-ltcsnapshotfile", "");
+    if (snapshot_path_arg.empty()) {
+        return true;
+    }
+
+    const fs::path snapshot_path = fs::absolute(fs::path(snapshot_path_arg), GetDataDir());
+    const LtcSnapshotImportInfo import_info{
+        consensus.ltc_snapshot.nHeight,
+        consensus.ltc_snapshot.hashBlock,
+        consensus.ltc_snapshot.hashUTXORoot,
+    };
+
+    CChainState& active_chainstate = ::ChainstateActive();
+    bool resume_import{false};
+    SnapshotManifestStats stats;
+
+    {
+        LOCK(cs_main);
+        LtcSnapshotImportInfo existing_import;
+        if (active_chainstate.CoinsDB().ReadLtcSnapshotImportInfo(existing_import)) {
+            if (!LtcSnapshotImportInfoMatches(existing_import, import_info)) {
+                error = "different Litecoin snapshot has already been imported";
+                return false;
+            }
+            return true;
+        }
+
+        LtcSnapshotImportInfo in_progress_import;
+        if (active_chainstate.CoinsDB().ReadLtcSnapshotImportInProgress(in_progress_import)) {
+            if (!LtcSnapshotImportInfoMatches(in_progress_import, import_info)) {
+                error = "different Litecoin snapshot import already in progress";
+                return false;
+            }
+            resume_import = true;
+        }
+
+        if (!active_chainstate.CoinsDB().WriteLtcSnapshotImportInProgress(import_info)) {
+            error = "failed to write Litecoin snapshot import in-progress marker";
+            return false;
+        }
+
+        if (!ImportSnapshotManifestFromFile(
+                snapshot_path,
+                active_chainstate.CoinsTip(),
+                stats,
+                error,
+                &consensus.ltc_snapshot.nHeight,
+                &consensus.ltc_snapshot.hashBlock,
+                &consensus.ltc_snapshot.hashUTXORoot,
+                {},
+                resume_import)) {
+            active_chainstate.CoinsDB().ClearLtcSnapshotImportInProgress();
+            return false;
+        }
+    }
+
+    BlockValidationState state;
+    if (!active_chainstate.FlushStateToDisk(chainparams, state, FlushStateMode::ALWAYS)) {
+        error = strprintf("failed to flush Litecoin snapshot import to disk: %s", state.ToString());
+        return false;
+    }
+
+    {
+        LOCK(cs_main);
+        if (!active_chainstate.CoinsDB().CompleteLtcSnapshotImportInfo(import_info)) {
+            error = "failed to write Litecoin snapshot import marker";
+            return false;
+        }
+    }
+
+    LogPrintf(
+        "Imported configured Litecoin snapshot from %s for chainstate rebuild: coins=%u height=%d block=%s import_hash=%s\n",
+        snapshot_path.string(),
+        stats.m_coins_count,
+        stats.m_metadata.m_base_height,
+        stats.m_metadata.m_base_blockhash.ToString(),
+        stats.m_hash_import.ToString());
+    return true;
+}
+
 #if HAVE_SYSTEM
 static void StartupNotify(const ArgsManager& args)
 {
@@ -751,6 +850,15 @@ static void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImp
     }
 
     // scan for better chains in the block chain database, that are not yet connected in the active best chain
+
+    if (args.GetBoolArg("-reindex", false) || args.GetBoolArg("-reindex-chainstate", false)) {
+        std::string snapshot_error;
+        if (!ImportConfiguredLtcSnapshotForChainstate(chainparams, args, snapshot_error)) {
+            LogPrintf("Failed to import configured Litecoin snapshot for chainstate rebuild (%s)\n", snapshot_error);
+            StartShutdown();
+            return;
+        }
+    }
 
     // We can't hold cs_main during ActivateBestChain even though we're accessing
     // the chainman unique_ptrs since ABC requires us not to be holding cs_main, so retrieve
