@@ -1876,6 +1876,25 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             assert_equal(node.getblockcount(), 9)
             assert_equal(self.shielded_pool_snapshot(node), restarted_late_peer_state)
 
+        self.log.info("Restart late peer after post-recovery continuation")
+        self.restart_node(3, extra_args=self.child_launch_args(dump, verify))
+        late_peer = self.nodes[3]
+        self.assert_child_snapshot_imported(late_peer, dump, verify)
+        self.assert_orchard_child_config(late_peer)
+        assert_equal(late_peer.getbestblockhash(), post_recovery_candidate["hash"])
+        assert_equal(late_peer.getblockcount(), 9)
+        assert_equal(self.shielded_pool_snapshot(late_peer), restarted_late_peer_state)
+        assert_equal(late_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(late_peer), restarted_late_peer_state)
+
+        self.connect_node_to_child(3)
+        self.connect_node_to_node(3, 4)
+        self.sync_blocks([child, cold_peer, late_peer])
+        for node in (child, cold_peer, late_peer):
+            assert_equal(node.getbestblockhash(), post_recovery_candidate["hash"])
+            assert_equal(node.getblockcount(), 9)
+            assert_equal(self.shielded_pool_snapshot(node), restarted_late_peer_state)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
