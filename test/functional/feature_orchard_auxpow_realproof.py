@@ -1618,6 +1618,44 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             self.stable_txout_snapshot(child_rejoined_duplicate_spend_utxo),
         )
 
+        self.log.info("Restart cold peer after valid continuation beyond duplicate-nullifier AuxPoW rejection")
+        self.restart_node(4, extra_args=self.child_launch_args(dump, verify))
+        cold_peer = self.nodes[4]
+        self.assert_child_snapshot_imported(cold_peer, dump, verify)
+        self.assert_orchard_child_config(cold_peer)
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            cold_peer,
+            child,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(cold_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(cold_peer), reloaded_rejoined_duplicate_state)
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        assert_equal(
+            self.stable_txout_snapshot(cold_peer.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
+        )
+
+        self.log.info("Reindex cold peer after valid continuation beyond duplicate-nullifier AuxPoW rejection")
+        self.restart_node(4, extra_args=self.child_launch_args(dump, verify) + ["-reindex-chainstate"])
+        cold_peer = self.nodes[4]
+        self.assert_child_snapshot_imported(cold_peer, dump, verify)
+        self.assert_orchard_child_config(cold_peer)
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            cold_peer,
+            child,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(cold_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(cold_peer), reloaded_rejoined_duplicate_state)
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        assert_equal(
+            self.stable_txout_snapshot(cold_peer.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
+        )
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
