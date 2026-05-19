@@ -1489,6 +1489,33 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             duplicate_proof_outpoint,
         )
 
+        self.log.info("Reject duplicate nullifier after rejoined cold peer restart")
+        rejoined_duplicate_state = self.shielded_pool_snapshot(cold_peer)
+        child_rejoined_duplicate_state = self.shielded_pool_snapshot(child)
+        rejoined_duplicate_spend_utxo = cold_peer.gettxout(real_spend_txid, 0, False)
+        child_rejoined_duplicate_spend_utxo = child.gettxout(real_spend_txid, 0, False)
+        cold_rejoined_bad_tx_peer = cold_peer.add_p2p_connection(P2PDataStore())
+        cold_rejoined_bad_tx_peer.send_txs_and_test(
+            [FromHex(CTransaction(), raw_duplicate_nullifier_spend)],
+            cold_peer,
+            success=False,
+            expect_disconnect=False,
+            reject_reason="bad-shielded-duplicate-nullifier",
+        )
+        assert_raises_rpc_error(
+            -26,
+            "bad-shielded-duplicate-nullifier",
+            cold_peer.sendrawtransaction,
+            raw_duplicate_nullifier_spend,
+        )
+        assert_equal(cold_peer.getrawmempool(), [])
+        assert_equal(child.getrawmempool(), [])
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        assert_equal(self.shielded_pool_snapshot(cold_peer), rejoined_duplicate_state)
+        assert_equal(self.shielded_pool_snapshot(child), child_rejoined_duplicate_state)
+        assert_equal(cold_peer.gettxout(real_spend_txid, 0, False), rejoined_duplicate_spend_utxo)
+        assert_equal(child.gettxout(real_spend_txid, 0, False), child_rejoined_duplicate_spend_utxo)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
