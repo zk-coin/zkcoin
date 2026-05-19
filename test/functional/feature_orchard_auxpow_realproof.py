@@ -1712,6 +1712,48 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
         )
 
+        self.log.info("Mine local continuation from restarted late peer after reindexed sync")
+        restarted_late_peer_state = self.shielded_pool_snapshot(late_peer)
+        if self.is_wallet_compiled():
+            late_peer_continuation_candidate = late_peer.getauxblock()
+        else:
+            late_peer_continuation_candidate = late_peer.createauxblock(late_peer.get_deterministic_priv_key().address)
+        assert_equal(late_peer_continuation_candidate["height"], 8)
+        assert late_peer_continuation_candidate["hash"] != rejoined_duplicate_block_hash
+        late_peer_continuation_parent_block = self.mine_parent_block(
+            parent,
+            commitment_hex=late_peer_continuation_candidate["auxpowcommitment"],
+        )
+        late_peer_continuation_auxpow = build_parent_auxpow(late_peer_continuation_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(
+                late_peer.getauxblock(
+                    late_peer_continuation_candidate["hash"],
+                    late_peer_continuation_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        else:
+            assert_equal(
+                late_peer.submitauxblock(
+                    late_peer_continuation_candidate["hash"],
+                    late_peer_continuation_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        assert_equal(late_peer.getbestblockhash(), late_peer_continuation_candidate["hash"])
+        assert_equal(late_peer.getblockcount(), 8)
+        assert_equal(self.shielded_pool_snapshot(late_peer), restarted_late_peer_state)
+        assert_equal(late_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(late_peer), restarted_late_peer_state)
+
+        self.connect_node_to_child(3)
+        self.sync_blocks([child, cold_peer, late_peer])
+        for node in (child, cold_peer, late_peer):
+            assert_equal(node.getbestblockhash(), late_peer_continuation_candidate["hash"])
+            assert_equal(node.getblockcount(), 8)
+            assert_equal(self.shielded_pool_snapshot(node), restarted_late_peer_state)
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
