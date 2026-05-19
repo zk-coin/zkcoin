@@ -1692,6 +1692,26 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         )
         assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_rejoined_duplicate_state)
 
+        self.log.info("Restart late peer after syncing continuation from reindexed cold peer")
+        self.restart_node(3, extra_args=self.child_launch_args(dump, verify))
+        late_peer = self.nodes[3]
+        self.assert_child_snapshot_imported(late_peer, dump, verify)
+        self.assert_orchard_child_config(late_peer)
+        self.connect_node_to_node(3, 4)
+        self.sync_blocks([cold_peer, late_peer])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            late_peer,
+            cold_peer,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(late_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(late_peer), reloaded_rejoined_duplicate_state)
+        assert_equal(
+            self.stable_txout_snapshot(late_peer.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
+        )
+
 
 if __name__ == "__main__":
     OrchardAuxPowRealProofTest().main()
