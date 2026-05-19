@@ -210,6 +210,14 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
             "real_proof_verification": shielded_info["real_proof_verification"],
         }
 
+    def stable_txout_snapshot(self, txout):
+        if txout is None:
+            return None
+        snapshot = dict(txout)
+        snapshot.pop("bestblock", None)
+        snapshot.pop("confirmations", None)
+        return snapshot
+
     def assert_final_realproof_auxpow_state(
         self,
         node,
@@ -1541,6 +1549,74 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(self.shielded_pool_snapshot(child), child_rejoined_duplicate_state)
         assert_equal(cold_peer.gettxout(real_spend_txid, 0, False), rejoined_duplicate_spend_utxo)
         assert_equal(child.gettxout(real_spend_txid, 0, False), child_rejoined_duplicate_spend_utxo)
+
+        self.log.info("Restart cold peer after duplicate-nullifier AuxPoW block rejection")
+        self.restart_node(4, extra_args=self.child_launch_args(dump, verify))
+        cold_peer = self.nodes[4]
+        self.assert_child_snapshot_imported(cold_peer, dump, verify)
+        self.assert_orchard_child_config(cold_peer)
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        self.assert_final_realproof_auxpow_state(
+            cold_peer,
+            post_restart_candidate["hash"],
+            shielded_candidate["hash"],
+            spend_candidate["hash"],
+            real_mint_txid,
+            real_spend_txid,
+            spend_vector["anchor"],
+            duplicate_proof_outpoint,
+        )
+        reloaded_rejoined_duplicate_state = self.shielded_pool_snapshot(cold_peer)
+        assert_equal(cold_peer.submitblock(rejoined_duplicate_block_hex), "duplicate-invalid")
+        assert_equal(self.shielded_pool_snapshot(cold_peer), reloaded_rejoined_duplicate_state)
+
+        self.log.info("Mine valid continuation after restarted duplicate-nullifier rejection")
+        if self.is_wallet_compiled():
+            rejoined_continuation_candidate = child.getauxblock()
+        else:
+            rejoined_continuation_candidate = child.createauxblock(child.get_deterministic_priv_key().address)
+        assert_equal(rejoined_continuation_candidate["height"], 7)
+        assert rejoined_continuation_candidate["hash"] != rejoined_duplicate_block_hash
+        rejoined_continuation_parent_block = self.mine_parent_block(
+            parent,
+            commitment_hex=rejoined_continuation_candidate["auxpowcommitment"],
+        )
+        rejoined_continuation_auxpow = build_parent_auxpow(rejoined_continuation_parent_block)
+        if self.is_wallet_compiled():
+            assert_equal(
+                child.getauxblock(
+                    rejoined_continuation_candidate["hash"],
+                    rejoined_continuation_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        else:
+            assert_equal(
+                child.submitauxblock(
+                    rejoined_continuation_candidate["hash"],
+                    rejoined_continuation_auxpow.serialize().hex(),
+                ),
+                True,
+            )
+        self.connect_node_to_child(4)
+        self.sync_blocks([child, cold_peer])
+        self.assert_bad_auxpow_block_did_not_poison_valid_sibling(
+            cold_peer,
+            child,
+            rejoined_duplicate_block_hash,
+            rejoined_continuation_candidate,
+        )
+        assert_equal(self.shielded_pool_snapshot(cold_peer), reloaded_rejoined_duplicate_state)
+        assert_equal(self.shielded_pool_snapshot(child), child_rejoined_duplicate_state)
+        assert_equal(cold_peer.getblock(post_full_reindex_spend_candidate["hash"])["confirmations"], -1)
+        assert_equal(
+            self.stable_txout_snapshot(cold_peer.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(rejoined_duplicate_spend_utxo),
+        )
+        assert_equal(
+            self.stable_txout_snapshot(child.gettxout(real_spend_txid, 0, False)),
+            self.stable_txout_snapshot(child_rejoined_duplicate_spend_utxo),
+        )
 
 
 if __name__ == "__main__":
