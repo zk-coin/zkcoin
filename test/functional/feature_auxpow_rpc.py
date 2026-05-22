@@ -350,11 +350,23 @@ class AuxPowRPCTest(BitcoinTestFramework):
 
         plain_height_two = self.create_plain_block(boundary_node)
         assert_equal(boundary_node.submitblock(plain_height_two.serialize().hex()), "bad-auxpow-missing")
+        assert_raises_rpc_error(
+            -25,
+            "bad-auxpow-missing",
+            boundary_node.submitheader,
+            CBlockHeader(plain_height_two).serialize().hex(),
+        )
         assert_equal(boundary_node.getblockcount(), 1)
 
         height_two_candidate = boundary_node.createauxblock(boundary_node.get_deterministic_priv_key().address)
         height_two_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
         solve_parent_header(height_two_auxpow, int(height_two_candidate["bits"], 16))
+        height_two_header_hex = height_two_candidate["header"] + height_two_auxpow.serialize().hex()
+        boundary_node.submitheader(height_two_header_hex)
+        chain_tips = {tip["hash"]: tip for tip in boundary_node.getchaintips()}
+        assert_equal(chain_tips[height_two_candidate["hash"]]["height"], 2)
+        assert_equal(chain_tips[height_two_candidate["hash"]]["status"], "headers-only")
+        assert_equal(boundary_node.getblockcount(), 1)
         assert_equal(boundary_node.getauxblock(height_two_candidate["hash"], height_two_auxpow.serialize().hex()), True)
         assert_equal(boundary_node.getblockcount(), 2)
         height_two_hex = boundary_node.getblock(height_two_candidate["hash"], False)
