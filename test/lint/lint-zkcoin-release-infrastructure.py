@@ -13,6 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_infrastructure_manifest.json"
 DEVTOOLS_README = ROOT_DIR / "contrib" / "devtools" / "README.md"
 SOURCE_DIST_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_smoke.sh"
+SOURCE_DIST_REALPROOF_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_realproof_smoke.sh"
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
 VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
@@ -33,6 +34,15 @@ REQUIRED_BLOCKERS = {
     "windows_signing_key",
     "verifybinaries_replacement",
 }
+REQUIRED_BLAKE3_DIST = (
+    "BLAKE3_DIST",
+    "$(BLAKE3_DIST)",
+    "crypto/blake3/blake3.c",
+    "crypto/blake3/blake3.h",
+    "crypto/blake3/blake3_dispatch.c",
+    "crypto/blake3/blake3_impl.h",
+    "crypto/blake3/blake3_portable.c",
+)
 REQUIRED_RUST_SHIELDED_VERIFIER_DIST = (
     "RUST_SHIELDED_VERIFIER_DIST",
     "$(RUST_SHIELDED_VERIFIER_DIST)",
@@ -54,6 +64,23 @@ REQUIRED_RUST_SHIELDED_VERIFIER_DIST = (
     "rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp",
     "rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt",
     "rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt",
+)
+REQUIRED_LIBMW_DIST = (
+    "LIBMW_DIST",
+    "$(LIBMW_DIST)",
+    "libmw/deps/caches/include/caches/Cache.h",
+    "libmw/deps/ghc/include/ghc/filesystem.hpp",
+    "libmw/deps/mio/include/mio/mmap.hpp",
+    "libmw/include/mw/consensus/Params.h",
+    "libmw/include/mw/models/crypto/Hash.h",
+    "libmw/src/crypto/Context.h",
+    "libmw/src/db/common/Database.h",
+    "libmw/src/node/CoinActions.h",
+    "libmw/test/framework/include/test_framework/TestMWEB.h",
+)
+REQUIRED_WALLET_INTERFACE_DIST = (
+    "wallet/txlist.h",
+    "wallet/txrecord.h",
 )
 
 
@@ -83,6 +110,49 @@ def require_src_dist_entries():
     return None
 
 
+def require_blake3_dist_entries():
+    text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
+    missing = [entry for entry in REQUIRED_BLAKE3_DIST if entry not in text]
+    if missing:
+        return "{} missing BLAKE3 source dist entries: {}".format(
+            SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    blake3_dist_lines = [line for line in text.splitlines() if line.startswith("BLAKE3_DIST")]
+    forbidden = (".deps", ".dirstamp", ".o")
+    for line in blake3_dist_lines:
+        if any(marker in line for marker in forbidden):
+            return "{} must not ship BLAKE3 build outputs".format(SRC_MAKEFILE_AM.relative_to(ROOT_DIR))
+    return None
+
+
+def require_libmw_dist_entries():
+    text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
+    missing = [entry for entry in REQUIRED_LIBMW_DIST if entry not in text]
+    if missing:
+        return "{} missing libmw/MWEB source dist entries: {}".format(
+            SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    libmw_dist_lines = [line for line in text.splitlines() if line.startswith("LIBMW_DIST")]
+    forbidden = (".deps", ".dirstamp", ".o")
+    for line in libmw_dist_lines:
+        if any(marker in line for marker in forbidden):
+            return "{} must not ship libmw build outputs".format(SRC_MAKEFILE_AM.relative_to(ROOT_DIR))
+    return None
+
+
+def require_wallet_interface_dist_entries():
+    text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
+    missing = [entry for entry in REQUIRED_WALLET_INTERFACE_DIST if entry not in text]
+    if missing:
+        return "{} missing wallet interface dist entries: {}".format(
+            SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    return None
+
+
 def require_source_dist_smoke_entries():
     text = SOURCE_DIST_SMOKE.read_text(encoding="utf8")
     required_entries = [
@@ -90,9 +160,20 @@ def require_source_dist_smoke_entries():
         for entry in REQUIRED_RUST_SHIELDED_VERIFIER_DIST
         if entry.startswith("rust/shielded-verifier/")
     ]
+    required_entries.extend(
+        entry
+        for entry in REQUIRED_BLAKE3_DIST
+        if entry.startswith("crypto/blake3/")
+    )
+    required_entries.extend(
+        entry
+        for entry in REQUIRED_LIBMW_DIST
+        if entry.startswith("libmw/")
+    )
+    required_entries.extend(REQUIRED_WALLET_INTERFACE_DIST)
     missing = [entry for entry in required_entries if entry not in text]
     if missing:
-        return "{} missing Rust shielded verifier tarball checks: {}".format(
+        return "{} missing release-critical tarball checks: {}".format(
             SOURCE_DIST_SMOKE.relative_to(ROOT_DIR),
             ", ".join(missing),
         )
@@ -172,11 +253,18 @@ def main():
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_infrastructure_manifest.json", "release manifest dist packaging"),
+        (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_smoke.sh", "source dist smoke packaging"),
+        (DEVTOOLS_README, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_smoke.sh", "source dist smoke documentation"),
+        (SOURCE_DIST_SMOKE, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke tarball entry"),
         (SOURCE_DIST_SMOKE, "make dist-gzip", "source tarball build command"),
         (SOURCE_DIST_SMOKE, "tar -tf", "source tarball listing command"),
         (SOURCE_DIST_SMOKE, "rust/shielded-verifier/target", "Cargo target exclusion check"),
+        (SOURCE_DIST_REALPROOF_SMOKE, "make dist-gzip", "source real-proof tarball build command"),
+        (SOURCE_DIST_REALPROOF_SMOKE, "--enable-rust-orchard-verifier", "source real-proof Orchard verifier configure"),
+        (SOURCE_DIST_REALPROOF_SMOKE, "ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1", "source real-proof required functional regression"),
+        (SOURCE_DIST_REALPROOF_SMOKE, "feature_orchard_auxpow_realproof.py", "source real-proof AuxPoW functional regression"),
     )
     for path, needle, description in verify_checks:
         error = require_text(path, needle, description)
@@ -184,6 +272,18 @@ def main():
             return fail(error)
 
     error = require_src_dist_entries()
+    if error:
+        return fail(error)
+
+    error = require_blake3_dist_entries()
+    if error:
+        return fail(error)
+
+    error = require_libmw_dist_entries()
+    if error:
+        return fail(error)
+
+    error = require_wallet_interface_dist_entries()
     if error:
         return fail(error)
 

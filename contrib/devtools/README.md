@@ -95,6 +95,27 @@ Example:
 contrib/devtools/zkcoin_source_dist_smoke.sh
 ```
 
+zkcoin_source_dist_realproof_smoke.sh
+=====================================
+
+Builds a source tarball with `make dist-gzip`, unpacks it into a temporary
+build root, configures that unpacked source with the real Orchard verifier
+backend, builds `litecoind`, `litecoin-cli`, and `test_litecoin`, then runs the
+required real-proof AuxPoW functional regression with
+`ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1`.
+
+This is an opt-in release-candidate proof for the generated source artifact. It
+is intentionally heavier than `zkcoin_source_dist_smoke.sh`, and it still does
+not make the inherited Gitian, signing, or binary-verification infrastructure
+production-ready.
+
+Example:
+
+```bash
+TEST_RUNNER_PORT_MIN=28000 \
+  contrib/devtools/zkcoin_source_dist_realproof_smoke.sh
+```
+
 clang-format-diff.py
 ===================
 
