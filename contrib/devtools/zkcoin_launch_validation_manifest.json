@@ -66,6 +66,7 @@
     },
     "lints": [
       "test/lint/lint-zkcoin-launch-validation.sh",
+      "test/lint/lint-zkcoin-public-launch-profile.sh",
       "test/lint/lint-zkcoin-product-identity.sh"
     ],
     "unit_tests": [
