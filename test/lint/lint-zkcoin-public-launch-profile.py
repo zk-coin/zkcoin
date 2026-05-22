@@ -15,6 +15,8 @@ INIT = ROOT_DIR / "src" / "init.cpp"
 POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
 LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
+DNSSEED_POLICY = ROOT_DIR / "doc" / "dnsseed-policy.md"
+SEEDS_README = ROOT_DIR / "contrib" / "seeds" / "README.md"
 
 
 PUBLIC_LAUNCH_FAILURE = (
@@ -394,6 +396,30 @@ def main():
         error = require_text(LAUNCH_DOC, needle, description)
         if error:
             return fail(LAUNCH_DOC, error)
+
+    dnsseed_policy_checks = (
+        ("zkCoin DNS seed operators", "zkCoin DNS seed policy title"),
+        ("must not be used as zkCoin public-network launch inputs", "inherited seed data rejection"),
+        ("functioning zkCoin nodes from the intended zkCoin public network", "zkCoin public node requirement"),
+        ("contact the active zkCoin maintainers", "zkCoin maintainer escalation"),
+    )
+    for needle, description in dnsseed_policy_checks:
+        error = require_text(DNSSEED_POLICY, needle, description)
+        if error:
+            return fail(DNSSEED_POLICY, error)
+
+    seed_readme_checks = (
+        ("inherited Litecoin seed data", "inherited seed source rejection"),
+        ("fail launch readiness", "fail-closed seed readiness documentation"),
+        ("zkCoin-specific seed", "zkCoin seed infrastructure requirement"),
+        ("infrastructure exists", "zkCoin seed infrastructure requirement"),
+        ("Generate crawler output from the intended zkCoin public network", "zkCoin crawler source requirement"),
+        ("generate-seeds.py` only from zkCoin node lists", "fixed seed source requirement"),
+    )
+    for needle, description in seed_readme_checks:
+        error = require_text(SEEDS_README, needle, description)
+        if error:
+            return fail(SEEDS_README, error)
 
     return 0
 
