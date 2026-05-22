@@ -5,6 +5,10 @@
       "--enable-rust-shielded-verifier",
       "--enable-rust-orchard-verifier"
     ],
+    "build_commands": [
+      "make -C src clean",
+      "make -C src -j\"$JOBS\" litecoind litecoin-cli test/test_litecoin"
+    ],
     "unit_tests": [
       "pow_tests",
       "shielded_tests",
@@ -54,6 +58,12 @@
     ]
   },
   "smoke": {
+    "build": {
+      "condition": "if [[ \"${SKIP_BUILD:-0}\" != \"1\" ]]; then",
+      "commands": [
+        "run_step make -C src -j\"$JOBS\" litecoind litecoin-cli test/test_litecoin"
+      ]
+    },
     "lints": [
       "test/lint/lint-zkcoin-launch-validation.sh",
       "test/lint/lint-zkcoin-product-identity.sh"
@@ -85,6 +95,13 @@
       {
         "path": "test/functional/feature_ltc_snapshot_launch.py"
       }
-    ]
+    ],
+    "distdir": {
+      "condition": "if [[ \"${RUN_DISTDIR:-1}\" != \"0\" ]]; then",
+      "commands": [
+        "run_step make distdir VERSION=brandcheck",
+        "rm -rf litecoin-brandcheck"
+      ]
+    }
   }
 }
