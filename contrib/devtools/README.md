@@ -31,6 +31,32 @@ JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
   contrib/devtools/zkcoin_launch_validation.sh
 ```
 
+zkcoin_launch_smoke.sh
+======================
+
+Runs a faster local launch-path smoke loop for day-to-day iteration. It builds
+the current local configuration, runs the zkCoin launch/profile lints, key C++
+unit suites, launch argument and preflight guards, blockchain readiness RPC
+schema checks, AuxPoW RPC regressions, snapshot launch regressions, and source
+distribution packaging.
+
+This wrapper is intentionally lower impact than `zkcoin_launch_validation.sh`:
+it does not reconfigure the tree, does not run `make clean`, and does not
+require the real Orchard verifier backend. Use it to catch common launch-path
+regressions quickly, then run the canonical validation wrapper before treating
+AuxPoW, snapshot import, shielded validation, or launch configuration changes as
+release-candidate work.
+
+Set `SKIP_BUILD=1` to reuse already-built binaries, and `RUN_DISTDIR=0` to skip
+the source-distribution packaging check while iterating.
+
+Example:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  contrib/devtools/zkcoin_launch_smoke.sh
+```
+
 clang-format-diff.py
 ===================
 

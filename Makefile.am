@@ -45,6 +45,13 @@ OSX_PLIST=$(top_builddir)/share/qt/Info.plist #not installed
 OSX_QT_TRANSLATIONS = ar,bg,ca,cs,da,de,es,fa,fi,fr,gd,gl,he,hu,it,ja,ko,lt,lv,pl,pt,ru,sk,sl,sv,uk,zh_CN,zh_TW
 
 DIST_CONTRIB = \
+	       $(top_srcdir)/contrib/devtools/README.md \
+	       $(top_srcdir)/contrib/devtools/zkcoin_launch_preflight.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_launch_smoke.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_launch_validation.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_local_fork_auxpow.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_ltc_snapshot.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_orchard_auxpow.sh \
 	       $(top_srcdir)/contrib/linearize/linearize-data.py \
 	       $(top_srcdir)/contrib/linearize/linearize-hashes.py
 
