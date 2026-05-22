@@ -22,6 +22,7 @@
 #include <timedata.h>
 #include <util/moneystr.h>
 #include <util/system.h>
+#include <versionbits.h>
 
 #include <algorithm>
 #include <utility>
@@ -210,7 +211,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     const Consensus::Params& consensus = chainparams.GetConsensus();
     if (consensus.auxpow.IsEnabled(nHeight)) {
-        pblock->SetChainId(consensus.auxpow.nChainId);
+        pblock->SetAuxpowVersion(false);
+        pblock->auxpow.reset();
+        pblock->SetBaseVersion(VERSIONBITS_LAST_OLD_BLOCK_VERSION, consensus.auxpow.nChainId);
         CAuxPow::initAuxPow(*pblock);
     }
 
