@@ -15,6 +15,10 @@ The launch preflight guard also checks the shielded proof posture reported by
 `getblockchaininfo`: scaffold proofs must be disabled, the real proof backend
 must be `orchard-v1`, and real proof verification must be available.
 
+The real-proof functional regression is run with
+`ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1`, so a missing Orchard verifier backend is a
+validation failure instead of a skipped test.
+
 Example:
 
 ```bash

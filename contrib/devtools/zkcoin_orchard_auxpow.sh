@@ -131,7 +131,7 @@ test/functional/feature_local_ltc_fork_auxpow.py
 echo "Running Litecoin snapshot launch functional test"
 test/functional/feature_ltc_snapshot_launch.py
 
-echo "Running Orchard AuxPoW real-proof functional test"
-test/functional/feature_orchard_auxpow_realproof.py
+echo "Running Orchard AuxPoW real-proof functional test with skip treated as failure"
+ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1 test/functional/feature_orchard_auxpow_realproof.py
 
 echo "Orchard verifier AuxPoW regression loop passed"

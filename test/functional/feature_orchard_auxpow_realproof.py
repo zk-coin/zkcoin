@@ -6,6 +6,7 @@
 
 from decimal import Decimal
 from io import BytesIO
+import os
 from pathlib import Path
 
 from feature_local_ltc_fork_auxpow import (
@@ -27,6 +28,7 @@ from test_framework.util import assert_equal, assert_raises_rpc_error
 
 
 ORCHARD_HALO2_BUNDLE_PROOF_PREFIX = b"zkc-orchard-halo2-bundle-v1"
+REQUIRE_ORCHARD_VERIFIER_ENV = "ZKCOIN_REQUIRE_ORCHARD_VERIFIER"
 FIRST_PROOF_CHUNK_SIZE = 520
 STANDARD_PROOF_CHUNK_SIZE = 80
 ORCHARD_VECTOR_PATH = (
@@ -189,6 +191,23 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         assert_equal(shielded_info["scaffold_proofs"], False)
         assert_equal(shielded_info["real_proof_backend"], "orchard-v1")
         assert_equal(shielded_info["real_proof_verification"], True)
+
+    def require_orchard_verifier_or_skip(self, node):
+        shielded_info = node.getblockchaininfo()["shielded_pool"]
+        backend = shielded_info["real_proof_backend"]
+        real_proof_verification = shielded_info["real_proof_verification"]
+        if backend == "orchard-v1" and real_proof_verification is True:
+            return
+
+        message = (
+            "node was not built with --enable-rust-orchard-verifier "
+            f"(backend={backend}, real_proof_verification={real_proof_verification})"
+        )
+        if os.getenv(REQUIRE_ORCHARD_VERIFIER_ENV) == "1":
+            raise AssertionError(
+                f"{message}; {REQUIRE_ORCHARD_VERIFIER_ENV}=1 makes this a required validation failure"
+            )
+        raise SkipTest(message)
 
     def connect_node_to_child(self, node_index):
         if not any("testnode1" in peer["subver"] for peer in self.nodes[node_index].getpeerinfo()):
@@ -474,8 +493,7 @@ class OrchardAuxPowRealProofTest(LocalLitecoinForkAuxPowTest):
         self.stop_node(3)
         self.stop_node(4)
 
-        if child.getblockchaininfo()["shielded_pool"]["real_proof_backend"] != "orchard-v1":
-            raise SkipTest("node was not built with --enable-rust-orchard-verifier")
+        self.require_orchard_verifier_or_skip(child)
 
         self.log.info("Build a local Litecoin-style parent chain and block-X snapshot")
         vector = self.load_orchard_mint_vector()
