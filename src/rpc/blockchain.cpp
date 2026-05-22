@@ -1589,17 +1589,25 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
                             {RPCResult::Type::BOOL, "script_rules_active_at_launch", "whether legacy and Taproot script validation rules are active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},
-                            {RPCResult::Type::BOOL, "public_network_identity_configured", "whether public network identity has been replaced instead of inheriting Litecoin message starts, addresses, ports, or seeds"},
+                            {RPCResult::Type::BOOL, "public_network_identity_configured", "whether public network identity has been replaced with structurally valid values instead of inheriting Litecoin message starts, addresses, ports, or seeds"},
                             {RPCResult::Type::OBJ, "public_network_identity", "detailed public network identity replacement status",
                             {
-                                {RPCResult::Type::BOOL, "configured", "whether public network identity has been replaced"},
+                                {RPCResult::Type::BOOL, "configured", "whether public network identity has been replaced with structurally valid values"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_message_start", "whether P2P message-start bytes still match Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "message_start_shape_valid", "whether P2P message-start bytes are non-empty, non-printable public-network magic"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_default_port", "whether the default P2P port still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "default_port_shape_valid", "whether the default P2P port is in the non-reserved TCP port range"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_dns_seed", "whether any DNS seed hostname still matches inherited Litecoin seed infrastructure"},
+                                {RPCResult::Type::BOOL, "dns_seeds_shape_valid", "whether DNS seed hostnames are present and have valid lowercase hostname shape"},
                                 {RPCResult::Type::BOOL, "fixed_seeds_present", "whether fixed seed bytes are present and must be regenerated or cleared for public launch"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_base58_prefixes", "whether Base58 prefixes still match Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "base58_prefixes_shape_valid", "whether Base58 prefixes have valid public address/key prefix lengths"},
+                                {RPCResult::Type::BOOL, "base58_prefixes_unique", "whether Base58 prefix byte sequences are unique"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_bech32_hrp", "whether the Bech32 HRP still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "bech32_hrp_shape_valid", "whether the Bech32 HRP is non-empty lowercase printable ASCII"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_mweb_hrp", "whether the MWEB HRP still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "mweb_hrp_shape_valid", "whether the MWEB HRP is non-empty lowercase printable ASCII"},
+                                {RPCResult::Type::BOOL, "hrps_unique", "whether Bech32 and MWEB HRPs are distinct"},
                                 {RPCResult::Type::ARR, "failures", "failed public identity replacement checks",
                                 {
                                     {RPCResult::Type::STR, "", "failure reason"},
@@ -1739,11 +1747,20 @@ RPCHelpMan getblockchaininfo()
     const bool shielded_inactive_at_launch = launch_profile.shielded_inactive_at_launch;
     const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue public_network_identity_failures(UniValue::VARR);
+    if (!public_network_identity.message_start_shape_valid) {
+        public_network_identity_failures.push_back("P2P message start has an invalid public-network shape");
+    }
     if (public_network_identity.inherited_litecoin_message_start) {
         public_network_identity_failures.push_back("P2P message start still matches Litecoin");
     }
+    if (!public_network_identity.default_port_shape_valid) {
+        public_network_identity_failures.push_back("default P2P port is missing or reserved");
+    }
     if (public_network_identity.inherited_litecoin_default_port) {
         public_network_identity_failures.push_back("default P2P port still matches Litecoin");
+    }
+    if (!public_network_identity.dns_seeds_shape_valid) {
+        public_network_identity_failures.push_back("DNS seed list is empty or contains malformed hostnames");
     }
     if (public_network_identity.inherited_litecoin_dns_seed) {
         public_network_identity_failures.push_back("DNS seed list still references Litecoin infrastructure");
@@ -1751,25 +1768,48 @@ RPCHelpMan getblockchaininfo()
     if (public_network_identity.fixed_seeds_present) {
         public_network_identity_failures.push_back("fixed seed list is present and must be regenerated or cleared");
     }
+    if (!public_network_identity.base58_prefixes_shape_valid) {
+        public_network_identity_failures.push_back("Base58 prefixes have invalid public-network lengths");
+    }
+    if (!public_network_identity.base58_prefixes_unique) {
+        public_network_identity_failures.push_back("Base58 prefixes contain duplicate byte sequences");
+    }
     if (public_network_identity.inherited_litecoin_base58_prefixes) {
         public_network_identity_failures.push_back("Base58 prefixes still match Litecoin");
+    }
+    if (!public_network_identity.bech32_hrp_shape_valid) {
+        public_network_identity_failures.push_back("Bech32 HRP is empty or malformed");
     }
     if (public_network_identity.inherited_litecoin_bech32_hrp) {
         public_network_identity_failures.push_back("Bech32 HRP still matches Litecoin");
     }
+    if (!public_network_identity.mweb_hrp_shape_valid) {
+        public_network_identity_failures.push_back("MWEB HRP is empty or malformed");
+    }
     if (public_network_identity.inherited_litecoin_mweb_hrp) {
         public_network_identity_failures.push_back("MWEB HRP still matches Litecoin");
+    }
+    if (!public_network_identity.hrps_unique) {
+        public_network_identity_failures.push_back("Bech32 and MWEB HRPs must be distinct");
     }
 
     UniValue public_network_identity_obj(UniValue::VOBJ);
     public_network_identity_obj.pushKV("configured", public_network_identity.configured);
     public_network_identity_obj.pushKV("inherited_litecoin_message_start", public_network_identity.inherited_litecoin_message_start);
+    public_network_identity_obj.pushKV("message_start_shape_valid", public_network_identity.message_start_shape_valid);
     public_network_identity_obj.pushKV("inherited_litecoin_default_port", public_network_identity.inherited_litecoin_default_port);
+    public_network_identity_obj.pushKV("default_port_shape_valid", public_network_identity.default_port_shape_valid);
     public_network_identity_obj.pushKV("inherited_litecoin_dns_seed", public_network_identity.inherited_litecoin_dns_seed);
+    public_network_identity_obj.pushKV("dns_seeds_shape_valid", public_network_identity.dns_seeds_shape_valid);
     public_network_identity_obj.pushKV("fixed_seeds_present", public_network_identity.fixed_seeds_present);
     public_network_identity_obj.pushKV("inherited_litecoin_base58_prefixes", public_network_identity.inherited_litecoin_base58_prefixes);
+    public_network_identity_obj.pushKV("base58_prefixes_shape_valid", public_network_identity.base58_prefixes_shape_valid);
+    public_network_identity_obj.pushKV("base58_prefixes_unique", public_network_identity.base58_prefixes_unique);
     public_network_identity_obj.pushKV("inherited_litecoin_bech32_hrp", public_network_identity.inherited_litecoin_bech32_hrp);
+    public_network_identity_obj.pushKV("bech32_hrp_shape_valid", public_network_identity.bech32_hrp_shape_valid);
     public_network_identity_obj.pushKV("inherited_litecoin_mweb_hrp", public_network_identity.inherited_litecoin_mweb_hrp);
+    public_network_identity_obj.pushKV("mweb_hrp_shape_valid", public_network_identity.mweb_hrp_shape_valid);
+    public_network_identity_obj.pushKV("hrps_unique", public_network_identity.hrps_unique);
     public_network_identity_obj.pushKV("failures", public_network_identity_failures);
 
     UniValue launch_failures(UniValue::VARR);
@@ -1798,7 +1838,7 @@ RPCHelpMan getblockchaininfo()
         launch_failures.push_back("inherited Litecoin chain history assumptions are not cleared");
     }
     if (!public_network_identity_configured) {
-        launch_failures.push_back("public network identity is inherited from Litecoin");
+        launch_failures.push_back("public network identity is inherited from Litecoin or malformed");
     }
     if (!at_launch_tip) {
         launch_failures.push_back("node is not at the genesis launch tip");

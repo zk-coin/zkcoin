@@ -13,6 +13,7 @@ CHAINPARAMS = ROOT_DIR / "src" / "chainparams.cpp"
 LAUNCHPROFILE = ROOT_DIR / "src" / "launchprofile.cpp"
 INIT = ROOT_DIR / "src" / "init.cpp"
 POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
+LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
 
 
@@ -109,6 +110,42 @@ LAUNCH_PROFILE_MARKERS = (
         "status.public_network_identity = GetPublicNetworkIdentityStatus(chainparams);",
         "readiness includes public network identity",
     ),
+    (
+        "status.message_start_shape_valid = MessageStartShapeValid(message_start);",
+        "identity readiness validates P2P message-start shape",
+    ),
+    (
+        "status.default_port_shape_valid = DefaultPortShapeValid(chainparams.GetDefaultPort());",
+        "identity readiness validates public P2P port shape",
+    ),
+    (
+        "status.dns_seeds_shape_valid = DnsSeedsShapeValid(chainparams);",
+        "identity readiness validates DNS seed shape",
+    ),
+    (
+        "status.inherited_litecoin_base58_prefixes = HasAnyLitecoinBase58Prefix(chainparams);",
+        "identity readiness rejects partial inherited Base58 prefixes",
+    ),
+    (
+        "status.base58_prefixes_shape_valid = Base58PrefixesShapeValid(chainparams);",
+        "identity readiness validates Base58 prefix lengths",
+    ),
+    (
+        "status.base58_prefixes_unique = Base58PrefixesUnique(chainparams);",
+        "identity readiness validates Base58 prefix uniqueness",
+    ),
+    (
+        "status.bech32_hrp_shape_valid = HrpShapeValid(chainparams.Bech32HRP());",
+        "identity readiness validates Bech32 HRP shape",
+    ),
+    (
+        "status.mweb_hrp_shape_valid = HrpShapeValid(chainparams.MWEB_HRP());",
+        "identity readiness validates MWEB HRP shape",
+    ),
+    (
+        "status.hrps_unique = chainparams.Bech32HRP() != chainparams.MWEB_HRP();",
+        "identity readiness requires distinct HRPs",
+    ),
 )
 
 
@@ -175,6 +212,34 @@ def require_configured_gate(text):
     return None
 
 
+def require_public_identity_configured_gate(text):
+    start = text.find("status.configured =\n        !status.inherited_litecoin_public_identity &&")
+    if start == -1:
+        return "{} missing public identity configured gate start".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    end = text.find("return status;", start)
+    if end == -1:
+        return "{} missing public identity configured gate terminator".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    gate = text[start:end]
+    required_terms = (
+        "!status.inherited_litecoin_public_identity",
+        "status.message_start_shape_valid",
+        "status.default_port_shape_valid",
+        "status.dns_seeds_shape_valid",
+        "status.base58_prefixes_shape_valid",
+        "status.base58_prefixes_unique",
+        "status.bech32_hrp_shape_valid",
+        "status.mweb_hrp_shape_valid",
+        "status.hrps_unique",
+    )
+    missing = [term for term in required_terms if term not in gate]
+    if missing:
+        return "{} public identity configured gate missing terms: {}".format(
+            LAUNCHPROFILE.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    return None
+
+
 def main():
     chainparams_text = CHAINPARAMS.read_text(encoding="utf8")
     try:
@@ -217,6 +282,9 @@ def main():
     error = require_configured_gate(launchprofile_text)
     if error:
         return fail(LAUNCHPROFILE, error)
+    error = require_public_identity_configured_gate(launchprofile_text)
+    if error:
+        return fail(LAUNCHPROFILE, error)
 
     init_checks = (
         ("if (!chainparams.IsMockableChain()) {", "public launch gate outside regtest"),
@@ -249,11 +317,25 @@ def main():
             "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::SIGNET);",
             "signet fail-closed runtime coverage",
         ),
+        ("identity.message_start_shape_valid", "runtime public identity message-start shape coverage"),
+        ("identity.base58_prefixes_unique", "runtime public identity Base58 uniqueness coverage"),
+        ("status.public_network_identity.hrps_unique", "runtime regtest identity HRP uniqueness coverage"),
     )
     for needle, description in test_checks:
         error = require_text(POW_TESTS, needle, description)
         if error:
             return fail(POW_TESTS, error)
+
+    preflight_checks = (
+        ("message_start_shape_valid", "preflight requires message-start shape detail"),
+        ("dns_seeds_shape_valid", "preflight requires DNS seed shape detail"),
+        ("base58_prefixes_unique", "preflight requires Base58 uniqueness detail"),
+        ("hrps_unique", "preflight requires HRP uniqueness detail"),
+    )
+    for needle, description in preflight_checks:
+        error = require_text(LAUNCH_PREFLIGHT, needle, description)
+        if error:
+            return fail(LAUNCH_PREFLIGHT, error)
 
     doc_checks = (
         (

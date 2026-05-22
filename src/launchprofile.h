@@ -11,12 +11,20 @@ class CChainParams;
 
 struct PublicNetworkIdentityStatus {
     bool inherited_litecoin_message_start{false};
+    bool message_start_shape_valid{false};
     bool inherited_litecoin_default_port{false};
+    bool default_port_shape_valid{false};
     bool inherited_litecoin_dns_seed{false};
+    bool dns_seeds_shape_valid{false};
     bool fixed_seeds_present{false};
     bool inherited_litecoin_base58_prefixes{false};
+    bool base58_prefixes_shape_valid{false};
+    bool base58_prefixes_unique{false};
     bool inherited_litecoin_bech32_hrp{false};
+    bool bech32_hrp_shape_valid{false};
     bool inherited_litecoin_mweb_hrp{false};
+    bool mweb_hrp_shape_valid{false};
+    bool hrps_unique{false};
     bool inherited_litecoin_public_identity{false};
     bool configured{false};
 };
