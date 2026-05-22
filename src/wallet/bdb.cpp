@@ -45,6 +45,15 @@ void CheckUniqueFileid(const BerkeleyEnvironment& env, const std::string& filena
 
 RecursiveMutex cs_db;
 std::map<std::string, std::weak_ptr<BerkeleyEnvironment>> g_dbenvs GUARDED_BY(cs_db); //!< Map from directory name to db environment.
+
+void CopyFileOverwrite(const fs::path& path_src, const fs::path& path_dest)
+{
+#if BOOST_VERSION >= 108500
+    fs::copy_file(path_src, path_dest, fs::copy_options::overwrite_existing);
+#else
+    fs::copy_file(path_src, path_dest, fs::copy_option::overwrite_if_exists);
+#endif
+}
 } // namespace
 
 bool WalletDatabaseFileId::operator==(const WalletDatabaseFileId& rhs) const
@@ -627,7 +636,7 @@ bool BerkeleyDatabase::Backup(const std::string& strDest) const
                         return false;
                     }
 
-                    fs::copy_file(pathSrc, pathDest, fs::copy_option::overwrite_if_exists);
+                    CopyFileOverwrite(pathSrc, pathDest);
                     LogPrintf("copied %s to %s\n", strFile, pathDest.string());
                     return true;
                 } catch (const fs::filesystem_error& e) {
