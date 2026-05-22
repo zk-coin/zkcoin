@@ -68,7 +68,8 @@
       "test/lint/lint-zkcoin-launch-validation.sh",
       "test/lint/lint-zkcoin-public-launch-profile.sh",
       "test/lint/lint-zkcoin-product-identity.sh",
-      "test/lint/lint-zkcoin-release-infrastructure.sh"
+      "test/lint/lint-zkcoin-release-infrastructure.sh",
+      "test/lint/lint-zkcoin-previous-releases.sh"
     ],
     "unit_tests": [
       "pow_tests",
