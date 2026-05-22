@@ -62,6 +62,14 @@ For AuxPoW, snapshot import, shielded validation, or launch configuration
 changes, individual tests do not replace the combined zkCoin launch validation
 loop.
 
+For faster local iteration before the full real-Orchard validation lane, run the
+launch smoke wrapper:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  contrib/devtools/zkcoin_launch_smoke.sh
+```
+
 Translations
 ------------
 
