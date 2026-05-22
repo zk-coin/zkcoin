@@ -64,7 +64,18 @@ REQUIRED_READINESS_BOOL_FIELDS = (
     "shielded_inactive_at_launch",
     "at_launch_tip",
 )
-REQUIRED_READINESS_FIELDS = REQUIRED_READINESS_BOOL_FIELDS + ("failures",)
+REQUIRED_READINESS_FIELDS = REQUIRED_READINESS_BOOL_FIELDS + ("public_network_identity", "failures",)
+REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS = (
+    "configured",
+    "inherited_litecoin_message_start",
+    "inherited_litecoin_default_port",
+    "inherited_litecoin_dns_seed",
+    "fixed_seeds_present",
+    "inherited_litecoin_base58_prefixes",
+    "inherited_litecoin_bech32_hrp",
+    "inherited_litecoin_mweb_hrp",
+)
+REQUIRED_PUBLIC_IDENTITY_FIELDS = REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS + ("failures",)
 REQUIRED_DETAIL_FIELDS = {
     "ltc_snapshot": ("height", "block_hash", "import_hash"),
     "auxpow": ("start_height", "chain_id", "strict_chain_id", "parent_version_safe"),
@@ -90,6 +101,37 @@ if "failures" in readiness:
         schema_errors.append("launch_readiness.failures must be an array")
     elif not all(isinstance(failure, str) for failure in failures):
         schema_errors.append("launch_readiness.failures entries must be strings")
+
+public_identity = readiness.get("public_network_identity")
+if not isinstance(public_identity, dict):
+    schema_errors.append("launch_readiness.public_network_identity must be an object")
+else:
+    missing_public_identity = [field for field in REQUIRED_PUBLIC_IDENTITY_FIELDS if field not in public_identity]
+    if missing_public_identity:
+        schema_errors.append("missing launch_readiness.public_network_identity fields: " + ", ".join(missing_public_identity))
+
+    unexpected_public_identity = sorted(set(public_identity) - set(REQUIRED_PUBLIC_IDENTITY_FIELDS))
+    if unexpected_public_identity:
+        schema_errors.append("unexpected launch_readiness.public_network_identity fields: " + ", ".join(unexpected_public_identity))
+
+    for field in REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS:
+        if field in public_identity and type(public_identity[field]) is not bool:
+            schema_errors.append(f"launch_readiness.public_network_identity.{field} must be a boolean")
+
+    public_identity_failures = public_identity.get("failures")
+    if "failures" in public_identity:
+        if not isinstance(public_identity_failures, list):
+            schema_errors.append("launch_readiness.public_network_identity.failures must be an array")
+        elif not all(isinstance(failure, str) for failure in public_identity_failures):
+            schema_errors.append("launch_readiness.public_network_identity.failures entries must be strings")
+    if (
+        "configured" in public_identity
+        and "public_network_identity_configured" in readiness
+        and type(public_identity.get("configured")) is bool
+        and type(readiness.get("public_network_identity_configured")) is bool
+        and public_identity["configured"] != readiness["public_network_identity_configured"]
+    ):
+        schema_errors.append("launch_readiness.public_network_identity.configured must match public_network_identity_configured")
 
 detail_sections = {}
 for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
@@ -139,6 +181,13 @@ print(f"  chain id configured: {str(readiness['chain_id_configured']).lower()}")
 print(f"  chain id parent version safe: {str(readiness['chain_id_parent_version_safe']).lower()}")
 print(f"  chain history clean: {str(readiness['chain_history_clean']).lower()}")
 print(f"  public network identity configured: {str(readiness['public_network_identity_configured']).lower()}")
+print(f"  public identity message start inherited: {str(public_identity['inherited_litecoin_message_start']).lower()}")
+print(f"  public identity default port inherited: {str(public_identity['inherited_litecoin_default_port']).lower()}")
+print(f"  public identity DNS seed inherited: {str(public_identity['inherited_litecoin_dns_seed']).lower()}")
+print(f"  public identity fixed seeds present: {str(public_identity['fixed_seeds_present']).lower()}")
+print(f"  public identity Base58 prefixes inherited: {str(public_identity['inherited_litecoin_base58_prefixes']).lower()}")
+print(f"  public identity Bech32 HRP inherited: {str(public_identity['inherited_litecoin_bech32_hrp']).lower()}")
+print(f"  public identity MWEB HRP inherited: {str(public_identity['inherited_litecoin_mweb_hrp']).lower()}")
 print(f"  shielded inactive at launch: {str(readiness['shielded_inactive_at_launch']).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
 print(f"  shielded scaffold proofs: {str(shielded.get('scaffold_proofs')).lower()}")
@@ -158,7 +207,7 @@ if shielded["real_proof_backend"] != "orchard-v1":
 if shielded["real_proof_verification"] is not True:
     posture_failures.append("shielded real proof verification is not available")
 
-if readiness["ready"] is True and failures == [] and not false_ready_fields and not posture_failures:
+if readiness["ready"] is True and failures == [] and public_identity["failures"] == [] and not false_ready_fields and not posture_failures:
     print("Launch preflight passed.")
     sys.exit(0)
 
@@ -172,6 +221,10 @@ if readiness["ready"] is True and false_ready_fields:
 if posture_failures:
     print("Operator posture failures:", file=sys.stderr)
     for failure in posture_failures:
+        print(f"  - {failure}", file=sys.stderr)
+if public_identity["failures"]:
+    print("Public network identity failures:", file=sys.stderr)
+    for failure in public_identity["failures"]:
         print(f"  - {failure}", file=sys.stderr)
 if failures:
     print("Failures:", file=sys.stderr)

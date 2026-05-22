@@ -212,6 +212,7 @@ static void check_public_launch_profile_fails_closed(const ArgsManager& args, co
 {
     const auto chainParams = CreateChainParams(args, chain_name);
     const PublicLaunchProfileStatus status = GetPublicLaunchProfileStatus(*chainParams);
+    const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(*chainParams);
 
     BOOST_CHECK(!HasConfiguredPublicLaunchProfile(*chainParams));
     BOOST_CHECK(!status.configured);
@@ -224,6 +225,17 @@ static void check_public_launch_profile_fails_closed(const ArgsManager& args, co
     BOOST_CHECK(status.chain_history_clean);
     BOOST_CHECK(status.inherited_litecoin_public_identity);
     BOOST_CHECK(!status.public_network_identity_configured);
+    BOOST_CHECK(status.public_network_identity.inherited_litecoin_public_identity);
+    BOOST_CHECK(!status.public_network_identity.configured);
+    BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    BOOST_CHECK(!identity.configured);
+    BOOST_CHECK(identity.inherited_litecoin_message_start);
+    BOOST_CHECK(identity.inherited_litecoin_default_port);
+    BOOST_CHECK(identity.inherited_litecoin_dns_seed);
+    BOOST_CHECK(identity.fixed_seeds_present);
+    BOOST_CHECK(identity.inherited_litecoin_base58_prefixes);
+    BOOST_CHECK(identity.inherited_litecoin_bech32_hrp);
+    BOOST_CHECK(identity.inherited_litecoin_mweb_hrp);
     BOOST_CHECK(IsInheritedLitecoinPublicNetworkIdentity(*chainParams));
 }
 
@@ -250,6 +262,15 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)
     BOOST_CHECK(status.chain_history_clean);
     BOOST_CHECK(!status.inherited_litecoin_public_identity);
     BOOST_CHECK(status.public_network_identity_configured);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_public_identity);
+    BOOST_CHECK(status.public_network_identity.configured);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_message_start);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_default_port);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_dns_seed);
+    BOOST_CHECK(!status.public_network_identity.fixed_seeds_present);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_base58_prefixes);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_bech32_hrp);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_mweb_hrp);
     BOOST_CHECK(!IsInheritedLitecoinPublicNetworkIdentity(*chainParams));
 }
 

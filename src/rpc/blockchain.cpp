@@ -1589,6 +1589,21 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
                             {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},
                             {RPCResult::Type::BOOL, "public_network_identity_configured", "whether public network identity has been replaced instead of inheriting Litecoin message starts, addresses, ports, or seeds"},
+                            {RPCResult::Type::OBJ, "public_network_identity", "detailed public network identity replacement status",
+                            {
+                                {RPCResult::Type::BOOL, "configured", "whether public network identity has been replaced"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_message_start", "whether P2P message-start bytes still match Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_default_port", "whether the default P2P port still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_dns_seed", "whether any DNS seed hostname still matches inherited Litecoin seed infrastructure"},
+                                {RPCResult::Type::BOOL, "fixed_seeds_present", "whether fixed seed bytes are present and must be regenerated or cleared for public launch"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_base58_prefixes", "whether Base58 prefixes still match Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_bech32_hrp", "whether the Bech32 HRP still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::BOOL, "inherited_litecoin_mweb_hrp", "whether the MWEB HRP still matches Litecoin mainnet or testnet"},
+                                {RPCResult::Type::ARR, "failures", "failed public identity replacement checks",
+                                {
+                                    {RPCResult::Type::STR, "", "failure reason"},
+                                }},
+                            }},
                             {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "at_launch_tip", "whether the active chain is still at the genesis tip before launch mining starts"},
                             {RPCResult::Type::ARR, "failures", "failed readiness checks",
@@ -1718,8 +1733,43 @@ RPCHelpMan getblockchaininfo()
     const bool chain_id_configured = launch_profile.chain_id_configured;
     const bool chain_history_clean = launch_profile.chain_history_clean;
     const bool public_network_identity_configured = launch_profile.public_network_identity_configured;
+    const PublicNetworkIdentityStatus& public_network_identity = launch_profile.public_network_identity;
     const bool shielded_inactive_at_launch = launch_profile.shielded_inactive_at_launch;
     const bool at_launch_tip = ::ChainActive().Height() == 0;
+    UniValue public_network_identity_failures(UniValue::VARR);
+    if (public_network_identity.inherited_litecoin_message_start) {
+        public_network_identity_failures.push_back("P2P message start still matches Litecoin");
+    }
+    if (public_network_identity.inherited_litecoin_default_port) {
+        public_network_identity_failures.push_back("default P2P port still matches Litecoin");
+    }
+    if (public_network_identity.inherited_litecoin_dns_seed) {
+        public_network_identity_failures.push_back("DNS seed list still references Litecoin infrastructure");
+    }
+    if (public_network_identity.fixed_seeds_present) {
+        public_network_identity_failures.push_back("fixed seed list is present and must be regenerated or cleared");
+    }
+    if (public_network_identity.inherited_litecoin_base58_prefixes) {
+        public_network_identity_failures.push_back("Base58 prefixes still match Litecoin");
+    }
+    if (public_network_identity.inherited_litecoin_bech32_hrp) {
+        public_network_identity_failures.push_back("Bech32 HRP still matches Litecoin");
+    }
+    if (public_network_identity.inherited_litecoin_mweb_hrp) {
+        public_network_identity_failures.push_back("MWEB HRP still matches Litecoin");
+    }
+
+    UniValue public_network_identity_obj(UniValue::VOBJ);
+    public_network_identity_obj.pushKV("configured", public_network_identity.configured);
+    public_network_identity_obj.pushKV("inherited_litecoin_message_start", public_network_identity.inherited_litecoin_message_start);
+    public_network_identity_obj.pushKV("inherited_litecoin_default_port", public_network_identity.inherited_litecoin_default_port);
+    public_network_identity_obj.pushKV("inherited_litecoin_dns_seed", public_network_identity.inherited_litecoin_dns_seed);
+    public_network_identity_obj.pushKV("fixed_seeds_present", public_network_identity.fixed_seeds_present);
+    public_network_identity_obj.pushKV("inherited_litecoin_base58_prefixes", public_network_identity.inherited_litecoin_base58_prefixes);
+    public_network_identity_obj.pushKV("inherited_litecoin_bech32_hrp", public_network_identity.inherited_litecoin_bech32_hrp);
+    public_network_identity_obj.pushKV("inherited_litecoin_mweb_hrp", public_network_identity.inherited_litecoin_mweb_hrp);
+    public_network_identity_obj.pushKV("failures", public_network_identity_failures);
+
     UniValue launch_failures(UniValue::VARR);
     if (!snapshot_configured) {
         launch_failures.push_back("snapshot consensus parameters are not configured");
@@ -1758,6 +1808,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("chain_id_parent_version_safe", chain_id_parent_version_safe);
     launch_readiness.pushKV("chain_history_clean", chain_history_clean);
     launch_readiness.pushKV("public_network_identity_configured", public_network_identity_configured);
+    launch_readiness.pushKV("public_network_identity", public_network_identity_obj);
     launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
     launch_readiness.pushKV("at_launch_tip", at_launch_tip);
     launch_readiness.pushKV("failures", launch_failures);
