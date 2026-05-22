@@ -96,6 +96,21 @@ class ConfArgsTest(BitcoinTestFramework):
                 extra_args=[arg],
             )
 
+        snapshot_args = [
+            "-ltcsnapshotheight=123",
+            "-ltcsnapshotblockhash=" + "11" * 32,
+            "-ltcsnapshotutxoroot=" + "22" * 32,
+        ]
+        snapshot_file_error = (
+            "Error: -ltcsnapshotfile is required when rebuilding chainstate with configured Litecoin snapshot parameters. "
+            "Set -ltcsnapshotfile=<path> to the block-X snapshot manifest."
+        )
+        for reindex_arg in ["-reindex", "-reindex-chainstate"]:
+            self.nodes[0].assert_start_raises_init_error(
+                expected_msg=snapshot_file_error,
+                extra_args=snapshot_args + [reindex_arg],
+            )
+
     def test_log_buffer(self):
         with self.nodes[0].assert_debug_log(expected_msgs=['Warning: parsed potentially confusing double-negative -connect=0\n']):
             self.start_node(0, extra_args=['-noconnect=0'])
