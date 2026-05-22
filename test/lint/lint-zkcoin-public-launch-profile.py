@@ -5,6 +5,7 @@
 """Check that public zkCoin launch parameters stay fail-closed."""
 
 from pathlib import Path
+import subprocess
 import sys
 
 
@@ -17,6 +18,13 @@ LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
 DNSSEED_POLICY = ROOT_DIR / "doc" / "dnsseed-policy.md"
 SEEDS_README = ROOT_DIR / "contrib" / "seeds" / "README.md"
+CHAINPARAMS_SEEDS = ROOT_DIR / "src" / "chainparamsseeds.h"
+SEEDS_DIR = ROOT_DIR / "contrib" / "seeds"
+GENERATE_SEEDS = SEEDS_DIR / "generate-seeds.py"
+SEED_NODE_FILES = (
+    SEEDS_DIR / "nodes_main.txt",
+    SEEDS_DIR / "nodes_test.txt",
+)
 
 
 PUBLIC_LAUNCH_FAILURE = (
@@ -159,6 +167,46 @@ def fail(path, message):
 def require_text(path, needle, description):
     if needle not in path.read_text(encoding="utf8"):
         return "{} missing {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+    return None
+
+
+def seed_data_lines(path):
+    return [
+        line
+        for line in path.read_text(encoding="utf8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def require_no_checked_in_seed_entries(path):
+    data_lines = seed_data_lines(path)
+    if data_lines:
+        return "{} contains checked-in seed entries: {}".format(
+            path.relative_to(ROOT_DIR),
+            ", ".join(data_lines[:3]),
+        )
+    return None
+
+
+def require_generated_fixed_seed_header_current():
+    result = subprocess.run(
+        [sys.executable, str(GENERATE_SEEDS), str(SEEDS_DIR)],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return "{} failed: {}".format(
+            GENERATE_SEEDS.relative_to(ROOT_DIR),
+            result.stderr.strip() or "no stderr",
+        )
+
+    actual = CHAINPARAMS_SEEDS.read_text(encoding="utf8")
+    if actual != result.stdout:
+        return "{} is not generated from checked-in zkCoin seed inputs".format(
+            CHAINPARAMS_SEEDS.relative_to(ROOT_DIR)
+        )
     return None
 
 
@@ -413,6 +461,7 @@ def main():
         ("fail launch readiness", "fail-closed seed readiness documentation"),
         ("zkCoin-specific seed", "zkCoin seed infrastructure requirement"),
         ("infrastructure exists", "zkCoin seed infrastructure requirement"),
+        ("checked-in `nodes_main.txt` and `nodes_test.txt`", "empty seed input documentation"),
         ("Generate crawler output from the intended zkCoin public network", "zkCoin crawler source requirement"),
         ("generate-seeds.py` only from zkCoin node lists", "fixed seed source requirement"),
     )
@@ -420,6 +469,25 @@ def main():
         error = require_text(SEEDS_README, needle, description)
         if error:
             return fail(SEEDS_README, error)
+
+    for seed_node_file in SEED_NODE_FILES:
+        error = require_no_checked_in_seed_entries(seed_node_file)
+        if error:
+            return fail(seed_node_file, error)
+
+    chainparams_seed_checks = (
+        ("List of fixed seed nodes for the zkCoin network", "zkCoin fixed seed header"),
+        ("static const uint8_t chainparams_seed_main[] = {\n};", "empty mainnet fixed seed array"),
+        ("static const uint8_t chainparams_seed_test[] = {\n};", "empty testnet fixed seed array"),
+    )
+    for needle, description in chainparams_seed_checks:
+        error = require_text(CHAINPARAMS_SEEDS, needle, description)
+        if error:
+            return fail(CHAINPARAMS_SEEDS, error)
+
+    error = require_generated_fixed_seed_header_current()
+    if error:
+        return fail(CHAINPARAMS_SEEDS, error)
 
     return 0
 

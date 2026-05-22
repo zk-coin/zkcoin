@@ -7,7 +7,8 @@ other utilities in [contrib/seeds](/contrib/seeds).
 zkCoin public release builds must not generate DNS or fixed seeds from
 inherited Litecoin seed data. Public `main` and `testnet` currently clear DNS
 and fixed seeds and fail launch readiness until zkCoin-specific seed
-infrastructure exists.
+infrastructure exists. The checked-in `nodes_main.txt` and `nodes_test.txt`
+files are intentionally empty except for comments.
 
 Before enabling public seeds:
 
