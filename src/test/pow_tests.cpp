@@ -234,9 +234,9 @@ static void check_public_launch_profile_fails_closed(const ArgsManager& args, co
     BOOST_CHECK(identity.message_start_shape_valid);
     BOOST_CHECK(identity.inherited_litecoin_default_port);
     BOOST_CHECK(identity.default_port_shape_valid);
-    BOOST_CHECK(identity.inherited_litecoin_dns_seed);
-    BOOST_CHECK(identity.dns_seeds_shape_valid);
-    BOOST_CHECK(identity.fixed_seeds_present);
+    BOOST_CHECK(!identity.inherited_litecoin_dns_seed);
+    BOOST_CHECK(!identity.dns_seeds_shape_valid);
+    BOOST_CHECK(!identity.fixed_seeds_present);
     BOOST_CHECK(identity.inherited_litecoin_base58_prefixes);
     BOOST_CHECK(identity.base58_prefixes_shape_valid);
     BOOST_CHECK(identity.base58_prefixes_unique);
