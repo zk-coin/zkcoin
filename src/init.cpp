@@ -755,6 +755,23 @@ static bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainpa
         !chainparams.FixedSeeds().empty();
 }
 
+static bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
+{
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const ChainTxData& tx_data = chainparams.TxData();
+    const MapCheckpoints& checkpoints = chainparams.Checkpoints().mapCheckpoints;
+    const bool checkpoints_launch_neutral = checkpoints.empty() ||
+        (checkpoints.size() == 1 &&
+            checkpoints.begin()->first == 0 &&
+            checkpoints.begin()->second == chainparams.GenesisBlock().GetHash());
+    return consensus.nMinimumChainWork.IsNull() &&
+        consensus.defaultAssumeValid.IsNull() &&
+        checkpoints_launch_neutral &&
+        tx_data.nTime == 0 &&
+        tx_data.nTxCount == 0 &&
+        tx_data.dTxRate == 0;
+}
+
 static bool HasConfiguredPublicLaunchProfile(const CChainParams& chainparams)
 {
     const Consensus::Params& consensus = chainparams.GetConsensus();
@@ -770,6 +787,7 @@ static bool HasConfiguredPublicLaunchProfile(const CChainParams& chainparams)
     return snapshot_configured &&
         auxpow_configured &&
         shielded_inactive_at_launch &&
+        HasLaunchNeutralChainHistory(chainparams) &&
         !IsInheritedLitecoinPublicNetworkIdentity(chainparams);
 }
 
@@ -1404,7 +1422,8 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             return InitError(Untranslated(
                 "zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams: "
                 "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
-                "keep shielded transactions inactive for the first launch block, and replace the inherited Litecoin public network identity."));
+                "keep shielded transactions inactive for the first launch block, clear inherited Litecoin chain history assumptions, "
+                "and replace the inherited Litecoin public network identity."));
         }
     }
     std::string shielded_deployment_error;

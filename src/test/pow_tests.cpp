@@ -163,6 +163,19 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     BOOST_CHECK(!consensus.auxpow.IsEnabled(0));
     BOOST_CHECK_NE(consensus.auxpow.nChainId, 0U);
     BOOST_CHECK_LT(consensus.auxpow.nChainId, 0x8000U);
+    BOOST_CHECK(consensus.nMinimumChainWork.IsNull());
+    BOOST_CHECK(consensus.defaultAssumeValid.IsNull());
+
+    const auto& checkpoints = chainParams->Checkpoints().mapCheckpoints;
+    BOOST_CHECK(checkpoints.empty() ||
+        (checkpoints.size() == 1 &&
+            checkpoints.begin()->first == 0 &&
+            checkpoints.begin()->second == consensus.hashGenesisBlock));
+
+    const auto& tx_data = chainParams->TxData();
+    BOOST_CHECK_EQUAL(tx_data.nTime, 0);
+    BOOST_CHECK_EQUAL(tx_data.nTxCount, 0);
+    BOOST_CHECK_EQUAL(tx_data.dTxRate, 0);
 
     // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
     /* Litecoin: we allow overflowing by 1 bit

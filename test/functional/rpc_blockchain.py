@@ -115,6 +115,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(sorted(res['launch_readiness'].keys()), [
             'at_launch_tip',
             'auxpow_active_at_launch',
+            'chain_history_clean',
             'chain_id_configured',
             'chain_id_parent_version_safe',
             'failures',
@@ -126,6 +127,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['ready'], False)
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
+        assert_equal(res['launch_readiness']['chain_history_clean'], True)
 
         self.restart_node(0, ['-stopatheight=207'])
         res = self.nodes[0].getblockchaininfo()
@@ -135,6 +137,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['ready'], False)
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
+        assert_equal(res['launch_readiness']['chain_history_clean'], True)
 
         self.restart_node(0, ['-stopatheight=207', '-prune=2200', '-vbparams=mweb:-2:0'])
         res = self.nodes[0].getblockchaininfo()
