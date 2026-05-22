@@ -221,6 +221,7 @@ static void check_public_launch_profile_fails_closed(const ArgsManager& args, co
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
     BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(!status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
     BOOST_CHECK(status.chain_history_clean);
     BOOST_CHECK(status.inherited_litecoin_public_identity);
@@ -258,6 +259,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
     BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
     BOOST_CHECK(status.chain_history_clean);
     BOOST_CHECK(!status.inherited_litecoin_public_identity);

@@ -27,6 +27,7 @@ struct PublicLaunchProfileStatus {
     bool chain_id_encodable{false};
     bool chain_id_parent_version_safe{false};
     bool chain_id_configured{false};
+    bool script_rules_active_at_launch{false};
     bool shielded_inactive_at_launch{false};
     bool chain_history_clean{false};
     PublicNetworkIdentityStatus public_network_identity;
@@ -37,6 +38,7 @@ struct PublicLaunchProfileStatus {
 
 bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id);
 bool HasLaunchNeutralChainHistory(const CChainParams& chainparams);
+bool HasLaunchActiveScriptRules(const CChainParams& chainparams);
 PublicNetworkIdentityStatus GetPublicNetworkIdentityStatus(const CChainParams& chainparams);
 bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams);
 PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chainparams);
