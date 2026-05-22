@@ -38,7 +38,8 @@ bool CAuxPow::check(const uint256& hashAuxBlock, int nChainId, const Consensus::
         return false;
     }
 
-    if (vChainMerkleBranch.size() > 30) {
+    if (vMerkleBranch.size() > MAX_AUXPOW_MERKLE_BRANCH_LENGTH ||
+        vChainMerkleBranch.size() > MAX_AUXPOW_MERKLE_BRANCH_LENGTH) {
         return false;
     }
 
