@@ -17,6 +17,7 @@ VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
 GITIAN_BUILD = ROOT_DIR / "contrib" / "gitian-build.py"
 CONFIGURE = ROOT_DIR / "configure.ac"
 MAKEFILE_AM = ROOT_DIR / "Makefile.am"
+SRC_MAKEFILE_AM = ROOT_DIR / "src" / "Makefile.am"
 UPSTREAM_VERIFY_ENV = "ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES"
 UPSTREAM_GITIAN_ENV = "ZKCOIN_ALLOW_BITCOIN_GITIAN_BUILD"
 REQUIRED_BLOCKERS = {
@@ -30,6 +31,28 @@ REQUIRED_BLOCKERS = {
     "windows_signing_key",
     "verifybinaries_replacement",
 }
+REQUIRED_RUST_SHIELDED_VERIFIER_DIST = (
+    "RUST_SHIELDED_VERIFIER_DIST",
+    "$(RUST_SHIELDED_VERIFIER_DIST)",
+    "rust/shielded-verifier/Cargo.lock",
+    "rust/shielded-verifier/Cargo.toml",
+    "rust/shielded-verifier/README.md",
+    "rust/shielded-verifier/examples/orchard_mint_vector.rs",
+    "rust/shielded-verifier/examples/orchard_spend_vector.rs",
+    "rust/shielded-verifier/include/zkc_shielded_verifier.h",
+    "rust/shielded-verifier/scripts/abi-smoke.sh",
+    "rust/shielded-verifier/scripts/fixture-consensus-smoke.sh",
+    "rust/shielded-verifier/scripts/orchard-consensus-smoke.sh",
+    "rust/shielded-verifier/scripts/unsupported-consensus-smoke.sh",
+    "rust/shielded-verifier/src/lib.rs",
+    "rust/shielded-verifier/tests/abi_smoke.c",
+    "rust/shielded-verifier/tests/cxx_abi_smoke.cpp",
+    "rust/shielded-verifier/tests/cxx_fixture_consensus_smoke.cpp",
+    "rust/shielded-verifier/tests/cxx_orchard_consensus_smoke.cpp",
+    "rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp",
+    "rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt",
+    "rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt",
+)
 
 
 def fail(message):
@@ -41,6 +64,20 @@ def require_text(path, needle, description):
     text = path.read_text(encoding="utf8")
     if needle not in text:
         return "{} missing {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+    return None
+
+
+def require_src_dist_entries():
+    text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
+    missing = [entry for entry in REQUIRED_RUST_SHIELDED_VERIFIER_DIST if entry not in text]
+    if missing:
+        return "{} missing Rust shielded verifier dist entries: {}".format(
+            SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    dist_lines = [line for line in text.splitlines() if line.startswith("RUST_SHIELDED_VERIFIER_DIST")]
+    if any("rust/shielded-verifier/target" in line for line in dist_lines):
+        return "{} must not ship Cargo target build outputs".format(SRC_MAKEFILE_AM.relative_to(ROOT_DIR))
     return None
 
 
@@ -122,6 +159,10 @@ def main():
         error = require_text(path, needle, description)
         if error:
             return fail(error)
+
+    error = require_src_dist_entries()
+    if error:
+        return fail(error)
 
     return 0
 

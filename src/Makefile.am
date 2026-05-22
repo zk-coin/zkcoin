@@ -786,6 +786,25 @@ CTAES_DIST += crypto/ctaes/ctaes.h
 CTAES_DIST += crypto/ctaes/README.md
 CTAES_DIST += crypto/ctaes/test.c
 
+RUST_SHIELDED_VERIFIER_DIST = rust/shielded-verifier/Cargo.lock
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/Cargo.toml
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/README.md
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/examples/orchard_mint_vector.rs
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/examples/orchard_spend_vector.rs
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/include/zkc_shielded_verifier.h
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/scripts/abi-smoke.sh
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/scripts/fixture-consensus-smoke.sh
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/scripts/orchard-consensus-smoke.sh
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/scripts/unsupported-consensus-smoke.sh
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/src/lib.rs
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/abi_smoke.c
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_abi_smoke.cpp
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_fixture_consensus_smoke.cpp
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_orchard_consensus_smoke.cpp
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt
+
 CLEANFILES = $(EXTRA_LIBRARIES)
 
 CLEANFILES += *.gcda *.gcno
@@ -808,7 +827,7 @@ CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
 CLEANFILES += obj/build.h
 
-EXTRA_DIST = $(CTAES_DIST)
+EXTRA_DIST = $(CTAES_DIST) $(RUST_SHIELDED_VERIFIER_DIST)
 
 
 config/bitcoin-config.h: config/stamp-h1
