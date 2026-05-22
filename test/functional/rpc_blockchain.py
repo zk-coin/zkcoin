@@ -134,17 +134,36 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['script_rules_active_at_launch'], True)
         assert_equal(res['launch_readiness']['public_network_identity_configured'], True)
         assert_equal(sorted(res['launch_readiness']['public_network_identity'].keys()), [
+            'base58_prefixes_shape_valid',
+            'base58_prefixes_unique',
+            'bech32_hrp_shape_valid',
             'configured',
+            'default_port_shape_valid',
+            'dns_seeds_shape_valid',
             'failures',
             'fixed_seeds_present',
+            'hrps_unique',
             'inherited_litecoin_base58_prefixes',
             'inherited_litecoin_bech32_hrp',
             'inherited_litecoin_default_port',
             'inherited_litecoin_dns_seed',
             'inherited_litecoin_message_start',
             'inherited_litecoin_mweb_hrp',
+            'message_start_shape_valid',
+            'mweb_hrp_shape_valid',
         ])
         assert_equal(res['launch_readiness']['public_network_identity']['configured'], True)
+        for field in [
+            'base58_prefixes_shape_valid',
+            'base58_prefixes_unique',
+            'bech32_hrp_shape_valid',
+            'default_port_shape_valid',
+            'dns_seeds_shape_valid',
+            'hrps_unique',
+            'message_start_shape_valid',
+            'mweb_hrp_shape_valid',
+        ]:
+            assert_equal(res['launch_readiness']['public_network_identity'][field], True)
         assert_equal(res['launch_readiness']['public_network_identity']['failures'], [])
 
         self.restart_node(0, ['-stopatheight=207'])

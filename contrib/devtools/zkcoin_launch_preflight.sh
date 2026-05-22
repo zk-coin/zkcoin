@@ -69,12 +69,20 @@ REQUIRED_READINESS_FIELDS = REQUIRED_READINESS_BOOL_FIELDS + ("public_network_id
 REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS = (
     "configured",
     "inherited_litecoin_message_start",
+    "message_start_shape_valid",
     "inherited_litecoin_default_port",
+    "default_port_shape_valid",
     "inherited_litecoin_dns_seed",
+    "dns_seeds_shape_valid",
     "fixed_seeds_present",
     "inherited_litecoin_base58_prefixes",
+    "base58_prefixes_shape_valid",
+    "base58_prefixes_unique",
     "inherited_litecoin_bech32_hrp",
+    "bech32_hrp_shape_valid",
     "inherited_litecoin_mweb_hrp",
+    "mweb_hrp_shape_valid",
+    "hrps_unique",
 )
 REQUIRED_PUBLIC_IDENTITY_FIELDS = REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS + ("failures",)
 REQUIRED_DETAIL_FIELDS = {
@@ -184,12 +192,20 @@ print(f"  script rules active at launch: {str(readiness['script_rules_active_at_
 print(f"  chain history clean: {str(readiness['chain_history_clean']).lower()}")
 print(f"  public network identity configured: {str(readiness['public_network_identity_configured']).lower()}")
 print(f"  public identity message start inherited: {str(public_identity['inherited_litecoin_message_start']).lower()}")
+print(f"  public identity message start shape valid: {str(public_identity['message_start_shape_valid']).lower()}")
 print(f"  public identity default port inherited: {str(public_identity['inherited_litecoin_default_port']).lower()}")
+print(f"  public identity default port shape valid: {str(public_identity['default_port_shape_valid']).lower()}")
 print(f"  public identity DNS seed inherited: {str(public_identity['inherited_litecoin_dns_seed']).lower()}")
+print(f"  public identity DNS seed shape valid: {str(public_identity['dns_seeds_shape_valid']).lower()}")
 print(f"  public identity fixed seeds present: {str(public_identity['fixed_seeds_present']).lower()}")
 print(f"  public identity Base58 prefixes inherited: {str(public_identity['inherited_litecoin_base58_prefixes']).lower()}")
+print(f"  public identity Base58 prefix shape valid: {str(public_identity['base58_prefixes_shape_valid']).lower()}")
+print(f"  public identity Base58 prefixes unique: {str(public_identity['base58_prefixes_unique']).lower()}")
 print(f"  public identity Bech32 HRP inherited: {str(public_identity['inherited_litecoin_bech32_hrp']).lower()}")
+print(f"  public identity Bech32 HRP shape valid: {str(public_identity['bech32_hrp_shape_valid']).lower()}")
 print(f"  public identity MWEB HRP inherited: {str(public_identity['inherited_litecoin_mweb_hrp']).lower()}")
+print(f"  public identity MWEB HRP shape valid: {str(public_identity['mweb_hrp_shape_valid']).lower()}")
+print(f"  public identity HRPs unique: {str(public_identity['hrps_unique']).lower()}")
 print(f"  shielded inactive at launch: {str(readiness['shielded_inactive_at_launch']).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
 print(f"  shielded scaffold proofs: {str(shielded.get('scaffold_proofs')).lower()}")

@@ -97,15 +97,15 @@ Both are intentionally present before behavior changes so tests and review can t
   imported Litecoin outputs must be active for the first launch block, shielded
   transactions must remain inactive for the first launch block, inherited Litecoin chain-history
   assumptions must be cleared, and the inherited Litecoin public network identity
-  must be replaced, including public magic, ports, address prefixes, HRPs, and
-  seeds. Regtest remains the only place where these values can be overridden by
+  must be replaced with structurally valid public magic, ports, DNS seeds,
+  unique address prefixes, and distinct HRPs. Regtest remains the only place where these values can be overridden by
   CLI for rehearsal.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
 - `getauxblock` and `createauxblock` expose Dogecoin-style `target` plus `_target` for Namecoin-compatible pool software; both are the expanded target in AuxPoW byte order.
 - `getauxblock <hash> <auxpow>` and `submitauxblock <hash> <auxpow>` return Dogecoin-style booleans on submission.
-- `getblockchaininfo.launch_readiness` exposes a base-launch preflight summary. It is only ready at the genesis launch tip, before the first child block is mined, when the block-X snapshot is configured and imported, AuxPoW is active for the first post-genesis launch block, the AuxPoW chain id is strict, encodable, and outside Litecoin's parent versionbits-derived chain-id range, legacy and Taproot script validation rules are active for the first launch block, inherited Litecoin chain-history assumptions are clear, the public network identity is not inherited from Litecoin, and shielded transactions are inactive for the first launch block.
+- `getblockchaininfo.launch_readiness` exposes a base-launch preflight summary. It is only ready at the genesis launch tip, before the first child block is mined, when the block-X snapshot is configured and imported, AuxPoW is active for the first post-genesis launch block, the AuxPoW chain id is strict, encodable, and outside Litecoin's parent versionbits-derived chain-id range, legacy and Taproot script validation rules are active for the first launch block, inherited Litecoin chain-history assumptions are clear, the public network identity is not inherited from Litecoin and has valid public-network shape, and shielded transactions are inactive for the first launch block.
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.
 - `importsnapshotmanifest` imports the normalized snapshot UTXOs into the launch chainstate. It is guarded so it only runs at the genesis chain tip, and it enforces configured snapshot constants unless explicitly allowed on test chains.
 
@@ -189,4 +189,4 @@ contrib/devtools/zkcoin_launch_preflight.sh \
   ./src/litecoin-cli -datadir=/srv/zkcoin-data
 ```
 
-The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined and to report `launch_readiness.script_rules_active_at_launch=true`, `launch_readiness.chain_history_clean=true`, and `launch_readiness.public_network_identity_configured=true`. When public network identity is not configured, inspect `launch_readiness.public_network_identity` for the inherited message-start, port, seed, Base58, Bech32, and MWEB HRP checks that still need replacement. It also fails closed unless scaffold proofs are disabled, `shielded_pool.real_proof_backend` is `orchard-v1`, and `shielded_pool.real_proof_verification` is `true`.
+The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined and to report `launch_readiness.script_rules_active_at_launch=true`, `launch_readiness.chain_history_clean=true`, and `launch_readiness.public_network_identity_configured=true`. When public network identity is not configured, inspect `launch_readiness.public_network_identity` for inherited message-start, port, seed, Base58, Bech32, and MWEB HRP checks plus malformed message-start, reserved port, missing or malformed DNS seed, invalid or duplicate Base58 prefix, and non-distinct HRP failures. It also fails closed unless scaffold proofs are disabled, `shielded_pool.real_proof_backend` is `orchard-v1`, and `shielded_pool.real_proof_verification` is `true`.
