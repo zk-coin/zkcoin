@@ -32,6 +32,9 @@
         "path": "test/functional/feature_config_args.py"
       },
       {
+        "path": "test/functional/feature_signet.py"
+      },
+      {
         "path": "test/functional/feature_ltc_snapshot_script.py"
       },
       {
@@ -100,6 +103,9 @@
       },
       {
         "path": "test/functional/feature_local_ltc_fork_auxpow.py"
+      },
+      {
+        "path": "test/functional/feature_signet.py"
       },
       {
         "path": "test/functional/feature_ltc_snapshot_launch.py"

@@ -116,6 +116,9 @@ echo "Running Rust shielded verifier unit and ABI smoke tests"
 echo "Running launch consensus-parameter override guard test"
 test/functional/feature_config_args.py
 
+echo "Running explicit unsupported signet startup test"
+test/functional/feature_signet.py
+
 echo "Running Litecoin snapshot operator script test"
 test/functional/feature_ltc_snapshot_script.py
 

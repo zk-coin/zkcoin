@@ -14,6 +14,7 @@ CHAINPARAMS = ROOT_DIR / "src" / "chainparams.cpp"
 LAUNCHPROFILE = ROOT_DIR / "src" / "launchprofile.cpp"
 INIT = ROOT_DIR / "src" / "init.cpp"
 POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
+SIGNET_TEST = ROOT_DIR / "test" / "functional" / "feature_signet.py"
 LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
 DNSSEED_POLICY = ROOT_DIR / "doc" / "dnsseed-policy.md"
@@ -341,8 +342,8 @@ def main():
 
     chainparams_checks = (
         (
-            "return std::unique_ptr<CChainParams>(new CTestNetParams()); // TODO: Support SigNet",
-            "signet inherited testnet launch profile",
+            "zkCoin signet is disabled until dedicated zkCoin signet chainparams are implemented.",
+            "signet disabled until dedicated zkCoin chainparams exist",
         ),
         (
             "chainTxData = ChainTxData{\n"
@@ -404,8 +405,8 @@ def main():
             "testnet fail-closed runtime coverage",
         ),
         (
-            "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::SIGNET);",
-            "signet fail-closed runtime coverage",
+            "ChainParams_SIGNET_disabled_until_dedicated_params_exist",
+            "signet explicit unsupported unit coverage",
         ),
         ("identity.message_start_shape_valid", "runtime public identity message-start shape coverage"),
         ("identity.base58_prefixes_unique", "runtime public identity Base58 uniqueness coverage"),
@@ -415,6 +416,18 @@ def main():
         error = require_text(POW_TESTS, needle, description)
         if error:
             return fail(POW_TESTS, error)
+
+    signet_test_checks = (
+        ("SignetUnsupportedTest", "signet unsupported functional test"),
+        ("setup_network", "signet test avoids automatic startup"),
+        ("assert_start_raises_init_error", "signet startup rejection assertion"),
+        ("zkCoin signet is disabled until dedicated", "signet disabled startup error"),
+        ("zkCoin signet chainparams are implemented.", "signet disabled startup error"),
+    )
+    for needle, description in signet_test_checks:
+        error = require_text(SIGNET_TEST, needle, description)
+        if error:
+            return fail(SIGNET_TEST, error)
 
     preflight_checks = (
         ("message_start_shape_valid", "preflight requires message-start shape detail"),

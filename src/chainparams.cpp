@@ -492,7 +492,7 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
     } else if (chain == CBaseChainParams::TESTNET) {
         return std::unique_ptr<CChainParams>(new CTestNetParams());
     } else if (chain == CBaseChainParams::SIGNET) {
-        return std::unique_ptr<CChainParams>(new CTestNetParams()); // TODO: Support SigNet
+        throw std::runtime_error(strprintf("%s: zkCoin signet is disabled until dedicated zkCoin signet chainparams are implemented.", __func__));
     } else if (chain == CBaseChainParams::REGTEST) {
         return std::unique_ptr<CChainParams>(new CRegTestParams(args));
     }
