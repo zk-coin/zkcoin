@@ -48,7 +48,9 @@ run_step src/test/test_litecoin --run_test=auxpow_tests
 run_step src/test/test_litecoin --run_test=utxo_snapshot_tests
 
 run_step test/functional/feature_config_args.py
+run_step test/functional/feature_ltc_snapshot_script.py
 run_step test/functional/feature_launch_preflight_script.py
+run_step test/functional/feature_shielded_pool.py
 run_step test/functional/rpc_blockchain.py
 run_step test/functional/feature_auxpow_rpc.py
 run_step test/functional/feature_ltc_snapshot_launch.py

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "canonical": {
+    "configure_flags": [
+      "--enable-rust-shielded-verifier",
+      "--enable-rust-orchard-verifier"
+    ],
+    "unit_tests": [
+      "pow_tests",
+      "shielded_tests",
+      "auxpow_tests",
+      "utxo_snapshot_tests"
+    ],
+    "rust_verifier_commands": [
+      "cargo test --locked",
+      "cargo test --locked --features verifier-fixture",
+      "cargo test --locked --features orchard-verifier",
+      "scripts/abi-smoke.sh",
+      "scripts/unsupported-consensus-smoke.sh",
+      "scripts/fixture-consensus-smoke.sh",
+      "scripts/orchard-consensus-smoke.sh"
+    ],
+    "functional_tests": [
+      {
+        "path": "test/functional/feature_config_args.py"
+      },
+      {
+        "path": "test/functional/feature_ltc_snapshot_script.py"
+      },
+      {
+        "path": "test/functional/feature_launch_preflight_script.py"
+      },
+      {
+        "path": "test/functional/feature_shielded_pool.py"
+      },
+      {
+        "path": "test/functional/feature_auxpow_rpc.py"
+      },
+      {
+        "path": "test/functional/rpc_blockchain.py"
+      },
+      {
+        "path": "test/functional/feature_local_ltc_fork_auxpow.py"
+      },
+      {
+        "path": "test/functional/feature_ltc_snapshot_launch.py"
+      },
+      {
+        "path": "test/functional/feature_orchard_auxpow_realproof.py",
+        "env": {
+          "ZKCOIN_REQUIRE_ORCHARD_VERIFIER": "1"
+        }
+      }
+    ]
+  },
+  "smoke": {
+    "lints": [
+      "test/lint/lint-zkcoin-launch-validation.sh",
+      "test/lint/lint-zkcoin-product-identity.sh"
+    ],
+    "unit_tests": [
+      "pow_tests",
+      "auxpow_tests",
+      "utxo_snapshot_tests"
+    ],
+    "functional_tests": [
+      {
+        "path": "test/functional/feature_config_args.py"
+      },
+      {
+        "path": "test/functional/feature_ltc_snapshot_script.py"
+      },
+      {
+        "path": "test/functional/feature_launch_preflight_script.py"
+      },
+      {
+        "path": "test/functional/feature_shielded_pool.py"
+      },
+      {
+        "path": "test/functional/rpc_blockchain.py"
+      },
+      {
+        "path": "test/functional/feature_auxpow_rpc.py"
+      },
+      {
+        "path": "test/functional/feature_ltc_snapshot_launch.py"
+      }
+    ]
+  }
+}

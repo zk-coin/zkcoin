@@ -86,6 +86,9 @@ make -C src clean
 echo "Building Orchard-enabled litecoind, litecoin-cli, and shielded unit tests with ${JOBS} jobs"
 make -C src -j"$JOBS" litecoind litecoin-cli test/test_litecoin
 
+echo "Running public launch profile unit tests"
+src/test/test_litecoin --run_test=pow_tests
+
 echo "Running shielded unit tests"
 src/test/test_litecoin --run_test=shielded_tests
 
