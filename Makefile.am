@@ -279,7 +279,8 @@ EXTRA_DIST = $(DIST_SHARE) $(DIST_CONTRIB) $(WINDOWS_PACKAGING) $(OSX_PACKAGING)
 
 EXTRA_DIST += \
     test/functional \
-    test/fuzz
+    test/fuzz \
+    test/previous_releases.json
 
 EXTRA_DIST += \
     test/util/bitcoin-util-test.py \

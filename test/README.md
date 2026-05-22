@@ -84,6 +84,16 @@ Run all possible tests with
 test/functional/test_runner.py --extended
 ```
 
+Some extended compatibility tests still use inherited Litecoin release
+artifacts. `test/get_previous_releases.py` fails closed for zkCoin previous
+release downloads until signed zkCoin artifacts are listed in
+`test/previous_releases.json`. To run the inherited Litecoin compatibility lane
+explicitly, pass `--upstream-litecoin-compat`:
+
+```
+test/get_previous_releases.py --upstream-litecoin-compat -b v0.18.1 v0.17.1 v0.16.3
+```
+
 By default, up to 4 tests will be run in parallel by test_runner. To specify
 how many jobs to run, append `--jobs=n`
 

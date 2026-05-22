@@ -1,0 +1,29 @@
+{
+  "project": "zkcoin",
+  "status": "no_zkcoin_previous_release_artifacts",
+  "schema_version": 1,
+  "zkcoin_releases": [],
+  "artifact_fields": [
+    "version",
+    "platform",
+    "filename",
+    "sha256",
+    "url",
+    "binary_names"
+  ],
+  "inherited_litecoin_compatibility": {
+    "requires_flag": "--upstream-litecoin-compat",
+    "source_repository": "https://github.com/litecoin-project/litecoin",
+    "download_base_url": "https://download.litecoin.org/",
+    "binary_names": [
+      "litecoind",
+      "litecoin-cli",
+      "litecoin-tx"
+    ],
+    "purpose": "Run inherited Litecoin compatibility tests only. This is not zkCoin previous-release validation."
+  },
+  "notes": [
+    "Add signed zkCoin release artifact entries before enabling zkCoin previous-release downloads.",
+    "Each zkCoin artifact entry must include a sha256 checksum and the binary names extracted by the test framework."
+  ]
+}
