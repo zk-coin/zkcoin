@@ -11,6 +11,10 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <string>
+#include <utility>
+#include <vector>
+
 BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
 
 /* Test calculation of next difficulty target with no constraints applying */
@@ -231,6 +235,21 @@ public:
         m_is_test_chain = false;
         m_is_mockable_chain = false;
     }
+
+    void SetMessageStart(unsigned char a, unsigned char b, unsigned char c, unsigned char d)
+    {
+        pchMessageStart[0] = a;
+        pchMessageStart[1] = b;
+        pchMessageStart[2] = c;
+        pchMessageStart[3] = d;
+    }
+
+    void SetDefaultPort(int port) { nDefaultPort = port; }
+    void SetDnsSeeds(std::vector<std::string> seeds) { vSeeds = std::move(seeds); }
+    void SetFixedSeeds(std::vector<uint8_t> seeds) { vFixedSeeds = std::move(seeds); }
+    void SetBase58Prefix(Base58Type type, std::vector<unsigned char> prefix) { base58Prefixes[type] = std::move(prefix); }
+    void SetBech32Hrp(std::string hrp) { bech32_hrp = std::move(hrp); }
+    void SetMwebHrp(std::string hrp) { mweb_hrp = std::move(hrp); }
 };
 
 BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockable_values)
@@ -257,6 +276,130 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockab
     BOOST_CHECK(identity.mweb_hrp_shape_valid);
     BOOST_CHECK(identity.hrps_unique);
     BOOST_CHECK(!IsInheritedLitecoinPublicNetworkIdentity(chainParams));
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_or_malformed_values)
+{
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMessageStart(0xfb, 0xc0, 0xb6, 0xdb);
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_message_start);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMessageStart(0x5a, 0x4b, 0x43, 0x4e);
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.message_start_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetDefaultPort(9333);
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_default_port);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetDefaultPort(1024);
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.default_port_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetDnsSeeds({"seed.litecoin.example"});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_dns_seed);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetDnsSeeds({"Seed.zkcoin.example"});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.dns_seeds_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetFixedSeeds({0x01});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.fixed_seeds_present);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBase58Prefix(CChainParams::PUBKEY_ADDRESS, {48});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_base58_prefixes);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBase58Prefix(CChainParams::SCRIPT_ADDRESS, {75});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.base58_prefixes_unique);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBase58Prefix(CChainParams::EXT_SECRET_KEY, {0x05});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.base58_prefixes_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBech32Hrp("ltc");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_bech32_hrp);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBech32Hrp("ZKC");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.bech32_hrp_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMwebHrp("ltcmweb");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(identity.inherited_litecoin_mweb_hrp);
+        BOOST_CHECK(identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMwebHrp("ZKCMWEB");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.mweb_hrp_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMwebHrp("zkc");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.hrps_unique);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
 }
 
 static void check_public_launch_profile_fails_closed(const ArgsManager& args, const std::string& chain_name)

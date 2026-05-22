@@ -428,9 +428,14 @@ def main():
             "runtime positive non-mockable public identity unit test",
         ),
         (
+            "ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_or_malformed_values",
+            "runtime negative non-mockable public identity unit test",
+        ),
+        (
             "CNonMockablePublicIdentityParams",
             "test-only non-mockable public identity chainparams",
         ),
+        ("chainParams.SetFixedSeeds({0x01});", "runtime public identity fixed seed rejection coverage"),
         (
             "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);",
             "mainnet fail-closed runtime coverage",
