@@ -66,7 +66,7 @@ REQUIRED_READINESS_FIELDS = REQUIRED_READINESS_BOOL_FIELDS + ("failures",)
 REQUIRED_DETAIL_FIELDS = {
     "ltc_snapshot": ("height", "block_hash", "import_hash"),
     "auxpow": ("start_height", "chain_id", "strict_chain_id", "parent_version_safe"),
-    "shielded_pool": ("start_height",),
+    "shielded_pool": ("start_height", "scaffold_proofs", "real_proof_backend", "real_proof_verification"),
 }
 
 schema_errors = []
@@ -100,6 +100,15 @@ for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
         schema_errors.append(f"missing getblockchaininfo.{section} fields: " + ", ".join(missing_fields))
     detail_sections[section] = value
 
+shielded_detail = detail_sections.get("shielded_pool")
+if shielded_detail is not None:
+    if "scaffold_proofs" in shielded_detail and type(shielded_detail["scaffold_proofs"]) is not bool:
+        schema_errors.append("getblockchaininfo.shielded_pool.scaffold_proofs must be a boolean")
+    if "real_proof_verification" in shielded_detail and type(shielded_detail["real_proof_verification"]) is not bool:
+        schema_errors.append("getblockchaininfo.shielded_pool.real_proof_verification must be a boolean")
+    if "real_proof_backend" in shielded_detail and not isinstance(shielded_detail["real_proof_backend"], str):
+        schema_errors.append("getblockchaininfo.shielded_pool.real_proof_backend must be a string")
+
 if schema_errors:
     print("error: malformed launch preflight response", file=sys.stderr)
     for error in schema_errors:
@@ -128,13 +137,24 @@ print(f"  chain id configured: {str(readiness['chain_id_configured']).lower()}")
 print(f"  chain id parent version safe: {str(readiness['chain_id_parent_version_safe']).lower()}")
 print(f"  shielded inactive at launch: {str(readiness['shielded_inactive_at_launch']).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
+print(f"  shielded scaffold proofs: {str(shielded.get('scaffold_proofs')).lower()}")
+print(f"  shielded real proof backend: {shielded.get('real_proof_backend')}")
+print(f"  shielded real proof verification: {str(shielded.get('real_proof_verification')).lower()}")
 
 false_ready_fields = [
     field for field in REQUIRED_READINESS_BOOL_FIELDS
     if field != "ready" and readiness[field] is not True
 ]
 
-if readiness["ready"] is True and failures == [] and not false_ready_fields:
+posture_failures = []
+if shielded["scaffold_proofs"] is not False:
+    posture_failures.append("shielded scaffold proofs are enabled")
+if shielded["real_proof_backend"] != "orchard-v1":
+    posture_failures.append(f"shielded real proof backend is not orchard-v1: {shielded['real_proof_backend']}")
+if shielded["real_proof_verification"] is not True:
+    posture_failures.append("shielded real proof verification is not available")
+
+if readiness["ready"] is True and failures == [] and not false_ready_fields and not posture_failures:
     print("Launch preflight passed.")
     sys.exit(0)
 
@@ -145,6 +165,10 @@ if readiness["ready"] is True and false_ready_fields:
         + ", ".join(false_ready_fields),
         file=sys.stderr,
     )
+if posture_failures:
+    print("Operator posture failures:", file=sys.stderr)
+    for failure in posture_failures:
+        print(f"  - {failure}", file=sys.stderr)
 if failures:
     print("Failures:", file=sys.stderr)
     for failure in failures:

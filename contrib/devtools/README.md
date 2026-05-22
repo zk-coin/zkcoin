@@ -11,6 +11,10 @@ backend, rebuilds the node, and runs AuxPoW, snapshot, shielded, Orchard-feature
 Rust, launch argument guards, snapshot operator-script guards, launch preflight
 guards, and real-proof functional regressions together.
 
+The launch preflight guard also checks the shielded proof posture reported by
+`getblockchaininfo`: scaffold proofs must be disabled, the real proof backend
+must be `orchard-v1`, and real proof verification must be available.
+
 Example:
 
 ```bash

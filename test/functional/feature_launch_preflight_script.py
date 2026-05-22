@@ -77,6 +77,9 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             },
             "shielded_pool": {
                 "start_height": 2,
+                "scaffold_proofs": False,
+                "real_proof_backend": "orchard-v1",
+                "real_proof_verification": True,
             },
         }
 
@@ -155,6 +158,56 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             truncated_info,
             1,
             "missing getblockchaininfo.auxpow fields: start_height, chain_id, strict_chain_id, parent_version_safe",
+        )
+
+        self.log.info("Reject missing shielded proof posture fields")
+        missing_shielded_posture = self.valid_info()
+        missing_shielded_posture["shielded_pool"] = {"start_height": 2}
+        self.assert_preflight(
+            fake_cli,
+            missing_shielded_posture,
+            1,
+            "missing getblockchaininfo.shielded_pool fields: scaffold_proofs, real_proof_backend, real_proof_verification",
+        )
+
+        self.log.info("Reject malformed shielded proof posture field types")
+        malformed_shielded_posture = self.valid_info()
+        malformed_shielded_posture["shielded_pool"]["scaffold_proofs"] = "false"
+        self.assert_preflight(
+            fake_cli,
+            malformed_shielded_posture,
+            1,
+            "getblockchaininfo.shielded_pool.scaffold_proofs must be a boolean",
+        )
+
+        self.log.info("Reject scaffold proof acceptance in the launch preflight")
+        scaffold_enabled = self.valid_info()
+        scaffold_enabled["shielded_pool"]["scaffold_proofs"] = True
+        self.assert_preflight(
+            fake_cli,
+            scaffold_enabled,
+            1,
+            "shielded scaffold proofs are enabled",
+        )
+
+        self.log.info("Reject unsupported shielded proof backends in the launch preflight")
+        unsupported_backend = self.valid_info()
+        unsupported_backend["shielded_pool"]["real_proof_backend"] = "unsupported"
+        self.assert_preflight(
+            fake_cli,
+            unsupported_backend,
+            1,
+            "shielded real proof backend is not orchard-v1: unsupported",
+        )
+
+        self.log.info("Reject unavailable real shielded proof verification in the launch preflight")
+        proof_verification_unavailable = self.valid_info()
+        proof_verification_unavailable["shielded_pool"]["real_proof_verification"] = False
+        self.assert_preflight(
+            fake_cli,
+            proof_verification_unavailable,
+            1,
+            "shielded real proof verification is not available",
         )
 
 
