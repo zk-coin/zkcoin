@@ -14,7 +14,8 @@ Before enabling public seeds:
 
 - Generate crawler output from the intended zkCoin public network.
 - Keep `PATTERN_AGENT` in `makeseeds.py` aligned with accepted zkCoin node
-  versions, and remove old versions when service-flag defaults change.
+  versions, reject inherited Litecoin user agents, and remove old versions
+  when service-flag defaults change.
 - Run `makeseeds.py` against the zkCoin crawler output to produce
   `nodes_main.txt` or the equivalent network-specific node list.
 - Run `generate-seeds.py` only from zkCoin node lists, then review the resulting

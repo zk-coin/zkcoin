@@ -21,6 +21,7 @@ SEEDS_README = ROOT_DIR / "contrib" / "seeds" / "README.md"
 CHAINPARAMS_SEEDS = ROOT_DIR / "src" / "chainparamsseeds.h"
 SEEDS_DIR = ROOT_DIR / "contrib" / "seeds"
 GENERATE_SEEDS = SEEDS_DIR / "generate-seeds.py"
+MAKESEEDS = SEEDS_DIR / "makeseeds.py"
 SEED_NODE_FILES = (
     SEEDS_DIR / "nodes_main.txt",
     SEEDS_DIR / "nodes_test.txt",
@@ -167,6 +168,16 @@ def fail(path, message):
 def require_text(path, needle, description):
     if needle not in path.read_text(encoding="utf8"):
         return "{} missing {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+    return None
+
+
+def require_absent_text(path, needle, description):
+    if needle in path.read_text(encoding="utf8"):
+        return "{} still contains {}: {}".format(
+            path.relative_to(ROOT_DIR),
+            description,
+            needle,
+        )
     return None
 
 
@@ -469,6 +480,22 @@ def main():
         error = require_text(SEEDS_README, needle, description)
         if error:
             return fail(SEEDS_README, error)
+
+    makeseeds_checks = (
+        ('r"^/zkCoinCore:("', "zkCoin-only seed crawler user-agent filter"),
+    )
+    for needle, description in makeseeds_checks:
+        error = require_text(MAKESEEDS, needle, description)
+        if error:
+            return fail(MAKESEEDS, error)
+
+    forbidden_makeseeds_checks = (
+        ("LitecoinCore", "inherited Litecoin crawler user-agent acceptance"),
+    )
+    for needle, description in forbidden_makeseeds_checks:
+        error = require_absent_text(MAKESEEDS, needle, description)
+        if error:
+            return fail(MAKESEEDS, error)
 
     for seed_node_file in SEED_NODE_FILES:
         error = require_no_checked_in_seed_entries(seed_node_file)
