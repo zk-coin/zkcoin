@@ -85,8 +85,16 @@ make -C src -j"$JOBS" litecoind litecoin-cli test/test_litecoin
 echo "Running shielded unit tests"
 src/test/test_litecoin --run_test=shielded_tests
 
-echo "Running Orchard consensus smoke"
-src/rust/shielded-verifier/scripts/orchard-consensus-smoke.sh
+echo "Running Rust shielded verifier unit and ABI smoke tests"
+(
+  cd src/rust/shielded-verifier
+  cargo test --locked
+  cargo test --locked --features verifier-fixture
+  scripts/abi-smoke.sh
+  scripts/unsupported-consensus-smoke.sh
+  scripts/fixture-consensus-smoke.sh
+  scripts/orchard-consensus-smoke.sh
+)
 
 echo "Running local Litecoin fork AuxPoW baseline functional test"
 test/functional/feature_local_ltc_fork_auxpow.py
