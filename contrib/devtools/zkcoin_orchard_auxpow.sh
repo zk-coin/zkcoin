@@ -100,6 +100,9 @@ echo "Running Rust shielded verifier unit and ABI smoke tests"
   scripts/orchard-consensus-smoke.sh
 )
 
+echo "Running shielded pool scaffold functional test"
+test/functional/feature_shielded_pool.py
+
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 
