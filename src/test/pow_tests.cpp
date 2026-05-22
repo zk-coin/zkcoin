@@ -203,9 +203,9 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
     sanity_check_chainparams(*m_node.args, CBaseChainParams::TESTNET);
 }
 
-BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
+BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_disabled_until_dedicated_params_exist)
 {
-    sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
+    BOOST_CHECK_THROW(CreateChainParams(*m_node.args, CBaseChainParams::SIGNET), std::runtime_error);
 }
 
 static void check_public_launch_profile_fails_closed(const ArgsManager& args, const std::string& chain_name)
@@ -252,7 +252,6 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_fails_closed_until_consta
 {
     check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);
     check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::TESTNET);
-    check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::SIGNET);
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)

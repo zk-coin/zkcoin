@@ -9,8 +9,8 @@ Runs the canonical zkCoin launch-profile validation loop. The wrapper delegates
 to `zkcoin_orchard_auxpow.sh`, which configures the real Orchard verifier
 backend, rebuilds the node, and runs AuxPoW, snapshot, shielded, Orchard-feature
 Rust, public launch/seed quarantine lint, launch argument guards, snapshot
-operator-script guards, launch preflight guards, and real-proof functional
-regressions together.
+operator-script guards, explicit unsupported-signet startup policy, launch
+preflight guards, and real-proof functional regressions together.
 
 The launch preflight guard also checks the shielded proof posture reported by
 `getblockchaininfo`: scaffold proofs must be disabled, the real proof backend
@@ -40,7 +40,8 @@ the current local configuration, runs the zkCoin launch/profile,
 product-identity, release-infrastructure, and previous-release artifact lints,
 key C++ unit suites, launch argument and preflight guards, the snapshot
 operator-script guard, shielded pool scaffold regressions, blockchain readiness
-RPC schema checks, AuxPoW RPC regressions, local Litecoin-fork AuxPoW
+RPC schema checks, explicit unsupported-signet startup policy, AuxPoW RPC
+regressions, local Litecoin-fork AuxPoW
 rehearsals, snapshot launch regressions, and source distribution packaging.
 
 This wrapper is intentionally lower impact than `zkcoin_launch_validation.sh`:
