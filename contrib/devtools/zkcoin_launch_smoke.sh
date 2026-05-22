@@ -43,6 +43,7 @@ fi
 run_step test/lint/lint-zkcoin-launch-validation.sh
 run_step test/lint/lint-zkcoin-public-launch-profile.sh
 run_step test/lint/lint-zkcoin-product-identity.sh
+run_step test/lint/lint-zkcoin-release-infrastructure.sh
 
 run_step src/test/test_litecoin --run_test=pow_tests
 run_step src/test/test_litecoin --run_test=auxpow_tests
