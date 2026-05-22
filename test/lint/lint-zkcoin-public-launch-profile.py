@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 The zkCoin developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Check that public zkCoin launch parameters stay fail-closed."""
+
+from pathlib import Path
+import sys
+
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+CHAINPARAMS = ROOT_DIR / "src" / "chainparams.cpp"
+LAUNCHPROFILE = ROOT_DIR / "src" / "launchprofile.cpp"
+INIT = ROOT_DIR / "src" / "init.cpp"
+POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
+LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
+
+
+PUBLIC_LAUNCH_FAILURE = (
+    "zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams"
+)
+
+MAIN_FAIL_CLOSED_MARKERS = (
+    ("consensus.BIP34Height = 710000;", "mainnet inherited BIP34 activation height"),
+    ("consensus.CSVHeight = 1201536;", "mainnet inherited CSV activation height"),
+    ("consensus.SegwitHeight = 1201536;", "mainnet inherited Segwit activation height"),
+    ("consensus.ltc_snapshot.nHeight = -1;", "mainnet disabled Litecoin snapshot"),
+    ("consensus.auxpow.nStartHeight = -1;", "mainnet disabled AuxPoW"),
+    (
+        'consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field',
+        "mainnet placeholder AuxPoW chain id",
+    ),
+    ("consensus.shielded_pool.nStartHeight = -1;", "mainnet disabled shielded pool"),
+    ("consensus.nMinimumChainWork = uint256{};", "mainnet neutral minimum chain work"),
+    ("consensus.defaultAssumeValid = uint256{};", "mainnet neutral assumevalid"),
+    ("nDefaultPort = 9333;", "mainnet inherited Litecoin port"),
+    ('vSeeds.emplace_back("seed-a.litecoin.loshan.co.uk");', "mainnet inherited Litecoin DNS seed"),
+    ('vSeeds.emplace_back("dnsseed.litecoinpool.org");', "mainnet inherited Litecoin pool DNS seed"),
+    ('bech32_hrp = "ltc";', "mainnet inherited Litecoin bech32 HRP"),
+    ('mweb_hrp = "ltcmweb";', "mainnet inherited Litecoin MWEB HRP"),
+    (
+        "vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));",
+        "mainnet inherited fixed seeds",
+    ),
+)
+
+TESTNET_FAIL_CLOSED_MARKERS = (
+    ("consensus.BIP34Height = 76;", "testnet inherited BIP34 activation height"),
+    ("consensus.CSVHeight = 6048;", "testnet inherited CSV activation height"),
+    ("consensus.SegwitHeight = 6048;", "testnet inherited Segwit activation height"),
+    ("consensus.ltc_snapshot.nHeight = -1;", "testnet disabled Litecoin snapshot"),
+    ("consensus.auxpow.nStartHeight = -1;", "testnet disabled AuxPoW"),
+    (
+        'consensus.auxpow.nChainId = 0x5a4b; // "ZK", encodable in the AuxPoW version field',
+        "testnet placeholder AuxPoW chain id",
+    ),
+    ("consensus.shielded_pool.nStartHeight = -1;", "testnet disabled shielded pool"),
+    ("consensus.nMinimumChainWork = uint256{};", "testnet neutral minimum chain work"),
+    ("consensus.defaultAssumeValid = uint256{};", "testnet neutral assumevalid"),
+    ("nDefaultPort = 19335;", "testnet inherited Litecoin port"),
+    ('vSeeds.emplace_back("testnet-seed.litecointools.com");', "testnet inherited Litecoin DNS seed"),
+    ('vSeeds.emplace_back("dnsseed-testnet.thrasher.io");', "testnet inherited Litecoin DNS seed"),
+    ('bech32_hrp = "tltc";', "testnet inherited Litecoin bech32 HRP"),
+    ('mweb_hrp = "tmweb";', "testnet inherited Litecoin MWEB HRP"),
+    (
+        "vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));",
+        "testnet inherited fixed seeds",
+    ),
+)
+
+LAUNCH_PROFILE_MARKERS = (
+    ("return consensus.BIP16Height <= 1 &&", "script rules require BIP16 active at launch"),
+    ("consensus.BIP34Height <= 1 &&", "script rules require BIP34 active at launch"),
+    ("consensus.BIP65Height <= 1 &&", "script rules require BIP65 active at launch"),
+    ("consensus.BIP66Height <= 1 &&", "script rules require BIP66 active at launch"),
+    ("consensus.CSVHeight <= 1 &&", "script rules require CSV active at launch"),
+    ("consensus.SegwitHeight <= 1 &&", "script rules require Segwit active at launch"),
+    (
+        "DeploymentAlwaysActiveAtLaunch(consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT]);",
+        "script rules require Taproot active at launch",
+    ),
+    ("status.snapshot_configured = consensus.ltc_snapshot.IsEnabled()", "readiness requires Litecoin snapshot enabled"),
+    (
+        "status.auxpow_active_at_launch = consensus.auxpow.IsEnabled(1);",
+        "readiness requires AuxPoW active for block 1",
+    ),
+    (
+        "status.chain_id_encodable = consensus.auxpow.nChainId != 0",
+        "readiness requires non-zero encodable AuxPoW chain id",
+    ),
+    (
+        "status.chain_id_parent_version_safe = AuxPowChainIdAvoidsLitecoinParentVersionRange(consensus.auxpow.nChainId);",
+        "readiness rejects Litecoin parent-version chain-id range",
+    ),
+    ("consensus.auxpow.fStrictChainId;", "readiness requires strict AuxPoW chain id"),
+    (
+        "status.script_rules_active_at_launch = HasLaunchActiveScriptRules(chainparams);",
+        "readiness includes script-rule activation",
+    ),
+    (
+        "status.shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);",
+        "readiness keeps shielded inactive for first launch block",
+    ),
+    (
+        "status.chain_history_clean = HasLaunchNeutralChainHistory(chainparams);",
+        "readiness requires neutral inherited chain history",
+    ),
+    (
+        "status.public_network_identity = GetPublicNetworkIdentityStatus(chainparams);",
+        "readiness includes public network identity",
+    ),
+)
+
+
+def fail(path, message):
+    print("{}: {}".format(path.relative_to(ROOT_DIR), message), file=sys.stderr)
+    return 1
+
+
+def require_text(path, needle, description):
+    if needle not in path.read_text(encoding="utf8"):
+        return "{} missing {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+    return None
+
+
+def class_block(text, class_name, next_class_name):
+    start_marker = "class {} : public CChainParams".format(class_name)
+    start = text.find(start_marker)
+    if start == -1:
+        raise ValueError("missing {}".format(start_marker))
+    next_marker = "class {} : public CChainParams".format(next_class_name)
+    end = text.find(next_marker, start + len(start_marker))
+    if end == -1:
+        raise ValueError("missing {}".format(next_marker))
+    return text[start:end]
+
+
+def require_markers(text, markers, path):
+    missing = [
+        "{}: {}".format(description, marker)
+        for marker, description in markers
+        if marker not in text
+    ]
+    if missing:
+        return "{} missing launch-profile markers: {}".format(
+            path.relative_to(ROOT_DIR),
+            "; ".join(missing),
+        )
+    return None
+
+
+def require_configured_gate(text):
+    start = text.find("status.configured = status.snapshot_configured &&")
+    if start == -1:
+        return "{} missing configured gate start".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    end = text.find("return status;", start)
+    if end == -1:
+        return "{} missing configured gate terminator".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    gate = text[start:end]
+    required_terms = (
+        "status.snapshot_configured",
+        "status.auxpow_active_at_launch",
+        "status.chain_id_configured",
+        "status.script_rules_active_at_launch",
+        "status.shielded_inactive_at_launch",
+        "status.chain_history_clean",
+        "status.public_network_identity_configured",
+    )
+    missing = [term for term in required_terms if term not in gate]
+    if missing:
+        return "{} configured gate missing terms: {}".format(
+            LAUNCHPROFILE.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    return None
+
+
+def main():
+    chainparams_text = CHAINPARAMS.read_text(encoding="utf8")
+    try:
+        main_block = class_block(chainparams_text, "CMainParams", "CTestNetParams")
+        testnet_block = class_block(chainparams_text, "CTestNetParams", "CRegTestParams")
+    except ValueError as exc:
+        return fail(CHAINPARAMS, str(exc))
+
+    for text, markers in (
+        (main_block, MAIN_FAIL_CLOSED_MARKERS),
+        (testnet_block, TESTNET_FAIL_CLOSED_MARKERS),
+    ):
+        error = require_markers(text, markers, CHAINPARAMS)
+        if error:
+            return fail(CHAINPARAMS, error)
+
+    chainparams_checks = (
+        (
+            "return std::unique_ptr<CChainParams>(new CTestNetParams()); // TODO: Support SigNet",
+            "signet inherited testnet launch profile",
+        ),
+        (
+            "chainTxData = ChainTxData{\n"
+            "            /* nTime    */ 0,\n"
+            "            /* nTxCount */ 0,\n"
+            "            /* dTxRate  */ 0,\n"
+            "        };",
+            "public neutral chain transaction data",
+        ),
+    )
+    for needle, description in chainparams_checks:
+        error = require_text(CHAINPARAMS, needle, description)
+        if error:
+            return fail(CHAINPARAMS, error)
+
+    launchprofile_text = LAUNCHPROFILE.read_text(encoding="utf8")
+    error = require_markers(launchprofile_text, LAUNCH_PROFILE_MARKERS, LAUNCHPROFILE)
+    if error:
+        return fail(LAUNCHPROFILE, error)
+    error = require_configured_gate(launchprofile_text)
+    if error:
+        return fail(LAUNCHPROFILE, error)
+
+    init_checks = (
+        ("if (!chainparams.IsMockableChain()) {", "public launch gate outside regtest"),
+        (
+            "production launch consensus parameters must be hardcoded in chainparams",
+            "public launch args rejected outside regtest",
+        ),
+        ("if (!HasConfiguredPublicLaunchProfile(chainparams)) {", "public launch readiness gate"),
+        (PUBLIC_LAUNCH_FAILURE, "public launch fail-closed error"),
+    )
+    for needle, description in init_checks:
+        error = require_text(INIT, needle, description)
+        if error:
+            return fail(INIT, error)
+
+    test_checks = (
+        (
+            "ChainParams_PUBLIC_launch_profile_fails_closed_until_constants",
+            "runtime public launch fail-closed unit test",
+        ),
+        (
+            "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);",
+            "mainnet fail-closed runtime coverage",
+        ),
+        (
+            "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::TESTNET);",
+            "testnet fail-closed runtime coverage",
+        ),
+        (
+            "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::SIGNET);",
+            "signet fail-closed runtime coverage",
+        ),
+    )
+    for needle, description in test_checks:
+        error = require_text(POW_TESTS, needle, description)
+        if error:
+            return fail(POW_TESTS, error)
+
+    doc_checks = (
+        (
+            "Public `main` and `testnet` startup is fail-closed",
+            "public launch fail-closed documentation",
+        ),
+        ("launch profile is hardcoded in `chainparams`", "chainparams launch-profile documentation"),
+        ("the Litecoin block-X snapshot", "snapshot readiness documentation"),
+        ("strict AuxPoW must activate for the first launch block", "AuxPoW readiness documentation"),
+        (
+            "transactions must remain inactive for the first launch block",
+            "shielded launch posture documentation",
+        ),
+        ("inherited Litecoin public network identity", "identity readiness documentation"),
+    )
+    for needle, description in doc_checks:
+        error = require_text(LAUNCH_DOC, needle, description)
+        if error:
+            return fail(LAUNCH_DOC, error)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
