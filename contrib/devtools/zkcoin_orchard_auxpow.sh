@@ -68,6 +68,10 @@ done
 echo "Running public launch profile and seed quarantine lint"
 test/lint/lint-zkcoin-public-launch-profile.sh
 
+echo "Running release infrastructure and previous-release fail-closed lints"
+test/lint/lint-zkcoin-release-infrastructure.sh
+test/lint/lint-zkcoin-previous-releases.sh
+
 echo "Configuring with the real Orchard Rust verifier backend"
 ./configure \
   --without-gui \
@@ -112,6 +116,9 @@ echo "Running Rust shielded verifier unit and ABI smoke tests"
   scripts/fixture-consensus-smoke.sh
   scripts/orchard-consensus-smoke.sh
 )
+
+echo "Running zkCoin source distribution smoke"
+contrib/devtools/zkcoin_source_dist_smoke.sh
 
 echo "Running launch consensus-parameter override guard test"
 test/functional/feature_config_args.py

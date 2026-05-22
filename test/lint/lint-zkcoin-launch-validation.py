@@ -27,6 +27,7 @@ REQUIRED_MANIFEST_LISTS = {
         "build_commands",
         "unit_tests",
         "rust_verifier_commands",
+        "source_dist_commands",
         "functional_tests",
     ),
     "smoke": (
@@ -268,6 +269,7 @@ def main():
         check_exact_commands(canonical_commands, canonical["build_commands"], canonical_label),
         check_unit_tests(canonical_commands, canonical["unit_tests"], canonical_label),
         check_exact_commands(canonical_commands, canonical["rust_verifier_commands"], canonical_label),
+        check_exact_commands(canonical_commands, canonical["source_dist_commands"], canonical_label),
         check_functional_tests(canonical_commands, canonical["functional_tests"], canonical_label),
     ):
         if error:
