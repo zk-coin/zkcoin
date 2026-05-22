@@ -371,6 +371,7 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             assert_equal(launch_readiness["auxpow_active_at_launch"], True)
             assert_equal(launch_readiness["chain_id_configured"], False)
             assert_equal(launch_readiness["chain_id_parent_version_safe"], parent_version_safe)
+            assert_equal(launch_readiness["chain_history_clean"], True)
             assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
             assert_equal(launch_readiness["at_launch_tip"], True)
             assert failure in launch_readiness["failures"]

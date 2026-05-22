@@ -96,6 +96,23 @@ static bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
     return chain_id < 0x2000 || chain_id > 0x3fff;
 }
 
+static bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
+{
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const ChainTxData& tx_data = chainparams.TxData();
+    const MapCheckpoints& checkpoints = chainparams.Checkpoints().mapCheckpoints;
+    const bool checkpoints_launch_neutral = checkpoints.empty() ||
+        (checkpoints.size() == 1 &&
+            checkpoints.begin()->first == 0 &&
+            checkpoints.begin()->second == chainparams.GenesisBlock().GetHash());
+    return consensus.nMinimumChainWork.IsNull() &&
+        consensus.defaultAssumeValid.IsNull() &&
+        checkpoints_launch_neutral &&
+        tx_data.nTime == 0 &&
+        tx_data.nTxCount == 0 &&
+        tx_data.dTxRate == 0;
+}
+
 CConnman& EnsureConnman(const util::Ref& context)
 {
     NodeContext& node = EnsureNodeContext(context);
@@ -1592,6 +1609,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
+                            {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},
                             {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "at_launch_tip", "whether the active chain is still at the genesis tip before launch mining starts"},
                             {RPCResult::Type::ARR, "failures", "failed readiness checks",
@@ -1722,6 +1740,7 @@ RPCHelpMan getblockchaininfo()
     const bool chain_id_configured = chain_id_encodable &&
         chain_id_parent_version_safe &&
         consensusParams.auxpow.fStrictChainId;
+    const bool chain_history_clean = HasLaunchNeutralChainHistory(Params());
     const bool shielded_inactive_at_launch = !consensusParams.shielded_pool.IsEnabled(1);
     const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue launch_failures(UniValue::VARR);
@@ -1743,6 +1762,9 @@ RPCHelpMan getblockchaininfo()
     if (!shielded_inactive_at_launch) {
         launch_failures.push_back("shielded pool is active in the first launch block");
     }
+    if (!chain_history_clean) {
+        launch_failures.push_back("inherited Litecoin chain history assumptions are not cleared");
+    }
     if (!at_launch_tip) {
         launch_failures.push_back("node is not at the genesis launch tip");
     }
@@ -1754,6 +1776,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("auxpow_active_at_launch", auxpow_active_at_launch);
     launch_readiness.pushKV("chain_id_configured", chain_id_configured);
     launch_readiness.pushKV("chain_id_parent_version_safe", chain_id_parent_version_safe);
+    launch_readiness.pushKV("chain_history_clean", chain_history_clean);
     launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
     launch_readiness.pushKV("at_launch_tip", at_launch_tip);
     launch_readiness.pushKV("failures", launch_failures);

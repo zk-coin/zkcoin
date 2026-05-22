@@ -59,6 +59,7 @@ REQUIRED_READINESS_BOOL_FIELDS = (
     "auxpow_active_at_launch",
     "chain_id_configured",
     "chain_id_parent_version_safe",
+    "chain_history_clean",
     "shielded_inactive_at_launch",
     "at_launch_tip",
 )
@@ -135,6 +136,7 @@ print(f"  auxpow strict chain id: {str(bool(auxpow.get('strict_chain_id'))).lowe
 print(f"  auxpow parent version safe: {str(bool(auxpow.get('parent_version_safe'))).lower()}")
 print(f"  chain id configured: {str(readiness['chain_id_configured']).lower()}")
 print(f"  chain id parent version safe: {str(readiness['chain_id_parent_version_safe']).lower()}")
+print(f"  chain history clean: {str(readiness['chain_history_clean']).lower()}")
 print(f"  shielded inactive at launch: {str(readiness['shielded_inactive_at_launch']).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
 print(f"  shielded scaffold proofs: {str(shielded.get('scaffold_proofs')).lower()}")

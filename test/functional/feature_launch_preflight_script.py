@@ -54,6 +54,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "auxpow_active_at_launch": True,
             "chain_id_configured": True,
             "chain_id_parent_version_safe": True,
+            "chain_history_clean": True,
             "shielded_inactive_at_launch": True,
             "at_launch_tip": True,
             "failures": [],
@@ -133,9 +134,9 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         self.log.info("Reject inconsistent ready response with false invariants")
         self.assert_preflight(
             fake_cli,
-            self.valid_info(readiness_overrides={"snapshot_imported": False}),
+            self.valid_info(readiness_overrides={"chain_history_clean": False}),
             1,
-            "required readiness fields are false: snapshot_imported",
+            "required readiness fields are false: chain_history_clean",
         )
 
         self.log.info("Reject not-ready response and print returned failure")
