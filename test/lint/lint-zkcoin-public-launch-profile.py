@@ -424,6 +424,14 @@ def main():
             "runtime positive launch-profile rehearsal unit test",
         ),
         (
+            "ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockable_values",
+            "runtime positive non-mockable public identity unit test",
+        ),
+        (
+            "CNonMockablePublicIdentityParams",
+            "test-only non-mockable public identity chainparams",
+        ),
+        (
             "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);",
             "mainnet fail-closed runtime coverage",
         ),
