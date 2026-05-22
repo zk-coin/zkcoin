@@ -8,7 +8,9 @@ import errno
 import http.client
 import os
 import subprocess
+from decimal import Decimal
 
+from test_framework.auxpow import parse_auxpow, solve_parent_header
 from test_framework.test_node import ErrorMatch
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
@@ -100,21 +102,63 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         else:
             self.assert_launch_preflight(node, 0, "Launch preflight passed.")
 
-    def launch_args(self, dump, verify, *, height=None, block_hash=None, import_hash=None, extra_args=()):
-        return [
+    def assert_snapshot_utxos(self, node, snapshot_utxos):
+        for snapshot_utxo in snapshot_utxos:
+            txout = node.gettxout(snapshot_utxo["txid"], snapshot_utxo["vout"], False)
+            assert txout is not None, f"missing imported snapshot UTXO {snapshot_utxo['txid']}:{snapshot_utxo['vout']}"
+            assert_equal(Decimal(str(txout["value"])), snapshot_utxo["value"])
+            assert_equal(txout["scriptPubKey"]["hex"], snapshot_utxo["script_hex"])
+
+    def assert_snapshot_imported(self, node, dump, verify):
+        snapshot_info = node.getblockchaininfo()["ltc_snapshot"]
+        assert_equal(snapshot_info["imported"], True)
+        assert_equal(snapshot_info["imported_height"], dump["base_height"])
+        assert_equal(snapshot_info["imported_block_hash"], verify["base_hash"])
+        assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+
+    def wait_for_reindexed_launch_block(self, node, expected_hash):
+        self.wait_until(lambda: node.getblockcount() == 1, timeout=30)
+        assert_equal(node.getbestblockhash(), expected_hash)
+
+    def launch_args(self, dump, verify, *, height=None, block_hash=None, import_hash=None, include_snapshot_file=True, extra_args=()):
+        args = [
             "-auxpowheight=1",
             "-noshieldedscaffoldproofs",
             f"-ltcsnapshotheight={height if height is not None else dump['base_height']}",
             f"-ltcsnapshotblockhash={block_hash if block_hash is not None else verify['base_hash']}",
             f"-ltcsnapshotutxoroot={import_hash if import_hash is not None else verify['import_hash']}",
-        ] + list(extra_args)
+        ]
+        if include_snapshot_file:
+            args.append(f"-ltcsnapshotfile={dump['path']}")
+        return args + list(extra_args)
 
     def run_test(self):
         source = self.nodes[0]
         launch = self.nodes[1]
 
         self.log.info("Create a deterministic source-chain UTXO snapshot")
-        source.generatetodescriptor(100, "raw(51)")
+        source_blocks = source.generatetodescriptor(100, "raw(51)")
+        source_snapshot_utxos = []
+        expected_snapshot_total = Decimal("0")
+        for block_hash in source_blocks:
+            coinbase = source.getblock(block_hash, 2)["tx"][0]
+            output = coinbase["vout"][0]
+            value = Decimal(str(output["value"]))
+            expected_snapshot_total += value
+            source_snapshot_utxos.append({
+                "txid": coinbase["txid"],
+                "vout": output["n"],
+                "value": value,
+                "script_hex": output["scriptPubKey"]["hex"],
+            })
+        snapshot_sample_utxos = [
+            source_snapshot_utxos[0],
+            source_snapshot_utxos[len(source_snapshot_utxos) // 2],
+            source_snapshot_utxos[-1],
+        ]
+        assert_equal(Decimal(str(source.gettxoutsetinfo()["total_amount"])), expected_snapshot_total)
+        self.assert_snapshot_utxos(source, snapshot_sample_utxos)
+
         dump = source.dumptxoutset("ltc-block-x.dat")
         verify = source.verifysnapshotmanifest(dump["path"])
         wrong_block_hash = ("00" if verify["base_hash"][:2] != "00" else "01") + verify["base_hash"][2:]
@@ -125,6 +169,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(verify["coins"], dump["coins_written"])
         assert_equal(verify["metadata_coins"], dump["coins_written"])
         assert_equal(verify["matches_configured_snapshot"], False)
+        assert_equal(Decimal(str(verify["total_amount"])), expected_snapshot_total)
 
         self.log.info("Reject configuring a snapshot on an already-started chain")
         self.stop_node(0)
@@ -226,6 +271,9 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(imported["base_height"], verify["base_height"])
         assert_equal(imported["import_hash"], verify["import_hash"])
         assert_equal(imported["coins_imported"], verify["coins"])
+        assert_equal(Decimal(str(imported["total_amount"])), expected_snapshot_total)
+        assert_equal(Decimal(str(launch.gettxoutsetinfo()["total_amount"])), expected_snapshot_total)
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
 
         snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
         assert_equal(snapshot_info["imported"], True)
@@ -273,6 +321,8 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(replayed["base_height"], verify["base_height"])
         assert_equal(replayed["import_hash"], verify["import_hash"])
         assert_equal(replayed["coins_imported"], verify["coins"])
+        assert_equal(Decimal(str(replayed["total_amount"])), expected_snapshot_total)
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
         snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
         assert_equal(snapshot_info["imported"], True)
         assert_equal(snapshot_info["import_in_progress"], False)
@@ -284,6 +334,18 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(snapshot_info["imported_height"], dump["base_height"])
         assert_equal(snapshot_info["imported_block_hash"], verify["base_hash"])
         assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
+
+        self.log.info("Reject snapshot reindex startup without the snapshot manifest path")
+        self.stop_node(1)
+        for reindex_arg in ("-reindex-chainstate", "-reindex"):
+            self.nodes[1].assert_start_raises_init_error(
+                extra_args=self.launch_args(dump, verify, include_snapshot_file=False, extra_args=[reindex_arg]),
+                expected_msg="-ltcsnapshotfile is required when rebuilding chainstate with configured Litecoin snapshot parameters",
+                match=ErrorMatch.PARTIAL_REGEX,
+            )
+        self.start_node(1, extra_args=self.launch_args(dump, verify))
+        launch = self.nodes[1]
 
         self.restart_node(1, extra_args=self.launch_args(dump, verify, height=dump["base_height"] + 1))
         snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
@@ -315,17 +377,20 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             assert_equal(launch.getauxblock()["height"], 1)
         else:
             assert_raises_rpc_error(-18, "requires a loaded wallet", launch.getauxblock)
-        assert_equal(launch.createauxblock(launch.get_deterministic_priv_key().address)["height"], 1)
+        launch_candidate = launch.createauxblock(launch.get_deterministic_priv_key().address)
+        assert_equal(launch_candidate["height"], 1)
 
         block_template = launch.getblocktemplate({"rules": ["mweb", "segwit"]})
         snapshot_commitment_hex = reversed_hex(verify["base_hash"])
         assert_equal(block_template["coinbaseaux"]["zkcoin"], "7a6b636f696e")
         assert_equal(block_template["coinbaseaux"]["zkcoin_snapshot"], snapshot_commitment_hex)
 
-        self.log.info("Mine first launch block after importing balances")
-        mined = launch.generatetodescriptor(1, "raw(51)")
-        assert_equal(len(mined), 1)
+        self.log.info("Mine first launch block through an AuxPoW candidate after importing balances")
+        launch_auxpow = parse_auxpow(launch_candidate["defaultauxpow"])
+        solve_parent_header(launch_auxpow, int(launch_candidate["bits"], 16))
+        assert_equal(launch.submitauxblock(launch_candidate["hash"], launch_auxpow.serialize().hex()), True)
         assert_equal(launch.getblockcount(), 1)
+        assert_equal(launch.getbestblockhash(), launch_candidate["hash"])
         launch_info = launch.getblockchaininfo()
         assert_equal(launch_info["auxpow"]["next_block_active"], True)
         assert_equal(launch_info["ltc_snapshot"]["imported"], True)
@@ -339,9 +404,24 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["at_launch_tip"], False)
         assert "node is not at the genesis launch tip" in launch_readiness["failures"]
         self.assert_launch_preflight(launch, 1, "node is not at the genesis launch tip")
-        coinbase_sig = launch.getblock(mined[0], 2)["tx"][0]["vin"][0]["coinbase"]
+        coinbase_sig = launch.getblock(launch_candidate["hash"], 2)["tx"][0]["vin"][0]["coinbase"]
         assert "7a6b636f696e" in coinbase_sig
         assert snapshot_commitment_hex in coinbase_sig
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
+
+        self.log.info("Rebuild snapshot launch state with reindex-chainstate")
+        self.restart_node(1, extra_args=self.launch_args(dump, verify, extra_args=["-reindex-chainstate"]))
+        launch = self.nodes[1]
+        self.wait_for_reindexed_launch_block(launch, launch_candidate["hash"])
+        self.assert_snapshot_imported(launch, dump, verify)
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
+
+        self.log.info("Rebuild snapshot launch state with full reindex")
+        self.restart_node(1, extra_args=self.launch_args(dump, verify, extra_args=["-reindex"]))
+        launch = self.nodes[1]
+        self.wait_for_reindexed_launch_block(launch, launch_candidate["hash"])
+        self.assert_snapshot_imported(launch, dump, verify)
+        self.assert_snapshot_utxos(launch, snapshot_sample_utxos)
 
         self.log.info("Reject snapshot import after launch has started")
         assert_raises_rpc_error(
