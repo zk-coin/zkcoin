@@ -90,6 +90,14 @@ Both are intentionally present before behavior changes so tests and review can t
 - `-auxpowstrictchainid` keeps regtest AuxPoW in strict merged-mining mode. `-noauxpowstrictchainid` is only for rehearsing launch-readiness failures.
 - `-ltcsnapshotheight=<n>`, `-ltcsnapshotblockhash=<hex>`, and `-ltcsnapshotutxoroot=<hex>` configure the block-X snapshot constants on regtest for launch rehearsal.
 - `-ltcsnapshotfile=<path>` points reindex and reindex-chainstate startup at the verified block-X snapshot manifest so the imported launch UTXO set can be reseeded before replaying fork-chain blocks.
+- Public `main` and `testnet` startup is fail-closed until the production
+  launch profile is hardcoded in `chainparams`: the Litecoin block-X snapshot
+  constants must be set, strict AuxPoW must activate for the first launch block
+  with a parent-version-safe child chain id, shielded transactions must remain
+  inactive for the first launch block, and the inherited Litecoin public network
+  identity must be replaced, including public magic, ports, address prefixes,
+  HRPs, and seeds. Regtest remains the only place where these values can be
+  overridden by CLI for rehearsal.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.

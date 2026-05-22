@@ -705,6 +705,74 @@ static bool LtcSnapshotImportInfoMatches(const LtcSnapshotImportInfo& a, const L
         a.hashUTXORoot == b.hashUTXORoot;
 }
 
+static bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
+{
+    // BIP9 parent versions with top bits 0x20000000 decode as AuxPoW chain ids 0x2000-0x3fff.
+    return chain_id < 0x2000 || chain_id > 0x3fff;
+}
+
+static bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams)
+{
+    const auto& message_start = chainparams.MessageStart();
+    const bool litecoin_main_message =
+        message_start[0] == 0xfb &&
+        message_start[1] == 0xc0 &&
+        message_start[2] == 0xb6 &&
+        message_start[3] == 0xdb;
+    const bool litecoin_testnet_message =
+        message_start[0] == 0xfd &&
+        message_start[1] == 0xd2 &&
+        message_start[2] == 0xc8 &&
+        message_start[3] == 0xf1;
+    const bool litecoin_main_address =
+        chainparams.Bech32HRP() == "ltc" &&
+        chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{48} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{5} &&
+        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{176};
+    const bool litecoin_testnet_address =
+        chainparams.Bech32HRP() == "tltc" &&
+        chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{111} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{196} &&
+        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{239};
+    const bool litecoin_ports = chainparams.GetDefaultPort() == 9333 || chainparams.GetDefaultPort() == 19335;
+    bool litecoin_dns_seed = false;
+    for (const std::string& seed : chainparams.DNSSeeds()) {
+        litecoin_dns_seed = litecoin_dns_seed ||
+            seed == "seed-a.litecoin.loshan.co.uk" ||
+            seed == "dnsseed.thrasher.io" ||
+            seed == "dnsseed.litecointools.com" ||
+            seed == "dnsseed.litecoinpool.org" ||
+            seed == "dnsseed-testnet.thrasher.io" ||
+            seed == "testnet-seed.litecointools.com" ||
+            seed == "seed-b.litecoin.loshan.co.uk";
+    }
+    return litecoin_main_message ||
+        litecoin_testnet_message ||
+        litecoin_main_address ||
+        litecoin_testnet_address ||
+        litecoin_ports ||
+        litecoin_dns_seed ||
+        !chainparams.FixedSeeds().empty();
+}
+
+static bool HasConfiguredPublicLaunchProfile(const CChainParams& chainparams)
+{
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    const bool snapshot_configured = consensus.ltc_snapshot.IsEnabled() &&
+        !consensus.ltc_snapshot.hashBlock.IsNull() &&
+        !consensus.ltc_snapshot.hashUTXORoot.IsNull();
+    const bool auxpow_configured = consensus.auxpow.IsEnabled(1) &&
+        consensus.auxpow.nChainId != 0 &&
+        consensus.auxpow.nChainId < 0x8000 &&
+        consensus.auxpow.fStrictChainId &&
+        AuxPowChainIdAvoidsLitecoinParentVersionRange(consensus.auxpow.nChainId);
+    const bool shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);
+    return snapshot_configured &&
+        auxpow_configured &&
+        shielded_inactive_at_launch &&
+        !IsInheritedLitecoinPublicNetworkIdentity(chainparams);
+}
+
 static bool ImportConfiguredLtcSnapshotForChainstate(
     const CChainParams& chainparams,
     const ArgsManager& args,
@@ -1331,6 +1399,12 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             if (args.IsArgSet(arg)) {
                 return InitError(strprintf(Untranslated("%s is only supported on regtest; production launch consensus parameters must be hardcoded in chainparams."), arg));
             }
+        }
+        if (!HasConfiguredPublicLaunchProfile(chainparams)) {
+            return InitError(Untranslated(
+                "zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams: "
+                "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
+                "keep shielded transactions inactive for the first launch block, and replace the inherited Litecoin public network identity."));
         }
     }
     std::string shielded_deployment_error;

@@ -119,6 +119,17 @@ class ConfArgsTest(BitcoinTestFramework):
                     extra_args=["-regtest=0", f"-chain={chain}", arg],
                 )
 
+        public_launch_disabled_error = (
+            "Error: zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams: "
+            "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
+            "keep shielded transactions inactive for the first launch block, and replace the inherited Litecoin public network identity."
+        )
+        for chain in ["main", "test"]:
+            self.nodes[0].assert_start_raises_init_error(
+                expected_msg=public_launch_disabled_error,
+                extra_args=["-regtest=0", f"-chain={chain}"],
+            )
+
         snapshot_args = [
             "-ltcsnapshotheight=123",
             "-ltcsnapshotblockhash=" + "11" * 32,
