@@ -310,6 +310,15 @@ void KeepAuxPowCandidateReservationAndRemove(const uint256& hash)
 }
 } // namespace
 
+void ClearAuxPowCandidatesForShutdown()
+{
+    LOCK(cs_main);
+    ClearAuxPowCandidates();
+    g_auxpow_candidate_tip.SetNull();
+    g_auxpow_candidate_transactions_updated = 0;
+    g_auxpow_candidate_start_time = 0;
+}
+
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
