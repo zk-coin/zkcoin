@@ -36,10 +36,11 @@ zkcoin_launch_smoke.sh
 
 Runs a faster local launch-path smoke loop for day-to-day iteration. It builds
 the current local configuration, runs the zkCoin launch/profile,
-product-identity, and release-infrastructure lints, key C++ unit suites, launch
-argument and preflight guards, the snapshot operator-script guard, shielded pool
-scaffold regressions, blockchain readiness RPC schema checks, AuxPoW RPC
-regressions, snapshot launch regressions, and source distribution packaging.
+product-identity, release-infrastructure, and previous-release artifact lints,
+key C++ unit suites, launch argument and preflight guards, the snapshot
+operator-script guard, shielded pool scaffold regressions, blockchain readiness
+RPC schema checks, AuxPoW RPC regressions, snapshot launch regressions, and
+source distribution packaging.
 
 This wrapper is intentionally lower impact than `zkcoin_launch_validation.sh`:
 it does not reconfigure the tree, does not run `make clean`, and does not
