@@ -161,6 +161,7 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_resumes_identical_existing_coin)
     BOOST_REQUIRE(ImportSnapshotManifest(stream, cache, stats, error, nullptr, nullptr, nullptr, {}, /*resume_import=*/true));
     BOOST_CHECK(error.empty());
     BOOST_CHECK_EQUAL(stats.m_coins_count, 2U);
+    BOOST_CHECK_EQUAL(stats.m_total_amount, 12 * COIN);
 
     Coin existing;
     BOOST_REQUIRE(cache.GetCoin(existing_outpoint, existing));
@@ -214,6 +215,30 @@ BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_wrong_expected_hash)
 
     Coin imported;
     BOOST_CHECK(!cache.GetCoin(outpoint, imported));
+}
+
+BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_amount_overflow_without_mutation)
+{
+    const SnapshotMetadata metadata{100, uint256S("14"), 2, 100};
+    const COutPoint max_outpoint(uint256S("15"), 0);
+    const COutPoint overflow_outpoint(uint256S("16"), 1);
+    const std::vector<std::pair<COutPoint, Coin>> coins{
+        {max_outpoint, SnapshotCoin(MAX_MONEY, 600, true)},
+        {overflow_outpoint, SnapshotCoin(1, 601, true)},
+    };
+
+    CCoinsView base;
+    CCoinsViewCache cache(&base);
+    CDataStream stream = BuildSnapshotStream(metadata, coins);
+    SnapshotManifestStats stats;
+    std::string error;
+
+    BOOST_CHECK(!ImportSnapshotManifest(stream, cache, stats, error));
+    BOOST_CHECK(error.find("snapshot amount out of range") != std::string::npos);
+
+    Coin imported;
+    BOOST_CHECK(!cache.GetCoin(max_outpoint, imported));
+    BOOST_CHECK(!cache.GetCoin(overflow_outpoint, imported));
 }
 
 BOOST_AUTO_TEST_CASE(snapshot_manifest_import_rejects_wrong_expected_height)

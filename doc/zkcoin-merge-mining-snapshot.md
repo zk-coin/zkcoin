@@ -69,6 +69,12 @@ The validation path should switch at that height:
 - before activation, headers must not carry AuxPoW data and are checked against their own scrypt PoW hash;
 - at and after activation, headers must carry AuxPoW data, must encode the zkCoin chain id, and are checked against the parent Litecoin-style scrypt header hash committed through the parent coinbase.
 
+The zkCoin consensus check compares the parent header scrypt hash to the child
+target carried by the AuxPoW candidate. A real merged miner can also submit the
+same parent block to Litecoin if it meets Litecoin's own target, but zkCoin's
+child-chain acceptance is governed by the child target and the AuxPoW
+commitment, not by Litecoin network difficulty.
+
 The hidden `verifysnapshotmanifest` RPC reads a `dumptxoutset`-compatible UTXO snapshot file, decodes every serialized UTXO, and returns a deterministic `snapshot_hash` for source-file auditability.
 
 It also returns an `import_hash`, which is the launch-consensus hash to use for imported balances. The import hash preserves each Litecoin outpoint, script, and value, but normalizes chain-local metadata such as UTXO height and coinbase status. Imported coins are stored as non-coinbase outputs at launch import height `1`, so Litecoin coinbase maturity does not make old Litecoin outputs unspendable on the new chain and block undo has explicit height metadata for single-output parent transactions.
@@ -152,6 +158,19 @@ It prints the snapshot-related launch-node arguments:
 ```
 
 Keep `-ltcsnapshotfile` with the other snapshot arguments for launch rehearsal and reindex operations. Startup fails closed if snapshot constants are configured with `-reindex` or `-reindex-chainstate` but the snapshot file path is missing.
+
+After the first child block is mined, rehearse both rebuild paths against the
+same datadir:
+
+```text
+-reindex-chainstate -ltcsnapshotfile=<snapshot_path>
+-reindex -ltcsnapshotfile=<snapshot_path>
+```
+
+Both runs should reseed the configured block-X UTXO set from the snapshot file,
+replay the zkCoin blocks from disk, preserve the `ltc_snapshot.imported_*`
+marker reported by `getblockchaininfo`, and leave sampled imported Litecoin
+outpoints spendable through `gettxout`.
 
 Combine those snapshot arguments with the AuxPoW launch profile, then check the launch node before mining:
 
