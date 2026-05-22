@@ -4,6 +4,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <launchprofile.h>
 #include <pow.h>
 #include <test/util/setup_common.h>
 #include <util/system.h>
@@ -205,6 +206,59 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
 BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
 {
     sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
+}
+
+static void check_public_launch_profile_fails_closed(const ArgsManager& args, const std::string& chain_name)
+{
+    const auto chainParams = CreateChainParams(args, chain_name);
+    const PublicLaunchProfileStatus status = GetPublicLaunchProfileStatus(*chainParams);
+
+    BOOST_CHECK(!HasConfiguredPublicLaunchProfile(*chainParams));
+    BOOST_CHECK(!status.configured);
+    BOOST_CHECK(!status.snapshot_configured);
+    BOOST_CHECK(!status.auxpow_active_at_launch);
+    BOOST_CHECK(status.chain_id_encodable);
+    BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.shielded_inactive_at_launch);
+    BOOST_CHECK(status.chain_history_clean);
+    BOOST_CHECK(status.inherited_litecoin_public_identity);
+    BOOST_CHECK(IsInheritedLitecoinPublicNetworkIdentity(*chainParams));
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_fails_closed_until_constants)
+{
+    check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);
+    check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::TESTNET);
+    check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::SIGNET);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
+    const PublicLaunchProfileStatus status = GetPublicLaunchProfileStatus(*chainParams);
+
+    BOOST_CHECK(!HasConfiguredPublicLaunchProfile(*chainParams));
+    BOOST_CHECK(!status.configured);
+    BOOST_CHECK(!status.snapshot_configured);
+    BOOST_CHECK(!status.auxpow_active_at_launch);
+    BOOST_CHECK(status.chain_id_encodable);
+    BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.shielded_inactive_at_launch);
+    BOOST_CHECK(status.chain_history_clean);
+    BOOST_CHECK(!status.inherited_litecoin_public_identity);
+    BOOST_CHECK(!IsInheritedLitecoinPublicNetworkIdentity(*chainParams));
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_auxpow_chain_id_parent_version_range)
+{
+    BOOST_CHECK(AuxPowChainIdAvoidsLitecoinParentVersionRange(0));
+    BOOST_CHECK(AuxPowChainIdAvoidsLitecoinParentVersionRange(0x1fff));
+    BOOST_CHECK(!AuxPowChainIdAvoidsLitecoinParentVersionRange(0x2000));
+    BOOST_CHECK(!AuxPowChainIdAvoidsLitecoinParentVersionRange(0x3fff));
+    BOOST_CHECK(AuxPowChainIdAvoidsLitecoinParentVersionRange(0x4000));
+    BOOST_CHECK(AuxPowChainIdAvoidsLitecoinParentVersionRange(0x5a4b));
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_height)
