@@ -5,6 +5,7 @@
 """Check that CI keeps zkCoin's launch validation lane fail-closed."""
 
 from pathlib import Path
+import json
 import re
 import sys
 
@@ -13,12 +14,12 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 CIRRUS_CONFIG = ROOT_DIR / ".cirrus.yml"
 LAUNCH_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_validation.sh"
 ORCHARD_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_orchard_auxpow.sh"
+SMOKE_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_smoke.sh"
+VALIDATION_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_validation_manifest.json"
 TASK_NAME = "zkCoin canonical launch validation [real Orchard AuxPoW]"
 CANONICAL_WRAPPER = "contrib/devtools/zkcoin_launch_validation.sh"
 ORCHARD_WRAPPER_PATH = "contrib/devtools/zkcoin_orchard_auxpow.sh"
-REAL_PROOF_FUNCTIONAL_TEST = "test/functional/feature_orchard_auxpow_realproof.py"
 GENERIC_TEST_RUNNER = "test_runner.py"
-REQUIRE_ORCHARD_VERIFIER = "ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1"
 
 
 def iter_task_blocks(lines):
@@ -78,8 +79,90 @@ def fail(message):
     return 1
 
 
+def shell_commands(path):
+    commands = []
+    pending = ""
+    for raw_line in path.read_text(encoding="utf8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line.startswith("echo "):
+            continue
+
+        if line.endswith("\\"):
+            pending += line[:-1].strip() + " "
+            continue
+
+        command = (pending + line).strip()
+        pending = ""
+        if not command or command in ("(", ")") or command.startswith("echo "):
+            continue
+        commands.append(re.sub(r"\s+", " ", command))
+
+    if pending:
+        commands.append(re.sub(r"\s+", " ", pending.strip()))
+
+    return commands
+
+
+def contains_command(commands, token):
+    return any(token in command for command in commands)
+
+
+def check_tokens(commands, tokens, label):
+    for token in tokens:
+        if not contains_command(commands, token):
+            return "{} must execute {}".format(label, token)
+    return None
+
+
+def check_exact_commands(commands, required_commands, label):
+    command_set = set(commands)
+    for required_command in required_commands:
+        if required_command not in command_set:
+            return "{} must execute {}".format(label, required_command)
+    return None
+
+
+def check_unit_tests(commands, suites, label):
+    for suite in suites:
+        token = "--run_test={}".format(suite)
+        if not contains_command(commands, token):
+            return "{} must execute unit suite {}".format(label, suite)
+    return None
+
+
+def check_functional_tests(commands, tests, label):
+    for test in tests:
+        path = test["path"] if isinstance(test, dict) else test
+        env = test.get("env", {}) if isinstance(test, dict) else {}
+        matching_commands = [command for command in commands if path in command]
+        if not matching_commands:
+            return "{} must execute {}".format(label, path)
+
+        for key, value in env.items():
+            token = "{}={}".format(key, value)
+            if not any(token in command for command in matching_commands):
+                return "{} must execute {} with {}".format(label, path, token)
+
+    return None
+
+
+def load_manifest():
+    manifest = json.loads(VALIDATION_MANIFEST.read_text(encoding="utf8"))
+    if manifest.get("version") != 1:
+        raise ValueError("{} version must be 1".format(VALIDATION_MANIFEST))
+    for section in ("canonical", "smoke"):
+        if not isinstance(manifest.get(section), dict):
+            raise ValueError("{} must contain a {} object".format(VALIDATION_MANIFEST, section))
+    return manifest
+
+
 def main():
     lines = CIRRUS_CONFIG.read_text(encoding="utf8").splitlines(keepends=True)
+    try:
+        manifest = load_manifest()
+    except (json.JSONDecodeError, ValueError) as exc:
+        return fail(str(exc))
+
     task_blocks = list(iter_task_blocks(lines))
     matches = [block for block in task_blocks if task_name(block) == TASK_NAME]
 
@@ -115,21 +198,28 @@ def main():
             )
         )
 
-    orchard_wrapper_text = ORCHARD_WRAPPER.read_text(encoding="utf8")
-    if REAL_PROOF_FUNCTIONAL_TEST not in orchard_wrapper_text:
-        return fail(
-            "{} must run {}".format(
-                ORCHARD_WRAPPER.relative_to(ROOT_DIR),
-                REAL_PROOF_FUNCTIONAL_TEST,
-            )
-        )
-    if REQUIRE_ORCHARD_VERIFIER not in orchard_wrapper_text:
-        return fail(
-            "{} must require the real Orchard verifier with {}".format(
-                ORCHARD_WRAPPER.relative_to(ROOT_DIR),
-                REQUIRE_ORCHARD_VERIFIER,
-            )
-        )
+    canonical = manifest["canonical"]
+    canonical_commands = shell_commands(ORCHARD_WRAPPER)
+    canonical_label = str(ORCHARD_WRAPPER.relative_to(ROOT_DIR))
+    for error in (
+        check_tokens(canonical_commands, canonical["configure_flags"], canonical_label),
+        check_unit_tests(canonical_commands, canonical["unit_tests"], canonical_label),
+        check_exact_commands(canonical_commands, canonical["rust_verifier_commands"], canonical_label),
+        check_functional_tests(canonical_commands, canonical["functional_tests"], canonical_label),
+    ):
+        if error:
+            return fail(error)
+
+    smoke = manifest["smoke"]
+    smoke_commands = shell_commands(SMOKE_WRAPPER)
+    smoke_label = str(SMOKE_WRAPPER.relative_to(ROOT_DIR))
+    for error in (
+        check_tokens(smoke_commands, smoke["lints"], smoke_label),
+        check_unit_tests(smoke_commands, smoke["unit_tests"], smoke_label),
+        check_functional_tests(smoke_commands, smoke["functional_tests"], smoke_label),
+    ):
+        if error:
+            return fail(error)
 
     return 0
 

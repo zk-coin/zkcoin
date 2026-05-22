@@ -53,7 +53,9 @@ lint-zkcoin-launch-validation.py
 Checks that the Cirrus zkCoin launch-validation task still invokes the
 canonical launch wrapper directly, and that the wrapper path still reaches the
 real Orchard AuxPoW functional regression with skipped Orchard verification
-treated as a failure.
+treated as a failure. The required canonical and smoke-lane checks are listed in
+`contrib/devtools/zkcoin_launch_validation_manifest.json`, and the lint checks
+actual shell command lines instead of comments or status messages.
 
 lint-zkcoin-previous-releases.py
 ================================

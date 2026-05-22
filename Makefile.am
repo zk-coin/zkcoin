@@ -49,6 +49,7 @@ DIST_CONTRIB = \
 	       $(top_srcdir)/contrib/devtools/zkcoin_launch_preflight.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_launch_smoke.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_launch_validation.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_launch_validation_manifest.json \
 	       $(top_srcdir)/contrib/devtools/zkcoin_local_fork_auxpow.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_ltc_snapshot.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_orchard_auxpow.sh \
