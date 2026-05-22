@@ -331,6 +331,10 @@ def main():
             "runtime public launch fail-closed unit test",
         ),
         (
+            "ChainParams_REGTEST_launch_profile_accepts_complete_rehearsal_args",
+            "runtime positive launch-profile rehearsal unit test",
+        ),
+        (
             "check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);",
             "mainnet fail-closed runtime coverage",
         ),
