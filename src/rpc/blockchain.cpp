@@ -15,6 +15,7 @@
 #include <core_io.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <launchprofile.h>
 #include <node/coinstats.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
@@ -88,29 +89,6 @@ static bool LtcSnapshotImportInfoMatches(const LtcSnapshotImportInfo& a, const L
     return a.nHeight == b.nHeight &&
         a.hashBlock == b.hashBlock &&
         a.hashUTXORoot == b.hashUTXORoot;
-}
-
-static bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
-{
-    // BIP9 parent versions with top bits 0x20000000 decode as AuxPoW chain ids 0x2000-0x3fff.
-    return chain_id < 0x2000 || chain_id > 0x3fff;
-}
-
-static bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
-{
-    const Consensus::Params& consensus = chainparams.GetConsensus();
-    const ChainTxData& tx_data = chainparams.TxData();
-    const MapCheckpoints& checkpoints = chainparams.Checkpoints().mapCheckpoints;
-    const bool checkpoints_launch_neutral = checkpoints.empty() ||
-        (checkpoints.size() == 1 &&
-            checkpoints.begin()->first == 0 &&
-            checkpoints.begin()->second == chainparams.GenesisBlock().GetHash());
-    return consensus.nMinimumChainWork.IsNull() &&
-        consensus.defaultAssumeValid.IsNull() &&
-        checkpoints_launch_neutral &&
-        tx_data.nTime == 0 &&
-        tx_data.nTxCount == 0 &&
-        tx_data.dTxRate == 0;
 }
 
 CConnman& EnsureConnman(const util::Ref& context)
@@ -1699,6 +1677,8 @@ RPCHelpMan getblockchaininfo()
     }
     obj.pushKV("shielded_pool", shielded_pool);
 
+    const PublicLaunchProfileStatus launch_profile = GetPublicLaunchProfileStatus(Params());
+
     UniValue ltc_snapshot(UniValue::VOBJ);
     LtcSnapshotImportInfo imported_snapshot;
     const bool has_imported_snapshot = ::ChainstateActive().CoinsDB().ReadLtcSnapshotImportInfo(imported_snapshot);
@@ -1709,9 +1689,7 @@ RPCHelpMan getblockchaininfo()
         consensusParams.ltc_snapshot.hashBlock,
         consensusParams.ltc_snapshot.hashUTXORoot,
     };
-    const bool snapshot_configured = consensusParams.ltc_snapshot.IsEnabled() &&
-        !consensusParams.ltc_snapshot.hashBlock.IsNull() &&
-        !consensusParams.ltc_snapshot.hashUTXORoot.IsNull();
+    const bool snapshot_configured = launch_profile.snapshot_configured;
     const bool snapshot_imported = snapshot_configured &&
         has_imported_snapshot &&
         LtcSnapshotImportInfoMatches(imported_snapshot, configured_snapshot);
@@ -1733,15 +1711,12 @@ RPCHelpMan getblockchaininfo()
     }
     obj.pushKV("ltc_snapshot", ltc_snapshot);
 
-    const bool auxpow_active_at_launch = consensusParams.auxpow.IsEnabled(1);
-    const bool chain_id_encodable = consensusParams.auxpow.nChainId != 0 &&
-        consensusParams.auxpow.nChainId < 0x8000;
-    const bool chain_id_parent_version_safe = AuxPowChainIdAvoidsLitecoinParentVersionRange(consensusParams.auxpow.nChainId);
-    const bool chain_id_configured = chain_id_encodable &&
-        chain_id_parent_version_safe &&
-        consensusParams.auxpow.fStrictChainId;
-    const bool chain_history_clean = HasLaunchNeutralChainHistory(Params());
-    const bool shielded_inactive_at_launch = !consensusParams.shielded_pool.IsEnabled(1);
+    const bool auxpow_active_at_launch = launch_profile.auxpow_active_at_launch;
+    const bool chain_id_encodable = launch_profile.chain_id_encodable;
+    const bool chain_id_parent_version_safe = launch_profile.chain_id_parent_version_safe;
+    const bool chain_id_configured = launch_profile.chain_id_configured;
+    const bool chain_history_clean = launch_profile.chain_history_clean;
+    const bool shielded_inactive_at_launch = launch_profile.shielded_inactive_at_launch;
     const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue launch_failures(UniValue::VARR);
     if (!snapshot_configured) {
@@ -1764,6 +1739,9 @@ RPCHelpMan getblockchaininfo()
     }
     if (!chain_history_clean) {
         launch_failures.push_back("inherited Litecoin chain history assumptions are not cleared");
+    }
+    if (launch_profile.inherited_litecoin_public_identity) {
+        launch_failures.push_back("public network identity is inherited from Litecoin");
     }
     if (!at_launch_tip) {
         launch_failures.push_back("node is not at the genesis launch tip");

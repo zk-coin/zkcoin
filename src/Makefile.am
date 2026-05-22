@@ -588,6 +588,8 @@ libbitcoin_common_a_SOURCES = \
   core_write.cpp \
   key.cpp \
   key_io.cpp \
+  launchprofile.cpp \
+  launchprofile.h \
   merkleblock.cpp \
   mweb/mweb_policy.cpp \
   netaddress.cpp \
