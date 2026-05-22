@@ -359,6 +359,17 @@ def main():
         if error:
             return fail(CHAINPARAMS, error)
 
+    forbidden_chainparams_checks = (
+        (
+            "return std::unique_ptr<CChainParams>(new CTestNetParams()); // TODO: Support SigNet",
+            "inherited testnet signet fallback",
+        ),
+    )
+    for needle, description in forbidden_chainparams_checks:
+        error = require_absent_text(CHAINPARAMS, needle, description)
+        if error:
+            return fail(CHAINPARAMS, error)
+
     launchprofile_text = LAUNCHPROFILE.read_text(encoding="utf8")
     error = require_markers(launchprofile_text, LAUNCH_PROFILE_MARKERS, LAUNCHPROFILE)
     if error:
@@ -379,11 +390,27 @@ def main():
             "production launch consensus parameters must be hardcoded in chainparams",
             "public launch args rejected outside regtest",
         ),
+        (
+            "signet reserved until supported",
+            "signet base-port help marked reserved",
+        ),
         ("if (!HasConfiguredPublicLaunchProfile(chainparams)) {", "public launch readiness gate"),
         (PUBLIC_LAUNCH_FAILURE, "public launch fail-closed error"),
     )
     for needle, description in init_checks:
         error = require_text(INIT, needle, description)
+        if error:
+            return fail(INIT, error)
+
+    forbidden_init_checks = (
+        (
+            "CreateChainParams(argsman, CBaseChainParams::SIGNET)",
+            "server arg setup creating unsupported signet params",
+        ),
+        ("Signet derived magic", "signet magic log before signet params exist"),
+    )
+    for needle, description in forbidden_init_checks:
+        error = require_absent_text(INIT, needle, description)
         if error:
             return fail(INIT, error)
 
