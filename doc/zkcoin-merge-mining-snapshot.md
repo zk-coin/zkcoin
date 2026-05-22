@@ -107,6 +107,8 @@ This makes local block-X launch tests repeatable without requiring a full datadi
 
 `contrib/devtools/zkcoin_launch_validation.sh` is the canonical production-profile validation command for zkCoin launch-path work. It delegates to `zkcoin_orchard_auxpow.sh`, which configures the real Orchard verifier backend, rebuilds the node, and runs the combined AuxPoW, local Litecoin-fork, snapshot import, shielded unit, Rust verifier, and real-proof functional regressions.
 
+The validation loop also runs the launch argument guards, the launch preflight guard, and a fake-CLI test for the Litecoin snapshot operator script so malformed snapshot RPC output or unsafe rewind cleanup behavior cannot silently pass a launch rehearsal.
+
 Run it before treating changes to AuxPoW, snapshot import, shielded validation, or launch configuration as release-candidate work:
 
 ```bash
@@ -126,7 +128,7 @@ Individual unit or functional tests are useful while iterating, but they do not 
 - a `litecoin-cli` command pointed at the source Litecoin node;
 - a `zkcoin-cli` command pointed at a zkCoin node with `verifysnapshotmanifest`.
 
-The script fails closed if the source node does not report the expected block hash for height X. If the source node is already beyond height X, it refuses to rewind unless `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a dedicated disposable snapshot node because it invalidates block `X + 1` and then reconsiders it on exit.
+The script fails closed if the source node does not report the expected block hash for height X, if `dumptxoutset` or `verifysnapshotmanifest` returns malformed JSON, or if required snapshot/manifest fields are missing or inconsistent. If the source node is already beyond height X, it refuses to rewind unless `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a dedicated disposable snapshot node because it invalidates block `X + 1` and then reconsiders it on exit. A failed restore makes the script fail even when the snapshot dump itself succeeded.
 
 Example:
 
