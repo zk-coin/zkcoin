@@ -9,7 +9,7 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* Version Build */
-#define CLIENT_VERSION_BUILD 4
+#define CLIENT_VERSION_BUILD 5
 
 /* Version is release */
 #define CLIENT_VERSION_IS_RELEASE true
@@ -27,10 +27,10 @@
 #define COPYRIGHT_HOLDERS "The %s developers"
 
 /* Copyright holder(s) */
-#define COPYRIGHT_HOLDERS_FINAL "The Litecoin Core developers"
+#define COPYRIGHT_HOLDERS_FINAL "The zkCoin developers"
 
 /* Replacement for %s in copyright holders string */
-#define COPYRIGHT_HOLDERS_SUBSTITUTION "Litecoin Core"
+#define COPYRIGHT_HOLDERS_SUBSTITUTION "zkCoin"
 
 /* Copyright year */
 #define COPYRIGHT_YEAR 2026
@@ -247,22 +247,22 @@
 #define LT_OBJDIR ".libs/"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "https://github.com/litecoin-project/litecoin/issues"
+#define PACKAGE_BUGREPORT "https://github.com/zk-coin/zkcoin/issues"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "Litecoin Core"
+#define PACKAGE_NAME "zkCoin Core"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Litecoin Core 0.21.5"
+#define PACKAGE_STRING "zkCoin Core 0.21.5.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "litecoin"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://litecoin.org/"
+#define PACKAGE_URL "https://github.com/zk-coin/zkcoin"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.21.5"
+#define PACKAGE_VERSION "0.21.5.5"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
