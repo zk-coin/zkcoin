@@ -87,17 +87,22 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "blocks": 0,
             "launch_readiness": readiness,
             "ltc_snapshot": {
+                "enabled": True,
                 "height": 2250000,
                 "block_hash": "11" * 32,
                 "import_hash": "22" * 32,
+                "imported": True,
+                "import_in_progress": False,
             },
             "auxpow": {
+                "next_block_active": True,
                 "start_height": 1,
                 "chain_id": 4660,
                 "strict_chain_id": True,
                 "parent_version_safe": True,
             },
             "shielded_pool": {
+                "next_block_active": False,
                 "start_height": 2,
                 "scaffold_proofs": False,
                 "real_proof_backend": "orchard-v1",
@@ -160,12 +165,66 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "required readiness fields are false: chain_history_clean",
         )
 
+        self.log.info("Reject missing snapshot detail fields")
+        missing_snapshot_detail = self.valid_info()
+        missing_snapshot_detail["ltc_snapshot"] = {
+            "height": 2250000,
+            "block_hash": "11" * 32,
+            "import_hash": "22" * 32,
+        }
+        self.assert_preflight(
+            fake_cli,
+            missing_snapshot_detail,
+            1,
+            "missing getblockchaininfo.ltc_snapshot fields: enabled, imported, import_in_progress",
+        )
+
+        self.log.info("Reject inconsistent snapshot import detail")
+        inconsistent_snapshot_detail = self.valid_info()
+        inconsistent_snapshot_detail["ltc_snapshot"]["imported"] = False
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_snapshot_detail,
+            1,
+            "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
+        )
+
+        self.log.info("Reject in-progress snapshot imports")
+        snapshot_import_in_progress = self.valid_info()
+        snapshot_import_in_progress["ltc_snapshot"]["import_in_progress"] = True
+        self.assert_preflight(
+            fake_cli,
+            snapshot_import_in_progress,
+            1,
+            "snapshot import is still in progress",
+        )
+
         self.log.info("Reject inactive launch script rules")
         self.assert_preflight(
             fake_cli,
             self.valid_info(readiness_overrides={"script_rules_active_at_launch": False}),
             1,
             "required readiness fields are false: script_rules_active_at_launch",
+        )
+
+        self.log.info("Reject inconsistent AuxPoW next-block activation detail")
+        inconsistent_auxpow_next_block = self.valid_info()
+        inconsistent_auxpow_next_block["auxpow"]["next_block_active"] = False
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_auxpow_next_block,
+            1,
+            "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
+        )
+
+        self.log.info("Reject inconsistent AuxPoW strict chain-id detail")
+        inconsistent_auxpow_strict_chain_id = self.valid_info()
+        inconsistent_auxpow_strict_chain_id["auxpow"]["strict_chain_id"] = False
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_auxpow_strict_chain_id,
+            1,
+            "getblockchaininfo.auxpow.strict_chain_id must be true when launch_readiness.chain_id_configured is true",
         )
 
         self.log.info("Reject inconsistent ready response with parent-version-unsafe AuxPoW detail")
@@ -255,13 +314,15 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject not-ready response and print returned failure")
+        snapshot_not_imported = self.valid_info(readiness_overrides={
+            "ready": False,
+            "snapshot_imported": False,
+            "failures": ["configured snapshot has not been imported"],
+        })
+        snapshot_not_imported["ltc_snapshot"]["imported"] = False
         self.assert_preflight(
             fake_cli,
-            self.valid_info(readiness_overrides={
-                "ready": False,
-                "snapshot_imported": False,
-                "failures": ["configured snapshot has not been imported"],
-            }),
+            snapshot_not_imported,
             1,
             "configured snapshot has not been imported",
         )
@@ -273,12 +334,12 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             fake_cli,
             truncated_info,
             1,
-            "missing getblockchaininfo.auxpow fields: start_height, chain_id, strict_chain_id, parent_version_safe",
+            "missing getblockchaininfo.auxpow fields: next_block_active, start_height, chain_id, strict_chain_id, parent_version_safe",
         )
 
         self.log.info("Reject missing shielded proof posture fields")
         missing_shielded_posture = self.valid_info()
-        missing_shielded_posture["shielded_pool"] = {"start_height": 2}
+        missing_shielded_posture["shielded_pool"] = {"next_block_active": False, "start_height": 2}
         self.assert_preflight(
             fake_cli,
             missing_shielded_posture,
@@ -294,6 +355,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             malformed_shielded_posture,
             1,
             "getblockchaininfo.shielded_pool.scaffold_proofs must be a boolean",
+        )
+
+        self.log.info("Reject inconsistent shielded next-block activation detail")
+        inconsistent_shielded_next_block = self.valid_info()
+        inconsistent_shielded_next_block["shielded_pool"]["next_block_active"] = True
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_shielded_next_block,
+            1,
+            "getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip",
         )
 
         self.log.info("Reject scaffold proof acceptance in the launch preflight")

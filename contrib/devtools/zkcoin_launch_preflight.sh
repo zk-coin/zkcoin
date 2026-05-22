@@ -86,9 +86,9 @@ REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS = (
 )
 REQUIRED_PUBLIC_IDENTITY_FIELDS = REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS + ("failures",)
 REQUIRED_DETAIL_FIELDS = {
-    "ltc_snapshot": ("height", "block_hash", "import_hash"),
-    "auxpow": ("start_height", "chain_id", "strict_chain_id", "parent_version_safe"),
-    "shielded_pool": ("start_height", "scaffold_proofs", "real_proof_backend", "real_proof_verification"),
+    "ltc_snapshot": ("enabled", "height", "block_hash", "import_hash", "imported", "import_in_progress"),
+    "auxpow": ("next_block_active", "start_height", "chain_id", "strict_chain_id", "parent_version_safe"),
+    "shielded_pool": ("next_block_active", "start_height", "scaffold_proofs", "real_proof_backend", "real_proof_verification"),
 }
 
 schema_errors = []
@@ -153,12 +153,66 @@ for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
         schema_errors.append(f"missing getblockchaininfo.{section} fields: " + ", ".join(missing_fields))
     detail_sections[section] = value
 
+snapshot_detail = detail_sections.get("ltc_snapshot")
+if snapshot_detail is not None:
+    for field in ("enabled", "imported", "import_in_progress"):
+        if field in snapshot_detail and type(snapshot_detail[field]) is not bool:
+            schema_errors.append(f"getblockchaininfo.ltc_snapshot.{field} must be a boolean")
+    if (
+        "enabled" in snapshot_detail
+        and "snapshot_configured" in readiness
+        and type(snapshot_detail.get("enabled")) is bool
+        and type(readiness.get("snapshot_configured")) is bool
+        and snapshot_detail["enabled"] != readiness["snapshot_configured"]
+    ):
+        schema_errors.append("getblockchaininfo.ltc_snapshot.enabled must match launch_readiness.snapshot_configured")
+    if (
+        "imported" in snapshot_detail
+        and "snapshot_imported" in readiness
+        and type(snapshot_detail.get("imported")) is bool
+        and type(readiness.get("snapshot_imported")) is bool
+        and snapshot_detail["imported"] != readiness["snapshot_imported"]
+    ):
+        schema_errors.append("getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported")
+
 auxpow_detail = detail_sections.get("auxpow")
 if auxpow_detail is not None:
+    if "next_block_active" in auxpow_detail and type(auxpow_detail["next_block_active"]) is not bool:
+        schema_errors.append("getblockchaininfo.auxpow.next_block_active must be a boolean")
+    if "chain_id" in auxpow_detail and type(auxpow_detail["chain_id"]) is not int:
+        schema_errors.append("getblockchaininfo.auxpow.chain_id must be an integer")
     if "strict_chain_id" in auxpow_detail and type(auxpow_detail["strict_chain_id"]) is not bool:
         schema_errors.append("getblockchaininfo.auxpow.strict_chain_id must be a boolean")
     if "parent_version_safe" in auxpow_detail and type(auxpow_detail["parent_version_safe"]) is not bool:
         schema_errors.append("getblockchaininfo.auxpow.parent_version_safe must be a boolean")
+    if (
+        "next_block_active" in auxpow_detail
+        and "auxpow_active_at_launch" in readiness
+        and "at_launch_tip" in readiness
+        and type(auxpow_detail.get("next_block_active")) is bool
+        and type(readiness.get("auxpow_active_at_launch")) is bool
+        and readiness.get("at_launch_tip") is True
+        and auxpow_detail["next_block_active"] != readiness["auxpow_active_at_launch"]
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip")
+    if (
+        "chain_id" in auxpow_detail
+        and "chain_id_configured" in readiness
+        and type(auxpow_detail.get("chain_id")) is int
+        and type(readiness.get("chain_id_configured")) is bool
+        and readiness["chain_id_configured"] is True
+        and not (0 < auxpow_detail["chain_id"] < 0x8000)
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.chain_id must be non-zero and AuxPoW-version encodable when launch_readiness.chain_id_configured is true")
+    if (
+        "strict_chain_id" in auxpow_detail
+        and "chain_id_configured" in readiness
+        and type(auxpow_detail.get("strict_chain_id")) is bool
+        and type(readiness.get("chain_id_configured")) is bool
+        and readiness["chain_id_configured"] is True
+        and auxpow_detail["strict_chain_id"] is not True
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.strict_chain_id must be true when launch_readiness.chain_id_configured is true")
     if (
         "parent_version_safe" in auxpow_detail
         and "chain_id_parent_version_safe" in readiness
@@ -170,12 +224,24 @@ if auxpow_detail is not None:
 
 shielded_detail = detail_sections.get("shielded_pool")
 if shielded_detail is not None:
+    if "next_block_active" in shielded_detail and type(shielded_detail["next_block_active"]) is not bool:
+        schema_errors.append("getblockchaininfo.shielded_pool.next_block_active must be a boolean")
     if "scaffold_proofs" in shielded_detail and type(shielded_detail["scaffold_proofs"]) is not bool:
         schema_errors.append("getblockchaininfo.shielded_pool.scaffold_proofs must be a boolean")
     if "real_proof_verification" in shielded_detail and type(shielded_detail["real_proof_verification"]) is not bool:
         schema_errors.append("getblockchaininfo.shielded_pool.real_proof_verification must be a boolean")
     if "real_proof_backend" in shielded_detail and not isinstance(shielded_detail["real_proof_backend"], str):
         schema_errors.append("getblockchaininfo.shielded_pool.real_proof_backend must be a string")
+    if (
+        "next_block_active" in shielded_detail
+        and "shielded_inactive_at_launch" in readiness
+        and "at_launch_tip" in readiness
+        and type(shielded_detail.get("next_block_active")) is bool
+        and type(readiness.get("shielded_inactive_at_launch")) is bool
+        and readiness.get("at_launch_tip") is True
+        and shielded_detail["next_block_active"] == readiness["shielded_inactive_at_launch"]
+    ):
+        schema_errors.append("getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip")
 
 if schema_errors:
     print("error: malformed launch preflight response", file=sys.stderr)
@@ -193,10 +259,14 @@ print(f"  chain height: {info.get('blocks')}")
 print(f"  at launch tip: {str(readiness['at_launch_tip']).lower()}")
 print(f"  snapshot configured: {str(readiness['snapshot_configured']).lower()}")
 print(f"  snapshot imported: {str(readiness['snapshot_imported']).lower()}")
+print(f"  snapshot detail enabled: {str(snapshot['enabled']).lower()}")
+print(f"  snapshot detail imported: {str(snapshot['imported']).lower()}")
+print(f"  snapshot import in progress: {str(snapshot['import_in_progress']).lower()}")
 print(f"  snapshot height: {snapshot.get('height')}")
 print(f"  snapshot block hash: {snapshot.get('block_hash')}")
 print(f"  snapshot import hash: {snapshot.get('import_hash')}")
 print(f"  auxpow active at launch: {str(readiness['auxpow_active_at_launch']).lower()}")
+print(f"  auxpow next block active: {str(auxpow['next_block_active']).lower()}")
 print(f"  auxpow start height: {auxpow.get('start_height')}")
 print(f"  auxpow chain id: {auxpow.get('chain_id')}")
 print(f"  auxpow strict chain id: {str(auxpow['strict_chain_id']).lower()}")
@@ -222,6 +292,7 @@ print(f"  public identity MWEB HRP inherited: {str(public_identity['inherited_li
 print(f"  public identity MWEB HRP shape valid: {str(public_identity['mweb_hrp_shape_valid']).lower()}")
 print(f"  public identity HRPs unique: {str(public_identity['hrps_unique']).lower()}")
 print(f"  shielded inactive at launch: {str(readiness['shielded_inactive_at_launch']).lower()}")
+print(f"  shielded next block active: {str(shielded['next_block_active']).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
 print(f"  shielded scaffold proofs: {str(shielded.get('scaffold_proofs')).lower()}")
 print(f"  shielded real proof backend: {shielded.get('real_proof_backend')}")
@@ -233,6 +304,8 @@ false_ready_fields = [
 ]
 
 posture_failures = []
+if snapshot["import_in_progress"] is not False:
+    posture_failures.append("snapshot import is still in progress")
 if shielded["scaffold_proofs"] is not False:
     posture_failures.append("shielded scaffold proofs are enabled")
 if shielded["real_proof_backend"] != "orchard-v1":

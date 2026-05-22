@@ -14,9 +14,11 @@ argument guards, snapshot operator-script guards, explicit unsupported-signet
 startup policy, launch preflight guards, and real-proof functional regressions
 together.
 
-The launch preflight guard also checks the shielded proof posture reported by
-`getblockchaininfo`: scaffold proofs must be disabled, the real proof backend
-must be `orchard-v1`, and real proof verification must be available.
+The launch preflight guard also cross-checks the detailed snapshot, AuxPoW, and
+shielded pool sections reported by `getblockchaininfo` against
+`launch_readiness`, and rejects in-progress snapshot imports. It also checks
+the shielded proof posture: scaffold proofs must be disabled, the real proof
+backend must be `orchard-v1`, and real proof verification must be available.
 
 The real-proof functional regression is run with
 `ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1`, so a missing Orchard verifier backend is a
