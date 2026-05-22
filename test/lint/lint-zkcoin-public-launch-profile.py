@@ -424,6 +424,10 @@ def main():
             "runtime positive launch-profile rehearsal unit test",
         ),
         (
+            "ChainParams_REGTEST_launch_profile_rejects_shielded_active_at_launch",
+            "runtime negative shielded launch activation unit test",
+        ),
+        (
             "ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockable_values",
             "runtime positive non-mockable public identity unit test",
         ),

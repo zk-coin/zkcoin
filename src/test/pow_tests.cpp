@@ -527,6 +527,47 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_accepts_complete_rehears
     BOOST_CHECK(!consensus.shielded_pool.fAllowScaffoldProofs);
 }
 
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_rejects_shielded_active_at_launch)
+{
+    const std::string block_hash{"0000000000000000000000000000000000000000000000000000000000000001"};
+    const std::string utxo_root{"0000000000000000000000000000000000000000000000000000000000000002"};
+
+    ArgsManager args;
+    args.ForceSetArg("-ltcsnapshotheight", "123");
+    args.ForceSetArg("-ltcsnapshotblockhash", block_hash);
+    args.ForceSetArg("-ltcsnapshotutxoroot", utxo_root);
+    args.ForceSetArg("-auxpowheight", "1");
+    args.ForceSetArg("-auxpowchainid", "23115");
+    args.ForceSetArg("-auxpowstrictchainid", "1");
+    args.ForceSetArg("-shieldedheight", "1");
+    args.ForceSetArg("-shieldedscaffoldproofs", "0");
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const Consensus::Params& consensus = chainParams->GetConsensus();
+    const PublicLaunchProfileStatus status = GetPublicLaunchProfileStatus(*chainParams);
+
+    BOOST_CHECK(!HasConfiguredPublicLaunchProfile(*chainParams));
+    BOOST_CHECK(!status.configured);
+    BOOST_CHECK(status.snapshot_configured);
+    BOOST_CHECK(status.auxpow_active_at_launch);
+    BOOST_CHECK(status.chain_id_encodable);
+    BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.script_rules_active_at_launch);
+    BOOST_CHECK(!status.shielded_inactive_at_launch);
+    BOOST_CHECK(status.chain_history_clean);
+    BOOST_CHECK(status.public_network_identity_configured);
+    BOOST_CHECK(status.public_network_identity.configured);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.nHeight, 123);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashBlock.ToString(), block_hash);
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.hashUTXORoot.ToString(), utxo_root);
+    BOOST_CHECK_EQUAL(consensus.auxpow.nStartHeight, 1);
+    BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 23115U);
+    BOOST_CHECK(consensus.auxpow.fStrictChainId);
+    BOOST_CHECK_EQUAL(consensus.shielded_pool.nStartHeight, 1);
+    BOOST_CHECK(!consensus.shielded_pool.fAllowScaffoldProofs);
+}
+
 BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_auxpow_chain_id_parent_version_range)
 {
     BOOST_CHECK(AuxPowChainIdAvoidsLitecoinParentVersionRange(0));
