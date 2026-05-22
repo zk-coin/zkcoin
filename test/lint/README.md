@@ -43,3 +43,9 @@ Checks that the Cirrus zkCoin launch-validation task still invokes the
 canonical launch wrapper directly, and that the wrapper path still reaches the
 real Orchard AuxPoW functional regression with skipped Orchard verification
 treated as a failure.
+
+lint-zkcoin-product-identity.sh
+===============================
+Checks that the core display identity remains zkCoin in package metadata,
+source URLs, P2P user-agent naming, and primary Windows resource metadata while
+legacy binary and datadir names are kept unchanged for a separate migration.
