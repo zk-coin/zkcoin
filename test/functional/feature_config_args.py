@@ -84,6 +84,17 @@ class ConfArgsTest(BitcoinTestFramework):
             expected_msg='Error: No proxy server specified. Use -proxy=<ip> or -proxy=<ip:port>.',
             extra_args=['-proxy'],
         )
+        invalid_activation_args = [
+            ("-auxpowheight=-2", "Activation height -2 for auxpow is out of valid range. Use -1 to disable auxpow."),
+            ("-auxpowheight=2147483647", "Activation height 2147483647 for auxpow is out of valid range. Use -1 to disable auxpow."),
+            ("-shieldedheight=-2", "Activation height -2 for shielded pool is out of valid range. Use -1 to disable shielded pool."),
+            ("-shieldedheight=2147483647", "Activation height 2147483647 for shielded pool is out of valid range. Use -1 to disable shielded pool."),
+        ]
+        for arg, error in invalid_activation_args:
+            self.nodes[0].assert_start_raises_init_error(
+                expected_msg=f"Error: {error}",
+                extra_args=[arg],
+            )
 
     def test_log_buffer(self):
         with self.nodes[0].assert_debug_log(expected_msgs=['Warning: parsed potentially confusing double-negative -connect=0\n']):
