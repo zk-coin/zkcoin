@@ -20,6 +20,26 @@ TASK_NAME = "zkCoin canonical launch validation [real Orchard AuxPoW]"
 CANONICAL_WRAPPER = "contrib/devtools/zkcoin_launch_validation.sh"
 ORCHARD_WRAPPER_PATH = "contrib/devtools/zkcoin_orchard_auxpow.sh"
 GENERIC_TEST_RUNNER = "test_runner.py"
+REQUIRED_MANIFEST_LISTS = {
+    "canonical": (
+        "configure_flags",
+        "build_commands",
+        "unit_tests",
+        "rust_verifier_commands",
+        "functional_tests",
+    ),
+    "smoke": (
+        "lints",
+        "unit_tests",
+        "functional_tests",
+    ),
+}
+REQUIRED_MANIFEST_BLOCKS = {
+    "smoke": (
+        "build",
+        "distdir",
+    ),
+}
 
 
 def iter_task_blocks(lines):
@@ -122,6 +142,24 @@ def check_exact_commands(commands, required_commands, label):
     return None
 
 
+def check_conditional_block(commands, condition, required_commands, label):
+    try:
+        start = commands.index(condition)
+    except ValueError:
+        return "{} must guard commands with {}".format(label, condition)
+
+    try:
+        end = commands.index("fi", start + 1)
+    except ValueError:
+        return "{} must close guard {}".format(label, condition)
+
+    block_commands = set(commands[start + 1:end])
+    for required_command in required_commands:
+        if required_command not in block_commands:
+            return "{} must execute {} under {}".format(label, required_command, condition)
+    return None
+
+
 def check_unit_tests(commands, suites, label):
     for suite in suites:
         token = "--run_test={}".format(suite)
@@ -150,9 +188,31 @@ def load_manifest():
     manifest = json.loads(VALIDATION_MANIFEST.read_text(encoding="utf8"))
     if manifest.get("version") != 1:
         raise ValueError("{} version must be 1".format(VALIDATION_MANIFEST))
-    for section in ("canonical", "smoke"):
+    for section, required_lists in REQUIRED_MANIFEST_LISTS.items():
         if not isinstance(manifest.get(section), dict):
             raise ValueError("{} must contain a {} object".format(VALIDATION_MANIFEST, section))
+        for key in required_lists:
+            if not isinstance(manifest[section].get(key), list):
+                raise ValueError(
+                    "{} {}.{} must be a list".format(VALIDATION_MANIFEST, section, key)
+                )
+    for section, required_blocks in REQUIRED_MANIFEST_BLOCKS.items():
+        if not isinstance(manifest.get(section), dict):
+            raise ValueError("{} must contain a {} object".format(VALIDATION_MANIFEST, section))
+        for key in required_blocks:
+            block = manifest[section].get(key)
+            if not isinstance(block, dict):
+                raise ValueError(
+                    "{} {}.{} must be an object".format(VALIDATION_MANIFEST, section, key)
+                )
+            if not isinstance(block.get("condition"), str):
+                raise ValueError(
+                    "{} {}.{}.condition must be a string".format(VALIDATION_MANIFEST, section, key)
+                )
+            if not isinstance(block.get("commands"), list):
+                raise ValueError(
+                    "{} {}.{}.commands must be a list".format(VALIDATION_MANIFEST, section, key)
+                )
     return manifest
 
 
@@ -203,6 +263,7 @@ def main():
     canonical_label = str(ORCHARD_WRAPPER.relative_to(ROOT_DIR))
     for error in (
         check_tokens(canonical_commands, canonical["configure_flags"], canonical_label),
+        check_exact_commands(canonical_commands, canonical["build_commands"], canonical_label),
         check_unit_tests(canonical_commands, canonical["unit_tests"], canonical_label),
         check_exact_commands(canonical_commands, canonical["rust_verifier_commands"], canonical_label),
         check_functional_tests(canonical_commands, canonical["functional_tests"], canonical_label),
@@ -214,9 +275,21 @@ def main():
     smoke_commands = shell_commands(SMOKE_WRAPPER)
     smoke_label = str(SMOKE_WRAPPER.relative_to(ROOT_DIR))
     for error in (
+        check_conditional_block(
+            smoke_commands,
+            smoke["build"]["condition"],
+            smoke["build"]["commands"],
+            smoke_label,
+        ),
         check_tokens(smoke_commands, smoke["lints"], smoke_label),
         check_unit_tests(smoke_commands, smoke["unit_tests"], smoke_label),
         check_functional_tests(smoke_commands, smoke["functional_tests"], smoke_label),
+        check_conditional_block(
+            smoke_commands,
+            smoke["distdir"]["condition"],
+            smoke["distdir"]["commands"],
+            smoke_label,
+        ),
     ):
         if error:
             return fail(error)
