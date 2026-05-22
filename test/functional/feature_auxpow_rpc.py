@@ -14,6 +14,7 @@ from test_framework.messages import (
     CBlockHeader,
     hash256,
     ser_uint256,
+    uint256_from_str,
     uint256_from_compact,
 )
 from test_framework.auxpow import parse_auxpow, solve_parent_header
@@ -66,6 +67,43 @@ class AuxPowRPCTest(BitcoinTestFramework):
         expected_target = ser_uint256(uint256_from_compact(int(candidate["bits"], 16))).hex()
         assert_equal(candidate["target"], expected_target)
         assert_equal(candidate["_target"], expected_target)
+
+    def expected_chain_index(self, nonce, chain_id, merkle_height):
+        modulo = 1 << merkle_height
+        rand = nonce
+        rand = (rand * 1103515245 + 12345) % modulo
+        rand += chain_id
+        rand = (rand * 1103515245 + 12345) % modulo
+        return rand
+
+    def chain_merkle_root(self, leaf_hash, merkle_branch, chain_index):
+        root = leaf_hash
+        index = chain_index
+        for branch_hash in merkle_branch:
+            if index & 1:
+                root = uint256_from_str(hash256(ser_uint256(branch_hash) + ser_uint256(root)))
+            else:
+                root = uint256_from_str(hash256(ser_uint256(root) + ser_uint256(branch_hash)))
+            index >>= 1
+        return root
+
+    def add_chain_merkle_branch(self, auxpow, candidate):
+        chain_id = candidate["chainid"]
+        nonce = 0
+        sibling = uint256_from_str(hash256(b"zkcoin-auxpow-rpc-chain-merkle-sibling"))
+        auxpow.chain_merkle_branch = [sibling]
+        auxpow.chain_index = self.expected_chain_index(nonce, chain_id, len(auxpow.chain_merkle_branch))
+
+        root = self.chain_merkle_root(int(candidate["hash"], 16), auxpow.chain_merkle_branch, auxpow.chain_index)
+        input_data = (
+            bytes.fromhex("fabe6d6d")
+            + bytes.fromhex(f"{root:064x}")
+            + (1 << len(auxpow.chain_merkle_branch)).to_bytes(4, "little")
+            + nonce.to_bytes(4, "little")
+        )
+        auxpow.coinbase_tx.vin[0].scriptSig = bytes([len(input_data)]) + input_data
+        auxpow.coinbase_tx.rehash()
+        auxpow.parent_header.hashMerkleRoot = auxpow.coinbase_tx.sha256
 
     def assert_wallet_coinbase(self, node, block_hash, coinbasevalue, previous_immature):
         amount = Decimal(coinbasevalue) / Decimal(COIN)
@@ -179,8 +217,9 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.getbestblockhash(), other_pool_candidate["hash"])
         auxpow_height_one_hex = node.getblock(other_pool_candidate["hash"], False)
 
-        self.log.info("Accept stale Dogecoin-style AuxPoW candidate as a side branch")
+        self.log.info("Accept stale AuxPoW candidate with non-empty chain merkle branch as a side branch")
         pool_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
+        self.add_chain_merkle_branch(pool_auxpow, pool_candidate)
         solve_parent_header(pool_auxpow, int(pool_candidate["bits"], 16))
         assert_equal(node.submitauxblock(pool_candidate["hash"], pool_auxpow.serialize().hex()), True)
         assert_equal(node.getblockcount(), 1)
