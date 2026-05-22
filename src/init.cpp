@@ -1309,6 +1309,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     std::string shielded_deployment_error;
     if (!Consensus::ShieldedPool::CheckDeploymentParameters(
             chainparams.GetConsensus().shielded_pool,
+            chainparams.GetConsensus().auxpow,
             chainparams.IsMockableChain(),
             Consensus::ShieldedPool::OrchardRealVerifierSupportsProofsV1(),
             shielded_deployment_error)) {
