@@ -67,9 +67,9 @@ lint-zkcoin-public-launch-profile.py
 ====================================
 Checks that public `chainparams` stay fail-closed until production launch
 constants are hardcoded, and that the launch readiness gate still requires the
-Litecoin snapshot, strict AuxPoW at the first launch block, script-rule
-activation, shielded inactivity at launch, neutral inherited chain history, and
-non-Litecoin public network identity together.
+Litecoin snapshot, strict parent-version-safe AuxPoW at the first launch block,
+script-rule activation, shielded inactivity at launch, neutral inherited chain
+history, and non-Litecoin public network identity together.
 
 lint-zkcoin-release-infrastructure.py
 =====================================
