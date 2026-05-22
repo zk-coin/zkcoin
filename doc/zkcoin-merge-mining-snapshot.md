@@ -99,6 +99,19 @@ Both are intentionally present before behavior changes so tests and review can t
 
 This makes local block-X launch tests repeatable without requiring a full datadir reset after an interrupted import.
 
+## Launch Validation
+
+`contrib/devtools/zkcoin_launch_validation.sh` is the canonical production-profile validation command for zkCoin launch-path work. It delegates to `zkcoin_orchard_auxpow.sh`, which configures the real Orchard verifier backend, rebuilds the node, and runs the combined AuxPoW, local Litecoin-fork, snapshot import, shielded unit, Rust verifier, and real-proof functional regressions.
+
+Run it before treating changes to AuxPoW, snapshot import, shielded validation, or launch configuration as release-candidate work:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  contrib/devtools/zkcoin_launch_validation.sh
+```
+
+Individual unit or functional tests are useful while iterating, but they do not replace this combined launch validation loop.
+
 ## Block-X Snapshot Constant Generation
 
 `contrib/devtools/zkcoin_ltc_snapshot.sh` is the operator tool for turning a selected Litecoin block X into launch constants. It requires:

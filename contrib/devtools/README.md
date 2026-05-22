@@ -2,6 +2,21 @@ Contents
 ========
 This directory contains tools for developers working on this repository.
 
+zkcoin_launch_validation.sh
+===========================
+
+Runs the canonical zkCoin launch-profile validation loop. The wrapper delegates
+to `zkcoin_orchard_auxpow.sh`, which configures the real Orchard verifier
+backend, rebuilds the node, and runs AuxPoW, snapshot, shielded, and real-proof
+functional regressions together.
+
+Example:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  contrib/devtools/zkcoin_launch_validation.sh
+```
+
 clang-format-diff.py
 ===================
 
