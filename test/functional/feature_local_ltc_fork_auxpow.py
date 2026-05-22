@@ -355,6 +355,22 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(child.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], True)
         assert_equal(Decimal(str(child.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0.00000000"))
 
+        self.log.info("Reject launch readiness when AuxPoW chain id is not production-safe")
+        for extra_arg in ["-auxpowchainid=0", "-noauxpowstrictchainid"]:
+            self.restart_node(1, extra_args=self.child_launch_args(dump, verify) + [extra_arg])
+            child = self.nodes[1]
+            launch_readiness = child.getblockchaininfo()["launch_readiness"]
+            assert_equal(launch_readiness["ready"], False)
+            assert_equal(launch_readiness["snapshot_configured"], True)
+            assert_equal(launch_readiness["snapshot_imported"], True)
+            assert_equal(launch_readiness["auxpow_active_at_launch"], True)
+            assert_equal(launch_readiness["chain_id_configured"], False)
+            assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+            assert_equal(launch_readiness["at_launch_tip"], True)
+            assert "AuxPoW chain id is not configured for strict merge mining" in launch_readiness["failures"]
+        self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
+        child = self.nodes[1]
+
         self.log.info("Replay the same local parent snapshot before mining starts")
         replayed = child.importsnapshotmanifest(dump["path"])
         assert_equal(replayed["configured_snapshot"], True)

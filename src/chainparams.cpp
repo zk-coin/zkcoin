@@ -407,6 +407,16 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
         }
         consensus.auxpow.nStartHeight = static_cast<int>(height);
     }
+    if (args.IsArgSet("-auxpowchainid")) {
+        int64_t chain_id = args.GetArg("-auxpowchainid", consensus.auxpow.nChainId);
+        if (chain_id < 0 || chain_id >= 0x8000) {
+            throw std::runtime_error(strprintf("AuxPoW chain id %ld is out of valid range. Use 0 through 32767.", chain_id));
+        }
+        consensus.auxpow.nChainId = static_cast<uint32_t>(chain_id);
+    }
+    if (args.IsArgSet("-auxpowstrictchainid")) {
+        consensus.auxpow.fStrictChainId = args.GetBoolArg("-auxpowstrictchainid", consensus.auxpow.fStrictChainId);
+    }
 
     if (args.IsArgSet("-shieldedheight")) {
         int64_t height = args.GetArg("-shieldedheight", consensus.shielded_pool.nStartHeight);

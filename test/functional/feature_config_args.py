@@ -87,6 +87,8 @@ class ConfArgsTest(BitcoinTestFramework):
         invalid_activation_args = [
             ("-auxpowheight=-2", "Activation height -2 for auxpow is out of valid range. Use -1 to disable auxpow."),
             ("-auxpowheight=2147483647", "Activation height 2147483647 for auxpow is out of valid range. Use -1 to disable auxpow."),
+            ("-auxpowchainid=-1", "AuxPoW chain id -1 is out of valid range. Use 0 through 32767."),
+            ("-auxpowchainid=32768", "AuxPoW chain id 32768 is out of valid range. Use 0 through 32767."),
             ("-shieldedheight=-2", "Activation height -2 for shielded pool is out of valid range. Use -1 to disable shielded pool."),
             ("-shieldedheight=2147483647", "Activation height 2147483647 for shielded pool is out of valid range. Use -1 to disable shielded pool."),
         ]

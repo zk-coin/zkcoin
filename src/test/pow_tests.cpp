@@ -206,6 +206,19 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_height)
     BOOST_CHECK(consensus.auxpow.IsEnabled(7));
 }
 
+BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_auxpow_chain_id_args)
+{
+    ArgsManager args;
+    args.ForceSetArg("-auxpowchainid", "4660");
+    args.ForceSetArg("-auxpowstrictchainid", "0");
+
+    const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+    const auto consensus = chainParams->GetConsensus();
+
+    BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 4660U);
+    BOOST_CHECK(!consensus.auxpow.fStrictChainId);
+}
+
 BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_ltc_snapshot_args)
 {
     const std::string block_hash{"0000000000000000000000000000000000000000000000000000000000000001"};

@@ -251,6 +251,34 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["failures"], [])
         self.assert_launch_preflight(launch, 0, "Launch preflight passed.")
 
+        self.log.info("Reject launch preflight when AuxPoW chain id is not production-safe")
+        for extra_arg in ["-auxpowchainid=0", "-noauxpowstrictchainid"]:
+            self.restart_node(1, extra_args=[
+                "-auxpowheight=1",
+                f"-ltcsnapshotheight={dump['base_height']}",
+                f"-ltcsnapshotblockhash={verify['base_hash']}",
+                f"-ltcsnapshotutxoroot={verify['import_hash']}",
+                extra_arg,
+            ])
+            launch = self.nodes[1]
+            launch_readiness = launch.getblockchaininfo()["launch_readiness"]
+            assert_equal(launch_readiness["ready"], False)
+            assert_equal(launch_readiness["snapshot_configured"], True)
+            assert_equal(launch_readiness["snapshot_imported"], True)
+            assert_equal(launch_readiness["auxpow_active_at_launch"], True)
+            assert_equal(launch_readiness["chain_id_configured"], False)
+            assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+            assert_equal(launch_readiness["at_launch_tip"], True)
+            assert "AuxPoW chain id is not configured for strict merge mining" in launch_readiness["failures"]
+            self.assert_launch_preflight(launch, 1, "AuxPoW chain id is not configured for strict merge mining")
+        self.restart_node(1, extra_args=[
+            "-auxpowheight=1",
+            f"-ltcsnapshotheight={dump['base_height']}",
+            f"-ltcsnapshotblockhash={verify['base_hash']}",
+            f"-ltcsnapshotutxoroot={verify['import_hash']}",
+        ])
+        launch = self.nodes[1]
+
         self.log.info("Allow replaying the same snapshot import before launch mining")
         replayed = launch.importsnapshotmanifest(dump["path"])
         assert_equal(replayed["configured_snapshot"], True)
