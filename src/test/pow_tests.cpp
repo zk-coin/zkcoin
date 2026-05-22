@@ -250,6 +250,32 @@ public:
     void SetBase58Prefix(Base58Type type, std::vector<unsigned char> prefix) { base58Prefixes[type] = std::move(prefix); }
     void SetBech32Hrp(std::string hrp) { bech32_hrp = std::move(hrp); }
     void SetMwebHrp(std::string hrp) { mweb_hrp = std::move(hrp); }
+    void ConfigureCompleteLaunchProfile()
+    {
+        consensus.ltc_snapshot.nHeight = 2250000;
+        consensus.ltc_snapshot.hashBlock = uint256S("0x1111111111111111111111111111111111111111111111111111111111111111");
+        consensus.ltc_snapshot.hashUTXORoot = uint256S("0x2222222222222222222222222222222222222222222222222222222222222222");
+        consensus.auxpow.nStartHeight = 1;
+        consensus.auxpow.nChainId = 0x5a4b;
+        consensus.auxpow.fStrictChainId = true;
+        consensus.BIP16Height = 1;
+        consensus.BIP34Height = 1;
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 1;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.shielded_pool.nStartHeight = 2;
+        consensus.shielded_pool.fAllowScaffoldProofs = false;
+        consensus.nMinimumChainWork = uint256{};
+        consensus.defaultAssumeValid = uint256{};
+        checkpointData.mapCheckpoints.clear();
+        chainTxData = ChainTxData{
+            /* nTime    */ 0,
+            /* nTxCount */ 0,
+            /* dTxRate  */ 0,
+        };
+    }
 };
 
 BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockable_values)
@@ -523,6 +549,43 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_accepts_complete_rehears
     BOOST_CHECK_EQUAL(consensus.auxpow.nStartHeight, 1);
     BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 23115U);
     BOOST_CHECK(consensus.auxpow.fStrictChainId);
+    BOOST_CHECK_EQUAL(consensus.shielded_pool.nStartHeight, 2);
+    BOOST_CHECK(!consensus.shielded_pool.fAllowScaffoldProofs);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_accepts_complete_non_mockable_values)
+{
+    CNonMockablePublicIdentityParams chainParams;
+    chainParams.ConfigureCompleteLaunchProfile();
+
+    const Consensus::Params& consensus = chainParams.GetConsensus();
+    const PublicLaunchProfileStatus status = GetPublicLaunchProfileStatus(chainParams);
+
+    BOOST_CHECK(!chainParams.IsTestChain());
+    BOOST_CHECK(!chainParams.IsMockableChain());
+    BOOST_CHECK(HasConfiguredPublicLaunchProfile(chainParams));
+    BOOST_CHECK(status.configured);
+    BOOST_CHECK(status.snapshot_configured);
+    BOOST_CHECK(status.auxpow_active_at_launch);
+    BOOST_CHECK(status.chain_id_encodable);
+    BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.script_rules_active_at_launch);
+    BOOST_CHECK(status.shielded_inactive_at_launch);
+    BOOST_CHECK(status.chain_history_clean);
+    BOOST_CHECK(status.public_network_identity_configured);
+    BOOST_CHECK(!status.inherited_litecoin_public_identity);
+    BOOST_CHECK(status.public_network_identity.configured);
+    BOOST_CHECK(!status.public_network_identity.inherited_litecoin_public_identity);
+    BOOST_CHECK(consensus.ltc_snapshot.IsEnabled());
+    BOOST_CHECK_EQUAL(consensus.ltc_snapshot.nHeight, 2250000);
+    BOOST_CHECK(!consensus.ltc_snapshot.hashBlock.IsNull());
+    BOOST_CHECK(!consensus.ltc_snapshot.hashUTXORoot.IsNull());
+    BOOST_CHECK_EQUAL(consensus.auxpow.nStartHeight, 1);
+    BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 0x5a4bU);
+    BOOST_CHECK(consensus.auxpow.fStrictChainId);
+    BOOST_CHECK(HasLaunchActiveScriptRules(chainParams));
+    BOOST_CHECK(HasLaunchNeutralChainHistory(chainParams));
     BOOST_CHECK_EQUAL(consensus.shielded_pool.nStartHeight, 2);
     BOOST_CHECK(!consensus.shielded_pool.fAllowScaffoldProofs);
 }
