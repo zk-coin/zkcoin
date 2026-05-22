@@ -12,6 +12,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT_DIR"
 
+export TEST_RUNNER_PORT_MIN="${TEST_RUNNER_PORT_MIN:-20000}"
+
 if [[ -z "${JOBS:-}" ]]; then
   if command -v sysctl >/dev/null 2>&1; then
     JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
@@ -21,6 +23,8 @@ if [[ -z "${JOBS:-}" ]]; then
   fi
   JOBS="${JOBS:-4}"
 fi
+
+echo "Using functional test port minimum ${TEST_RUNNER_PORT_MIN}"
 
 boost_args=()
 if [[ -n "${BOOST_PREFIX:-}" ]]; then
@@ -98,6 +102,9 @@ echo "Running Rust shielded verifier unit and ABI smoke tests"
 
 echo "Running local Litecoin fork AuxPoW baseline functional test"
 test/functional/feature_local_ltc_fork_auxpow.py
+
+echo "Running Litecoin snapshot launch functional test"
+test/functional/feature_ltc_snapshot_launch.py
 
 echo "Running Orchard AuxPoW real-proof functional test"
 test/functional/feature_orchard_auxpow_realproof.py
