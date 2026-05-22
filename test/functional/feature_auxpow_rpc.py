@@ -71,6 +71,15 @@ class AuxPowRPCTest(BitcoinTestFramework):
         auxpow.parent_header.rehash()
         assert script_sig != auxpow.coinbase_tx.vin[0].scriptSig
 
+    def rehash_parent_after_coinbase_change(self, auxpow):
+        auxpow.coinbase_tx.rehash()
+        auxpow.parent_header.hashMerkleRoot = auxpow.coinbase_tx.sha256
+        auxpow.parent_header.rehash()
+
+    def set_auxpow_coinbase_payload(self, auxpow, payload):
+        auxpow.coinbase_tx.vin[0].scriptSig = bytes([len(payload)]) + payload
+        self.rehash_parent_after_coinbase_change(auxpow)
+
     def assert_auxpow_target(self, candidate):
         expected_target = ser_uint256(uint256_from_compact(int(candidate["bits"], 16))).hex()
         assert_equal(candidate["target"], expected_target)
@@ -361,6 +370,51 @@ class AuxPowRPCTest(BitcoinTestFramework):
         solve_parent_header(bad_auxpow, int(next_candidate["bits"], 16))
         bad_auxpow.index = 1
         assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 2)
+
+        self_merged_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        self_merged_auxpow.parent_header.nVersion = (self_merged_auxpow.parent_header.nVersion & 0xffff) | (
+            next_candidate["chainid"] << 16
+        )
+        solve_parent_header(self_merged_auxpow, int(next_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(next_candidate["hash"], self_merged_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 2)
+
+        duplicate_header_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        duplicate_header_payload = (
+            bytes.fromhex("fabe6d6d")
+            + bytes.fromhex(next_candidate["hash"])
+            + (1).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+            + bytes.fromhex("fabe6d6d")
+        )
+        self.set_auxpow_coinbase_payload(duplicate_header_auxpow, duplicate_header_payload)
+        solve_parent_header(duplicate_header_auxpow, int(next_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(next_candidate["hash"], duplicate_header_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 2)
+
+        short_script_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        short_script_auxpow.coinbase_tx.vin[0].scriptSig = b"\x00"
+        self.rehash_parent_after_coinbase_change(short_script_auxpow)
+        solve_parent_header(short_script_auxpow, int(next_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(next_candidate["hash"], short_script_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 2)
+
+        wrong_parent_hash_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        solve_parent_header(wrong_parent_hash_auxpow, int(next_candidate["bits"], 16))
+        wrong_parent_hash_auxpow.hash_block = wrong_parent_hash_auxpow.parent_header.sha256 ^ 1
+        assert_equal(node.submitauxblock(next_candidate["hash"], wrong_parent_hash_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 2)
+
+        wrong_chain_size_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        self.add_chain_merkle_branch(wrong_chain_size_auxpow, next_candidate)
+        size_offset = 1 + 4 + 32
+        wrong_chain_size_script = bytearray(wrong_chain_size_auxpow.coinbase_tx.vin[0].scriptSig)
+        wrong_chain_size_script[size_offset:size_offset + 4] = (1).to_bytes(4, "little")
+        wrong_chain_size_auxpow.coinbase_tx.vin[0].scriptSig = bytes(wrong_chain_size_script)
+        self.rehash_parent_after_coinbase_change(wrong_chain_size_auxpow)
+        solve_parent_header(wrong_chain_size_auxpow, int(next_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(next_candidate["hash"], wrong_chain_size_auxpow.serialize().hex()), False)
         assert_equal(node.getblockcount(), 2)
 
         retry_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
