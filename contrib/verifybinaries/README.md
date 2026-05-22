@@ -1,5 +1,15 @@
 ### Verify Binaries
 
+#### zkCoin status
+
+This directory is Bitcoin Core-only inherited tooling. It is not zkCoin release
+verification and is disabled by default. Do not use it to verify zkCoin release
+artifacts until zkCoin has configured release signing keys, checksum URLs,
+artifact prefixes, and distribution hosts.
+
+To run the legacy Bitcoin Core verifier intentionally for upstream reference,
+set `ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES=1`.
+
 #### Preparation:
 
 Make sure you obtain the proper release signing key and verify the fingerprint with several independent sources.
