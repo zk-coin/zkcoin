@@ -54,6 +54,7 @@ DIST_CONTRIB = \
 	       $(top_srcdir)/contrib/devtools/zkcoin_ltc_snapshot.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_orchard_auxpow.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_release_infrastructure_manifest.json \
+	       $(top_srcdir)/contrib/devtools/zkcoin_source_dist_smoke.sh \
 	       $(top_srcdir)/contrib/linearize/linearize-data.py \
 	       $(top_srcdir)/contrib/linearize/linearize-hashes.py
 

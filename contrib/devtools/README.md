@@ -49,7 +49,7 @@ AuxPoW, snapshot import, shielded validation, or launch configuration changes as
 release-candidate work.
 
 Set `SKIP_BUILD=1` to reuse already-built binaries, and `RUN_DISTDIR=0` to skip
-the source-distribution packaging check while iterating.
+the source tarball smoke while iterating.
 
 The expected canonical and smoke-lane checks are tracked in
 `zkcoin_launch_validation_manifest.json`; `test/lint/lint-zkcoin-launch-validation.py`
@@ -71,6 +71,22 @@ surfaces that are not production-ready for zkCoin releases yet. The
 explicit, checks that release docs remain blocked, and fails closed until
 zkCoin release keys, signing repositories, artifact hosts, and namespace
 decisions are configured.
+
+zkcoin_source_dist_smoke.sh
+===========================
+
+Builds a `litecoin-brandcheck.tar.gz` source tarball with `make dist-gzip` and
+verifies that the Rust shielded verifier sources, headers, smoke scripts, tests,
+and Orchard vectors are present while Cargo `target/` build outputs are absent.
+This is a local release-artifact smoke for the verifier source packaging path;
+it does not make the inherited Gitian, signing, or binary-verification
+infrastructure production-ready.
+
+Example:
+
+```bash
+contrib/devtools/zkcoin_source_dist_smoke.sh
+```
 
 clang-format-diff.py
 ===================
