@@ -474,6 +474,19 @@ def main():
             return fail(SIGNET_TEST, error)
 
     preflight_checks = (
+        (
+            "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
+            "preflight cross-checks snapshot import detail",
+        ),
+        ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
+        (
+            "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
+            "preflight cross-checks AuxPoW next-block activation detail",
+        ),
+        (
+            "getblockchaininfo.auxpow.strict_chain_id must be true when launch_readiness.chain_id_configured is true",
+            "preflight cross-checks strict AuxPoW chain-id detail",
+        ),
         ("message_start_shape_valid", "preflight requires message-start shape detail"),
         ("dns_seeds_shape_valid", "preflight requires DNS seed shape detail"),
         ("base58_prefixes_unique", "preflight requires Base58 uniqueness detail"),
@@ -481,6 +494,10 @@ def main():
         (
             "getblockchaininfo.auxpow.parent_version_safe must match launch_readiness.chain_id_parent_version_safe",
             "preflight cross-checks AuxPoW parent-version safety detail",
+        ),
+        (
+            "getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip",
+            "preflight cross-checks shielded launch activation detail",
         ),
     )
     for needle, description in preflight_checks:
