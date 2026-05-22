@@ -87,15 +87,33 @@ CBlockHeader MakeAuxPowChildHeader(const char* prev_hex, const char* merkle_hex)
     return header;
 }
 
-CTransactionRef MakeCoinbaseWithCommitment(const std::vector<unsigned char>& commitment)
+CTransactionRef MakeCoinbaseWithScriptSig(const CScript& scriptSig)
 {
     CMutableTransaction coinbase;
     coinbase.vin.resize(1);
     coinbase.vin[0].prevout.SetNull();
-    coinbase.vin[0].scriptSig = CScript() << commitment;
+    coinbase.vin[0].scriptSig = scriptSig;
     coinbase.vout.resize(1);
     coinbase.vout[0].scriptPubKey = CScript() << OP_TRUE;
     return MakeTransactionRef(coinbase);
+}
+
+CTransactionRef MakeCoinbaseWithCommitment(const std::vector<unsigned char>& commitment)
+{
+    return MakeCoinbaseWithScriptSig(CScript() << commitment);
+}
+
+CTransactionRef MakeDummyParentTransaction(const char* prevout_hex)
+{
+    uint256 prevoutHash;
+    prevoutHash.SetHex(prevout_hex);
+
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout = COutPoint(prevoutHash, 0);
+    tx.vout.resize(1);
+    tx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    return MakeTransactionRef(tx);
 }
 
 bool CheckAuxPowCommitment(const CBlockHeader& header, const std::vector<unsigned char>& commitment, const Consensus::Params& consensus)
@@ -446,6 +464,64 @@ BOOST_AUTO_TEST_CASE(auxpow_rejects_malformed_parent_coinbase_script)
     parent.hashMerkleRoot = oversizedCoinbaseRef->GetHash();
     CAuxPow oversizedScriptAuxpow = DeserializeAuxPowForParentTx(oversizedCoinbaseRef, parent);
     BOOST_CHECK(!oversizedScriptAuxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(auxpow_accepts_litecoin_versionbits_parent_with_chain_merkle_branch)
+{
+    const Consensus::Params& consensus = Params().GetConsensus();
+    CBlockHeader header = MakeAuxPowChildHeader("22", "23");
+    header.SetChainId(consensus.auxpow.nChainId);
+
+    uint256 branchHash;
+    branchHash.SetHex("24");
+    const std::vector<uint256> chainMerkleBranch{branchHash};
+    const uint32_t nonce = 0;
+    const int chainIndex = CAuxPow::getExpectedIndex(nonce, consensus.auxpow.nChainId, chainMerkleBranch.size());
+    const uint256 root = CalcAuxPowMerkleRootForTest(header.GetHash(), chainMerkleBranch, chainIndex);
+    const std::vector<unsigned char> commitment = BuildAuxPowCommitmentBytes(root, true, 0, 1u << chainMerkleBranch.size(), nonce);
+    const std::vector<unsigned char> poolTag{'z', 'k', 'c', 'o', 'i', 'n', '-', 'p', 'o', 'o', 'l'};
+    CTransactionRef coinbaseRef = MakeCoinbaseWithScriptSig(CScript() << 1 << poolTag << commitment);
+    CTransactionRef txRef = MakeDummyParentTransaction("25");
+
+    CBlock parentBlock;
+    parentBlock.nVersion = 0x20000000;
+    parentBlock.nTime = 1;
+    parentBlock.nBits = 0x207fffff;
+    parentBlock.nNonce = 0;
+    parentBlock.vtx = {coinbaseRef, txRef};
+    parentBlock.hashMerkleRoot = BlockMerkleRoot(parentBlock);
+
+    const std::vector<uint256> parentMerkleBranch{txRef->GetHash()};
+    CAuxPow auxpow = DeserializeAuxPowForParentTx(
+        coinbaseRef,
+        parentBlock.GetBlockHeader(),
+        0,
+        parentMerkleBranch,
+        chainMerkleBranch,
+        chainIndex);
+
+    BOOST_CHECK_EQUAL(parentBlock.GetChainId(), 0x2000);
+    BOOST_CHECK_NE(parentBlock.GetChainId(), static_cast<int32_t>(consensus.auxpow.nChainId));
+    BOOST_CHECK(auxpow.check(header.GetHash(), consensus.auxpow.nChainId, consensus));
+
+    CBlockHeader overlappingHeader = header;
+    overlappingHeader.SetChainId(parentBlock.GetChainId());
+    const int overlappingChainIndex = CAuxPow::getExpectedIndex(nonce, parentBlock.GetChainId(), chainMerkleBranch.size());
+    const uint256 overlappingRoot = CalcAuxPowMerkleRootForTest(overlappingHeader.GetHash(), chainMerkleBranch, overlappingChainIndex);
+    const std::vector<unsigned char> overlappingCommitment = BuildAuxPowCommitmentBytes(overlappingRoot, true, 0, 1u << chainMerkleBranch.size(), nonce);
+    CTransactionRef overlappingCoinbaseRef = MakeCoinbaseWithScriptSig(CScript() << 1 << poolTag << overlappingCommitment);
+    parentBlock.vtx[0] = overlappingCoinbaseRef;
+    parentBlock.hashMerkleRoot = BlockMerkleRoot(parentBlock);
+    const std::vector<uint256> overlappingParentMerkleBranch{txRef->GetHash()};
+    CAuxPow overlappingAuxpow = DeserializeAuxPowForParentTx(
+        overlappingCoinbaseRef,
+        parentBlock.GetBlockHeader(),
+        0,
+        overlappingParentMerkleBranch,
+        chainMerkleBranch,
+        overlappingChainIndex);
+
+    BOOST_CHECK(!overlappingAuxpow.check(overlappingHeader.GetHash(), parentBlock.GetChainId(), consensus));
 }
 
 BOOST_AUTO_TEST_CASE(auxpow_validates_chain_merkle_branch_metadata)
