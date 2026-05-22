@@ -240,6 +240,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["auxpow_active_at_launch"], True)
         assert_equal(launch_readiness["chain_id_configured"], True)
         assert_equal(launch_readiness["chain_history_clean"], True)
+        assert_equal(launch_readiness["public_network_identity_configured"], True)
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], True)
         assert "configured snapshot has not been imported" in launch_readiness["failures"]
@@ -288,6 +289,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["chain_id_configured"], True)
         assert_equal(launch_readiness["chain_id_parent_version_safe"], True)
         assert_equal(launch_readiness["chain_history_clean"], True)
+        assert_equal(launch_readiness["public_network_identity_configured"], True)
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], True)
         assert_equal(launch_readiness["failures"], [])
@@ -310,6 +312,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             assert_equal(launch_readiness["chain_id_configured"], False)
             assert_equal(launch_readiness["chain_id_parent_version_safe"], parent_version_safe)
             assert_equal(launch_readiness["chain_history_clean"], True)
+            assert_equal(launch_readiness["public_network_identity_configured"], True)
             assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
             assert_equal(launch_readiness["at_launch_tip"], True)
             assert failure in launch_readiness["failures"]
@@ -404,6 +407,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["auxpow_active_at_launch"], True)
         assert_equal(launch_readiness["chain_id_configured"], True)
         assert_equal(launch_readiness["chain_history_clean"], True)
+        assert_equal(launch_readiness["public_network_identity_configured"], True)
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], False)
         assert "node is not at the genesis launch tip" in launch_readiness["failures"]

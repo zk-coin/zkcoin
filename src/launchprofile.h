@@ -18,6 +18,7 @@ struct PublicLaunchProfileStatus {
     bool shielded_inactive_at_launch{false};
     bool chain_history_clean{false};
     bool inherited_litecoin_public_identity{false};
+    bool public_network_identity_configured{false};
     bool configured{false};
 };
 
