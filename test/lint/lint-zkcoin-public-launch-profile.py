@@ -424,6 +424,14 @@ def main():
             "runtime positive launch-profile rehearsal unit test",
         ),
         (
+            "ChainParams_PUBLIC_launch_profile_accepts_complete_non_mockable_values",
+            "runtime positive non-mockable launch-profile unit test",
+        ),
+        (
+            "chainParams.ConfigureCompleteLaunchProfile();",
+            "test-only complete non-mockable launch-profile fixture",
+        ),
+        (
             "ChainParams_REGTEST_launch_profile_rejects_shielded_active_at_launch",
             "runtime negative shielded launch activation unit test",
         ),
