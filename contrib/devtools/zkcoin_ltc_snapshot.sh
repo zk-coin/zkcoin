@@ -96,10 +96,17 @@ zk_cli() {
 
 RESTORE_BLOCK_HASH=""
 cleanup() {
+  local status=$?
   if [[ -n "$RESTORE_BLOCK_HASH" ]]; then
     echo "Restoring Litecoin source chain by reconsidering $RESTORE_BLOCK_HASH" >&2
-    ltc_cli reconsiderblock "$RESTORE_BLOCK_HASH" >/dev/null || true
+    if ! ltc_cli reconsiderblock "$RESTORE_BLOCK_HASH" >/dev/null; then
+      echo "error: failed to restore Litecoin source chain at $RESTORE_BLOCK_HASH" >&2
+      if (( status == 0 )); then
+        status=1
+      fi
+    fi
   fi
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -136,45 +143,97 @@ VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 
 python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json
+import re
 import sys
 
 height = int(sys.argv[1])
 expected_hash = sys.argv[2].lower()
 snapshot_path = sys.argv[3]
-dump = json.loads(sys.argv[4])
-verify = json.loads(sys.argv[5])
+dump_json = sys.argv[4]
+verify_json = sys.argv[5]
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
     sys.exit(1)
 
-if int(dump["base_height"]) != height:
-    fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump['base_height']}")
+def load_json(source, raw):
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(f"{source} did not return JSON: {exc}")
+    if not isinstance(value, dict):
+        fail(f"{source} response must be a JSON object")
+    return value
 
-if dump["base_hash"].lower() != expected_hash:
-    fail(f"dumptxoutset base_hash mismatch: expected={expected_hash} actual={dump['base_hash'].lower()}")
+def require_field(obj, source, field):
+    if field not in obj:
+        fail(f"missing {source} field: {field}")
+    return obj[field]
 
-if verify["base_hash"].lower() != expected_hash:
-    fail(f"verifysnapshotmanifest base_hash mismatch: expected={expected_hash} actual={verify['base_hash'].lower()}")
+def require_int(obj, source, field):
+    value = require_field(obj, source, field)
+    if isinstance(value, bool):
+        fail(f"{source}.{field} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        fail(f"{source}.{field} must be an integer")
+    if parsed < 0:
+        fail(f"{source}.{field} must be a non-negative integer")
+    return parsed
 
-if int(verify["base_height"]) != height:
-    fail(f"verifysnapshotmanifest base_height mismatch: expected={height} actual={verify['base_height']}")
+def require_hash(obj, source, field):
+    value = require_field(obj, source, field)
+    if not isinstance(value, str):
+        fail(f"{source}.{field} must be a 64-character hex string")
+    value = value.lower()
+    if not HEX64_RE.fullmatch(value):
+        fail(f"{source}.{field} must be a 64-character hex string")
+    return value
 
-if int(verify["coins"]) != int(dump["coins_written"]):
-    fail(f"coin count mismatch: dumptxoutset={dump['coins_written']} verified={verify['coins']}")
+dump = load_json("dumptxoutset", dump_json)
+verify = load_json("verifysnapshotmanifest", verify_json)
 
-if int(verify["metadata_coins"]) != int(dump["coins_written"]):
-    fail(f"metadata coin count mismatch: dumptxoutset={dump['coins_written']} metadata={verify['metadata_coins']}")
+dump_height = require_int(dump, "dumptxoutset", "base_height")
+dump_hash = require_hash(dump, "dumptxoutset", "base_hash")
+dump_coins = require_int(dump, "dumptxoutset", "coins_written")
+verify_height = require_int(verify, "verifysnapshotmanifest", "base_height")
+verify_hash = require_hash(verify, "verifysnapshotmanifest", "base_hash")
+verify_coins = require_int(verify, "verifysnapshotmanifest", "coins")
+verify_metadata_coins = require_int(verify, "verifysnapshotmanifest", "metadata_coins")
+verify_base_nchaintx = require_int(verify, "verifysnapshotmanifest", "base_nchaintx")
+snapshot_hash = require_hash(verify, "verifysnapshotmanifest", "snapshot_hash")
+import_hash = require_hash(verify, "verifysnapshotmanifest", "import_hash")
+total_amount = require_field(verify, "verifysnapshotmanifest", "total_amount")
+
+if dump_height != height:
+    fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")
+
+if dump_hash != expected_hash:
+    fail(f"dumptxoutset base_hash mismatch: expected={expected_hash} actual={dump_hash}")
+
+if verify_hash != expected_hash:
+    fail(f"verifysnapshotmanifest base_hash mismatch: expected={expected_hash} actual={verify_hash}")
+
+if verify_height != height:
+    fail(f"verifysnapshotmanifest base_height mismatch: expected={height} actual={verify_height}")
+
+if verify_coins != dump_coins:
+    fail(f"coin count mismatch: dumptxoutset={dump_coins} verified={verify_coins}")
+
+if verify_metadata_coins != dump_coins:
+    fail(f"metadata coin count mismatch: dumptxoutset={dump_coins} metadata={verify_metadata_coins}")
 
 summary = {
     "height": height,
     "block_hash": expected_hash,
-    "coins": int(verify["coins"]),
-    "base_nchaintx": int(verify["base_nchaintx"]),
-    "snapshot_hash": verify["snapshot_hash"],
-    "import_hash": verify["import_hash"],
+    "coins": verify_coins,
+    "base_nchaintx": verify_base_nchaintx,
+    "snapshot_hash": snapshot_hash,
+    "import_hash": import_hash,
     "snapshot_file": snapshot_path,
-    "total_amount": verify["total_amount"],
+    "total_amount": total_amount,
 }
 
 print("Snapshot verified.")
@@ -182,7 +241,7 @@ print()
 print("Snapshot launch-node arguments:")
 print(f"-ltcsnapshotheight={height}")
 print(f"-ltcsnapshotblockhash={expected_hash}")
-print(f"-ltcsnapshotutxoroot={verify['import_hash']}")
+print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={snapshot_path}")
 print()
 print("Combine these with the AuxPoW launch profile and confirm")

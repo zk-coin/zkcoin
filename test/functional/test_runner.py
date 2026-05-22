@@ -140,6 +140,7 @@ BASE_SCRIPTS = [
     'wallet_txn_doublespend.py --mineblock',
     'tool_wallet.py',
     'tool_wallet.py --descriptors',
+    'feature_ltc_snapshot_script.py',
     'feature_launch_preflight_script.py',
     'wallet_txn_clone.py',
     'wallet_txn_clone.py --segwit',
