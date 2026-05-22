@@ -168,6 +168,53 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "required readiness fields are false: script_rules_active_at_launch",
         )
 
+        self.log.info("Reject inconsistent ready response with parent-version-unsafe AuxPoW detail")
+        false_parent_version_detail = self.valid_info(readiness_overrides={
+            "chain_id_parent_version_safe": False,
+        })
+        false_parent_version_detail["auxpow"]["parent_version_safe"] = False
+        result = self.run_preflight(fake_cli, false_parent_version_detail)
+        assert_equal(result.returncode, 1)
+        combined_output = result.stdout + result.stderr
+        assert "auxpow parent version safe: false" in combined_output
+        assert "required readiness fields are false: chain_id_parent_version_safe" in combined_output
+
+        self.log.info("Reject parent-version-unsafe AuxPoW chain id")
+        unsafe_parent_version_chain_id = self.valid_info(readiness_overrides={
+            "ready": False,
+            "chain_id_configured": False,
+            "chain_id_parent_version_safe": False,
+            "failures": ["AuxPoW chain id overlaps Litecoin parent versionbits chain-id range"],
+        })
+        unsafe_parent_version_chain_id["auxpow"]["chain_id"] = 8192
+        unsafe_parent_version_chain_id["auxpow"]["parent_version_safe"] = False
+        self.assert_preflight(
+            fake_cli,
+            unsafe_parent_version_chain_id,
+            1,
+            "AuxPoW chain id overlaps Litecoin parent versionbits chain-id range",
+        )
+
+        self.log.info("Reject inconsistent AuxPoW parent version safety detail")
+        inconsistent_parent_version_detail = self.valid_info()
+        inconsistent_parent_version_detail["auxpow"]["parent_version_safe"] = False
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_parent_version_detail,
+            1,
+            "getblockchaininfo.auxpow.parent_version_safe must match launch_readiness.chain_id_parent_version_safe",
+        )
+
+        self.log.info("Reject malformed AuxPoW parent version safety field types")
+        malformed_parent_version_detail = self.valid_info()
+        malformed_parent_version_detail["auxpow"]["parent_version_safe"] = "false"
+        self.assert_preflight(
+            fake_cli,
+            malformed_parent_version_detail,
+            1,
+            "getblockchaininfo.auxpow.parent_version_safe must be a boolean",
+        )
+
         self.log.info("Reject inherited public network identity in launch readiness")
         self.assert_preflight(
             fake_cli,

@@ -153,6 +153,21 @@ for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
         schema_errors.append(f"missing getblockchaininfo.{section} fields: " + ", ".join(missing_fields))
     detail_sections[section] = value
 
+auxpow_detail = detail_sections.get("auxpow")
+if auxpow_detail is not None:
+    if "strict_chain_id" in auxpow_detail and type(auxpow_detail["strict_chain_id"]) is not bool:
+        schema_errors.append("getblockchaininfo.auxpow.strict_chain_id must be a boolean")
+    if "parent_version_safe" in auxpow_detail and type(auxpow_detail["parent_version_safe"]) is not bool:
+        schema_errors.append("getblockchaininfo.auxpow.parent_version_safe must be a boolean")
+    if (
+        "parent_version_safe" in auxpow_detail
+        and "chain_id_parent_version_safe" in readiness
+        and type(auxpow_detail.get("parent_version_safe")) is bool
+        and type(readiness.get("chain_id_parent_version_safe")) is bool
+        and auxpow_detail["parent_version_safe"] != readiness["chain_id_parent_version_safe"]
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.parent_version_safe must match launch_readiness.chain_id_parent_version_safe")
+
 shielded_detail = detail_sections.get("shielded_pool")
 if shielded_detail is not None:
     if "scaffold_proofs" in shielded_detail and type(shielded_detail["scaffold_proofs"]) is not bool:
@@ -184,8 +199,8 @@ print(f"  snapshot import hash: {snapshot.get('import_hash')}")
 print(f"  auxpow active at launch: {str(readiness['auxpow_active_at_launch']).lower()}")
 print(f"  auxpow start height: {auxpow.get('start_height')}")
 print(f"  auxpow chain id: {auxpow.get('chain_id')}")
-print(f"  auxpow strict chain id: {str(bool(auxpow.get('strict_chain_id'))).lower()}")
-print(f"  auxpow parent version safe: {str(bool(auxpow.get('parent_version_safe'))).lower()}")
+print(f"  auxpow strict chain id: {str(auxpow['strict_chain_id']).lower()}")
+print(f"  auxpow parent version safe: {str(auxpow['parent_version_safe']).lower()}")
 print(f"  chain id configured: {str(readiness['chain_id_configured']).lower()}")
 print(f"  chain id parent version safe: {str(readiness['chain_id_parent_version_safe']).lower()}")
 print(f"  script rules active at launch: {str(readiness['script_rules_active_at_launch']).lower()}")

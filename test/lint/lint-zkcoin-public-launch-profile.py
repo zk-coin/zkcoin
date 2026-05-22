@@ -212,6 +212,28 @@ def require_configured_gate(text):
     return None
 
 
+def require_chain_id_configured_gate(text):
+    start = text.find("status.chain_id_configured = status.chain_id_encodable &&")
+    if start == -1:
+        return "{} missing chain-id configured gate start".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    end = text.find(";", start)
+    if end == -1:
+        return "{} missing chain-id configured gate terminator".format(LAUNCHPROFILE.relative_to(ROOT_DIR))
+    gate = text[start:end]
+    required_terms = (
+        "status.chain_id_encodable",
+        "status.chain_id_parent_version_safe",
+        "consensus.auxpow.fStrictChainId",
+    )
+    missing = [term for term in required_terms if term not in gate]
+    if missing:
+        return "{} chain-id configured gate missing terms: {}".format(
+            LAUNCHPROFILE.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
+    return None
+
+
 def require_public_identity_configured_gate(text):
     start = text.find("status.configured =\n        !status.inherited_litecoin_public_identity &&")
     if start == -1:
@@ -279,6 +301,9 @@ def main():
     error = require_markers(launchprofile_text, LAUNCH_PROFILE_MARKERS, LAUNCHPROFILE)
     if error:
         return fail(LAUNCHPROFILE, error)
+    error = require_chain_id_configured_gate(launchprofile_text)
+    if error:
+        return fail(LAUNCHPROFILE, error)
     error = require_configured_gate(launchprofile_text)
     if error:
         return fail(LAUNCHPROFILE, error)
@@ -331,6 +356,10 @@ def main():
         ("dns_seeds_shape_valid", "preflight requires DNS seed shape detail"),
         ("base58_prefixes_unique", "preflight requires Base58 uniqueness detail"),
         ("hrps_unique", "preflight requires HRP uniqueness detail"),
+        (
+            "getblockchaininfo.auxpow.parent_version_safe must match launch_readiness.chain_id_parent_version_safe",
+            "preflight cross-checks AuxPoW parent-version safety detail",
+        ),
     )
     for needle, description in preflight_checks:
         error = require_text(LAUNCH_PREFLIGHT, needle, description)
@@ -345,6 +374,12 @@ def main():
         ("launch profile is hardcoded in `chainparams`", "chainparams launch-profile documentation"),
         ("the Litecoin block-X snapshot", "snapshot readiness documentation"),
         ("strict AuxPoW must activate for the first launch block", "AuxPoW readiness documentation"),
+        ("with a parent-version-safe child chain id", "parent-version-safe AuxPoW documentation"),
+        (
+            "avoid the Litecoin parent versionbits-derived range `0x2000` through `0x3fff`",
+            "Litecoin parent versionbits chain-id range documentation",
+        ),
+        ("launch_readiness.chain_id_parent_version_safe=true", "preflight parent-version-safe readiness documentation"),
         (
             "transactions must remain inactive for the first launch block",
             "shielded launch posture documentation",

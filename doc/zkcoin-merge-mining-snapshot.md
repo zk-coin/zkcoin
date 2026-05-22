@@ -62,7 +62,7 @@ SNARK privacy is not quantum resistance. If post-quantum privacy becomes a requi
 
 `Consensus::Params::ltc_snapshot` records block X and the deterministic UTXO root. It is disabled until `nHeight` is set.
 
-`Consensus::Params::auxpow` records the AuxPoW start height and chain id. It is disabled until `nStartHeight` is set. The placeholder chain id is `0x5a4b` (`ZK`) so it fits in the AuxPoW block-version chain-id field.
+`Consensus::Params::auxpow` records the AuxPoW start height and chain id. It is disabled until `nStartHeight` is set. The placeholder chain id is `0x5a4b` (`ZK`) so it fits in the AuxPoW block-version chain-id field and avoids the Litecoin parent versionbits-derived range `0x2000` through `0x3fff`.
 
 The validation path should switch at that height:
 
@@ -191,4 +191,4 @@ contrib/devtools/zkcoin_launch_preflight.sh \
   ./src/litecoin-cli -datadir=/srv/zkcoin-data
 ```
 
-The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined and to report `launch_readiness.script_rules_active_at_launch=true`, `launch_readiness.chain_history_clean=true`, and `launch_readiness.public_network_identity_configured=true`. When public network identity is not configured, inspect `launch_readiness.public_network_identity` for inherited message-start, port, seed, Base58, Bech32, and MWEB HRP checks plus malformed message-start, reserved port, missing or malformed DNS seed, invalid or duplicate Base58 prefix, and non-distinct HRP failures. It also fails closed unless scaffold proofs are disabled, `shielded_pool.real_proof_backend` is `orchard-v1`, and `shielded_pool.real_proof_verification` is `true`.
+The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined and to report `launch_readiness.chain_id_configured=true`, `launch_readiness.chain_id_parent_version_safe=true`, `auxpow.parent_version_safe=true`, `launch_readiness.script_rules_active_at_launch=true`, `launch_readiness.chain_history_clean=true`, and `launch_readiness.public_network_identity_configured=true`. When public network identity is not configured, inspect `launch_readiness.public_network_identity` for inherited message-start, port, seed, Base58, Bech32, and MWEB HRP checks plus malformed message-start, reserved port, missing or malformed DNS seed, invalid or duplicate Base58 prefix, and non-distinct HRP failures. It also fails closed unless scaffold proofs are disabled, `shielded_pool.real_proof_backend` is `orchard-v1`, and `shielded_pool.real_proof_verification` is `true`.

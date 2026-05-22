@@ -14,8 +14,8 @@ an Orchard-based shielded transaction verifier.
 The public main and test networks intentionally fail closed until the
 production launch profile is hardcoded. That profile must replace inherited
 Litecoin public network identity, configure the launch snapshot, activate
-strict AuxPoW for the first post-genesis block, and keep real Orchard proof
-verification available.
+strict, parent-version-safe AuxPoW for the first post-genesis block, and keep
+real Orchard proof verification available.
 
 License
 -------
