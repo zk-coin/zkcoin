@@ -79,6 +79,7 @@ class BlockchainTest(BitcoinTestFramework):
         self.log.info("Test getblockchaininfo")
 
         keys = [
+            'auxpow',
             'bestblockhash',
             'blocks',
             'chain',
@@ -86,8 +87,11 @@ class BlockchainTest(BitcoinTestFramework):
             'difficulty',
             'headers',
             'initialblockdownload',
+            'launch_readiness',
+            'ltc_snapshot',
             'mediantime',
             'pruned',
+            'shielded_pool',
             'size_on_disk',
             'softforks',
             'verificationprogress',
@@ -107,11 +111,13 @@ class BlockchainTest(BitcoinTestFramework):
         # check other pruning fields given that prune=1
         assert res['pruned']
         assert not res['automatic_pruning']
+        assert_equal(res['launch_readiness']['ready'], False)
 
         self.restart_node(0, ['-stopatheight=207'])
         res = self.nodes[0].getblockchaininfo()
         # should have exact keys
         assert_equal(sorted(res.keys()), keys)
+        assert_equal(res['launch_readiness']['ready'], False)
 
         self.restart_node(0, ['-stopatheight=207', '-prune=2200', '-vbparams=mweb:-2:0'])
         res = self.nodes[0].getblockchaininfo()

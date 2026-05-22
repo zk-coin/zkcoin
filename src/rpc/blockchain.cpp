@@ -1577,6 +1577,19 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::STR_HEX, "import_in_progress_block_hash", /*optional=*/true, "in-progress snapshot import marker block hash"},
                             {RPCResult::Type::STR_HEX, "import_in_progress_hash", /*optional=*/true, "in-progress snapshot import marker import hash"},
                         }},
+                        {RPCResult::Type::OBJ, "launch_readiness", "zkCoin base launch preflight status",
+                        {
+                            {RPCResult::Type::BOOL, "ready", "whether this node has the base launch invariants needed to mine the first launch block"},
+                            {RPCResult::Type::BOOL, "snapshot_configured", "whether block-X snapshot consensus constants are configured"},
+                            {RPCResult::Type::BOOL, "snapshot_imported", "whether the configured block-X snapshot import marker is present"},
+                            {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
+                            {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
+                            {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
+                            {RPCResult::Type::ARR, "failures", "failed readiness checks",
+                            {
+                                {RPCResult::Type::STR, "", "failure reason"},
+                            }},
+                        }},
                         {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
                         {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
                         {RPCResult::Type::NUM, "pruneheight", "lowest-height complete block stored (only present if pruning is enabled)"},
@@ -1668,13 +1681,17 @@ RPCHelpMan getblockchaininfo()
         consensusParams.ltc_snapshot.hashBlock,
         consensusParams.ltc_snapshot.hashUTXORoot,
     };
+    const bool snapshot_configured = consensusParams.ltc_snapshot.IsEnabled() &&
+        !consensusParams.ltc_snapshot.hashBlock.IsNull() &&
+        !consensusParams.ltc_snapshot.hashUTXORoot.IsNull();
+    const bool snapshot_imported = snapshot_configured &&
+        has_imported_snapshot &&
+        LtcSnapshotImportInfoMatches(imported_snapshot, configured_snapshot);
     ltc_snapshot.pushKV("enabled", consensusParams.ltc_snapshot.IsEnabled());
     ltc_snapshot.pushKV("height", consensusParams.ltc_snapshot.nHeight);
     ltc_snapshot.pushKV("block_hash", consensusParams.ltc_snapshot.hashBlock.ToString());
     ltc_snapshot.pushKV("import_hash", consensusParams.ltc_snapshot.hashUTXORoot.ToString());
-    ltc_snapshot.pushKV("imported", consensusParams.ltc_snapshot.IsEnabled() &&
-        has_imported_snapshot &&
-        LtcSnapshotImportInfoMatches(imported_snapshot, configured_snapshot));
+    ltc_snapshot.pushKV("imported", snapshot_imported);
     if (has_imported_snapshot) {
         ltc_snapshot.pushKV("imported_height", imported_snapshot.nHeight);
         ltc_snapshot.pushKV("imported_block_hash", imported_snapshot.hashBlock.ToString());
@@ -1687,6 +1704,38 @@ RPCHelpMan getblockchaininfo()
         ltc_snapshot.pushKV("import_in_progress_hash", import_in_progress.hashUTXORoot.ToString());
     }
     obj.pushKV("ltc_snapshot", ltc_snapshot);
+
+    const bool auxpow_active_at_launch = consensusParams.auxpow.IsEnabled(1);
+    const bool chain_id_configured = consensusParams.auxpow.nChainId != 0 &&
+        consensusParams.auxpow.nChainId < 0x8000 &&
+        consensusParams.auxpow.fStrictChainId;
+    const bool shielded_inactive_at_launch = !consensusParams.shielded_pool.IsEnabled(1);
+    UniValue launch_failures(UniValue::VARR);
+    if (!snapshot_configured) {
+        launch_failures.push_back("snapshot consensus parameters are not configured");
+    }
+    if (!snapshot_imported) {
+        launch_failures.push_back("configured snapshot has not been imported");
+    }
+    if (!auxpow_active_at_launch) {
+        launch_failures.push_back("AuxPoW is not active for the first launch block");
+    }
+    if (!chain_id_configured) {
+        launch_failures.push_back("AuxPoW chain id is not configured for strict merge mining");
+    }
+    if (!shielded_inactive_at_launch) {
+        launch_failures.push_back("shielded pool is active in the first launch block");
+    }
+
+    UniValue launch_readiness(UniValue::VOBJ);
+    launch_readiness.pushKV("ready", launch_failures.empty());
+    launch_readiness.pushKV("snapshot_configured", snapshot_configured);
+    launch_readiness.pushKV("snapshot_imported", snapshot_imported);
+    launch_readiness.pushKV("auxpow_active_at_launch", auxpow_active_at_launch);
+    launch_readiness.pushKV("chain_id_configured", chain_id_configured);
+    launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
+    launch_readiness.pushKV("failures", launch_failures);
+    obj.pushKV("launch_readiness", launch_readiness);
 
     obj.pushKV("size_on_disk",          CalculateCurrentUsage());
     obj.pushKV("pruned",                fPruneMode);
