@@ -6,6 +6,7 @@
 #define BITCOIN_CONSENSUS_SHIELDED_H
 
 #include <amount.h>
+#include <consensus/params.h>
 #include <consensus/shielded_verifier.h>
 #include <consensus/validation.h>
 #include <hash.h>
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace Consensus {
@@ -57,6 +59,27 @@ struct ProofEnvelopeCheck
             (allow_scaffold_proofs || proof_body_mode != SHIELDED_ORCHARD_PROOF_BODY_MODE_SCAFFOLD);
     }
 };
+
+inline bool CheckDeploymentParameters(
+    const ::Consensus::ShieldedPoolParams& params,
+    bool is_mockable_chain,
+    bool real_proof_verification,
+    std::string& error)
+{
+    error.clear();
+    if (params.nStartHeight < 0 || is_mockable_chain) {
+        return true;
+    }
+    if (params.fAllowScaffoldProofs) {
+        error = "shielded scaffold proofs are not allowed on public chains";
+        return false;
+    }
+    if (!real_proof_verification) {
+        error = "shielded pool activation requires a real Orchard proof verifier on public chains";
+        return false;
+    }
+    return true;
+}
 
 inline const std::vector<unsigned char>& MarkerPrefix()
 {

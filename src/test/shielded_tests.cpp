@@ -27,6 +27,31 @@ static uint256 Field(unsigned char value)
     return uint256(std::vector<unsigned char>(Consensus::ShieldedPool::FIELD_SIZE, value));
 }
 
+BOOST_AUTO_TEST_CASE(shielded_deployment_parameters_fail_closed_on_public_chains)
+{
+    using namespace Consensus::ShieldedPool;
+
+    std::string error;
+    ::Consensus::ShieldedPoolParams params;
+    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
+    BOOST_CHECK(error.empty());
+
+    params.nStartHeight = 1;
+    params.fAllowScaffoldProofs = true;
+    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/true, /*real_proof_verification=*/false, error));
+    BOOST_CHECK(error.empty());
+
+    BOOST_CHECK(!CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK_EQUAL(error, "shielded scaffold proofs are not allowed on public chains");
+
+    params.fAllowScaffoldProofs = false;
+    BOOST_CHECK(!CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
+    BOOST_CHECK_EQUAL(error, "shielded pool activation requires a real Orchard proof verifier on public chains");
+
+    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK(error.empty());
+}
+
 static CMutableTransaction MutableTransactionWithMarker(const std::vector<unsigned char>& payload)
 {
     uint256 prevout_hash;

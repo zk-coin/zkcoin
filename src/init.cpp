@@ -15,6 +15,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <consensus/shielded.h>
 #include <compat/sanity.h>
 #include <consensus/validation.h>
 #include <fs.h>
@@ -1304,6 +1305,14 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     fRequireStandard = !args.GetBoolArg("-acceptnonstdtxn", !chainparams.RequireStandard());
     if (!chainparams.IsTestChain() && !fRequireStandard) {
         return InitError(strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.NetworkIDString()));
+    }
+    std::string shielded_deployment_error;
+    if (!Consensus::ShieldedPool::CheckDeploymentParameters(
+            chainparams.GetConsensus().shielded_pool,
+            chainparams.IsMockableChain(),
+            Consensus::ShieldedPool::OrchardRealVerifierSupportsProofsV1(),
+            shielded_deployment_error)) {
+        return InitError(Untranslated(shielded_deployment_error));
     }
     nBytesPerSigOp = args.GetArg("-bytespersigop", nBytesPerSigOp);
 
