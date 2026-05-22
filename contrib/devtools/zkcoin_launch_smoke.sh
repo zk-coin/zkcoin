@@ -56,6 +56,7 @@ run_step test/functional/feature_launch_preflight_script.py
 run_step test/functional/feature_shielded_pool.py
 run_step test/functional/rpc_blockchain.py
 run_step test/functional/feature_auxpow_rpc.py
+run_step test/functional/feature_local_ltc_fork_auxpow.py
 run_step test/functional/feature_ltc_snapshot_launch.py
 
 if [[ "${RUN_DISTDIR:-1}" != "0" ]]; then

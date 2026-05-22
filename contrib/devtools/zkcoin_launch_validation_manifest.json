@@ -96,6 +96,9 @@
         "path": "test/functional/feature_auxpow_rpc.py"
       },
       {
+        "path": "test/functional/feature_local_ltc_fork_auxpow.py"
+      },
+      {
         "path": "test/functional/feature_ltc_snapshot_launch.py"
       }
     ],
