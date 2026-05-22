@@ -65,6 +65,9 @@ for prefix in \
   fi
 done
 
+echo "Running public launch profile and seed quarantine lint"
+test/lint/lint-zkcoin-public-launch-profile.sh
+
 echo "Configuring with the real Orchard Rust verifier backend"
 ./configure \
   --without-gui \

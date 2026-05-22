@@ -22,6 +22,7 @@ ORCHARD_WRAPPER_PATH = "contrib/devtools/zkcoin_orchard_auxpow.sh"
 GENERIC_TEST_RUNNER = "test_runner.py"
 REQUIRED_MANIFEST_LISTS = {
     "canonical": (
+        "lints",
         "configure_flags",
         "build_commands",
         "unit_tests",
@@ -262,6 +263,7 @@ def main():
     canonical_commands = shell_commands(ORCHARD_WRAPPER)
     canonical_label = str(ORCHARD_WRAPPER.relative_to(ROOT_DIR))
     for error in (
+        check_tokens(canonical_commands, canonical["lints"], canonical_label),
         check_tokens(canonical_commands, canonical["configure_flags"], canonical_label),
         check_exact_commands(canonical_commands, canonical["build_commands"], canonical_label),
         check_unit_tests(canonical_commands, canonical["unit_tests"], canonical_label),

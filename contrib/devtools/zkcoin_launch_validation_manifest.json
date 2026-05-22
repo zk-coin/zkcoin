@@ -1,6 +1,9 @@
 {
   "version": 1,
   "canonical": {
+    "lints": [
+      "test/lint/lint-zkcoin-public-launch-profile.sh"
+    ],
     "configure_flags": [
       "--enable-rust-shielded-verifier",
       "--enable-rust-orchard-verifier"
