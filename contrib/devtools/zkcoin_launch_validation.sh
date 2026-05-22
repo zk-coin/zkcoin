@@ -11,5 +11,5 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
-echo "Running zkCoin launch validation with launch argument guards, real Orchard verifier, and AuxPoW regressions"
+echo "Running zkCoin launch validation with launch argument/preflight guards, real Orchard verifier, and AuxPoW regressions"
 exec "$ROOT_DIR/contrib/devtools/zkcoin_orchard_auxpow.sh"

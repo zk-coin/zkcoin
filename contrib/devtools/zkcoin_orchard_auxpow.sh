@@ -110,6 +110,9 @@ echo "Running Rust shielded verifier unit and ABI smoke tests"
 echo "Running launch consensus-parameter override guard test"
 test/functional/feature_config_args.py
 
+echo "Running launch preflight fail-closed script test"
+test/functional/feature_launch_preflight_script.py
+
 echo "Running shielded pool scaffold functional test"
 test/functional/feature_shielded_pool.py
 
