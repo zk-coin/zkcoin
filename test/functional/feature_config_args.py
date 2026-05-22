@@ -98,6 +98,27 @@ class ConfArgsTest(BitcoinTestFramework):
                 extra_args=[arg],
             )
 
+        public_launch_override_args = [
+            "-auxpowheight=1",
+            "-auxpowchainid=4660",
+            "-noauxpowstrictchainid",
+            "-shieldedheight=2",
+            "-noshieldedscaffoldproofs",
+            "-ltcsnapshotheight=123",
+            "-ltcsnapshotblockhash=" + "11" * 32,
+            "-ltcsnapshotutxoroot=" + "22" * 32,
+        ]
+        for chain in ["main", "test"]:
+            for arg in public_launch_override_args:
+                normalized_arg = "-" + arg[3:] if arg.startswith("-no") else arg.split("=", 1)[0]
+                self.nodes[0].assert_start_raises_init_error(
+                    expected_msg=(
+                        f"Error: {normalized_arg} is only supported on regtest; "
+                        "production launch consensus parameters must be hardcoded in chainparams."
+                    ),
+                    extra_args=["-regtest=0", f"-chain={chain}", arg],
+                )
+
         snapshot_args = [
             "-ltcsnapshotheight=123",
             "-ltcsnapshotblockhash=" + "11" * 32,

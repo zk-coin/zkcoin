@@ -1317,6 +1317,22 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     if (!chainparams.IsTestChain() && !fRequireStandard) {
         return InitError(strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.NetworkIDString()));
     }
+    if (!chainparams.IsMockableChain()) {
+        for (const char* arg : {
+                 "-auxpowheight",
+                 "-auxpowchainid",
+                 "-auxpowstrictchainid",
+                 "-shieldedheight",
+                 "-shieldedscaffoldproofs",
+                 "-ltcsnapshotheight",
+                 "-ltcsnapshotblockhash",
+                 "-ltcsnapshotutxoroot",
+             }) {
+            if (args.IsArgSet(arg)) {
+                return InitError(strprintf(Untranslated("%s is only supported on regtest; production launch consensus parameters must be hardcoded in chainparams."), arg));
+            }
+        }
+    }
     std::string shielded_deployment_error;
     if (!Consensus::ShieldedPool::CheckDeploymentParameters(
             chainparams.GetConsensus().shielded_pool,
