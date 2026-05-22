@@ -122,6 +122,7 @@ class BlockchainTest(BitcoinTestFramework):
             'public_network_identity',
             'public_network_identity_configured',
             'ready',
+            'script_rules_active_at_launch',
             'shielded_inactive_at_launch',
             'snapshot_configured',
             'snapshot_imported',
@@ -130,6 +131,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
         assert_equal(res['launch_readiness']['chain_history_clean'], True)
+        assert_equal(res['launch_readiness']['script_rules_active_at_launch'], True)
         assert_equal(res['launch_readiness']['public_network_identity_configured'], True)
         assert_equal(sorted(res['launch_readiness']['public_network_identity'].keys()), [
             'configured',
@@ -154,6 +156,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
         assert_equal(res['launch_readiness']['chain_history_clean'], True)
+        assert_equal(res['launch_readiness']['script_rules_active_at_launch'], True)
         assert_equal(res['launch_readiness']['public_network_identity_configured'], True)
         assert_equal(res['launch_readiness']['public_network_identity']['configured'], True)
         assert_equal(res['launch_readiness']['public_network_identity']['failures'], [])

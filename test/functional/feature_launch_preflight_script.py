@@ -54,6 +54,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "auxpow_active_at_launch": True,
             "chain_id_configured": True,
             "chain_id_parent_version_safe": True,
+            "script_rules_active_at_launch": True,
             "chain_history_clean": True,
             "public_network_identity_configured": True,
             "public_network_identity": {
@@ -149,6 +150,14 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             self.valid_info(readiness_overrides={"chain_history_clean": False}),
             1,
             "required readiness fields are false: chain_history_clean",
+        )
+
+        self.log.info("Reject inactive launch script rules")
+        self.assert_preflight(
+            fake_cli,
+            self.valid_info(readiness_overrides={"script_rules_active_at_launch": False}),
+            1,
+            "required readiness fields are false: script_rules_active_at_launch",
         )
 
         self.log.info("Reject inherited public network identity in launch readiness")

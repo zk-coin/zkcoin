@@ -33,6 +33,28 @@ bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
         tx_data.dTxRate == 0;
 }
 
+static bool DeploymentAlwaysActiveAtLaunch(const Consensus::BIP9Deployment& deployment)
+{
+    return deployment.nStartTime == Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+}
+
+bool HasLaunchActiveScriptRules(const CChainParams& chainparams)
+{
+    if (chainparams.IsMockableChain()) {
+        // Regtest launch rehearsals are allowed to mock production constants.
+        return true;
+    }
+
+    const Consensus::Params& consensus = chainparams.GetConsensus();
+    return consensus.BIP16Height <= 1 &&
+        consensus.BIP34Height <= 1 &&
+        consensus.BIP65Height <= 1 &&
+        consensus.BIP66Height <= 1 &&
+        consensus.CSVHeight <= 1 &&
+        consensus.SegwitHeight <= 1 &&
+        DeploymentAlwaysActiveAtLaunch(consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT]);
+}
+
 static bool MatchesMessageStart(
     const CMessageHeader::MessageStartChars& message_start,
     unsigned char a,
@@ -141,6 +163,7 @@ PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chain
     status.chain_id_configured = status.chain_id_encodable &&
         status.chain_id_parent_version_safe &&
         consensus.auxpow.fStrictChainId;
+    status.script_rules_active_at_launch = HasLaunchActiveScriptRules(chainparams);
     status.shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);
     status.chain_history_clean = HasLaunchNeutralChainHistory(chainparams);
     status.public_network_identity = GetPublicNetworkIdentityStatus(chainparams);
@@ -149,6 +172,7 @@ PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chain
     status.configured = status.snapshot_configured &&
         status.auxpow_active_at_launch &&
         status.chain_id_configured &&
+        status.script_rules_active_at_launch &&
         status.shielded_inactive_at_launch &&
         status.chain_history_clean &&
         status.public_network_identity_configured;

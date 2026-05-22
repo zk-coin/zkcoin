@@ -59,6 +59,7 @@ REQUIRED_READINESS_BOOL_FIELDS = (
     "auxpow_active_at_launch",
     "chain_id_configured",
     "chain_id_parent_version_safe",
+    "script_rules_active_at_launch",
     "chain_history_clean",
     "public_network_identity_configured",
     "shielded_inactive_at_launch",
@@ -179,6 +180,7 @@ print(f"  auxpow strict chain id: {str(bool(auxpow.get('strict_chain_id'))).lowe
 print(f"  auxpow parent version safe: {str(bool(auxpow.get('parent_version_safe'))).lower()}")
 print(f"  chain id configured: {str(readiness['chain_id_configured']).lower()}")
 print(f"  chain id parent version safe: {str(readiness['chain_id_parent_version_safe']).lower()}")
+print(f"  script rules active at launch: {str(readiness['script_rules_active_at_launch']).lower()}")
 print(f"  chain history clean: {str(readiness['chain_history_clean']).lower()}")
 print(f"  public network identity configured: {str(readiness['public_network_identity_configured']).lower()}")
 print(f"  public identity message start inherited: {str(public_identity['inherited_litecoin_message_start']).lower()}")

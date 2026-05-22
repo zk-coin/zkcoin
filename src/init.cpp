@@ -1337,7 +1337,8 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             return InitError(Untranslated(
                 "zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams: "
                 "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
-                "keep shielded transactions inactive for the first launch block, clear inherited Litecoin chain history assumptions, "
+                "activate script validation rules for the first launch block, keep shielded transactions inactive for the first launch block, "
+                "clear inherited Litecoin chain history assumptions, "
                 "and replace the inherited Litecoin public network identity."));
         }
     }

@@ -1587,6 +1587,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
+                            {RPCResult::Type::BOOL, "script_rules_active_at_launch", "whether legacy and Taproot script validation rules are active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},
                             {RPCResult::Type::BOOL, "public_network_identity_configured", "whether public network identity has been replaced instead of inheriting Litecoin message starts, addresses, ports, or seeds"},
                             {RPCResult::Type::OBJ, "public_network_identity", "detailed public network identity replacement status",
@@ -1731,6 +1732,7 @@ RPCHelpMan getblockchaininfo()
     const bool chain_id_encodable = launch_profile.chain_id_encodable;
     const bool chain_id_parent_version_safe = launch_profile.chain_id_parent_version_safe;
     const bool chain_id_configured = launch_profile.chain_id_configured;
+    const bool script_rules_active_at_launch = launch_profile.script_rules_active_at_launch;
     const bool chain_history_clean = launch_profile.chain_history_clean;
     const bool public_network_identity_configured = launch_profile.public_network_identity_configured;
     const PublicNetworkIdentityStatus& public_network_identity = launch_profile.public_network_identity;
@@ -1786,6 +1788,9 @@ RPCHelpMan getblockchaininfo()
     if (chain_id_encodable && !chain_id_parent_version_safe) {
         launch_failures.push_back("AuxPoW chain id overlaps Litecoin parent versionbits chain-id range");
     }
+    if (!script_rules_active_at_launch) {
+        launch_failures.push_back("script validation rules are not active for the first launch block");
+    }
     if (!shielded_inactive_at_launch) {
         launch_failures.push_back("shielded pool is active in the first launch block");
     }
@@ -1806,6 +1811,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("auxpow_active_at_launch", auxpow_active_at_launch);
     launch_readiness.pushKV("chain_id_configured", chain_id_configured);
     launch_readiness.pushKV("chain_id_parent_version_safe", chain_id_parent_version_safe);
+    launch_readiness.pushKV("script_rules_active_at_launch", script_rules_active_at_launch);
     launch_readiness.pushKV("chain_history_clean", chain_history_clean);
     launch_readiness.pushKV("public_network_identity_configured", public_network_identity_configured);
     launch_readiness.pushKV("public_network_identity", public_network_identity_obj);
