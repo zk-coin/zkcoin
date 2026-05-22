@@ -296,12 +296,24 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.getauxblock(next_candidate["hash"], bad_auxpow.serialize().hex()), False)
         assert_equal(node.getblockcount(), 2)
 
+        retry_auxpow = parse_auxpow(next_candidate["defaultauxpow"])
+        solve_parent_header(retry_auxpow, int(next_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(next_candidate["hash"], retry_auxpow.serialize().hex()), True)
+        assert_equal(node.getblockcount(), 3)
+        assert_equal(node.getbestblockhash(), next_candidate["hash"])
+
         self.log.info("Reject unsolved parent AuxPoW header")
         unsolved_candidate = node.createauxblock(ADDRESS_BCRT1_P2WSH_OP_TRUE)
         unsolved_auxpow = parse_auxpow(unsolved_candidate["defaultauxpow"])
         self.make_parent_header_unsolved(unsolved_auxpow, int(unsolved_candidate["bits"], 16))
         assert_equal(node.submitauxblock(unsolved_candidate["hash"], unsolved_auxpow.serialize().hex()), False)
-        assert_equal(node.getblockcount(), 2)
+        assert_equal(node.getblockcount(), 3)
+
+        retry_unsolved_auxpow = parse_auxpow(unsolved_candidate["defaultauxpow"])
+        solve_parent_header(retry_unsolved_auxpow, int(unsolved_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(unsolved_candidate["hash"], retry_unsolved_auxpow.serialize().hex()), True)
+        assert_equal(node.getblockcount(), 4)
+        assert_equal(node.getbestblockhash(), unsolved_candidate["hash"])
 
         self.log.info("Refresh cached AuxPoW candidate after delayed mempool update")
         mined_blocks = node.generatetodescriptor(100, f"addr({address})")
@@ -359,6 +371,16 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(boundary_node.getblockcount(), 1)
 
         height_two_candidate = boundary_node.createauxblock(boundary_node.get_deterministic_priv_key().address)
+        height_two_unsolved_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
+        self.make_parent_header_unsolved(height_two_unsolved_auxpow, int(height_two_candidate["bits"], 16))
+        assert_raises_rpc_error(
+            -25,
+            "high-hash",
+            boundary_node.submitheader,
+            height_two_candidate["header"] + height_two_unsolved_auxpow.serialize().hex(),
+        )
+        assert_equal(boundary_node.getblockcount(), 1)
+
         height_two_auxpow = parse_auxpow(height_two_candidate["defaultauxpow"])
         solve_parent_header(height_two_auxpow, int(height_two_candidate["bits"], 16))
         height_two_header_hex = height_two_candidate["header"] + height_two_auxpow.serialize().hex()
