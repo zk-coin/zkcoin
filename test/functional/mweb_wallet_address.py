@@ -4,9 +4,13 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Backwards compatibility MWEB wallet test
 
-Test various backwards compatibility scenarios. Download the previous node binaries:
+Test inherited Litecoin backwards compatibility scenarios. Download the previous node binaries:
 
-test/get_previous_releases.py -b v0.18.1 v0.17.1 v0.16.3 v0.15.1
+test/get_previous_releases.py --upstream-litecoin-compat -b v0.18.1 v0.17.1 v0.16.3 v0.15.1
+
+This does not validate zkCoin previous-release artifacts. zkCoin releases must
+be added to test/previous_releases.json before this becomes zkCoin upgrade
+coverage.
 
 v0.15.2 is not required by this test, but it is used in wallet_upgradewallet.py.
 Due to a hardfork in regtest, it can't be used to sync nodes.

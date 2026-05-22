@@ -11,6 +11,7 @@
 import argparse
 import contextlib
 from fnmatch import fnmatch
+import json
 import os
 from pathlib import Path
 import re
@@ -18,6 +19,9 @@ import shutil
 import subprocess
 import sys
 import hashlib
+
+
+PREVIOUS_RELEASES_MANIFEST = Path(__file__).with_name("previous_releases.json")
 
 
 SHA256_SUMS = {
@@ -62,6 +66,44 @@ def pushd(new_dir) -> None:
         yield
     finally:
         os.chdir(previous_dir)
+
+
+def load_manifest():
+    with PREVIOUS_RELEASES_MANIFEST.open(encoding="utf8") as manifest_file:
+        return json.load(manifest_file)
+
+
+def check_release_source(args) -> int:
+    manifest = load_manifest()
+    if args.upstream_litecoin_compat:
+        compat = manifest["inherited_litecoin_compatibility"]
+        print(
+            "Using inherited Litecoin previous-release compatibility artifacts from {}. "
+            "This is not zkCoin previous-release validation.".format(
+                compat["download_base_url"] if args.download_binary else compat["source_repository"]
+            )
+        )
+        return 0
+
+    if not manifest.get("zkcoin_releases"):
+        print(
+            "zkCoin previous-release artifacts are not configured yet. "
+            "Populate {} with signed zkCoin artifacts before running zkCoin previous-release validation.".format(
+                PREVIOUS_RELEASES_MANIFEST
+            ),
+            file=sys.stderr,
+        )
+        print(
+            "For inherited Litecoin compatibility tests only, rerun with --upstream-litecoin-compat.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        "zkCoin previous-release artifact handling is not enabled by this helper yet.",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def download_binary(tag, args) -> int:
@@ -187,6 +229,10 @@ def check_host(args) -> int:
 
 
 def main(args) -> int:
+    ret = check_release_source(args)
+    if ret:
+        return ret
+
     Path(args.target_dir).mkdir(exist_ok=True, parents=True)
     print("Releases directory: {}".format(args.target_dir))
     ret = check_host(args)
@@ -218,6 +264,8 @@ if __name__ == '__main__':
                         help='use depends.')
     parser.add_argument('-b', '--download-binary', action='store_true',
                         help='download release binary.')
+    parser.add_argument('--upstream-litecoin-compat', action='store_true',
+                        help='explicitly use inherited Litecoin previous-release artifacts; this is not zkCoin previous-release validation.')
     parser.add_argument('-t', '--target-dir', action='store',
                         help='target directory.', default='releases')
     parser.add_argument('tags', nargs='+',

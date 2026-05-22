@@ -4,9 +4,13 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """upgradewallet RPC functional test
 
-Test upgradewallet RPC. Download node binaries:
+Test upgradewallet RPC with inherited Litecoin node binaries:
 
-test/get_previous_releases.py -b v0.19.1 v0.18.1 v0.17.2 v0.16.3 v0.15.2
+test/get_previous_releases.py --upstream-litecoin-compat -b v0.19.1 v0.18.1 v0.17.2 v0.16.3 v0.15.2
+
+This does not validate zkCoin previous-release artifacts. zkCoin releases must
+be added to test/previous_releases.json before this becomes zkCoin upgrade
+coverage.
 
 Only v0.15.2 and v0.16.3 are required by this test. The others are used in feature_backwards_compatibility.py
 """
