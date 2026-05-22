@@ -56,6 +56,17 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "chain_id_parent_version_safe": True,
             "chain_history_clean": True,
             "public_network_identity_configured": True,
+            "public_network_identity": {
+                "configured": True,
+                "inherited_litecoin_message_start": False,
+                "inherited_litecoin_default_port": False,
+                "inherited_litecoin_dns_seed": False,
+                "fixed_seeds_present": False,
+                "inherited_litecoin_base58_prefixes": False,
+                "inherited_litecoin_bech32_hrp": False,
+                "inherited_litecoin_mweb_hrp": False,
+                "failures": [],
+            },
             "shielded_inactive_at_launch": True,
             "at_launch_tip": True,
             "failures": [],
@@ -143,9 +154,32 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         self.log.info("Reject inherited public network identity in launch readiness")
         self.assert_preflight(
             fake_cli,
-            self.valid_info(readiness_overrides={"public_network_identity_configured": False}),
+            self.valid_info(readiness_overrides={
+                "public_network_identity_configured": False,
+                "public_network_identity": {
+                    "configured": False,
+                    "inherited_litecoin_message_start": True,
+                    "inherited_litecoin_default_port": True,
+                    "inherited_litecoin_dns_seed": True,
+                    "fixed_seeds_present": True,
+                    "inherited_litecoin_base58_prefixes": True,
+                    "inherited_litecoin_bech32_hrp": True,
+                    "inherited_litecoin_mweb_hrp": True,
+                    "failures": ["P2P message start still matches Litecoin"],
+                },
+            }),
             1,
-            "required readiness fields are false: public_network_identity_configured",
+            "P2P message start still matches Litecoin",
+        )
+
+        self.log.info("Reject missing public network identity detail")
+        missing_public_identity = self.valid_info()
+        del missing_public_identity["launch_readiness"]["public_network_identity"]
+        self.assert_preflight(
+            fake_cli,
+            missing_public_identity,
+            1,
+            "launch_readiness.public_network_identity must be an object",
         )
 
         self.log.info("Reject not-ready response and print returned failure")

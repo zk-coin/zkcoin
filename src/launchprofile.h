@@ -9,6 +9,18 @@
 
 class CChainParams;
 
+struct PublicNetworkIdentityStatus {
+    bool inherited_litecoin_message_start{false};
+    bool inherited_litecoin_default_port{false};
+    bool inherited_litecoin_dns_seed{false};
+    bool fixed_seeds_present{false};
+    bool inherited_litecoin_base58_prefixes{false};
+    bool inherited_litecoin_bech32_hrp{false};
+    bool inherited_litecoin_mweb_hrp{false};
+    bool inherited_litecoin_public_identity{false};
+    bool configured{false};
+};
+
 struct PublicLaunchProfileStatus {
     bool snapshot_configured{false};
     bool auxpow_active_at_launch{false};
@@ -17,6 +29,7 @@ struct PublicLaunchProfileStatus {
     bool chain_id_configured{false};
     bool shielded_inactive_at_launch{false};
     bool chain_history_clean{false};
+    PublicNetworkIdentityStatus public_network_identity;
     bool inherited_litecoin_public_identity{false};
     bool public_network_identity_configured{false};
     bool configured{false};
@@ -24,6 +37,7 @@ struct PublicLaunchProfileStatus {
 
 bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id);
 bool HasLaunchNeutralChainHistory(const CChainParams& chainparams);
+PublicNetworkIdentityStatus GetPublicNetworkIdentityStatus(const CChainParams& chainparams);
 bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams);
 PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chainparams);
 bool HasConfiguredPublicLaunchProfile(const CChainParams& chainparams);

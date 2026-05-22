@@ -119,6 +119,7 @@ class BlockchainTest(BitcoinTestFramework):
             'chain_id_configured',
             'chain_id_parent_version_safe',
             'failures',
+            'public_network_identity',
             'public_network_identity_configured',
             'ready',
             'shielded_inactive_at_launch',
@@ -130,6 +131,19 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
         assert_equal(res['launch_readiness']['chain_history_clean'], True)
         assert_equal(res['launch_readiness']['public_network_identity_configured'], True)
+        assert_equal(sorted(res['launch_readiness']['public_network_identity'].keys()), [
+            'configured',
+            'failures',
+            'fixed_seeds_present',
+            'inherited_litecoin_base58_prefixes',
+            'inherited_litecoin_bech32_hrp',
+            'inherited_litecoin_default_port',
+            'inherited_litecoin_dns_seed',
+            'inherited_litecoin_message_start',
+            'inherited_litecoin_mweb_hrp',
+        ])
+        assert_equal(res['launch_readiness']['public_network_identity']['configured'], True)
+        assert_equal(res['launch_readiness']['public_network_identity']['failures'], [])
 
         self.restart_node(0, ['-stopatheight=207'])
         res = self.nodes[0].getblockchaininfo()
@@ -141,6 +155,8 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
         assert_equal(res['launch_readiness']['chain_history_clean'], True)
         assert_equal(res['launch_readiness']['public_network_identity_configured'], True)
+        assert_equal(res['launch_readiness']['public_network_identity']['configured'], True)
+        assert_equal(res['launch_readiness']['public_network_identity']['failures'], [])
 
         self.restart_node(0, ['-stopatheight=207', '-prune=2200', '-vbparams=mweb:-2:0'])
         res = self.nodes[0].getblockchaininfo()

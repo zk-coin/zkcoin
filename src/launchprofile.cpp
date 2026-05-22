@@ -33,48 +33,98 @@ bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
         tx_data.dTxRate == 0;
 }
 
-bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams)
+static bool MatchesMessageStart(
+    const CMessageHeader::MessageStartChars& message_start,
+    unsigned char a,
+    unsigned char b,
+    unsigned char c,
+    unsigned char d)
 {
-    const auto& message_start = chainparams.MessageStart();
-    const bool litecoin_main_message =
-        message_start[0] == 0xfb &&
-        message_start[1] == 0xc0 &&
-        message_start[2] == 0xb6 &&
-        message_start[3] == 0xdb;
-    const bool litecoin_testnet_message =
-        message_start[0] == 0xfd &&
-        message_start[1] == 0xd2 &&
-        message_start[2] == 0xc8 &&
-        message_start[3] == 0xf1;
-    const bool litecoin_main_address =
-        chainparams.Bech32HRP() == "ltc" &&
-        chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{48} &&
-        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{5} &&
-        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{176};
-    const bool litecoin_testnet_address =
-        chainparams.Bech32HRP() == "tltc" &&
-        chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{111} &&
-        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{196} &&
-        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{239};
-    const bool litecoin_ports = chainparams.GetDefaultPort() == 9333 || chainparams.GetDefaultPort() == 19335;
-    bool litecoin_dns_seed = false;
+    return message_start[0] == a &&
+        message_start[1] == b &&
+        message_start[2] == c &&
+        message_start[3] == d;
+}
+
+static bool HasLitecoinDnsSeed(const CChainParams& chainparams)
+{
     for (const std::string& seed : chainparams.DNSSeeds()) {
-        litecoin_dns_seed = litecoin_dns_seed ||
+        if (
             seed == "seed-a.litecoin.loshan.co.uk" ||
             seed == "dnsseed.thrasher.io" ||
             seed == "dnsseed.litecointools.com" ||
             seed == "dnsseed.litecoinpool.org" ||
+            seed == "dnsseed.koin-project.com" ||
             seed == "dnsseed-testnet.thrasher.io" ||
             seed == "testnet-seed.litecointools.com" ||
-            seed == "seed-b.litecoin.loshan.co.uk";
+            seed == "seed-b.litecoin.loshan.co.uk") {
+            return true;
+        }
     }
-    return litecoin_main_message ||
-        litecoin_testnet_message ||
-        litecoin_main_address ||
-        litecoin_testnet_address ||
-        litecoin_ports ||
-        litecoin_dns_seed ||
-        !chainparams.FixedSeeds().empty();
+    return false;
+}
+
+static bool HasLitecoinMainBase58Prefixes(const CChainParams& chainparams)
+{
+    return chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{48} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{5} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS2) == std::vector<unsigned char>{50} &&
+        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{176} &&
+        chainparams.Base58Prefix(CChainParams::EXT_PUBLIC_KEY) == std::vector<unsigned char>{0x04, 0x88, 0xB2, 0x1E} &&
+        chainparams.Base58Prefix(CChainParams::EXT_SECRET_KEY) == std::vector<unsigned char>{0x04, 0x88, 0xAD, 0xE4};
+}
+
+static bool HasLitecoinTestnetBase58Prefixes(const CChainParams& chainparams)
+{
+    return chainparams.Base58Prefix(CChainParams::PUBKEY_ADDRESS) == std::vector<unsigned char>{111} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS) == std::vector<unsigned char>{196} &&
+        chainparams.Base58Prefix(CChainParams::SCRIPT_ADDRESS2) == std::vector<unsigned char>{58} &&
+        chainparams.Base58Prefix(CChainParams::SECRET_KEY) == std::vector<unsigned char>{239} &&
+        chainparams.Base58Prefix(CChainParams::EXT_PUBLIC_KEY) == std::vector<unsigned char>{0x04, 0x35, 0x87, 0xCF} &&
+        chainparams.Base58Prefix(CChainParams::EXT_SECRET_KEY) == std::vector<unsigned char>{0x04, 0x35, 0x83, 0x94};
+}
+
+PublicNetworkIdentityStatus GetPublicNetworkIdentityStatus(const CChainParams& chainparams)
+{
+    PublicNetworkIdentityStatus status;
+    if (chainparams.IsMockableChain()) {
+        status.configured = true;
+        return status;
+    }
+
+    const auto& message_start = chainparams.MessageStart();
+    status.inherited_litecoin_message_start =
+        MatchesMessageStart(message_start, 0xfb, 0xc0, 0xb6, 0xdb) ||
+        MatchesMessageStart(message_start, 0xfd, 0xd2, 0xc8, 0xf1);
+    status.inherited_litecoin_default_port =
+        chainparams.GetDefaultPort() == 9333 ||
+        chainparams.GetDefaultPort() == 19335;
+    status.inherited_litecoin_dns_seed = HasLitecoinDnsSeed(chainparams);
+    status.fixed_seeds_present = !chainparams.FixedSeeds().empty();
+    status.inherited_litecoin_base58_prefixes =
+        HasLitecoinMainBase58Prefixes(chainparams) ||
+        HasLitecoinTestnetBase58Prefixes(chainparams);
+    status.inherited_litecoin_bech32_hrp =
+        chainparams.Bech32HRP() == "ltc" ||
+        chainparams.Bech32HRP() == "tltc";
+    status.inherited_litecoin_mweb_hrp =
+        chainparams.MWEB_HRP() == "ltcmweb" ||
+        chainparams.MWEB_HRP() == "tmweb";
+    status.inherited_litecoin_public_identity =
+        status.inherited_litecoin_message_start ||
+        status.inherited_litecoin_default_port ||
+        status.inherited_litecoin_dns_seed ||
+        status.fixed_seeds_present ||
+        status.inherited_litecoin_base58_prefixes ||
+        status.inherited_litecoin_bech32_hrp ||
+        status.inherited_litecoin_mweb_hrp;
+    status.configured = !status.inherited_litecoin_public_identity;
+    return status;
+}
+
+bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams)
+{
+    return GetPublicNetworkIdentityStatus(chainparams).inherited_litecoin_public_identity;
 }
 
 PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chainparams)
@@ -93,8 +143,9 @@ PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chain
         consensus.auxpow.fStrictChainId;
     status.shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);
     status.chain_history_clean = HasLaunchNeutralChainHistory(chainparams);
-    status.inherited_litecoin_public_identity = IsInheritedLitecoinPublicNetworkIdentity(chainparams);
-    status.public_network_identity_configured = !status.inherited_litecoin_public_identity;
+    status.public_network_identity = GetPublicNetworkIdentityStatus(chainparams);
+    status.inherited_litecoin_public_identity = status.public_network_identity.inherited_litecoin_public_identity;
+    status.public_network_identity_configured = status.public_network_identity.configured;
     status.configured = status.snapshot_configured &&
         status.auxpow_active_at_launch &&
         status.chain_id_configured &&
