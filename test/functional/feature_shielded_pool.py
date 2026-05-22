@@ -262,21 +262,28 @@ class ShieldedPoolTest(BitcoinTestFramework):
         self.log.info("Expose disabled and activated shielded pool state")
         assert_equal(disabled.getblockchaininfo()["shielded_pool"]["start_height"], -1)
         assert_equal(disabled.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["start_height"], 1)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], True)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["real_proof_backend"], "unsupported")
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["real_proof_verification"], False)
-        assert_equal(Decimal(str(active.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0E-8"))
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["commitments"], 0)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["nullifiers"], 0)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["root"], EMPTY_ROOT)
-        assert_equal(active.getblockchaininfo()["shielded_pool"]["anchors"], 1)
+        active_shielded = active.getblockchaininfo()["shielded_pool"]
+        assert_equal(active_shielded["start_height"], 1)
+        assert_equal(active_shielded["next_block_active"], True)
+        assert_equal(active_shielded["scaffold_proofs"], True)
+        if active_shielded["real_proof_backend"] == "unsupported":
+            assert_equal(active_shielded["real_proof_verification"], False)
+        else:
+            assert_equal(active_shielded["real_proof_backend"], "orchard-v1")
+            assert_equal(active_shielded["real_proof_verification"], True)
+        assert_equal(Decimal(str(active_shielded["value_pool"])), Decimal("0E-8"))
+        assert_equal(active_shielded["commitments"], 0)
+        assert_equal(active_shielded["nullifiers"], 0)
+        assert_equal(active_shielded["root"], EMPTY_ROOT)
+        assert_equal(active_shielded["anchors"], 1)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["start_height"], 200)
         assert_equal(future.getblockchaininfo()["shielded_pool"]["next_block_active"], False)
-        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["start_height"], 1)
-        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["next_block_active"], True)
-        assert_equal(no_scaffold.getblockchaininfo()["shielded_pool"]["scaffold_proofs"], False)
+        no_scaffold_shielded = no_scaffold.getblockchaininfo()["shielded_pool"]
+        assert_equal(no_scaffold_shielded["start_height"], 1)
+        assert_equal(no_scaffold_shielded["next_block_active"], True)
+        assert_equal(no_scaffold_shielded["scaffold_proofs"], False)
+        assert_equal(no_scaffold_shielded["real_proof_backend"], active_shielded["real_proof_backend"])
+        assert_equal(no_scaffold_shielded["real_proof_verification"], active_shielded["real_proof_verification"])
 
         self.log.info("Reject scaffold proofs when the scaffold gate is disabled")
         raw_no_scaffold, _, _, _ = self.make_marker_tx(wallets[3])
@@ -289,7 +296,7 @@ class ShieldedPoolTest(BitcoinTestFramework):
             [raw_no_scaffold],
         )
 
-        self.log.info("Reject real-mode native proof packets until the verifier backend is linked")
+        self.log.info("Reject invalid real-mode native proof packets")
         raw_real_unsupported, _, _, _ = self.make_marker_tx(wallets[1], proof_mode=ORCHARD_PROOF_BODY_MODE_REAL)
         assert_raises_rpc_error(-26, "bad-shielded-proof", active.sendrawtransaction, raw_real_unsupported)
         assert_raises_rpc_error(
