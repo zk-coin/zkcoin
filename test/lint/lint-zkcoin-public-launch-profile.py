@@ -35,14 +35,14 @@ MAIN_FAIL_CLOSED_MARKERS = (
     ("consensus.nMinimumChainWork = uint256{};", "mainnet neutral minimum chain work"),
     ("consensus.defaultAssumeValid = uint256{};", "mainnet neutral assumevalid"),
     ("nDefaultPort = 9333;", "mainnet inherited Litecoin port"),
-    ('vSeeds.emplace_back("seed-a.litecoin.loshan.co.uk");', "mainnet inherited Litecoin DNS seed"),
-    ('vSeeds.emplace_back("dnsseed.litecoinpool.org");', "mainnet inherited Litecoin pool DNS seed"),
+    (
+        "// Do not contact inherited Litecoin seed infrastructure before zkCoin-specific seeds exist.",
+        "mainnet seed infrastructure disabled",
+    ),
+    ("vSeeds.clear();", "mainnet DNS seeds cleared"),
+    ("vFixedSeeds.clear();", "mainnet fixed seeds cleared"),
     ('bech32_hrp = "ltc";', "mainnet inherited Litecoin bech32 HRP"),
     ('mweb_hrp = "ltcmweb";', "mainnet inherited Litecoin MWEB HRP"),
-    (
-        "vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));",
-        "mainnet inherited fixed seeds",
-    ),
 )
 
 TESTNET_FAIL_CLOSED_MARKERS = (
@@ -59,14 +59,14 @@ TESTNET_FAIL_CLOSED_MARKERS = (
     ("consensus.nMinimumChainWork = uint256{};", "testnet neutral minimum chain work"),
     ("consensus.defaultAssumeValid = uint256{};", "testnet neutral assumevalid"),
     ("nDefaultPort = 19335;", "testnet inherited Litecoin port"),
-    ('vSeeds.emplace_back("testnet-seed.litecointools.com");', "testnet inherited Litecoin DNS seed"),
-    ('vSeeds.emplace_back("dnsseed-testnet.thrasher.io");', "testnet inherited Litecoin DNS seed"),
+    (
+        "// Do not contact inherited Litecoin seed infrastructure before zkCoin-specific seeds exist.",
+        "testnet seed infrastructure disabled",
+    ),
+    ("vSeeds.clear();", "testnet DNS seeds cleared"),
+    ("vFixedSeeds.clear();", "testnet fixed seeds cleared"),
     ('bech32_hrp = "tltc";', "testnet inherited Litecoin bech32 HRP"),
     ('mweb_hrp = "tmweb";', "testnet inherited Litecoin MWEB HRP"),
-    (
-        "vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));",
-        "testnet inherited fixed seeds",
-    ),
 )
 
 LAUNCH_PROFILE_MARKERS = (
