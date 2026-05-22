@@ -172,6 +172,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["auxpow_active_at_launch"], True)
         assert_equal(launch_readiness["chain_id_configured"], True)
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+        assert_equal(launch_readiness["at_launch_tip"], True)
         assert "configured snapshot has not been imported" in launch_readiness["failures"]
 
         self.log.info("Require configured snapshot import before launch mining")
@@ -222,6 +223,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["auxpow_active_at_launch"], True)
         assert_equal(launch_readiness["chain_id_configured"], True)
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+        assert_equal(launch_readiness["at_launch_tip"], True)
         assert_equal(launch_readiness["failures"], [])
 
         self.log.info("Allow replaying the same snapshot import before launch mining")
@@ -312,6 +314,15 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         launch_info = launch.getblockchaininfo()
         assert_equal(launch_info["auxpow"]["next_block_active"], True)
         assert_equal(launch_info["ltc_snapshot"]["imported"], True)
+        launch_readiness = launch_info["launch_readiness"]
+        assert_equal(launch_readiness["ready"], False)
+        assert_equal(launch_readiness["snapshot_configured"], True)
+        assert_equal(launch_readiness["snapshot_imported"], True)
+        assert_equal(launch_readiness["auxpow_active_at_launch"], True)
+        assert_equal(launch_readiness["chain_id_configured"], True)
+        assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+        assert_equal(launch_readiness["at_launch_tip"], False)
+        assert "node is not at the genesis launch tip" in launch_readiness["failures"]
         coinbase_sig = launch.getblock(mined[0], 2)["tx"][0]["vin"][0]["coinbase"]
         assert "7a6b636f696e" in coinbase_sig
         assert snapshot_commitment_hex in coinbase_sig

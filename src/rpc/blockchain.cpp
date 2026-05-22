@@ -1585,6 +1585,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
                             {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
+                            {RPCResult::Type::BOOL, "at_launch_tip", "whether the active chain is still at the genesis tip before launch mining starts"},
                             {RPCResult::Type::ARR, "failures", "failed readiness checks",
                             {
                                 {RPCResult::Type::STR, "", "failure reason"},
@@ -1710,6 +1711,7 @@ RPCHelpMan getblockchaininfo()
         consensusParams.auxpow.nChainId < 0x8000 &&
         consensusParams.auxpow.fStrictChainId;
     const bool shielded_inactive_at_launch = !consensusParams.shielded_pool.IsEnabled(1);
+    const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue launch_failures(UniValue::VARR);
     if (!snapshot_configured) {
         launch_failures.push_back("snapshot consensus parameters are not configured");
@@ -1726,6 +1728,9 @@ RPCHelpMan getblockchaininfo()
     if (!shielded_inactive_at_launch) {
         launch_failures.push_back("shielded pool is active in the first launch block");
     }
+    if (!at_launch_tip) {
+        launch_failures.push_back("node is not at the genesis launch tip");
+    }
 
     UniValue launch_readiness(UniValue::VOBJ);
     launch_readiness.pushKV("ready", launch_failures.empty());
@@ -1734,6 +1739,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("auxpow_active_at_launch", auxpow_active_at_launch);
     launch_readiness.pushKV("chain_id_configured", chain_id_configured);
     launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
+    launch_readiness.pushKV("at_launch_tip", at_launch_tip);
     launch_readiness.pushKV("failures", launch_failures);
     obj.pushKV("launch_readiness", launch_readiness);
 
