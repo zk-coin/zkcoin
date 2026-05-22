@@ -36,3 +36,10 @@ Usage: `git-subtree-check.sh DIR (COMMIT)`
 lint-all.sh
 ===========
 Calls other scripts with the `lint-` prefix.
+
+lint-zkcoin-launch-validation.py
+================================
+Checks that the Cirrus zkCoin launch-validation task still invokes the
+canonical launch wrapper directly, and that the wrapper path still reaches the
+real Orchard AuxPoW functional regression with skipped Orchard verification
+treated as a failure.
