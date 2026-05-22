@@ -208,6 +208,57 @@ BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_disabled_until_dedicated_params_exist)
     BOOST_CHECK_THROW(CreateChainParams(*m_node.args, CBaseChainParams::SIGNET), std::runtime_error);
 }
 
+class CNonMockablePublicIdentityParams : public CChainParams {
+public:
+    CNonMockablePublicIdentityParams()
+    {
+        strNetworkID = "test-public-identity";
+        pchMessageStart[0] = 0xa7;
+        pchMessageStart[1] = 0x3d;
+        pchMessageStart[2] = 0x6f;
+        pchMessageStart[3] = 0xc2;
+        nDefaultPort = 29333;
+        vSeeds = {"seed.zkcoin.example"};
+        vFixedSeeds.clear();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 75);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 85);
+        base58Prefixes[SCRIPT_ADDRESS2] = std::vector<unsigned char>(1, 90);
+        base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 170);
+        base58Prefixes[EXT_PUBLIC_KEY] = {0x05, 0x5a, 0x4b, 0x01};
+        base58Prefixes[EXT_SECRET_KEY] = {0x05, 0x5a, 0x4b, 0x02};
+        bech32_hrp = "zkc";
+        mweb_hrp = "zkcmweb";
+        m_is_test_chain = false;
+        m_is_mockable_chain = false;
+    }
+};
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockable_values)
+{
+    const CNonMockablePublicIdentityParams chainParams;
+    const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+
+    BOOST_CHECK(!chainParams.IsMockableChain());
+    BOOST_CHECK(identity.configured);
+    BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    BOOST_CHECK(!identity.inherited_litecoin_message_start);
+    BOOST_CHECK(identity.message_start_shape_valid);
+    BOOST_CHECK(!identity.inherited_litecoin_default_port);
+    BOOST_CHECK(identity.default_port_shape_valid);
+    BOOST_CHECK(!identity.inherited_litecoin_dns_seed);
+    BOOST_CHECK(identity.dns_seeds_shape_valid);
+    BOOST_CHECK(!identity.fixed_seeds_present);
+    BOOST_CHECK(!identity.inherited_litecoin_base58_prefixes);
+    BOOST_CHECK(identity.base58_prefixes_shape_valid);
+    BOOST_CHECK(identity.base58_prefixes_unique);
+    BOOST_CHECK(!identity.inherited_litecoin_bech32_hrp);
+    BOOST_CHECK(identity.bech32_hrp_shape_valid);
+    BOOST_CHECK(!identity.inherited_litecoin_mweb_hrp);
+    BOOST_CHECK(identity.mweb_hrp_shape_valid);
+    BOOST_CHECK(identity.hrps_unique);
+    BOOST_CHECK(!IsInheritedLitecoinPublicNetworkIdentity(chainParams));
+}
+
 static void check_public_launch_profile_fails_closed(const ArgsManager& args, const std::string& chain_name)
 {
     const auto chainParams = CreateChainParams(args, chain_name);
