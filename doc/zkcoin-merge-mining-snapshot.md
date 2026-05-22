@@ -138,7 +138,7 @@ contrib/devtools/zkcoin_ltc_snapshot.sh \
   ./src/litecoin-cli -datadir=/srv/zkcoin-data
 ```
 
-It prints the exact launch-node arguments:
+It prints the snapshot-related launch-node arguments:
 
 ```text
 -ltcsnapshotheight=<height>
@@ -148,3 +148,12 @@ It prints the exact launch-node arguments:
 ```
 
 Keep `-ltcsnapshotfile` with the other snapshot arguments for launch rehearsal and reindex operations. Startup fails closed if snapshot constants are configured with `-reindex` or `-reindex-chainstate` but the snapshot file path is missing.
+
+Combine those snapshot arguments with the AuxPoW launch profile, then check the launch node before mining:
+
+```bash
+contrib/devtools/zkcoin_launch_preflight.sh \
+  ./src/litecoin-cli -datadir=/srv/zkcoin-data
+```
+
+The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`.
