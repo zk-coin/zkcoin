@@ -33,22 +33,31 @@ BOOST_AUTO_TEST_CASE(shielded_deployment_parameters_fail_closed_on_public_chains
 
     std::string error;
     ::Consensus::ShieldedPoolParams params;
-    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
+    ::Consensus::AuxPowParams auxpow_params;
+    BOOST_CHECK(CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
     BOOST_CHECK(error.empty());
 
     params.nStartHeight = 1;
     params.fAllowScaffoldProofs = true;
-    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/true, /*real_proof_verification=*/false, error));
+    BOOST_CHECK(CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/true, /*real_proof_verification=*/false, error));
     BOOST_CHECK(error.empty());
 
-    BOOST_CHECK(!CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK(!CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK_EQUAL(error, "shielded pool activation requires AuxPoW active no later than shielded activation on public chains");
+
+    auxpow_params.nStartHeight = 2;
+    BOOST_CHECK(!CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK_EQUAL(error, "shielded pool activation requires AuxPoW active no later than shielded activation on public chains");
+
+    auxpow_params.nStartHeight = 1;
+    BOOST_CHECK(!CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
     BOOST_CHECK_EQUAL(error, "shielded scaffold proofs are not allowed on public chains");
 
     params.fAllowScaffoldProofs = false;
-    BOOST_CHECK(!CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
+    BOOST_CHECK(!CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/false, error));
     BOOST_CHECK_EQUAL(error, "shielded pool activation requires a real Orchard proof verifier on public chains");
 
-    BOOST_CHECK(CheckDeploymentParameters(params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
+    BOOST_CHECK(CheckDeploymentParameters(params, auxpow_params, /*is_mockable_chain=*/false, /*real_proof_verification=*/true, error));
     BOOST_CHECK(error.empty());
 }
 

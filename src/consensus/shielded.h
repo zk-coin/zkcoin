@@ -62,6 +62,7 @@ struct ProofEnvelopeCheck
 
 inline bool CheckDeploymentParameters(
     const ::Consensus::ShieldedPoolParams& params,
+    const ::Consensus::AuxPowParams& auxpow_params,
     bool is_mockable_chain,
     bool real_proof_verification,
     std::string& error)
@@ -69,6 +70,10 @@ inline bool CheckDeploymentParameters(
     error.clear();
     if (params.nStartHeight < 0 || is_mockable_chain) {
         return true;
+    }
+    if (auxpow_params.nStartHeight < 0 || auxpow_params.nStartHeight > params.nStartHeight) {
+        error = "shielded pool activation requires AuxPoW active no later than shielded activation on public chains";
+        return false;
     }
     if (params.fAllowScaffoldProofs) {
         error = "shielded scaffold proofs are not allowed on public chains";
