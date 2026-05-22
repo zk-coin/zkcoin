@@ -90,6 +90,12 @@ static bool LtcSnapshotImportInfoMatches(const LtcSnapshotImportInfo& a, const L
         a.hashUTXORoot == b.hashUTXORoot;
 }
 
+static bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
+{
+    // BIP9 parent versions with top bits 0x20000000 decode as AuxPoW chain ids 0x2000-0x3fff.
+    return chain_id < 0x2000 || chain_id > 0x3fff;
+}
+
 CConnman& EnsureConnman(const util::Ref& context)
 {
     NodeContext& node = EnsureNodeContext(context);
@@ -1650,6 +1656,7 @@ RPCHelpMan getblockchaininfo()
     auxpow.pushKV("start_height", consensusParams.auxpow.nStartHeight);
     auxpow.pushKV("chain_id", static_cast<int64_t>(consensusParams.auxpow.nChainId));
     auxpow.pushKV("strict_chain_id", consensusParams.auxpow.fStrictChainId);
+    auxpow.pushKV("parent_version_safe", AuxPowChainIdAvoidsLitecoinParentVersionRange(consensusParams.auxpow.nChainId));
     obj.pushKV("auxpow", auxpow);
 
     UniValue shielded_pool(UniValue::VOBJ);
@@ -1707,8 +1714,11 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("ltc_snapshot", ltc_snapshot);
 
     const bool auxpow_active_at_launch = consensusParams.auxpow.IsEnabled(1);
-    const bool chain_id_configured = consensusParams.auxpow.nChainId != 0 &&
-        consensusParams.auxpow.nChainId < 0x8000 &&
+    const bool chain_id_encodable = consensusParams.auxpow.nChainId != 0 &&
+        consensusParams.auxpow.nChainId < 0x8000;
+    const bool chain_id_parent_version_safe = AuxPowChainIdAvoidsLitecoinParentVersionRange(consensusParams.auxpow.nChainId);
+    const bool chain_id_configured = chain_id_encodable &&
+        chain_id_parent_version_safe &&
         consensusParams.auxpow.fStrictChainId;
     const bool shielded_inactive_at_launch = !consensusParams.shielded_pool.IsEnabled(1);
     const bool at_launch_tip = ::ChainActive().Height() == 0;
@@ -1722,8 +1732,11 @@ RPCHelpMan getblockchaininfo()
     if (!auxpow_active_at_launch) {
         launch_failures.push_back("AuxPoW is not active for the first launch block");
     }
-    if (!chain_id_configured) {
+    if (!chain_id_encodable || !consensusParams.auxpow.fStrictChainId) {
         launch_failures.push_back("AuxPoW chain id is not configured for strict merge mining");
+    }
+    if (chain_id_encodable && !chain_id_parent_version_safe) {
+        launch_failures.push_back("AuxPoW chain id overlaps Litecoin parent versionbits chain-id range");
     }
     if (!shielded_inactive_at_launch) {
         launch_failures.push_back("shielded pool is active in the first launch block");
@@ -1738,6 +1751,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("snapshot_imported", snapshot_imported);
     launch_readiness.pushKV("auxpow_active_at_launch", auxpow_active_at_launch);
     launch_readiness.pushKV("chain_id_configured", chain_id_configured);
+    launch_readiness.pushKV("chain_id_parent_version_safe", chain_id_parent_version_safe);
     launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
     launch_readiness.pushKV("at_launch_tip", at_launch_tip);
     launch_readiness.pushKV("failures", launch_failures);

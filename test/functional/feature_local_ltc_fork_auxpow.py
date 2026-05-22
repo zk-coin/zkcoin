@@ -356,7 +356,12 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
         assert_equal(Decimal(str(child.getblockchaininfo()["shielded_pool"]["value_pool"])), Decimal("0.00000000"))
 
         self.log.info("Reject launch readiness when AuxPoW chain id is not production-safe")
-        for extra_arg in ["-auxpowchainid=0", "-noauxpowstrictchainid"]:
+        unsafe_chain_id_args = [
+            ("-auxpowchainid=0", "AuxPoW chain id is not configured for strict merge mining", True),
+            ("-noauxpowstrictchainid", "AuxPoW chain id is not configured for strict merge mining", True),
+            ("-auxpowchainid=8192", "AuxPoW chain id overlaps Litecoin parent versionbits chain-id range", False),
+        ]
+        for extra_arg, failure, parent_version_safe in unsafe_chain_id_args:
             self.restart_node(1, extra_args=self.child_launch_args(dump, verify) + [extra_arg])
             child = self.nodes[1]
             launch_readiness = child.getblockchaininfo()["launch_readiness"]
@@ -365,9 +370,10 @@ class LocalLitecoinForkAuxPowTest(BitcoinTestFramework):
             assert_equal(launch_readiness["snapshot_imported"], True)
             assert_equal(launch_readiness["auxpow_active_at_launch"], True)
             assert_equal(launch_readiness["chain_id_configured"], False)
+            assert_equal(launch_readiness["chain_id_parent_version_safe"], parent_version_safe)
             assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
             assert_equal(launch_readiness["at_launch_tip"], True)
-            assert "AuxPoW chain id is not configured for strict merge mining" in launch_readiness["failures"]
+            assert failure in launch_readiness["failures"]
         self.restart_node(1, extra_args=self.child_launch_args(dump, verify))
         child = self.nodes[1]
 
