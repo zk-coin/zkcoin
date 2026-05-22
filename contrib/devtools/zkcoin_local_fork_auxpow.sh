@@ -44,6 +44,9 @@ echo "Running shielded pool unit tests"
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 
+echo "Running blockchain RPC launch-readiness schema test"
+test/functional/rpc_blockchain.py
+
 echo "Running shielded pool scaffold functional test"
 test/functional/feature_shielded_pool.py
 

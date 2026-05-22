@@ -1553,6 +1553,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::NUM, "start_height", "height at which AuxPoW activates, or -1 if disabled"},
                             {RPCResult::Type::NUM, "chain_id", "AuxPoW child chain id"},
                             {RPCResult::Type::BOOL, "strict_chain_id", "whether parent and child chain ids must differ"},
+                            {RPCResult::Type::BOOL, "parent_version_safe", "whether the child chain id avoids Litecoin parent versionbits chain-id encodings"},
                         }},
                         {RPCResult::Type::OBJ, "shielded_pool", "Shielded pool marker transaction parameters",
                         {
@@ -1590,6 +1591,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "snapshot_imported", "whether the configured block-X snapshot import marker is present"},
                             {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
+                            {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
                             {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "at_launch_tip", "whether the active chain is still at the genesis tip before launch mining starts"},
                             {RPCResult::Type::ARR, "failures", "failed readiness checks",
