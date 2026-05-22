@@ -62,6 +62,16 @@ JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
   contrib/devtools/zkcoin_launch_smoke.sh
 ```
 
+zkcoin_release_infrastructure_manifest.json
+===========================================
+
+Tracks the inherited Gitian, signing, packaging, and binary-verification
+surfaces that are not production-ready for zkCoin releases yet. The
+`test/lint/lint-zkcoin-release-infrastructure.py` guard keeps those surfaces
+explicit, checks that release docs remain blocked, and fails closed until
+zkCoin release keys, signing repositories, artifact hosts, and namespace
+decisions are configured.
+
 clang-format-diff.py
 ===================
 

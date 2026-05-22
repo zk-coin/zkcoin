@@ -12,6 +12,19 @@
 ###   signature check or the hash check doesn't pass. If an error occurs the return value is 2
 
 export LC_ALL=C
+
+if [[ "${ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES:-0}" != "1" ]]; then
+   cat >&2 <<'EOF'
+Error: contrib/verifybinaries verifies Bitcoin Core artifacts, not zkCoin.
+
+zkCoin release verification is disabled until zkCoin release signing keys,
+checksum URLs, artifact prefixes, and distribution hosts are configured.
+Set ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES=1 only when intentionally running this
+legacy Bitcoin Core verifier for upstream reference.
+EOF
+   exit 2
+fi
+
 function clean_up {
    for file in "$@"
    do

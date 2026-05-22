@@ -8,6 +8,18 @@ import os
 import subprocess
 import sys
 
+if os.environ.get("ZKCOIN_ALLOW_BITCOIN_GITIAN_BUILD") != "1":
+    print(
+        "Error: contrib/gitian-build.py builds Bitcoin Core artifacts, not zkCoin.\n\n"
+        "zkCoin deterministic release builds are disabled until zkCoin Gitian "
+        "repositories, signing policy, artifact namespace, and distribution "
+        "hosts are configured. Set ZKCOIN_ALLOW_BITCOIN_GITIAN_BUILD=1 only "
+        "when intentionally running this legacy Bitcoin Core helper for "
+        "upstream reference.",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
 def setup():
     global args, workdir
     programs = ['ruby', 'git', 'make', 'wget', 'curl']

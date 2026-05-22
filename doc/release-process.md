@@ -1,6 +1,23 @@
 Release Process
 ====================
 
+## zkCoin release status
+
+zkCoin release infrastructure is not production-ready. This file still contains
+inherited Litecoin and Bitcoin Core release procedures, Gitian repositories,
+detached-signature repositories, notarization identifiers, upload destinations,
+and artifact names. Do not publish zkCoin artifacts from this process until the
+blockers in
+[`contrib/devtools/zkcoin_release_infrastructure_manifest.json`](../contrib/devtools/zkcoin_release_infrastructure_manifest.json)
+are resolved. The inherited `contrib/gitian-build.py` helper is also blocked by
+default because it builds Bitcoin Core artifacts, not zkCoin.
+
+The current `litecoin-*` binaries, tarballs, app names, and installer names are
+a temporary compatibility namespace retained until the binary, datadir,
+config-file, and artifact migration is handled as an explicit release step.
+Any release candidate must either document that namespace as intentional for
+that release or migrate it in a dedicated PR before signing artifacts.
+
 ## Branch updates
 
 ### Before every release candidate
