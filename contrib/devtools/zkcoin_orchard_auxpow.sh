@@ -106,6 +106,9 @@ test/functional/feature_shielded_pool.py
 echo "Running AuxPoW RPC functional test"
 test/functional/feature_auxpow_rpc.py
 
+echo "Running blockchain RPC launch-readiness schema test"
+test/functional/rpc_blockchain.py
+
 echo "Running local Litecoin fork AuxPoW baseline functional test"
 test/functional/feature_local_ltc_fork_auxpow.py
 

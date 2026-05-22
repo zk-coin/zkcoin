@@ -111,10 +111,12 @@ class BlockchainTest(BitcoinTestFramework):
         # check other pruning fields given that prune=1
         assert res['pruned']
         assert not res['automatic_pruning']
+        assert_equal(res['auxpow']['parent_version_safe'], True)
         assert_equal(sorted(res['launch_readiness'].keys()), [
             'at_launch_tip',
             'auxpow_active_at_launch',
             'chain_id_configured',
+            'chain_id_parent_version_safe',
             'failures',
             'ready',
             'shielded_inactive_at_launch',
@@ -123,13 +125,16 @@ class BlockchainTest(BitcoinTestFramework):
         ])
         assert_equal(res['launch_readiness']['ready'], False)
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
+        assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
 
         self.restart_node(0, ['-stopatheight=207'])
         res = self.nodes[0].getblockchaininfo()
         # should have exact keys
         assert_equal(sorted(res.keys()), keys)
+        assert_equal(res['auxpow']['parent_version_safe'], True)
         assert_equal(res['launch_readiness']['ready'], False)
         assert_equal(res['launch_readiness']['at_launch_tip'], False)
+        assert_equal(res['launch_readiness']['chain_id_parent_version_safe'], True)
 
         self.restart_node(0, ['-stopatheight=207', '-prune=2200', '-vbparams=mweb:-2:0'])
         res = self.nodes[0].getblockchaininfo()
