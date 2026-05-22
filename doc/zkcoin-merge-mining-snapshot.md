@@ -160,4 +160,4 @@ contrib/devtools/zkcoin_launch_preflight.sh \
   ./src/litecoin-cli -datadir=/srv/zkcoin-data
 ```
 
-The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined.
+The preflight script exits successfully only when `getblockchaininfo.launch_readiness.ready` is `true`, which requires the node to still be at the genesis launch tip before block 1 is mined. It also fails closed unless scaffold proofs are disabled, `shielded_pool.real_proof_backend` is `orchard-v1`, and `shielded_pool.real_proof_verification` is `true`.
