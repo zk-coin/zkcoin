@@ -19,6 +19,11 @@ The real-proof functional regression is run with
 `ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1`, so a missing Orchard verifier backend is a
 validation failure instead of a skipped test.
 
+CI runs the same wrapper in the dedicated `zkCoin canonical launch validation
+[real Orchard AuxPoW]` Cirrus task. This lane calls the wrapper directly instead
+of going through `test_runner.py`, because skipped functional tests are reported
+as successful by the generic runner.
+
 Example:
 
 ```bash

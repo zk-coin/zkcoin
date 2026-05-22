@@ -55,6 +55,28 @@ global_task_template: &GLOBAL_TASK_TEMPLATE
 #    - choco install python --version=3.7.7 -y
 
 task:
+  name: 'zkCoin canonical launch validation [real Orchard AuxPoW]'
+  << : *GLOBAL_TASK_TEMPLATE
+  container:
+    image: rust:1.85-bookworm
+    cpu: 4
+    memory: 16G
+  env:
+    TEST_RUNNER_PORT_MIN: "26000"
+  install_script:
+    - apt-get update
+    - >
+      apt-get install --no-install-recommends --no-upgrade -y
+      build-essential libtool autotools-dev automake pkg-config bsdextrautils
+      curl ca-certificates ccache python3 git procps libboost-system-dev
+      libboost-filesystem-dev libboost-test-dev libboost-thread-dev
+      libevent-dev libssl-dev libfmt-dev
+  # Run the canonical launch lane directly. test_runner.py treats SkipTest as
+  # success, so it is not sufficient for real Orchard/AuxPoW release validation.
+  ci_script:
+    - JOBS="$(nproc 2>/dev/null || echo 4)" contrib/devtools/zkcoin_launch_validation.sh
+
+task:
   name: 'ARM  [GOAL: install]  [buster]  [unit tests, no functional tests]'
   << : *GLOBAL_TASK_TEMPLATE
   container:
