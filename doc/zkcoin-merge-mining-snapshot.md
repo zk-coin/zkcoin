@@ -81,6 +81,7 @@ Both are intentionally present before behavior changes so tests and review can t
 
 - `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
 - `-ltcsnapshotheight=<n>`, `-ltcsnapshotblockhash=<hex>`, and `-ltcsnapshotutxoroot=<hex>` configure the block-X snapshot constants on regtest for launch rehearsal.
+- `-ltcsnapshotfile=<path>` points reindex and reindex-chainstate startup at the verified block-X snapshot manifest so the imported launch UTXO set can be reseeded before replaying fork-chain blocks.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
@@ -142,4 +143,7 @@ It prints the exact launch-node arguments:
 -ltcsnapshotheight=<height>
 -ltcsnapshotblockhash=<block_hash>
 -ltcsnapshotutxoroot=<normalized_import_hash>
+-ltcsnapshotfile=<snapshot_path>
 ```
+
+Keep `-ltcsnapshotfile` with the other snapshot arguments for launch rehearsal and reindex operations. Startup fails closed if snapshot constants are configured with `-reindex` or `-reindex-chainstate` but the snapshot file path is missing.

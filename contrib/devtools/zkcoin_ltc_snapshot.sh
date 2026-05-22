@@ -27,6 +27,9 @@ Example:
 The Litecoin node must be exactly at <height>. If it is beyond <height>, this
 script refuses to rewind it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
 Only use rewind mode on a dedicated disposable snapshot node.
+
+The script prints launch-node arguments, including -ltcsnapshotfile=<path>,
+after the snapshot manifest is dumped and verified.
 EOF
 }
 
@@ -129,14 +132,15 @@ DUMP_JSON="$(ltc_cli dumptxoutset "$SNAPSHOT_PATH")"
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 
-python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
+python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json
 import sys
 
 height = int(sys.argv[1])
 expected_hash = sys.argv[2].lower()
-dump = json.loads(sys.argv[3])
-verify = json.loads(sys.argv[4])
+snapshot_path = sys.argv[3]
+dump = json.loads(sys.argv[4])
+verify = json.loads(sys.argv[5])
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -167,6 +171,7 @@ summary = {
     "base_nchaintx": int(verify["base_nchaintx"]),
     "snapshot_hash": verify["snapshot_hash"],
     "import_hash": verify["import_hash"],
+    "snapshot_file": snapshot_path,
     "total_amount": verify["total_amount"],
 }
 
@@ -176,6 +181,7 @@ print("Launch node arguments:")
 print(f"-ltcsnapshotheight={height}")
 print(f"-ltcsnapshotblockhash={expected_hash}")
 print(f"-ltcsnapshotutxoroot={verify['import_hash']}")
+print(f"-ltcsnapshotfile={snapshot_path}")
 print()
 print("Audit summary:")
 print(json.dumps(summary, indent=2, sort_keys=True))

@@ -1120,6 +1120,13 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // parse and validate enabled filter types
     const bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
+    if ((args.GetBoolArg("-reindex", false) || fReindexChainState) &&
+        chainparams.GetConsensus().ltc_snapshot.IsEnabled() &&
+        !args.IsArgSet("-ltcsnapshotfile")) {
+        return InitError(Untranslated(
+            "-ltcsnapshotfile is required when rebuilding chainstate with configured Litecoin snapshot parameters. "
+            "Set -ltcsnapshotfile=<path> to the block-X snapshot manifest."));
+    }
     const bool fPrune = args.GetArg("-prune", 0);
     std::string blockfilterindex_value = args.GetArg("-blockfilterindex", DEFAULT_BLOCKFILTERINDEX);
     if ((fReindexChainState || fPrune) && !args.IsArgSet("-blockfilterindex")) {
