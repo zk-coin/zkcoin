@@ -162,9 +162,10 @@ scripts/orchard-consensus-smoke.sh
 
 `tests/vectors/orchard_mint_vector.txt` and
 `tests/vectors/orchard_spend_vector.txt` are deterministic generated Orchard
-bundles used by the Orchard consensus smoke test. Regenerate them with:
+bundles used by the Orchard consensus smoke test. The smoke test regenerates
+them into a temporary directory and fails if the committed copies are stale.
+Regenerate the committed vectors with:
 
 ```sh
-cargo run --locked --features orchard-verifier --example orchard_mint_vector > tests/vectors/orchard_mint_vector.txt
-cargo run --locked --features orchard-verifier --example orchard_spend_vector > tests/vectors/orchard_spend_vector.txt
+UPDATE_ORCHARD_VECTORS=1 scripts/orchard-consensus-smoke.sh
 ```

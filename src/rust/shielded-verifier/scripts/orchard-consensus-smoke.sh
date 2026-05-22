@@ -27,13 +27,45 @@ for lib in "${required_libs[@]}"; do
     fi
 done
 
-if [[ ! -f tests/vectors/orchard_mint_vector.txt ]]; then
-    mkdir -p tests/vectors
-    cargo run --locked --features orchard-verifier --example orchard_mint_vector > tests/vectors/orchard_mint_vector.txt
-fi
-if [[ ! -f tests/vectors/orchard_spend_vector.txt ]]; then
-    mkdir -p tests/vectors
-    cargo run --locked --features orchard-verifier --example orchard_spend_vector > tests/vectors/orchard_spend_vector.txt
+vectors_dir="tests/vectors"
+mint_vector="$vectors_dir/orchard_mint_vector.txt"
+spend_vector="$vectors_dir/orchard_spend_vector.txt"
+generated_dir="$(mktemp -d "${TMPDIR:-/tmp}/zkc-orchard-vectors.XXXXXX")"
+trap 'rm -rf "$generated_dir"' EXIT
+generated_mint="$generated_dir/orchard_mint_vector.txt"
+generated_spend="$generated_dir/orchard_spend_vector.txt"
+
+cargo run --locked --features orchard-verifier --example orchard_mint_vector > "$generated_mint"
+cargo run --locked --features orchard-verifier --example orchard_spend_vector > "$generated_spend"
+
+if [[ "${UPDATE_ORCHARD_VECTORS:-0}" == "1" ]]; then
+    mkdir -p "$vectors_dir"
+    cp "$generated_mint" "$mint_vector"
+    cp "$generated_spend" "$spend_vector"
+    echo "Updated deterministic Orchard vectors in $vectors_dir"
+else
+    check_vector_fresh() {
+        local expected="$1"
+        local generated="$2"
+        local label="$3"
+
+        if [[ ! -f "$expected" ]]; then
+            echo "Missing committed $label vector: $expected" >&2
+            echo "Run UPDATE_ORCHARD_VECTORS=1 $0 to regenerate committed vectors." >&2
+            diff -u /dev/null "$generated" | sed -n '1,120p' >&2 || true
+            exit 1
+        fi
+
+        if ! cmp -s "$expected" "$generated"; then
+            echo "Stale committed $label vector: $expected" >&2
+            echo "Run UPDATE_ORCHARD_VECTORS=1 $0 to refresh it." >&2
+            diff -u "$expected" "$generated" | sed -n '1,120p' >&2 || true
+            exit 1
+        fi
+    }
+
+    check_vector_fresh "$mint_vector" "$generated_mint" "mint"
+    check_vector_fresh "$spend_vector" "$generated_spend" "spend"
 fi
 
 cargo build --locked --lib --features orchard-verifier
