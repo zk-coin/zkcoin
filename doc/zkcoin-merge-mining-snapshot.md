@@ -87,6 +87,7 @@ Both are intentionally present before behavior changes so tests and review can t
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
 - `getauxblock` and `createauxblock` expose Dogecoin-style `target` plus `_target` for Namecoin-compatible pool software; both are the expanded target in AuxPoW byte order.
 - `getauxblock <hash> <auxpow>` and `submitauxblock <hash> <auxpow>` return Dogecoin-style booleans on submission.
+- `getblockchaininfo.launch_readiness` exposes a base-launch preflight summary. It is only ready when the block-X snapshot is configured and imported, AuxPoW is active for the first post-genesis launch block, the AuxPoW chain id is strict and encodable, and shielded transactions are inactive for the first launch block.
 - `verifysnapshotmanifest` verifies a deterministic Litecoin UTXO snapshot manifest and returns the normalized `import_hash`.
 - `importsnapshotmanifest` imports the normalized snapshot UTXOs into the launch chainstate. It is guarded so it only runs at the genesis chain tip, and it enforces configured snapshot constants unless explicitly allowed on test chains.
 

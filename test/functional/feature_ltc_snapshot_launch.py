@@ -157,13 +157,22 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             f"-ltcsnapshotutxoroot={verify['import_hash']}",
         ])
 
-        snapshot_info = launch.getblockchaininfo()["ltc_snapshot"]
+        launch_info = launch.getblockchaininfo()
+        snapshot_info = launch_info["ltc_snapshot"]
         assert_equal(snapshot_info["enabled"], True)
         assert_equal(snapshot_info["height"], dump["base_height"])
         assert_equal(snapshot_info["block_hash"], verify["base_hash"])
         assert_equal(snapshot_info["import_hash"], verify["import_hash"])
         assert_equal(snapshot_info["imported"], False)
         assert_equal(snapshot_info["import_in_progress"], False)
+        launch_readiness = launch_info["launch_readiness"]
+        assert_equal(launch_readiness["ready"], False)
+        assert_equal(launch_readiness["snapshot_configured"], True)
+        assert_equal(launch_readiness["snapshot_imported"], False)
+        assert_equal(launch_readiness["auxpow_active_at_launch"], True)
+        assert_equal(launch_readiness["chain_id_configured"], True)
+        assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+        assert "configured snapshot has not been imported" in launch_readiness["failures"]
 
         self.log.info("Require configured snapshot import before launch mining")
         self.assert_launch_block_rejected(launch, "configured Litecoin snapshot has not been imported")
@@ -206,6 +215,14 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(snapshot_info["imported"], True)
         assert_equal(snapshot_info["imported_hash"], verify["import_hash"])
         assert_equal(snapshot_info["import_in_progress"], False)
+        launch_readiness = launch.getblockchaininfo()["launch_readiness"]
+        assert_equal(launch_readiness["ready"], True)
+        assert_equal(launch_readiness["snapshot_configured"], True)
+        assert_equal(launch_readiness["snapshot_imported"], True)
+        assert_equal(launch_readiness["auxpow_active_at_launch"], True)
+        assert_equal(launch_readiness["chain_id_configured"], True)
+        assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
+        assert_equal(launch_readiness["failures"], [])
 
         self.log.info("Allow replaying the same snapshot import before launch mining")
         replayed = launch.importsnapshotmanifest(dump["path"])
