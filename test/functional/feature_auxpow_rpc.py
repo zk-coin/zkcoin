@@ -87,8 +87,9 @@ class AuxPowRPCTest(BitcoinTestFramework):
             index >>= 1
         return root
 
-    def add_chain_merkle_branch(self, auxpow, candidate):
-        chain_id = candidate["chainid"]
+    def add_chain_merkle_branch(self, auxpow, candidate, chain_id=None):
+        if chain_id is None:
+            chain_id = candidate["chainid"]
         nonce = 0
         sibling = uint256_from_str(hash256(b"zkcoin-auxpow-rpc-chain-merkle-sibling"))
         auxpow.chain_merkle_branch = [sibling]
@@ -216,6 +217,13 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(node.getblockcount(), 1)
         assert_equal(node.getbestblockhash(), other_pool_candidate["hash"])
         auxpow_height_one_hex = node.getblock(other_pool_candidate["hash"], False)
+
+        self.log.info("Reject stale AuxPoW candidate with chain merkle branch built for the wrong chain id")
+        wrong_chain_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])
+        self.add_chain_merkle_branch(wrong_chain_auxpow, pool_candidate, chain_id=pool_candidate["chainid"] ^ 1)
+        solve_parent_header(wrong_chain_auxpow, int(pool_candidate["bits"], 16))
+        assert_equal(node.submitauxblock(pool_candidate["hash"], wrong_chain_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 1)
 
         self.log.info("Accept stale AuxPoW candidate with non-empty chain merkle branch as a side branch")
         pool_auxpow = parse_auxpow(pool_candidate["defaultauxpow"])

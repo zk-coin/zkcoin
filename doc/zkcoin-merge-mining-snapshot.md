@@ -80,6 +80,8 @@ Both are intentionally present before behavior changes so tests and review can t
 ## Current RPC Status
 
 - `-auxpowheight=<n>` enables AuxPoW on regtest from height `n`.
+- `-auxpowchainid=<n>` overrides the AuxPoW child chain id on regtest for launch rehearsal. It must fit in the AuxPoW block-version chain-id field. Use the default `23115` (`0x5a4b`) unless explicitly testing chain-id failure handling.
+- `-auxpowstrictchainid` keeps regtest AuxPoW in strict merged-mining mode. `-noauxpowstrictchainid` is only for rehearsing launch-readiness failures.
 - `-ltcsnapshotheight=<n>`, `-ltcsnapshotblockhash=<hex>`, and `-ltcsnapshotutxoroot=<hex>` configure the block-X snapshot constants on regtest for launch rehearsal.
 - `-ltcsnapshotfile=<path>` points reindex and reindex-chainstate startup at the verified block-X snapshot manifest so the imported launch UTXO set can be reseeded before replaying fork-chain blocks.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.

@@ -69,6 +69,7 @@ print(f"  snapshot import hash: {snapshot.get('import_hash')}")
 print(f"  auxpow active at launch: {str(bool(readiness.get('auxpow_active_at_launch'))).lower()}")
 print(f"  auxpow start height: {auxpow.get('start_height')}")
 print(f"  auxpow chain id: {auxpow.get('chain_id')}")
+print(f"  auxpow strict chain id: {str(bool(auxpow.get('strict_chain_id'))).lower()}")
 print(f"  shielded inactive at launch: {str(bool(readiness.get('shielded_inactive_at_launch'))).lower()}")
 print(f"  shielded start height: {shielded.get('start_height')}")
 
