@@ -55,6 +55,12 @@ canonical launch wrapper directly, and that the wrapper path still reaches the
 real Orchard AuxPoW functional regression with skipped Orchard verification
 treated as a failure.
 
+lint-zkcoin-previous-releases.py
+================================
+Checks that zkCoin previous-release artifact metadata remains explicit, and
+that inherited Litecoin compatibility downloads require the
+`--upstream-litecoin-compat` opt-in flag.
+
 lint-zkcoin-product-identity.sh
 ===============================
 Checks that the core display identity remains zkCoin in package metadata,
