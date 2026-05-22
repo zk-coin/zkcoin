@@ -1588,6 +1588,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
                             {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},
+                            {RPCResult::Type::BOOL, "public_network_identity_configured", "whether public network identity has been replaced instead of inheriting Litecoin message starts, addresses, ports, or seeds"},
                             {RPCResult::Type::BOOL, "shielded_inactive_at_launch", "whether shielded transactions are inactive for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "at_launch_tip", "whether the active chain is still at the genesis tip before launch mining starts"},
                             {RPCResult::Type::ARR, "failures", "failed readiness checks",
@@ -1716,6 +1717,7 @@ RPCHelpMan getblockchaininfo()
     const bool chain_id_parent_version_safe = launch_profile.chain_id_parent_version_safe;
     const bool chain_id_configured = launch_profile.chain_id_configured;
     const bool chain_history_clean = launch_profile.chain_history_clean;
+    const bool public_network_identity_configured = launch_profile.public_network_identity_configured;
     const bool shielded_inactive_at_launch = launch_profile.shielded_inactive_at_launch;
     const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue launch_failures(UniValue::VARR);
@@ -1740,7 +1742,7 @@ RPCHelpMan getblockchaininfo()
     if (!chain_history_clean) {
         launch_failures.push_back("inherited Litecoin chain history assumptions are not cleared");
     }
-    if (launch_profile.inherited_litecoin_public_identity) {
+    if (!public_network_identity_configured) {
         launch_failures.push_back("public network identity is inherited from Litecoin");
     }
     if (!at_launch_tip) {
@@ -1755,6 +1757,7 @@ RPCHelpMan getblockchaininfo()
     launch_readiness.pushKV("chain_id_configured", chain_id_configured);
     launch_readiness.pushKV("chain_id_parent_version_safe", chain_id_parent_version_safe);
     launch_readiness.pushKV("chain_history_clean", chain_history_clean);
+    launch_readiness.pushKV("public_network_identity_configured", public_network_identity_configured);
     launch_readiness.pushKV("shielded_inactive_at_launch", shielded_inactive_at_launch);
     launch_readiness.pushKV("at_launch_tip", at_launch_tip);
     launch_readiness.pushKV("failures", launch_failures);

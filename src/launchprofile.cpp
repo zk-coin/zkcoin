@@ -94,12 +94,13 @@ PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chain
     status.shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);
     status.chain_history_clean = HasLaunchNeutralChainHistory(chainparams);
     status.inherited_litecoin_public_identity = IsInheritedLitecoinPublicNetworkIdentity(chainparams);
+    status.public_network_identity_configured = !status.inherited_litecoin_public_identity;
     status.configured = status.snapshot_configured &&
         status.auxpow_active_at_launch &&
         status.chain_id_configured &&
         status.shielded_inactive_at_launch &&
         status.chain_history_clean &&
-        !status.inherited_litecoin_public_identity;
+        status.public_network_identity_configured;
     return status;
 }
 

@@ -197,6 +197,7 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert_equal(blockchain_info["auxpow"]["next_block_active"], True)
         assert_equal(blockchain_info["launch_readiness"]["chain_id_configured"], True)
         assert_equal(blockchain_info["launch_readiness"]["chain_history_clean"], True)
+        assert_equal(blockchain_info["launch_readiness"]["public_network_identity_configured"], True)
 
         candidate = node.createauxblock(node.get_deterministic_priv_key().address)
         assert_equal(candidate["chainid"], chain_id)
