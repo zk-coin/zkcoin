@@ -56,8 +56,7 @@ run_step test/functional/feature_auxpow_rpc.py
 run_step test/functional/feature_ltc_snapshot_launch.py
 
 if [[ "${RUN_DISTDIR:-1}" != "0" ]]; then
-  run_step make distdir VERSION=brandcheck
-  rm -rf litecoin-brandcheck
+  run_step contrib/devtools/zkcoin_source_dist_smoke.sh
 fi
 
 echo

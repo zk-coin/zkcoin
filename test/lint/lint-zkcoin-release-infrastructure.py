@@ -11,6 +11,8 @@ import sys
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_infrastructure_manifest.json"
+DEVTOOLS_README = ROOT_DIR / "contrib" / "devtools" / "README.md"
+SOURCE_DIST_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_smoke.sh"
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
 VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
@@ -78,6 +80,22 @@ def require_src_dist_entries():
     dist_lines = [line for line in text.splitlines() if line.startswith("RUST_SHIELDED_VERIFIER_DIST")]
     if any("rust/shielded-verifier/target" in line for line in dist_lines):
         return "{} must not ship Cargo target build outputs".format(SRC_MAKEFILE_AM.relative_to(ROOT_DIR))
+    return None
+
+
+def require_source_dist_smoke_entries():
+    text = SOURCE_DIST_SMOKE.read_text(encoding="utf8")
+    required_entries = [
+        entry
+        for entry in REQUIRED_RUST_SHIELDED_VERIFIER_DIST
+        if entry.startswith("rust/shielded-verifier/")
+    ]
+    missing = [entry for entry in required_entries if entry not in text]
+    if missing:
+        return "{} missing Rust shielded verifier tarball checks: {}".format(
+            SOURCE_DIST_SMOKE.relative_to(ROOT_DIR),
+            ", ".join(missing),
+        )
     return None
 
 
@@ -154,6 +172,11 @@ def main():
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_infrastructure_manifest.json", "release manifest dist packaging"),
+        (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_smoke.sh", "source dist smoke packaging"),
+        (DEVTOOLS_README, "zkcoin_source_dist_smoke.sh", "source dist smoke documentation"),
+        (SOURCE_DIST_SMOKE, "make dist-gzip", "source tarball build command"),
+        (SOURCE_DIST_SMOKE, "tar -tf", "source tarball listing command"),
+        (SOURCE_DIST_SMOKE, "rust/shielded-verifier/target", "Cargo target exclusion check"),
     )
     for path, needle, description in verify_checks:
         error = require_text(path, needle, description)
@@ -161,6 +184,10 @@ def main():
             return fail(error)
 
     error = require_src_dist_entries()
+    if error:
+        return fail(error)
+
+    error = require_source_dist_smoke_entries()
     if error:
         return fail(error)
 

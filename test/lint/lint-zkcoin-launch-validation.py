@@ -37,7 +37,7 @@ REQUIRED_MANIFEST_LISTS = {
 REQUIRED_MANIFEST_BLOCKS = {
     "smoke": (
         "build",
-        "distdir",
+        "source_dist",
     ),
 }
 
@@ -286,8 +286,8 @@ def main():
         check_functional_tests(smoke_commands, smoke["functional_tests"], smoke_label),
         check_conditional_block(
             smoke_commands,
-            smoke["distdir"]["condition"],
-            smoke["distdir"]["commands"],
+            smoke["source_dist"]["condition"],
+            smoke["source_dist"]["commands"],
             smoke_label,
         ),
     ):

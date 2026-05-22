@@ -96,11 +96,10 @@
         "path": "test/functional/feature_ltc_snapshot_launch.py"
       }
     ],
-    "distdir": {
+    "source_dist": {
       "condition": "if [[ \"${RUN_DISTDIR:-1}\" != \"0\" ]]; then",
       "commands": [
-        "run_step make distdir VERSION=brandcheck",
-        "rm -rf litecoin-brandcheck"
+        "run_step contrib/devtools/zkcoin_source_dist_smoke.sh"
       ]
     }
   }
