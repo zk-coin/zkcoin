@@ -12,12 +12,14 @@
 #include <serialize.h>
 #include <uint256.h>
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
 class CBlockHeader;
 
 static constexpr unsigned char PCH_MERGED_MINING_HEADER[] = {0xfa, 0xbe, 'm', 'm'};
+static constexpr size_t MAX_AUXPOW_MERKLE_BRANCH_LENGTH{30};
 
 /**
  * AuxPoW proof data that commits a child-chain block header into a parent-chain
