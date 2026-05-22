@@ -23,11 +23,19 @@ from test_framework.util import assert_array_result, assert_equal, assert_raises
 
 
 class AuxPowRPCTest(BitcoinTestFramework):
+    CUSTOM_CHAIN_ID = 4660
+
     def set_test_params(self):
-        self.num_nodes = 4
+        self.num_nodes = 5
         self.setup_clean_chain = True
         self.supports_cli = False
-        self.extra_args = [["-auxpowheight=1"], ["-auxpowheight=2"], ["-auxpowheight=1"], ["-auxpowheight=1"]]
+        self.extra_args = [
+            ["-auxpowheight=1"],
+            ["-auxpowheight=2"],
+            ["-auxpowheight=1"],
+            ["-auxpowheight=1"],
+            ["-auxpowheight=1", f"-auxpowchainid={self.CUSTOM_CHAIN_ID}"],
+        ]
 
     def setup_network(self):
         self.setup_nodes()
@@ -171,6 +179,53 @@ class AuxPowRPCTest(BitcoinTestFramework):
         assert relayed_header_hex.startswith(candidate["header"])
         assert len(relayed_header_hex) > len(candidate["header"])
 
+    def assert_custom_chain_id_accepts_auxpow(self):
+        node = self.nodes[4]
+        chain_id = self.CUSTOM_CHAIN_ID
+        blockchain_info = node.getblockchaininfo()
+        assert_equal(blockchain_info["auxpow"]["chain_id"], chain_id)
+        assert_equal(blockchain_info["auxpow"]["strict_chain_id"], True)
+        assert_equal(blockchain_info["auxpow"]["next_block_active"], True)
+        assert_equal(blockchain_info["launch_readiness"]["chain_id_configured"], True)
+
+        candidate = node.createauxblock(node.get_deterministic_priv_key().address)
+        assert_equal(candidate["chainid"], chain_id)
+        assert_equal(candidate["height"], 1)
+
+        header = CBlockHeader()
+        header.deserialize(BytesIO(bytes.fromhex(candidate["header"])))
+        header.rehash()
+        assert_equal(header.hash, candidate["hash"])
+        assert_equal(header.nVersion & 0xff, 4)
+        assert_equal(header.nVersion >> 16, chain_id)
+        assert header.nVersion & (1 << 8)
+
+        wrong_auxpow = parse_auxpow(candidate["defaultauxpow"])
+        self.add_chain_merkle_branch(wrong_auxpow, candidate, chain_id=chain_id + 1)
+        solve_parent_header(wrong_auxpow, int(candidate["bits"], 16))
+        assert_equal(node.submitauxblock(candidate["hash"], wrong_auxpow.serialize().hex()), False)
+        assert_equal(node.getblockcount(), 0)
+
+        auxpow = parse_auxpow(candidate["defaultauxpow"])
+        assert_equal(auxpow.parent_header.nVersion >> 16, 0)
+        self.add_chain_merkle_branch(auxpow, candidate)
+        solve_parent_header(auxpow, int(candidate["bits"], 16))
+        assert_equal(node.submitauxblock(candidate["hash"], auxpow.serialize().hex()), True)
+        assert_equal(node.getblockcount(), 1)
+        assert_equal(node.getbestblockhash(), candidate["hash"])
+
+        mined_header_hex = node.getblockheader(candidate["hash"], False)
+        assert mined_header_hex.startswith(candidate["header"])
+        assert len(mined_header_hex) > len(candidate["header"])
+
+        generated_hash = node.generatetodescriptor(1, f"addr({node.get_deterministic_priv_key().address})")[0]
+        generated_header = CBlockHeader()
+        generated_header.deserialize(BytesIO(bytes.fromhex(node.getblockheader(generated_hash, False)[:160])))
+        assert_equal(generated_header.nVersion & 0xff, 4)
+        assert_equal(generated_header.nVersion >> 16, chain_id)
+        assert generated_header.nVersion & (1 << 8)
+        assert_equal(node.getblockcount(), 2)
+
     def make_parent_header_unsolved(self, auxpow, bits):
         target = uint256_from_compact(bits)
         auxpow.parent_header.nNonce = 0
@@ -182,6 +237,9 @@ class AuxPowRPCTest(BitcoinTestFramework):
     def run_test(self):
         node = self.nodes[0]
         boundary_node = self.nodes[1]
+
+        self.log.info("Accept AuxPoW with a non-default regtest chain id")
+        self.assert_custom_chain_id_accepts_auxpow()
 
         self.log.info("Reject partial getauxblock submission arguments")
         assert_raises_rpc_error(-8, "Either provide both hash and auxpow, or provide neither.", node.getauxblock, "00")

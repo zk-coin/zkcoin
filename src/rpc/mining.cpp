@@ -36,6 +36,7 @@
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <versionbits.h>
 #include <versionbitsinfo.h>
 #include <warnings.h>
 
@@ -402,7 +403,9 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
         LOCK(cs_main);
         const int next_height = ::ChainActive().Height() + 1;
         if (consensus.auxpow.IsEnabled(next_height)) {
-            block.SetChainId(consensus.auxpow.nChainId);
+            block.SetAuxpowVersion(false);
+            block.auxpow.reset();
+            block.SetBaseVersion(VERSIONBITS_LAST_OLD_BLOCK_VERSION, consensus.auxpow.nChainId);
             mining_header = &CAuxPow::initAuxPow(block);
         }
     }
@@ -1287,7 +1290,9 @@ static UniValue CreateAuxBlockCandidate(
 
             CBlock& block = blocktemplate->block;
             if (!block.IsAuxpow() || !block.auxpow) {
-                block.SetChainId(consensus.auxpow.nChainId);
+                block.SetAuxpowVersion(false);
+                block.auxpow.reset();
+                block.SetBaseVersion(VERSIONBITS_LAST_OLD_BLOCK_VERSION, consensus.auxpow.nChainId);
                 CAuxPow::initAuxPow(block);
             }
             const uint256 block_hash = block.GetHash();
