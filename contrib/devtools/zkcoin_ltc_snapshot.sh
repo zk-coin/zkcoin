@@ -28,8 +28,10 @@ The Litecoin node must be exactly at <height>. If it is beyond <height>, this
 script refuses to rewind it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
 Only use rewind mode on a dedicated disposable snapshot node.
 
-The script prints launch-node arguments, including -ltcsnapshotfile=<path>,
-after the snapshot manifest is dumped and verified.
+The script prints snapshot-related launch-node arguments, including
+-ltcsnapshotfile=<path>, after the snapshot manifest is dumped and verified.
+Combine them with the AuxPoW launch profile and confirm launch_readiness before
+mining the first child block.
 EOF
 }
 
@@ -177,11 +179,14 @@ summary = {
 
 print("Snapshot verified.")
 print()
-print("Launch node arguments:")
+print("Snapshot launch-node arguments:")
 print(f"-ltcsnapshotheight={height}")
 print(f"-ltcsnapshotblockhash={expected_hash}")
 print(f"-ltcsnapshotutxoroot={verify['import_hash']}")
 print(f"-ltcsnapshotfile={snapshot_path}")
+print()
+print("Combine these with the AuxPoW launch profile and confirm")
+print("getblockchaininfo.launch_readiness.ready is true before mining.")
 print()
 print("Audit summary:")
 print(json.dumps(summary, indent=2, sort_keys=True))
