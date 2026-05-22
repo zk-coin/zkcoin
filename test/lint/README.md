@@ -37,6 +37,17 @@ lint-all.sh
 ===========
 Calls other scripts with the `lint-` prefix.
 
+lint-fuzz-targets.sh
+====================
+Checks that fuzz harness program lists contain target names rather than source
+filenames, so automake does not synthesize invalid source dependencies for
+release packaging.
+
+lint-secp256k1-zkp-sources.sh
+=============================
+Checks that literal Automake source paths in the bundled secp256k1-zkp subtree
+exist, so release packaging does not depend on stale module registrations.
+
 lint-zkcoin-launch-validation.py
 ================================
 Checks that the Cirrus zkCoin launch-validation task still invokes the
