@@ -6,6 +6,8 @@
 
 import errno
 import http.client
+import os
+import subprocess
 
 from test_framework.test_node import ErrorMatch
 from test_framework.test_framework import BitcoinTestFramework
@@ -65,6 +67,27 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
             return
 
         raise AssertionError("Expected importsnapshotmanifest to trigger -dbcrashratio=1")
+
+    def assert_launch_preflight(self, node, expected_returncode, expected_output):
+        if not self.is_cli_compiled():
+            self.log.info("Skipping launch preflight script check because litecoin-cli is not compiled")
+            return
+
+        script = os.path.join(
+            self.config["environment"]["SRCDIR"],
+            "contrib",
+            "devtools",
+            "zkcoin_launch_preflight.sh",
+        )
+        result = subprocess.run(
+            [script, self.options.bitcoincli, f"-datadir={node.datadir}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert_equal(result.returncode, expected_returncode)
+        assert expected_output in result.stdout + result.stderr
 
     def run_test(self):
         source = self.nodes[0]
@@ -174,6 +197,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], True)
         assert "configured snapshot has not been imported" in launch_readiness["failures"]
+        self.assert_launch_preflight(launch, 1, "configured snapshot has not been imported")
 
         self.log.info("Require configured snapshot import before launch mining")
         self.assert_launch_block_rejected(launch, "configured Litecoin snapshot has not been imported")
@@ -225,6 +249,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], True)
         assert_equal(launch_readiness["failures"], [])
+        self.assert_launch_preflight(launch, 0, "Launch preflight passed.")
 
         self.log.info("Allow replaying the same snapshot import before launch mining")
         replayed = launch.importsnapshotmanifest(dump["path"])
@@ -323,6 +348,7 @@ class LitecoinSnapshotLaunchTest(BitcoinTestFramework):
         assert_equal(launch_readiness["shielded_inactive_at_launch"], True)
         assert_equal(launch_readiness["at_launch_tip"], False)
         assert "node is not at the genesis launch tip" in launch_readiness["failures"]
+        self.assert_launch_preflight(launch, 1, "node is not at the genesis launch tip")
         coinbase_sig = launch.getblock(mined[0], 2)["tx"][0]["vin"][0]["coinbase"]
         assert "7a6b636f696e" in coinbase_sig
         assert snapshot_commitment_hex in coinbase_sig
