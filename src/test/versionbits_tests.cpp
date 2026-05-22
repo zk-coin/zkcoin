@@ -566,7 +566,32 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
         ArgsManager args;
         args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999"); // January 1, 2008 - December 31, 2008
         const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+        const auto& deployment = chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_TESTDUMMY];
+        BOOST_CHECK_EQUAL(deployment.nStartTime, 1199145601);
+        BOOST_CHECK_EQUAL(deployment.nTimeout, 1230767999);
+        BOOST_CHECK_EQUAL(deployment.nStartHeight, 0);
+        BOOST_CHECK_EQUAL(deployment.nTimeoutHeight, 0);
         check_computeblockversion(chainParams->GetConsensus(), Consensus::DEPLOYMENT_TESTDUMMY);
+    }
+
+    {
+        ArgsManager args;
+        args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999:144:288");
+        const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+        const auto& deployment = chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_TESTDUMMY];
+        BOOST_CHECK_EQUAL(deployment.nStartTime, 1199145601);
+        BOOST_CHECK_EQUAL(deployment.nTimeout, 1230767999);
+        BOOST_CHECK_EQUAL(deployment.nStartHeight, 144);
+        BOOST_CHECK_EQUAL(deployment.nTimeoutHeight, 288);
+    }
+
+    {
+        ArgsManager args;
+        args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999:144");
+        BOOST_CHECK_EXCEPTION(
+            CreateChainParams(args, CBaseChainParams::REGTEST),
+            std::runtime_error,
+            HasReason("Version bits parameters malformed, expecting deployment:start:end[:heightstart:heightend]"));
     }
 
 }

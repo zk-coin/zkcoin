@@ -465,28 +465,33 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
     for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
         std::vector<std::string> vDeploymentParams;
         boost::split(vDeploymentParams, strDeployment, boost::is_any_of(":"));
-        if (vDeploymentParams.size() < 3 || 5 < vDeploymentParams.size()) {
+        if (vDeploymentParams.size() != 3 && vDeploymentParams.size() != 5) {
             throw std::runtime_error("Version bits parameters malformed, expecting deployment:start:end[:heightstart:heightend]");
         }
-        int64_t nStartTime, nTimeout, nStartHeight, nTimeoutHeight;
+        int64_t nStartTime, nTimeout, nStartHeight = 0, nTimeoutHeight = 0;
+        const bool has_height_range = vDeploymentParams.size() == 5;
         if (!ParseInt64(vDeploymentParams[1], &nStartTime)) {
             throw std::runtime_error(strprintf("Invalid nStartTime (%s)", vDeploymentParams[1]));
         }
         if (!ParseInt64(vDeploymentParams[2], &nTimeout)) {
             throw std::runtime_error(strprintf("Invalid nTimeout (%s)", vDeploymentParams[2]));
         }
-        if (vDeploymentParams.size() > 3 && !ParseInt64(vDeploymentParams[3], &nStartHeight)) {
+        if (has_height_range && !ParseInt64(vDeploymentParams[3], &nStartHeight)) {
             throw std::runtime_error(strprintf("Invalid nStartHeight (%s)", vDeploymentParams[3]));
         }
-        if (vDeploymentParams.size() > 4 && !ParseInt64(vDeploymentParams[4], &nTimeoutHeight)) {
+        if (has_height_range && !ParseInt64(vDeploymentParams[4], &nTimeoutHeight)) {
             throw std::runtime_error(strprintf("Invalid nTimeoutHeight (%s)", vDeploymentParams[4]));
         }
         bool found = false;
         for (int j=0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
             if (vDeploymentParams[0] == VersionBitsDeploymentInfo[j].name) {
+                if (!has_height_range) {
+                    nStartHeight = consensus.vDeployments[j].nStartHeight;
+                    nTimeoutHeight = consensus.vDeployments[j].nTimeoutHeight;
+                }
                 UpdateVersionBitsParameters(Consensus::DeploymentPos(j), nStartTime, nTimeout, nStartHeight, nTimeoutHeight);
                 found = true;
-                LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, start_height=%d, timeout_height=%d\n", vDeploymentParams[0], nStartTime, nTimeout, nStartHeight, nTimeoutHeight);
+                LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, start_height=%ld, timeout_height=%ld\n", vDeploymentParams[0], nStartTime, nTimeout, nStartHeight, nTimeoutHeight);
                 break;
             }
         }
