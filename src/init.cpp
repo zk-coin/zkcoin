@@ -41,6 +41,7 @@
 #include <policy/settings.h>
 #include <protocol.h>
 #include <rpc/blockchain.h>
+#include <rpc/mining.h>
 #include <rpc/register.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
@@ -292,6 +293,7 @@ void Shutdown(NodeContext& node)
         }
         pblocktree.reset();
     }
+    ClearAuxPowCandidatesForShutdown();
     for (const auto& client : node.chain_clients) {
         client->stop();
     }
