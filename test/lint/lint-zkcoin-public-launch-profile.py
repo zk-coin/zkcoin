@@ -357,6 +357,93 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        stale_blocker_manifest = json.loads(json.dumps(manifest))
+        stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
+            {
+                "height": 321,
+                "block_hash": "11" * 32,
+                "import_hash": "22" * 32,
+            }
+        )
+        stale_blocker_path = Path(temp_dir) / "stale-blocker.json"
+        stale_blocker_path.write_text(json.dumps(stale_blocker_manifest), encoding="utf8")
+        stale_blocker_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(stale_blocker_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if stale_blocker_result.returncode == 0:
+            return "{} accepted a resolved stale blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "contains resolved or unknown blocker ids: main.litecoin_snapshot" not in stale_blocker_result.stderr:
+            return "{} did not report the resolved stale blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        unknown_blocker_manifest = json.loads(json.dumps(manifest))
+        unknown_blocker_manifest["blockers"].append(
+            {
+                "id": "main.untracked_launch_blocker",
+                "description": "This should not be accepted by the public launch manifest.",
+            }
+        )
+        unknown_blocker_path = Path(temp_dir) / "unknown-blocker.json"
+        unknown_blocker_path.write_text(json.dumps(unknown_blocker_manifest), encoding="utf8")
+        unknown_blocker_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(unknown_blocker_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if unknown_blocker_result.returncode == 0:
+            return "{} accepted an unknown blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "blockers[8].id: unknown blocker id" not in unknown_blocker_result.stderr:
+            return "{} did not report the unknown blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        duplicate_blocker_manifest = json.loads(json.dumps(manifest))
+        duplicate_blocker_manifest["blockers"].append(dict(duplicate_blocker_manifest["blockers"][0]))
+        duplicate_blocker_path = Path(temp_dir) / "duplicate-blocker.json"
+        duplicate_blocker_path.write_text(json.dumps(duplicate_blocker_manifest), encoding="utf8")
+        duplicate_blocker_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(duplicate_blocker_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if duplicate_blocker_result.returncode == 0:
+            return "{} accepted a duplicate blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "blockers[8].id: must be unique" not in duplicate_blocker_result.stderr:
+            return "{} did not report the duplicate blocker id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     update_result = subprocess.run(
         [
             sys.executable,
@@ -693,6 +780,7 @@ def require_public_launch_manifest_current():
         profile["litecoin_snapshot"].update(values["snapshot"])
         profile["auxpow"]["chain_id"] = values["chain_id"]
         profile["public_network_identity"].update(values["identity"])
+    complete_manifest["blockers"] = []
 
     with tempfile.TemporaryDirectory() as temp_dir:
         unresolved_path = Path(temp_dir) / "unresolved.json"
@@ -1249,6 +1337,7 @@ def main():
         ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
+        ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--next-action", "manifest next-action guidance flag"),
@@ -1492,6 +1581,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --allow-blocked",
             "public launch manifest validator documentation",
+        ),
+        (
+            "blocker list must match the unresolved fields exactly",
+            "public launch manifest blocker consistency documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
