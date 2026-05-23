@@ -508,16 +508,52 @@ Codesigner only: Commit the detached codesign payloads:
     : "${ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD:?set the published zkCoin detached-signatures custody record}"
     : "${ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER:?set the accountable zkCoin detached-signatures custody owner}"
     : "${ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL:?set the approved zkCoin detached-signatures payload approval record}"
+    : "${ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE:?set the approved macOS detached-signatures payload archive path}"
+    : "${ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE:?set the approved Windows detached-signatures payload archive path}"
     for ZKCOIN_DETACHED_SIGS_CUSTODY_FIELD in \
       "$ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD" \
       "$ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER" \
-      "$ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL"; do
+      "$ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL" \
+      "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE" \
+      "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"; do
         case "$ZKCOIN_DETACHED_SIGS_CUSTODY_FIELD" in
           ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
             echo "ZKCOIN_DETACHED_SIGS custody fields must not be placeholders" >&2
             exit 1
             ;;
         esac
+    done
+    ZKCOIN_DETACHED_SIGS_REPO_ROOT="$(pwd -P)"
+    for ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE in \
+      "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE" \
+      "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"; do
+      case "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE" in
+        /*)
+          ;;
+        *)
+          echo "ZKCOIN_DETACHED_SIGS payload archives must use absolute paths" >&2
+          exit 1
+          ;;
+      esac
+      case "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE" in
+        "$ZKCOIN_DETACHED_SIGS_REPO_ROOT"/*)
+          echo "ZKCOIN_DETACHED_SIGS payload archives must be outside the detached-signatures repository" >&2
+          exit 1
+          ;;
+      esac
+      if [ ! -f "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE" ]; then
+          echo "ZKCOIN_DETACHED_SIGS payload archive does not exist: $ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE" >&2
+          exit 1
+      fi
+      ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_DIR="$(cd "$(dirname "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE")" && pwd -P)"
+      ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED="$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_DIR/$(basename "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE")"
+      case "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" in
+        "$ZKCOIN_DETACHED_SIGS_REPO_ROOT"/*)
+          echo "ZKCOIN_DETACHED_SIGS payload archives must be outside the detached-signatures repository" >&2
+          exit 1
+          ;;
+      esac
+      tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null
     done
     if [ "$(git remote get-url origin)" != "$ZKCOIN_DETACHED_SIGS_REPO_URL" ]; then
         echo "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL" >&2
@@ -539,8 +575,8 @@ Codesigner only: Commit the detached codesign payloads:
         exit 1
     fi
     rm -rf *
-    tar xf signature-osx.tar.gz
-    tar xf signature-win.tar.gz
+    tar xf "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE"
+    tar xf "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"
     #copy the notarization ticket to detached-sigs repo
     cp dist/Litecoin-Qt.app/Contents/CodeResources osx/dist/Litecoin-Qt.app/Contents/
     git add -A

@@ -332,6 +332,10 @@ def main():
         return fail("notes must document detached-signatures payload repo origin verification")
     if "before replacing payload contents" not in notes_text:
         return fail("notes must document detached-signatures clean checkout guards")
+    if "ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE" not in notes_text:
+        return fail("notes must document detached-signatures macOS payload archive path")
+    if "absolute existing tar archives outside the detached-signatures repository" not in notes_text:
+        return fail("notes must document detached-signatures payload archive path validation")
     if "reject an existing ZKCOIN_DETACHED_SIGS_RELEASE_TAG" not in notes_text:
         return fail("notes must document detached-signatures release tag reuse rejection")
     if "signed tag to resolve to the detached-signatures payload commit" not in notes_text:
@@ -519,7 +523,15 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD", "detached-signatures custody record"),
         ("ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER", "detached-signatures custody owner"),
         ("ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL", "detached-signatures payload approval record"),
+        ("ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE", "detached-signatures macOS payload archive"),
+        ("ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE", "detached-signatures Windows payload archive"),
         ("ZKCOIN_DETACHED_SIGS custody fields must not be placeholders", "detached-signatures custody placeholder rejection"),
+        ("ZKCOIN_DETACHED_SIGS_REPO_ROOT", "detached-signatures repository root resolution"),
+        ("ZKCOIN_DETACHED_SIGS payload archives must use absolute paths", "detached-signatures payload archive absolute path validation"),
+        ("ZKCOIN_DETACHED_SIGS payload archives must be outside the detached-signatures repository", "detached-signatures payload archive outside-repo validation"),
+        ("ZKCOIN_DETACHED_SIGS payload archive does not exist", "detached-signatures payload archive existence validation"),
+        ("ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED", "detached-signatures payload archive physical path resolution"),
+        ('tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null', "detached-signatures payload archive tar validation"),
         ("Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL", "detached-signatures origin mismatch failure"),
         ("Detached signatures repository must be clean before payload replacement", "detached-signatures dirty checkout guard"),
         ("Detached signatures release branch must be clean before payload replacement", "detached-signatures release branch dirty guard"),
@@ -530,6 +542,8 @@ def main():
         ('git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"', "detached-signatures release tag verification"),
         ('ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG")"', "detached-signatures release tag commit resolution"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG does not point at the detached-signatures payload commit", "detached-signatures release tag commit binding failure"),
+        ('tar xf "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE"', "detached-signatures macOS payload archive extraction"),
+        ('tar xf "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"', "detached-signatures Windows payload archive extraction"),
         ('--commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}"', "detached-signatures signed tag Gitian input"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
@@ -755,6 +769,11 @@ def main():
             "Codesigner only: Commit the detached codesign payloads",
             "ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD",
             "ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL",
+            "ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE",
+            "ZKCOIN_DETACHED_SIGS_REPO_ROOT",
+            "ZKCOIN_DETACHED_SIGS payload archives must be outside the detached-signatures repository",
+            "ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED",
+            'tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null',
             'git remote get-url origin',
             "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL",
             "Detached signatures repository must be clean before payload replacement",
@@ -762,6 +781,8 @@ def main():
             "ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag",
             "Detached signatures release branch must be clean before payload replacement",
             "rm -rf *",
+            'tar xf "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE"',
+            'tar xf "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"',
             'git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD',
             'git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
             "ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT",
@@ -906,6 +927,8 @@ def main():
         (RELEASE_DOC, "export VERSION=(new version, e.g. 0.20.0)", "placeholder release version export"),
         (RELEASE_DOC, "git checkout v${VERSION}", "implicit source release tag checkout"),
         (RELEASE_DOC, "--commit litecoin=v${VERSION}", "implicit Gitian source tag input"),
+        (RELEASE_DOC, "tar xf signature-osx.tar.gz", "unparameterized macOS detached-signatures payload archive"),
+        (RELEASE_DOC, "tar xf signature-win.tar.gz", "unparameterized Windows detached-signatures payload archive"),
         (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
         (RELEASE_DOC, "After 3 or more people have gitian-built", "fixed inherited Gitian signer quorum"),
         (RELEASE_DOC, "3 matching signatures", "fixed inherited platform signing quorum"),
