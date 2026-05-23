@@ -233,6 +233,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         self.fake_litecoin_cli = self.write_fake_cli("fake-litecoin-cli.py")
         self.fake_zkcoin_cli = self.write_fake_cli("fake-zkcoin-cli.py")
 
+        self.log.info("Reject a null expected snapshot block hash before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "null-expected-hash",
+            self.scenario(),
+            1,
+            "expected block hash must not be the null uint256",
+            expected_hash="00" * 32,
+        )
+        assert_equal(calls, [])
+
         self.log.info("Accept a complete snapshot dump and manifest verification")
         result, calls, snapshot_path = self.assert_snapshot(
             "happy",

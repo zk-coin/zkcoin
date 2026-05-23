@@ -18,7 +18,7 @@ Usage:
 Example:
   contrib/devtools/zkcoin_ltc_snapshot.sh \
     3000000 \
-    0000000000000000000000000000000000000000000000000000000000000000 \
+    <expected-litecoin-block-hash> \
     /srv/snapshots/ltc-block-x.dat \
     /srv/litecoin/src/litecoin-cli -datadir=/srv/litecoin-data \
     -- \
@@ -53,6 +53,7 @@ fi
 HEIGHT="$1"
 EXPECTED_BLOCK_HASH="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
 SNAPSHOT_PATH="$3"
+NULL_UINT256="0000000000000000000000000000000000000000000000000000000000000000"
 shift 3
 
 if [[ ! "$HEIGHT" =~ ^[0-9]+$ ]]; then
@@ -61,6 +62,9 @@ fi
 
 if [[ ! "$EXPECTED_BLOCK_HASH" =~ ^[0-9a-f]{64}$ ]]; then
   die "expected block hash must be 64 hex characters"
+fi
+if [[ "$EXPECTED_BLOCK_HASH" == "$NULL_UINT256" ]]; then
+  die "expected block hash must not be the null uint256"
 fi
 
 LTC_CLI=()

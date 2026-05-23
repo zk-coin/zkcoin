@@ -2057,6 +2057,7 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
@@ -2081,6 +2082,7 @@ def main():
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
         ("snapshot_file_sha256", "snapshot script test checks audit artifact SHA-256 output"),
+        ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
         (
             "Reject a Litecoin source still in initial block download",
@@ -2222,6 +2224,10 @@ def main():
         (
             "ZKCOIN_SNAPSHOT_AUDIT_JSON",
             "public launch snapshot audit summary documentation",
+        ),
+        (
+            "expected block hash is the null uint256 placeholder",
+            "public launch snapshot null expected hash rejection documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
