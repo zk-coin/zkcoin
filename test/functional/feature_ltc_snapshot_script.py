@@ -189,11 +189,17 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         snapshot_path_parent_missing=False,
         audit_path_parent_unwritable=False,
         snapshot_path_parent_unwritable=False,
+        snapshot_path_has_space=False,
+        audit_path_has_space=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
         audit_path = os.path.join(self.options.tmpdir, f"{name}.audit.json")
         dirs_to_restore = []
+        if snapshot_path_has_space:
+            snapshot_path = os.path.join(self.options.tmpdir, f"{name} snapshot.dat")
+        if audit_path_has_space:
+            audit_path = os.path.join(self.options.tmpdir, f"{name} audit.json")
         if snapshot_path_parent_missing:
             snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
         elif snapshot_path_parent_unwritable:
@@ -238,6 +244,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or audit_path_parent_missing
             or audit_path_parent_unwritable
             or audit_path_symlink
+            or audit_path_has_space
         ):
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
@@ -345,6 +352,25 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert_equal(audit["snapshot_file_sha256"], hashlib.sha256(snapshot_bytes).hexdigest())
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Quote snapshot and audit paths in printed handoff commands")
+        quoted_result, calls, quoted_snapshot_path = self.assert_snapshot(
+            "quoted-handoff",
+            self.scenario(),
+            0,
+            "Snapshot verified.",
+            snapshot_path_has_space=True,
+            audit_path_has_space=True,
+        )
+        quoted_audit_path = os.path.join(self.options.tmpdir, "quoted-handoff audit.json")
+        assert f"-ltcsnapshotfile='{quoted_snapshot_path}'" in quoted_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot-audit main '{quoted_audit_path}' "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in quoted_result.stdout
+        self.assert_command(calls, "litecoin", "dumptxoutset", [quoted_snapshot_path])
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [quoted_snapshot_path])
 
         self.log.info("Print the testnet snapshot audit manifest handoff for a Litecoin test source")
         testnet_result, _, _ = self.assert_snapshot(
