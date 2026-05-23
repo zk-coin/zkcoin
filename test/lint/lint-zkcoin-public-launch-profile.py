@@ -2068,6 +2068,7 @@ def main():
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
+        ("snapshot block hash at height", "snapshot script validates source snapshot block hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
@@ -2117,6 +2118,7 @@ def main():
             "Reject a missing snapshot output directory before calling either CLI",
             "snapshot script test rejects missing snapshot directory before RPC",
         ),
+        ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
@@ -2251,6 +2253,10 @@ def main():
         (
             "snapshot output directory must also exist",
             "public launch snapshot output directory preflight documentation",
+        ),
+        (
+            "well-formed non-null block hash for height X",
+            "public launch snapshot source block-hash validation documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",
