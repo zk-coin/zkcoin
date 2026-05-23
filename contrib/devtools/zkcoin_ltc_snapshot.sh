@@ -175,9 +175,11 @@ trap cleanup EXIT
 SOURCE_CHAININFO_JSON="$(ltc_cli getblockchaininfo)"
 read -r SOURCE_CHAIN SOURCE_TIP <<< "$(python3 - "$SOURCE_CHAININFO_JSON" <<'PY'
 import json
+import re
 import sys
 
 raw = sys.argv[1]
+INT_RE = re.compile(r"^[0-9]+$")
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -197,15 +199,20 @@ def require_bool(field):
     return chaininfo[field]
 
 def require_nonnegative_int(field):
-    if field not in chaininfo or isinstance(chaininfo[field], bool):
+    if field not in chaininfo:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    try:
-        value = int(chaininfo[field])
-    except (TypeError, ValueError):
+    value = chaininfo[field]
+    if isinstance(value, bool):
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    if value < 0:
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and INT_RE.fullmatch(value):
+        parsed = int(value)
+    else:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    return value
+    if parsed < 0:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
+    return parsed
 
 def require_string(field):
     if field not in chaininfo or not isinstance(chaininfo[field], str) or not chaininfo[field]:
@@ -321,6 +328,7 @@ snapshot_file_sha256 = sys.argv[6]
 dump_json = sys.argv[7]
 verify_json = sys.argv[8]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+INT_RE = re.compile(r"^[0-9]+$")
 AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 COIN = 100000000
 MAX_MONEY = 84000000 * COIN
@@ -348,9 +356,11 @@ def require_int(obj, source, field):
     value = require_field(obj, source, field)
     if isinstance(value, bool):
         fail(f"{source}.{field} must be an integer")
-    try:
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and INT_RE.fullmatch(value):
         parsed = int(value)
-    except (TypeError, ValueError):
+    else:
         fail(f"{source}.{field} must be an integer")
     if parsed < 0:
         fail(f"{source}.{field} must be a non-negative integer")
