@@ -1,1 +1,2 @@
 src/clientversion.cpp export-subst
+src/rust/shielded-verifier/vendor/** linguist-vendored

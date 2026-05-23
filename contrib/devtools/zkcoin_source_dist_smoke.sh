@@ -61,6 +61,7 @@ required_entries=(
   "${distdir}/src/rust/shielded-verifier/Cargo.lock"
   "${distdir}/src/rust/shielded-verifier/Cargo.toml"
   "${distdir}/src/rust/shielded-verifier/README.md"
+  "${distdir}/src/rust/shielded-verifier/.cargo/config.toml"
   "${distdir}/src/rust/shielded-verifier/examples/orchard_mint_vector.rs"
   "${distdir}/src/rust/shielded-verifier/examples/orchard_spend_vector.rs"
   "${distdir}/src/rust/shielded-verifier/include/zkc_shielded_verifier.h"
@@ -76,6 +77,12 @@ required_entries=(
   "${distdir}/src/rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp"
   "${distdir}/src/rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt"
   "${distdir}/src/rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt"
+  "${distdir}/src/rust/shielded-verifier/vendor/halo2_proofs/.cargo-checksum.json"
+  "${distdir}/src/rust/shielded-verifier/vendor/halo2_proofs/Cargo.toml"
+  "${distdir}/src/rust/shielded-verifier/vendor/orchard/.cargo-checksum.json"
+  "${distdir}/src/rust/shielded-verifier/vendor/orchard/Cargo.toml"
+  "${distdir}/src/rust/shielded-verifier/vendor/sha2/.cargo-checksum.json"
+  "${distdir}/src/rust/shielded-verifier/vendor/sha2/Cargo.toml"
 )
 
 for entry in "${required_entries[@]}"; do
