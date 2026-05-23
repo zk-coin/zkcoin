@@ -111,6 +111,7 @@
   ],
   "notes": [
     "Do not treat Gitian, signing, notarization, upload, or binary verification instructions as production zkCoin release instructions while status is release_infrastructure_not_ready.",
+    "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }
