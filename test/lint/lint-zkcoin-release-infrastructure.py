@@ -312,6 +312,10 @@ def main():
         return fail("notes must document pinned zkCoin Gitian builder commit provenance")
     if "instead of using git pull" not in notes_text:
         return fail("notes must document pinned Gitian builder updates")
+    if "local Gitian signatures origin matches ZKCOIN_GITIAN_SIGS_REPO_URL" not in notes_text:
+        return fail("notes must document Gitian signatures remote verification")
+    if "git pull --ff-only" not in notes_text:
+        return fail("notes must document fast-forward-only Gitian signatures updates")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
@@ -474,6 +478,12 @@ def main():
         ('git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"', "pinned Gitian builder checkout"),
         ("Gitian builder checkout does not match ZKCOIN_GITIAN_BUILDER_COMMIT", "Gitian builder checkout binding failure"),
         ("Ensure gitian-builder is still on the pinned zkCoin release build commit", "pinned Gitian builder refresh boundary"),
+        ("Ensure your zkCoin Gitian signatures repository remote is the resolved zkCoin", "Gitian signatures update boundary"),
+        ('git remote get-url origin', "Gitian signatures origin verification"),
+        ("Gitian signatures origin does not match ZKCOIN_GITIAN_SIGS_REPO_URL", "Gitian signatures origin mismatch failure"),
+        ("git status --porcelain", "Gitian signatures clean checkout check"),
+        ("Gitian signatures repository must be clean before update", "Gitian signatures dirty checkout guard"),
+        ("git pull --ff-only", "Gitian signatures fast-forward-only update"),
         ("ZKCOIN_GITIAN_SIGNER", "parameterized Gitian signer id"),
         ("ZKCOIN_GITIAN_SIGNER_FINGERPRINT", "parameterized Gitian signer fingerprint"),
         ("ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE", "published Gitian authorized signers file"),
@@ -653,6 +663,10 @@ def main():
             'export SIGNER="$ZKCOIN_GITIAN_SIGNER"',
             'export VERSION="$ZKCOIN_RELEASE_VERSION"',
             'git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"',
+            "Ensure your zkCoin Gitian signatures repository remote is the resolved zkCoin",
+            'git remote get-url origin',
+            "git status --porcelain",
+            "git pull --ff-only",
             "Ensure gitian-builder is still on the pinned zkCoin release build commit",
             "git fetch origin",
             'git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"',
