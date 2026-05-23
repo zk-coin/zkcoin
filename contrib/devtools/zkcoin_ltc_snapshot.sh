@@ -274,6 +274,9 @@ fi
 
 echo "Dumping Litecoin UTXO snapshot at height $HEIGHT to $SNAPSHOT_PATH" >&2
 DUMP_JSON="$(ltc_cli dumptxoutset "$SNAPSHOT_PATH")"
+if [[ -L "$SNAPSHOT_PATH" ]]; then
+  die "snapshot output must not be a symlink after dumptxoutset: $SNAPSHOT_PATH"
+fi
 if [[ ! -f "$SNAPSHOT_PATH" ]]; then
   die "snapshot output was not created by dumptxoutset: $SNAPSHOT_PATH"
 fi
@@ -291,6 +294,9 @@ fi
 
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
+if [[ -L "$SNAPSHOT_PATH" ]]; then
+  die "snapshot output became a symlink during verification: $SNAPSHOT_PATH"
+fi
 POST_VERIFY_SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
 if [[ "$POST_VERIFY_SNAPSHOT_FILE_SIZE" != "$SNAPSHOT_FILE_SIZE" ]]; then
   die "snapshot output changed during verification: size_before=$SNAPSHOT_FILE_SIZE size_after=$POST_VERIFY_SNAPSHOT_FILE_SIZE"
