@@ -233,6 +233,12 @@ fi
 
 ACTUAL_BLOCK_HASH="$(ltc_cli getblockhash "$HEIGHT")"
 ACTUAL_BLOCK_HASH_LOWER="$(printf '%s' "$ACTUAL_BLOCK_HASH" | tr '[:upper:]' '[:lower:]')"
+if [[ ! "$ACTUAL_BLOCK_HASH_LOWER" =~ ^[0-9a-f]{64}$ ]]; then
+  die "snapshot block hash at height $HEIGHT must be 64 hex characters"
+fi
+if [[ "$ACTUAL_BLOCK_HASH_LOWER" == "$NULL_UINT256" ]]; then
+  die "snapshot block hash at height $HEIGHT must not be the null uint256"
+fi
 if [[ "$ACTUAL_BLOCK_HASH_LOWER" != "$EXPECTED_BLOCK_HASH" ]]; then
   die "snapshot block hash mismatch at height $HEIGHT: expected=$EXPECTED_BLOCK_HASH actual=$ACTUAL_BLOCK_HASH_LOWER"
 fi

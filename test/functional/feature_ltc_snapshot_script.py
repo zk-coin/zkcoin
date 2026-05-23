@@ -480,6 +480,17 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "snapshot block hash mismatch",
         )
 
+        self.log.info("Reject malformed source snapshot block hash before dumping UTXOs")
+        _, calls, _ = self.assert_snapshot(
+            "malformed-source-block-hash",
+            self.scenario(block_hashes={str(HEIGHT): "not-a-uint256"}),
+            1,
+            f"snapshot block hash at height {HEIGHT} must be 64 hex characters",
+        )
+        self.assert_command(calls, "litecoin", "getblockhash", [str(HEIGHT)])
+        assert not any(call["cmd"] == "dumptxoutset" for call in calls)
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
         self.log.info("Reject malformed dumptxoutset JSON")
         self.assert_snapshot(
             "malformed-dump-json",
