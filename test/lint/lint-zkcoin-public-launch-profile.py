@@ -409,6 +409,65 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        partial_audit_manifest = json.loads(json.dumps(manifest))
+        partial_audit_manifest["networks"]["main"]["litecoin_snapshot"].update(
+            {
+                "height": 321,
+                "block_hash": "11" * 32,
+                "import_hash": "22" * 32,
+                "audit": {
+                    "snapshot_hash": "33" * 32,
+                    "coins": 4,
+                    "base_nchaintx": 11,
+                    "source_chain": None,
+                    "snapshot_file_size": None,
+                    "snapshot_file_sha256": None,
+                    "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+                    "total_amount": "50.00000000",
+                },
+            }
+        )
+        partial_audit_path = Path(temp_dir) / "partial-audit.json"
+        partial_audit_path.write_text(json.dumps(partial_audit_manifest), encoding="utf8")
+        partial_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(partial_audit_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if partial_audit_result.returncode != 0:
+            return "{} treated a partial snapshot audit blocker as stale: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                partial_audit_result.stderr.strip() or partial_audit_result.stdout.strip() or "no output",
+            )
+        partial_audit_next_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(partial_audit_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if partial_audit_next_result.returncode != 0:
+            return "{} --next-action failed for partial snapshot audit manifest: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                partial_audit_next_result.stderr.strip() or partial_audit_next_result.stdout.strip() or "no output",
+            )
+        if "next blocker: main.litecoin_snapshot" not in partial_audit_next_result.stdout:
+            return "{} --next-action skipped a partial snapshot audit blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         unknown_blocker_manifest = json.loads(json.dumps(manifest))
         unknown_blocker_manifest["blockers"].append(
             {
@@ -1769,6 +1828,7 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
+        ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),

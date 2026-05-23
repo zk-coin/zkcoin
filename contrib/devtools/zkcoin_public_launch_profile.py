@@ -60,6 +60,17 @@ SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
     "testnet": "test",
 }
+SNAPSHOT_FIELDS = ("height", "block_hash", "import_hash")
+SNAPSHOT_AUDIT_FIELDS = (
+    "snapshot_hash",
+    "coins",
+    "base_nchaintx",
+    "source_chain",
+    "snapshot_file_size",
+    "snapshot_file_sha256",
+    "snapshot_file",
+    "total_amount",
+)
 BLOCKER_ORDER = (
     "main.litecoin_snapshot",
     "main.auxpow_chain_id",
@@ -81,9 +92,9 @@ def unresolved_blocker_ids(manifest):
         snapshot = profile.get("litecoin_snapshot", {})
         snapshot_audit = snapshot.get("audit", {})
         if (
-            any(snapshot.get(field) is None for field in ("height", "block_hash", "import_hash"))
+            any(snapshot.get(field) is None for field in SNAPSHOT_FIELDS)
             or not isinstance(snapshot_audit, dict)
-            or any(snapshot_audit.get(field) is None for field in ("snapshot_hash", "coins", "base_nchaintx", "snapshot_file", "total_amount"))
+            or any(snapshot_audit.get(field) is None for field in SNAPSHOT_AUDIT_FIELDS)
         ):
             blockers.add(f"{network}.litecoin_snapshot")
 
