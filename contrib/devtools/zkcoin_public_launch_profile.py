@@ -168,6 +168,8 @@ def dns_seed_valid(seed):
     labels = seed.split(".")
     if len(labels) < 2:
         return False
+    if re.search(r"[a-z]", labels[-1]) is None:
+        return False
     return all(
         label
         and len(label) <= 63

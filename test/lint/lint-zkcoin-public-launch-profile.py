@@ -639,6 +639,7 @@ def require_public_launch_manifest_current():
     for rejected_seed, description in (
         ("zkcoinseed", "single-label DNS seed hostname"),
         ("a" * 64 + ".zkcoin.example", "overlong DNS seed label"),
+        ("seed.zkcoin.123", "numeric final-label DNS seed hostname"),
     ):
         invalid_dns_shape_result = subprocess.run(
             [
@@ -1380,6 +1381,7 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
+        ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
         ("len(label) <= 63", "manifest rejects overlong DNS seed labels"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
@@ -1630,7 +1632,7 @@ def main():
             "public launch manifest DNS seed update documentation",
         ),
         (
-            "rejects empty, duplicate, single-label, overlong-label,",
+            "rejects empty, duplicate, single-label, numeric final-label,",
             "public launch manifest DNS seed rejection documentation",
         ),
         (
