@@ -28,12 +28,14 @@ packages:
 remotes:
 - "url": "https://github.com/zk-coin/zkcoin.git"
   "dir": "litecoin"
-files: []
+files:
+- "zkcoin-gitian-rust-toolchain-win.env"
 script: |
   set -e -o pipefail
 
   WRAP_DIR=$HOME/wrapped
   HOSTS="x86_64-w64-mingw32"
+  RUST_TARGETS="x86_64-pc-windows-gnu"
   CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests --enable-rust-shielded-verifier --enable-rust-orchard-verifier"
   FAKETIME_HOST_PROGS="ar ranlib nm windres strip objcopy"
   FAKETIME_PROGS="date makensis zip"
@@ -44,6 +46,7 @@ script: |
   export QT_RCC_SOURCE_DATE_OVERRIDE=1
   export TZ="UTC"
   export BUILD_DIR="$PWD"
+  RUST_TOOLCHAIN_FILE="${BUILD_DIR}/zkcoin-gitian-rust-toolchain-win.env"
   mkdir -p ${WRAP_DIR}
   if test -n "$GBUILD_CACHE_ENABLED"; then
     export SOURCES_PATH=${GBUILD_COMMON_CACHE}
@@ -98,6 +101,7 @@ script: |
   export PATH=${WRAP_DIR}:${PATH}
 
   cd litecoin
+  contrib/devtools/zkcoin_gitian_rust_toolchain_check.sh "${RUST_TOOLCHAIN_FILE}" "${RUST_TARGETS}"
   BASEPREFIX="${PWD}/depends"
   # Build dependencies for each host
   for i in $HOSTS; do

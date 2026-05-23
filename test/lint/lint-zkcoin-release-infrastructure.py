@@ -15,6 +15,7 @@ DEVTOOLS_README = ROOT_DIR / "contrib" / "devtools" / "README.md"
 RELEASE_CANDIDATE_VALIDATION = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_candidate_validation.sh"
 SOURCE_DIST_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_smoke.sh"
 SOURCE_DIST_REALPROOF_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_realproof_smoke.sh"
+GITIAN_RUST_TOOLCHAIN_CHECK = ROOT_DIR / "contrib" / "devtools" / "zkcoin_gitian_rust_toolchain_check.sh"
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
 ZKCOIN_VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify-zkcoin-release.py"
@@ -28,6 +29,20 @@ GITIAN_SOURCE_DESCRIPTORS = (
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win.yml",
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx.yml",
 )
+GITIAN_SOURCE_DESCRIPTOR_RUST_TOOLCHAINS = {
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-linux.yml": (
+        "zkcoin-gitian-rust-toolchain-linux.env",
+        "x86_64-unknown-linux-gnu arm-unknown-linux-gnueabihf aarch64-unknown-linux-gnu riscv64gc-unknown-linux-gnu",
+    ),
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win.yml": (
+        "zkcoin-gitian-rust-toolchain-win.env",
+        "x86_64-pc-windows-gnu",
+    ),
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx.yml": (
+        "zkcoin-gitian-rust-toolchain-osx.env",
+        "x86_64-apple-darwin",
+    ),
+}
 GITIAN_SIGNER_DESCRIPTORS = (
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win-signer.yml",
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx-signer.yml",
@@ -48,6 +63,7 @@ REQUIRED_BLOCKERS = {
     "source_tag_version_provenance",
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
+    "gitian_rust_toolchain_provenance",
     "detached_sigs_repo",
     "artifact_download_host",
     "release_announcement_channels",
@@ -117,6 +133,9 @@ REQUIRED_VERIFYBINARIES_DIST = (
     "contrib/verifybinaries/README.md",
     "contrib/verifybinaries/verify-zkcoin-release.py",
     "contrib/verifybinaries/verify.sh",
+)
+REQUIRED_GITIAN_RUST_TOOLCHAIN_DIST = (
+    "contrib/devtools/zkcoin_gitian_rust_toolchain_check.sh",
 )
 REQUIRED_RUST_SHIELDED_VERIFIER_TARGETS = (
     "x86_64-unknown-linux-gnu",
@@ -281,6 +300,49 @@ def require_rust_shielded_verifier_vendor():
     return None
 
 
+def require_gitian_rust_toolchain_check():
+    text = GITIAN_RUST_TOOLCHAIN_CHECK.read_text(encoding="utf8")
+    for needle in (
+        "load_required_field",
+        "validate_commit_hash_field",
+        "awk -F=",
+        "cut -d= -f2-",
+        "ZKCOIN_GITIAN_RUSTC_VERSION",
+        "ZKCOIN_GITIAN_RUSTC_COMMIT_HASH",
+        "ZKCOIN_GITIAN_CARGO_VERSION",
+        "ZKCOIN_GITIAN_CARGO_COMMIT_HASH",
+        "ZKCOIN_GITIAN_RUST_TARGETS",
+        "missing required Gitian Rust toolchain provenance field",
+        "multiple values for Gitian Rust toolchain provenance field",
+        "ZKCOIN_GITIAN_RUST toolchain provenance fields must not be placeholders",
+        "ZKCOIN_GITIAN_RUST commit-hash fields must be lowercase hexadecimal",
+        "ZKCOIN_GITIAN_RUST commit-hash fields must be full 40-character hashes",
+        "rustc version does not match ZKCOIN_GITIAN_RUSTC_VERSION",
+        "rustc commit hash does not match ZKCOIN_GITIAN_RUSTC_COMMIT_HASH",
+        "cargo version does not match ZKCOIN_GITIAN_CARGO_VERSION",
+        "cargo commit hash does not match ZKCOIN_GITIAN_CARGO_COMMIT_HASH",
+        "ZKCOIN_GITIAN_RUST_TARGETS does not match descriptor Rust targets",
+        "rustc target-list does not include Gitian Rust target",
+        "rust std library is not installed for Gitian Rust target",
+        "rustc --print target-libdir",
+    ):
+        if needle not in text:
+            return "{} missing Gitian Rust toolchain gate: {}".format(
+                GITIAN_RUST_TOOLCHAIN_CHECK.relative_to(ROOT_DIR),
+                needle,
+            )
+    for forbidden in (
+        "source \"$toolchain_file\"",
+        ". \"$toolchain_file\"",
+    ):
+        if forbidden in text:
+            return "{} must parse provenance input without sourcing it: {}".format(
+                GITIAN_RUST_TOOLCHAIN_CHECK.relative_to(ROOT_DIR),
+                forbidden,
+            )
+    return None
+
+
 def require_source_dist_smoke_entries():
     text = SOURCE_DIST_SMOKE.read_text(encoding="utf8")
     required_entries = [
@@ -300,6 +362,7 @@ def require_source_dist_smoke_entries():
     )
     required_entries.extend(REQUIRED_WALLET_INTERFACE_DIST)
     required_entries.extend(REQUIRED_VERIFYBINARIES_DIST)
+    required_entries.extend(REQUIRED_GITIAN_RUST_TOOLCHAIN_DIST)
     missing = [entry for entry in required_entries if entry not in text]
     if missing:
         return "{} missing release-critical tarball checks: {}".format(
@@ -312,6 +375,7 @@ def require_source_dist_smoke_entries():
 def require_gitian_source_descriptors():
     for descriptor in GITIAN_SOURCE_DESCRIPTORS:
         text = descriptor.read_text(encoding="utf8")
+        toolchain_file, rust_targets = GITIAN_SOURCE_DESCRIPTOR_RUST_TOOLCHAINS[descriptor]
         if ZKCOIN_SOURCE_REPO not in text:
             return "{} must fetch zkCoin source repo: {}".format(
                 descriptor.relative_to(ROOT_DIR),
@@ -334,6 +398,21 @@ def require_gitian_source_descriptors():
                 return "{} must enable real Orchard verifier Gitian builds: {}".format(
                     descriptor.relative_to(ROOT_DIR),
                     configure_flag,
+                )
+        for needle, description in (
+            ('- "{}"'.format(toolchain_file), "Rust toolchain provenance input file"),
+            ('RUST_TARGETS="{}"'.format(rust_targets), "descriptor Rust target list"),
+            ('RUST_TOOLCHAIN_FILE="${{BUILD_DIR}}/{}"'.format(toolchain_file), "descriptor Rust toolchain input path"),
+            (
+                'contrib/devtools/zkcoin_gitian_rust_toolchain_check.sh "${RUST_TOOLCHAIN_FILE}" "${RUST_TARGETS}"',
+                "Rust toolchain provenance gate",
+            ),
+        ):
+            if needle not in text:
+                return "{} missing {}: {}".format(
+                    descriptor.relative_to(ROOT_DIR),
+                    description,
+                    needle,
                 )
     return None
 
@@ -392,6 +471,16 @@ def main():
         return fail("notes must document Rust toolchain requirement for Gitian binary descriptors")
     if "--enable-rust-shielded-verifier plus --enable-rust-orchard-verifier" not in notes_text:
         return fail("notes must document real Orchard verifier flags for Gitian binary descriptors")
+    if "zkcoin-gitian-rust-toolchain-*.env" not in notes_text:
+        return fail("notes must document descriptor-specific Gitian Rust toolchain provenance files")
+    if "ZKCOIN_GITIAN_RUSTC_COMMIT_HASH" not in notes_text:
+        return fail("notes must document Gitian Rust compiler commit-hash binding")
+    if "ZKCOIN_GITIAN_CARGO_COMMIT_HASH" not in notes_text:
+        return fail("notes must document Gitian Cargo commit-hash binding")
+    if "commit-hash fields to be full lowercase 40-character hashes" not in notes_text:
+        return fail("notes must document Gitian Rust commit-hash shape validation")
+    if "verify every Rust target standard library before building real Orchard binaries" not in notes_text:
+        return fail("notes must document Gitian Rust target stdlib verification before binary builds")
     if "derive or require an explicit Rust target triple from the configured host" not in notes_text:
         return fail("notes must document Rust verifier target mapping")
     if "target-specific libzkc_shielded_verifier.a" not in notes_text:
@@ -556,6 +645,10 @@ def main():
     if error:
         return fail(error)
 
+    error = require_gitian_rust_toolchain_check()
+    if error:
+        return fail(error)
+
     error = require_gitian_signer_descriptors()
     if error:
         return fail(error)
@@ -585,6 +678,21 @@ def main():
         ('export VERSION="$ZKCOIN_RELEASE_VERSION"', "Gitian version derived from zkCoin release version"),
         ('git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"', "Gitian checkout from signed release source tag"),
         ("Gitian checkout does not match ZKCOIN_RELEASE_SOURCE_COMMIT", "Gitian source commit binding failure"),
+        ("Resolve approved Rust Gitian toolchain provenance", "Gitian Rust toolchain provenance boundary"),
+        ("zkcoin-gitian-rust-toolchain-linux.env", "Linux Rust toolchain provenance input"),
+        ("zkcoin-gitian-rust-toolchain-win.env", "Windows Rust toolchain provenance input"),
+        ("zkcoin-gitian-rust-toolchain-osx.env", "macOS Rust toolchain provenance input"),
+        ("ZKCOIN_GITIAN_RUSTC_VERSION", "Gitian Rust compiler version provenance"),
+        ("ZKCOIN_GITIAN_RUSTC_COMMIT_HASH", "Gitian Rust compiler commit provenance"),
+        ("ZKCOIN_GITIAN_CARGO_VERSION", "Gitian Cargo version provenance"),
+        ("ZKCOIN_GITIAN_CARGO_COMMIT_HASH", "Gitian Cargo commit provenance"),
+        ("ZKCOIN_GITIAN_RUST_TARGETS", "Gitian Rust target list provenance"),
+        ("non-lowercase or non-40-character commit hashes", "Gitian Rust commit-hash shape guard"),
+        ("x86_64-unknown-linux-gnu arm-unknown-linux-gnueabihf aarch64-unknown-linux-gnu riscv64gc-unknown-linux-gnu", "Linux Gitian Rust target list"),
+        ("x86_64-pc-windows-gnu", "Windows Gitian Rust target list"),
+        ("x86_64-apple-darwin", "macOS Gitian Rust target list"),
+        ("mismatched `rustc` and `cargo` versions or commit hashes", "Gitian Rust toolchain mismatch guard"),
+        ("missing Rust standard libraries for every descriptor target", "Gitian Rust target stdlib guard"),
         ('--commit "litecoin=${ZKCOIN_RELEASE_TAG}"', "Gitian build source tag input"),
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
@@ -815,6 +923,10 @@ def main():
             "Ensure gitian-builder is still on the pinned zkCoin release build commit",
             "git fetch origin",
             'git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"',
+            "Resolve approved Rust Gitian toolchain provenance",
+            "ZKCOIN_GITIAN_RUSTC_COMMIT_HASH",
+            "zkcoin-gitian-rust-toolchain-linux.env",
+            "missing Rust standard libraries for every descriptor target",
             '--commit "litecoin=${ZKCOIN_RELEASE_TAG}"',
             "After the published zkCoin Gitian signer quorum has built",
             "ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS",
@@ -988,6 +1100,7 @@ def main():
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_infrastructure_manifest.json", "release manifest dist packaging"),
+        (MAKEFILE_AM, "contrib/devtools/zkcoin_gitian_rust_toolchain_check.sh", "Gitian Rust toolchain gate packaging"),
         (MAKEFILE_AM, "contrib/verifybinaries/verify-zkcoin-release.py", "zkCoin verifier dist packaging"),
         (MAKEFILE_AM, "contrib/verifybinaries/verify.sh", "legacy verifier dist packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_candidate_validation.sh", "release-candidate validation packaging"),
@@ -996,8 +1109,10 @@ def main():
         (GITIAN_SIGNER_DESCRIPTORS[0], DETACHED_SIGS_NOT_CONFIGURED_REPO, "Windows signer fail-closed detached-signatures remote"),
         (GITIAN_SIGNER_DESCRIPTORS[1], DETACHED_SIGS_NOT_CONFIGURED_REPO, "macOS signer fail-closed detached-signatures remote"),
         (DEVTOOLS_README, "zkcoin_release_candidate_validation.sh", "release-candidate validation documentation"),
+        (DEVTOOLS_README, "zkcoin_gitian_rust_toolchain_check.sh", "Gitian Rust toolchain gate documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_smoke.sh", "source dist smoke documentation"),
+        (SOURCE_DIST_SMOKE, "zkcoin_gitian_rust_toolchain_check.sh", "Gitian Rust toolchain gate tarball entry"),
         (SOURCE_DIST_SMOKE, "zkcoin_release_candidate_validation.sh", "release-candidate validation tarball entry"),
         (SOURCE_DIST_SMOKE, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke tarball entry"),
         (SOURCE_DIST_SMOKE, "make dist-gzip", "source tarball build command"),
