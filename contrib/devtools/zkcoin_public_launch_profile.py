@@ -788,9 +788,22 @@ def chainparams_sync_errors(manifest, chainparams_text):
         if block is None:
             errors.append(f"{network}: cannot find {class_name} block before {next_class_name}")
             continue
-        if expected in block:
+        expected_count = block.count(expected)
+        foreign_markers = [
+            other_network
+            for other_network in NETWORKS
+            if other_network != network
+            and f"// {other_network} public launch profile generated" in block
+        ]
+        if expected_count == 1 and not foreign_markers:
             continue
-        if expected in chainparams_text:
+        if expected_count > 1:
+            errors.append(f"{network}: generated snippet appears more than once in {class_name}")
+        for other_network in foreign_markers:
+            errors.append(f"{network}: foreign {other_network} generated snippet present in {class_name}")
+        if expected_count >= 1:
+            continue
+        if expected_count == 0 and expected in chainparams_text:
             errors.append(f"{network}: generated snippet is present outside the {class_name} block")
         missing_lines = [
             line
