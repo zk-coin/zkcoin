@@ -82,7 +82,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                     elif command == "dumptxoutset":
                         if not scenario.get("skip_snapshot_write", False):
                             with open(command_args[0], "wb") as snapshot_file:
-                                snapshot_file.write(b"snapshot")
+                                if not scenario.get("empty_snapshot_write", False):
+                                    snapshot_file.write(b"snapshot")
                         print(scenario.get("dump_raw", json.dumps(scenario["dump_json"])))
                     else:
                         fail(f"unexpected litecoin command: {command}")
@@ -314,6 +315,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "dumptxoutset did not return JSON",
         )
+
+        self.log.info("Reject missing snapshot dump file before verification")
+        _, calls, _ = self.assert_snapshot(
+            "missing-dump-file",
+            self.scenario(skip_snapshot_write=True),
+            1,
+            "snapshot output was not created by dumptxoutset",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject empty snapshot dump file before verification")
+        _, calls, _ = self.assert_snapshot(
+            "empty-dump-file",
+            self.scenario(empty_snapshot_write=True),
+            1,
+            "snapshot output is empty after dumptxoutset",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject missing verifier manifest fields")
         missing_import_hash = self.verify_json()

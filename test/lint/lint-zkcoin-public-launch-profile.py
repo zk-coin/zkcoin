@@ -1860,6 +1860,8 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
+        ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
         ("--set-snapshot-audit NETWORK", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
@@ -1872,6 +1874,8 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
+        ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("--set-snapshot-audit NETWORK", "snapshot script test checks audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
@@ -2003,6 +2007,10 @@ def main():
         (
             "positive decimal total amount with 8 fractional digits",
             "public launch manifest snapshot audit amount documentation",
+        ),
+        (
+            "non-empty snapshot file before running zkCoin verification",
+            "snapshot operator verifies dump artifact documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",

@@ -142,6 +142,12 @@ fi
 
 echo "Dumping Litecoin UTXO snapshot at height $HEIGHT to $SNAPSHOT_PATH" >&2
 DUMP_JSON="$(ltc_cli dumptxoutset "$SNAPSHOT_PATH")"
+if [[ ! -f "$SNAPSHOT_PATH" ]]; then
+  die "snapshot output was not created by dumptxoutset: $SNAPSHOT_PATH"
+fi
+if [[ ! -s "$SNAPSHOT_PATH" ]]; then
+  die "snapshot output is empty after dumptxoutset: $SNAPSHOT_PATH"
+fi
 
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
