@@ -856,11 +856,35 @@ git diff --quiet --no-ext-diff \
 : "${ZKCOIN_RELEASE_GITHUB_TITLE:?set the zkCoin GitHub release title}"
 : "${ZKCOIN_RELEASE_GITHUB_OWNER:?set the accountable zkCoin GitHub release owner}"
 : "${ZKCOIN_RELEASE_TAG:?set the signed zkCoin source tag}"
+: "${ZKCOIN_RELEASE_VERSION:?set the zkCoin release version for the GitHub release title}"
+
+for ZKCOIN_RELEASE_GITHUB_METADATA_FIELD in \
+  "$ZKCOIN_RELEASE_GITHUB_REPO_URL" \
+  "$ZKCOIN_RELEASE_GITHUB_TAG" \
+  "$ZKCOIN_RELEASE_GITHUB_TITLE" \
+  "$ZKCOIN_RELEASE_GITHUB_OWNER"; do
+  case "$ZKCOIN_RELEASE_GITHUB_METADATA_FIELD" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE_GITHUB metadata fields must not be placeholders" >&2
+      exit 1
+      ;;
+  esac
+done
+
+case "$ZKCOIN_RELEASE_GITHUB_REPO_URL" in
+  https://github.com/zk-coin/?*) ;;
+  *) echo "ZKCOIN_RELEASE_GITHUB_REPO_URL must point at the zk-coin GitHub org" >&2; exit 1 ;;
+esac
 
 if [ "$ZKCOIN_RELEASE_GITHUB_TAG" != "$ZKCOIN_RELEASE_TAG" ]; then
   echo "ZKCOIN_RELEASE_GITHUB_TAG must match ZKCOIN_RELEASE_TAG" >&2
   exit 1
 fi
+
+case "$ZKCOIN_RELEASE_GITHUB_TITLE" in
+  *"$ZKCOIN_RELEASE_VERSION"*) ;;
+  *) echo "ZKCOIN_RELEASE_GITHUB_TITLE must include ZKCOIN_RELEASE_VERSION" >&2; exit 1 ;;
+esac
 ```
 
 - Create the GitHub release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` using
