@@ -2068,7 +2068,8 @@ def main():
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
-        ("--set-snapshot-audit NETWORK", "snapshot script prints audit-backed manifest update command"),
+        ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
+        ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
     for needle, description in ltc_snapshot_script_checks:
@@ -2106,7 +2107,8 @@ def main():
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
-        ("--set-snapshot-audit NETWORK", "snapshot script test checks audit-backed manifest update command"),
+        ("Print the testnet snapshot audit manifest handoff", "snapshot script test checks source-chain manifest handoff mapping"),
+        ("--set-snapshot-audit testnet", "snapshot script test checks audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
     )
     for needle, description in ltc_snapshot_script_test_checks:
@@ -2224,6 +2226,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest audit-backed snapshot update documentation",
+        ),
+        (
+            "target profile derived from `source_chain`",
+            "public launch snapshot operator exact handoff documentation",
         ),
         (
             "stores those audit fields with the snapshot constants",

@@ -250,7 +250,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert "Snapshot public launch-profile manifest update:" in result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
-            "--set-snapshot-audit NETWORK <snapshot_audit.json> "
+            f"--set-snapshot-audit main {audit_path} "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in result.stdout
         with open(audit_path, encoding="utf8") as audit_file:
@@ -267,6 +267,21 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert_equal(audit["snapshot_file_sha256"], hashlib.sha256(snapshot_bytes).hexdigest())
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Print the testnet snapshot audit manifest handoff for a Litecoin test source")
+        testnet_result, _, _ = self.assert_snapshot(
+            "testnet-handoff",
+            self.scenario(source_chain="test"),
+            0,
+            "Snapshot verified.",
+            write_audit=True,
+        )
+        testnet_audit_path = os.path.join(self.options.tmpdir, "testnet-handoff.audit.json")
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot-audit testnet {testnet_audit_path} "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_result.stdout
 
         self.log.info("Reject a pre-existing audit summary output path before calling either CLI")
         _, calls, _ = self.assert_snapshot(

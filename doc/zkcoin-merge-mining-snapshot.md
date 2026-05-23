@@ -261,6 +261,9 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 ```
 
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
+When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
+command with the target profile derived from `source_chain` and the exact audit
+summary path filled in.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,

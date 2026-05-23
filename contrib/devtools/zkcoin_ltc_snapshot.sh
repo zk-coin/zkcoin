@@ -360,6 +360,7 @@ if audit_json_path:
     with open(audit_json_path, "x", encoding="utf8") as audit_file:
         json.dump(summary, audit_file, indent=2, sort_keys=True)
         audit_file.write("\n")
+target_network = "main" if source_chain == "main" else "testnet"
 
 print("Snapshot verified.")
 if audit_json_path:
@@ -372,12 +373,20 @@ print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={snapshot_path}")
 print()
 print("Snapshot public launch-profile manifest update:")
-print("Use the audit summary path for the target public profile.")
-print(
-    "contrib/devtools/zkcoin_public_launch_profile.py "
-    f"--set-snapshot-audit NETWORK <snapshot_audit.json> "
-    "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
-)
+if audit_json_path:
+    print("Apply the verified audit summary to the matching public profile.")
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--set-snapshot-audit {target_network} {audit_json_path} "
+        "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
+else:
+    print("Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> and rerun before updating the public profile.")
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--set-snapshot-audit {target_network} <snapshot_audit.json> "
+        "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
 print()
 print("Combine these with the AuxPoW launch profile and confirm")
 print("getblockchaininfo.launch_readiness.ready is true before mining.")
