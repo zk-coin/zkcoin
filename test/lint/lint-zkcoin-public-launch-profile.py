@@ -911,6 +911,60 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        contaminated_chainparams_path = Path(temp_dir) / "contaminated-chainparams.cpp"
+        contaminated_chainparams_path.write_text(
+            chainparams_text_with(main_snippet + "\n" + testnet_snippet, testnet_snippet),
+            encoding="utf8",
+        )
+        contaminated_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(contaminated_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if contaminated_result.returncode == 0:
+            return "{} --check-chainparams accepted a foreign generated snippet in CMainParams".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main: foreign testnet generated snippet present in CMainParams" not in contaminated_result.stderr:
+            return "{} --check-chainparams did not report the foreign testnet snippet in CMainParams".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        duplicated_chainparams_path = Path(temp_dir) / "duplicated-chainparams.cpp"
+        duplicated_chainparams_path.write_text(
+            chainparams_text_with(main_snippet + "\n" + main_snippet, testnet_snippet),
+            encoding="utf8",
+        )
+        duplicated_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(duplicated_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if duplicated_result.returncode == 0:
+            return "{} --check-chainparams accepted a duplicate generated snippet in CMainParams".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main: generated snippet appears more than once in CMainParams" not in duplicated_result.stderr:
+            return "{} --check-chainparams did not report the duplicate main snippet in CMainParams".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         drifted_chainparams_path = Path(temp_dir) / "drifted-chainparams.cpp"
         drifted_chainparams_path.write_text(
             chainparams_text_with(main_snippet, testnet_snippet).replace(
