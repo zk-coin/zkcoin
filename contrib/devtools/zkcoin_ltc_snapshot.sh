@@ -297,6 +297,9 @@ dump_json = sys.argv[7]
 verify_json = sys.argv[8]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
+COIN = 100000000
+MAX_MONEY = 84000000 * COIN
+MAX_MONEY_TEXT = "84000000.00000000"
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -347,6 +350,10 @@ def require_amount(obj, source, field):
     value = require_field(obj, source, field)
     if not isinstance(value, str) or not AMOUNT_RE.fullmatch(value) or value == "0.00000000":
         fail(f"{source}.{field} must be a positive decimal amount with 8 fractional digits")
+    whole, fractional = value.split(".")
+    atoms = int(whole) * COIN + int(fractional)
+    if atoms > MAX_MONEY:
+        fail(f"{source}.{field} must not exceed {MAX_MONEY_TEXT}")
     return value
 
 dump = load_json("dumptxoutset", dump_json)
