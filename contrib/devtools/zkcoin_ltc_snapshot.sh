@@ -91,6 +91,25 @@ if [[ -e "$SNAPSHOT_PATH" ]]; then
   die "snapshot output already exists: $SNAPSHOT_PATH"
 fi
 
+if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
+  AUDIT_JSON_PATH="$ZKCOIN_SNAPSHOT_AUDIT_JSON"
+  case "$AUDIT_JSON_PATH" in
+    /*) ;;
+    *) AUDIT_JSON_PATH="$(pwd -P)/$AUDIT_JSON_PATH" ;;
+  esac
+  if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_PATH" ]]; then
+    die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
+  fi
+  if [[ -e "$AUDIT_JSON_PATH" ]]; then
+    die "snapshot audit summary already exists: $AUDIT_JSON_PATH"
+  fi
+  AUDIT_JSON_DIR="$(dirname "$AUDIT_JSON_PATH")"
+  if [[ ! -d "$AUDIT_JSON_DIR" ]]; then
+    die "snapshot audit summary directory does not exist: $AUDIT_JSON_DIR"
+  fi
+  export ZKCOIN_SNAPSHOT_AUDIT_JSON="$AUDIT_JSON_PATH"
+fi
+
 ltc_cli() {
   "${LTC_CLI[@]}" -rpcclienttimeout=9999999 "$@"
 }
