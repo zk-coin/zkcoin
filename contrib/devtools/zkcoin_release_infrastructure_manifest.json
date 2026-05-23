@@ -25,7 +25,7 @@
     },
     {
       "id": "gitian_sigs_repo",
-      "description": "Choose and publish ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_GITIAN_SIGNER_QUORUM for the zkCoin Gitian signer quorum."
+      "description": "Choose and publish ZKCOIN_GITIAN_SIGS_REPO_URL, ZKCOIN_GITIAN_SIGNER_QUORUM, ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE, and authorized signer fingerprints for the zkCoin Gitian signer quorum."
     },
     {
       "id": "detached_sigs_repo",
@@ -93,7 +93,7 @@
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "Release checksum docs require ZKCOIN_RELEASE_BINARY_NAMESPACE before writing SHA256SUMS and reject zkcoin until binary and artifact namespace migration is completed.",
-    "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and count Gitian signer directories before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
+    "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE, reject unauthorized Gitian signer directories, and count only authorized signer identities with published fingerprints before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
     "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG so inherited Litecoin detached signatures or ambiguous release refs cannot be used by default.",
     "Release checksum signing docs require ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT and ZKCOIN_RELEASE_SIGNING_KEY_ID before creating SHA256SUMS.asc so a default local GPG key cannot sign zkCoin releases by accident.",

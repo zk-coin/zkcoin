@@ -177,10 +177,42 @@ If you're using the automated script (found in [contrib/gitian-build.py](/contri
 Setup Gitian descriptors:
 
     pushd ./litecoin
-    export SIGNER="(your Gitian key, ie bluematt, sipa, etc)"
+    : "${ZKCOIN_GITIAN_SIGNER:?set your authorized zkCoin Gitian signer id}"
+    : "${ZKCOIN_GITIAN_SIGNER_FINGERPRINT:?set your authorized zkCoin Gitian signer fingerprint}"
+    : "${ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE:?set the published zkCoin Gitian authorized signers file}"
     : "${ZKCOIN_RELEASE_VERSION:?set the zkCoin release version, without a leading v}"
     : "${ZKCOIN_RELEASE_TAG:?set the signed zkCoin source tag}"
     : "${ZKCOIN_RELEASE_SOURCE_COMMIT:?set the exact zkCoin source commit for the release tag}"
+    case "$ZKCOIN_GITIAN_SIGNER" in
+      ''|*/*|*..*|*[!A-Za-z0-9_.@+-]*)
+        echo "ZKCOIN_GITIAN_SIGNER must be a single authorized signer id" >&2
+        exit 1
+        ;;
+    esac
+    case "$ZKCOIN_GITIAN_SIGNER_FINGERPRINT" in
+      ''|*[!0-9A-Fa-f]*)
+        echo "ZKCOIN_GITIAN_SIGNER_FINGERPRINT must be hexadecimal" >&2
+        exit 1
+        ;;
+    esac
+    if [ "${#ZKCOIN_GITIAN_SIGNER_FINGERPRINT}" -lt 40 ]; then
+        echo "ZKCOIN_GITIAN_SIGNER_FINGERPRINT must be at least 40 hex characters" >&2
+        exit 1
+    fi
+    if [ ! -f "$ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" ]; then
+        echo "ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE must point to the published signer list" >&2
+        exit 1
+    fi
+    ZKCOIN_GITIAN_SIGNER_FINGERPRINT_NORMALIZED="$(printf '%s' "$ZKCOIN_GITIAN_SIGNER_FINGERPRINT" | tr '[:lower:]' '[:upper:]')"
+    awk -v signer="$ZKCOIN_GITIAN_SIGNER" -v fingerprint="$ZKCOIN_GITIAN_SIGNER_FINGERPRINT_NORMALIZED" '
+      /^[[:space:]]*(#|$)/ { next }
+      $1 == signer && toupper($2) == fingerprint { found = 1 }
+      END { exit found ? 0 : 1 }
+    ' "$ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" || {
+        echo "ZKCOIN_GITIAN_SIGNER and fingerprint are not in the authorized zkCoin Gitian signer list" >&2
+        exit 1
+    }
+    export SIGNER="$ZKCOIN_GITIAN_SIGNER"
     export VERSION="$ZKCOIN_RELEASE_VERSION"
     git fetch --tags
     git verify-tag "$ZKCOIN_RELEASE_TAG"
@@ -400,6 +432,7 @@ Commit your signature for the signed macOS/Windows binaries:
 
 ```bash
 : "${ZKCOIN_GITIAN_SIGNER_QUORUM:?set the resolved zkCoin Gitian signer quorum count}"
+: "${ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE:?set the published zkCoin Gitian authorized signers file}"
 
 case "$ZKCOIN_GITIAN_SIGNER_QUORUM" in
   ''|*[!0-9]*)
@@ -412,6 +445,10 @@ if [ "$ZKCOIN_GITIAN_SIGNER_QUORUM" -lt 1 ]; then
     echo "ZKCOIN_GITIAN_SIGNER_QUORUM must be at least 1" >&2
     exit 1
 fi
+if [ ! -f "$ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" ]; then
+    echo "ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE must point to the published signer list" >&2
+    exit 1
+fi
 
 for ZKCOIN_GITIAN_RELEASE in \
   "${VERSION}-linux" \
@@ -419,14 +456,42 @@ for ZKCOIN_GITIAN_RELEASE in \
   "${VERSION}-osx-unsigned" \
   "${VERSION}-win-signed" \
   "${VERSION}-osx-signed"; do
-    ZKCOIN_GITIAN_SIGNER_COUNT="$(
+    ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS="$(
       find "${GITIAN_SIGS_DIR}/${ZKCOIN_GITIAN_RELEASE}" \
         -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
+        -exec basename {} \; \
+        | while IFS= read -r ZKCOIN_GITIAN_SIGNER_DIR; do
+            awk -v signer="$ZKCOIN_GITIAN_SIGNER_DIR" '
+              /^[[:space:]]*(#|$)/ { next }
+              $1 == signer && $2 ~ /^[0-9A-Fa-f]{40,}$/ { found = 1 }
+              END { exit found ? 0 : 1 }
+            ' "$ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" || printf '%s\n' "$ZKCOIN_GITIAN_SIGNER_DIR"
+          done \
+        | sort -u
+    )"
+    if [ -n "$ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS" ]; then
+        echo "${ZKCOIN_GITIAN_RELEASE} contains unauthorized Gitian signer directories:" >&2
+        printf '%s\n' "$ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS" >&2
+        exit 1
+    fi
+
+    ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT="$(
+      find "${GITIAN_SIGS_DIR}/${ZKCOIN_GITIAN_RELEASE}" \
+        -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
+        -exec basename {} \; \
+        | while IFS= read -r ZKCOIN_GITIAN_SIGNER_DIR; do
+            awk -v signer="$ZKCOIN_GITIAN_SIGNER_DIR" '
+              /^[[:space:]]*(#|$)/ { next }
+              $1 == signer && $2 ~ /^[0-9A-Fa-f]{40,}$/ { found = 1 }
+              END { exit found ? 0 : 1 }
+            ' "$ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" && printf '%s\n' "$ZKCOIN_GITIAN_SIGNER_DIR"
+          done \
+        | sort -u \
         | wc -l \
         | tr -d '[:space:]'
     )"
-    if [ "$ZKCOIN_GITIAN_SIGNER_COUNT" -lt "$ZKCOIN_GITIAN_SIGNER_QUORUM" ]; then
-        echo "${ZKCOIN_GITIAN_RELEASE} has ${ZKCOIN_GITIAN_SIGNER_COUNT} Gitian signers; require ${ZKCOIN_GITIAN_SIGNER_QUORUM}" >&2
+    if [ "$ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT" -lt "$ZKCOIN_GITIAN_SIGNER_QUORUM" ]; then
+        echo "${ZKCOIN_GITIAN_RELEASE} has ${ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT} authorized Gitian signers; require ${ZKCOIN_GITIAN_SIGNER_QUORUM}" >&2
         exit 1
     fi
 done
