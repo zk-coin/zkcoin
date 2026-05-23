@@ -247,11 +247,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 ```
 
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
-The manifest validator reads the verified `height`, `block_hash`, and
-`import_hash` from the audit summary, requires the audit-only `snapshot_hash`,
-coin count, transaction count, snapshot file, and total amount fields to be
-present, and stores those audit fields with the snapshot constants. The
-validator removes only that network's snapshot blocker; the remaining AuxPoW,
+The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
+from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
+transaction count, an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
+The manifest stores those audit fields with the snapshot constants.
+The validator removes only that network's snapshot blocker; the remaining AuxPoW,
 DNS seed, and public identity blockers stay explicit until their production
 values are selected.
 Manual public snapshot constants are not accepted by the manifest update path;

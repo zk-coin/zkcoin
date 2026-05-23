@@ -615,6 +615,60 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        relative_file_audit_path = Path(temp_dir) / "relative-file-audit.json"
+        relative_file_audit = dict(audit)
+        relative_file_audit["snapshot_file"] = "snapshots/ltc-block-x.dat"
+        relative_file_audit_path.write_text(json.dumps(relative_file_audit), encoding="utf8")
+        relative_file_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(relative_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if relative_file_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a relative snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in relative_file_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain relative snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        malformed_amount_audit_path = Path(temp_dir) / "malformed-amount-audit.json"
+        malformed_amount_audit = dict(audit)
+        malformed_amount_audit["total_amount"] = "50"
+        malformed_amount_audit_path.write_text(json.dumps(malformed_amount_audit), encoding="utf8")
+        malformed_amount_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(malformed_amount_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_amount_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a malformed snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit total_amount must be a positive decimal amount with 8 fractional digits" not in malformed_amount_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain malformed total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     auxpow_result = subprocess.run(
         [
             sys.executable,
@@ -1586,6 +1640,9 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
+        ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
+        ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
+        ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
         ("litecoin_snapshot.audit.snapshot_hash", "manifest reports unresolved snapshot audit blockers"),
         ("snapshot_hash", "manifest preserves snapshot audit hash metadata"),
         ("base_nchaintx", "manifest preserves snapshot audit transaction-count metadata"),
@@ -1803,6 +1860,7 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
         ("--set-snapshot-audit NETWORK", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
@@ -1814,6 +1872,7 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("--set-snapshot-audit NETWORK", "snapshot script test checks audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
     )
@@ -1936,6 +1995,14 @@ def main():
         (
             "stores those audit fields with the snapshot constants",
             "public launch manifest snapshot audit retention documentation",
+        ),
+        (
+            "absolute snapshot file path",
+            "public launch manifest snapshot audit file-path documentation",
+        ),
+        (
+            "positive decimal total amount with 8 fractional digits",
+            "public launch manifest snapshot audit amount documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",

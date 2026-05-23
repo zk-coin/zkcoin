@@ -158,6 +158,7 @@ snapshot_path = sys.argv[3]
 dump_json = sys.argv[4]
 verify_json = sys.argv[5]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -198,6 +199,12 @@ def require_hash(obj, source, field):
         fail(f"{source}.{field} must be a 64-character hex string")
     return value
 
+def require_amount(obj, source, field):
+    value = require_field(obj, source, field)
+    if not isinstance(value, str) or not AMOUNT_RE.fullmatch(value) or value == "0.00000000":
+        fail(f"{source}.{field} must be a positive decimal amount with 8 fractional digits")
+    return value
+
 dump = load_json("dumptxoutset", dump_json)
 verify = load_json("verifysnapshotmanifest", verify_json)
 
@@ -211,7 +218,7 @@ verify_metadata_coins = require_int(verify, "verifysnapshotmanifest", "metadata_
 verify_base_nchaintx = require_int(verify, "verifysnapshotmanifest", "base_nchaintx")
 snapshot_hash = require_hash(verify, "verifysnapshotmanifest", "snapshot_hash")
 import_hash = require_hash(verify, "verifysnapshotmanifest", "import_hash")
-total_amount = require_field(verify, "verifysnapshotmanifest", "total_amount")
+total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")
 
 if dump_height != height:
     fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")

@@ -54,6 +54,7 @@ MAX_BECH32_HRP_LENGTH = 83
 PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
+SNAPSHOT_TOTAL_AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 BLOCKER_ORDER = (
     "main.litecoin_snapshot",
     "main.auxpow_chain_id",
@@ -167,6 +168,20 @@ class Validation:
         if not isinstance(value, str) or not value:
             self.error(path, "must be a non-empty string")
 
+    def require_snapshot_file(self, value, path, *, allow_null):
+        if value is None and allow_null:
+            self.blockers.append(path)
+            return
+        if not snapshot_file_valid(value):
+            self.error(path, "must be an absolute non-placeholder path")
+
+    def require_snapshot_total_amount(self, value, path, *, allow_null):
+        if value is None and allow_null:
+            self.blockers.append(path)
+            return
+        if not snapshot_total_amount_valid(value):
+            self.error(path, "must be a positive decimal amount with 8 fractional digits")
+
 
 def dns_seed_valid(seed):
     if (
@@ -223,6 +238,24 @@ def message_start_valid(value):
     )
 
 
+def snapshot_file_valid(value):
+    return (
+        isinstance(value, str)
+        and value.startswith("/")
+        and value not in ("", "TODO", "TBD", "CHANGE_ME")
+        and not value.startswith("<")
+        and "\0" not in value
+    )
+
+
+def snapshot_total_amount_valid(value):
+    return (
+        isinstance(value, str)
+        and SNAPSHOT_TOTAL_AMOUNT_RE.fullmatch(value) is not None
+        and value != "0.00000000"
+    )
+
+
 def validate_snapshot(check, network, profile, allow_null):
     snapshot = check.require_object(profile.get("litecoin_snapshot"), f"{network}.litecoin_snapshot")
     check.require_positive_int(snapshot.get("height"), f"{network}.litecoin_snapshot.height", allow_null=allow_null)
@@ -232,8 +265,8 @@ def validate_snapshot(check, network, profile, allow_null):
     check.require_hex256(audit.get("snapshot_hash"), f"{network}.litecoin_snapshot.audit.snapshot_hash", allow_null=allow_null)
     check.require_positive_int(audit.get("coins"), f"{network}.litecoin_snapshot.audit.coins", allow_null=allow_null)
     check.require_positive_int(audit.get("base_nchaintx"), f"{network}.litecoin_snapshot.audit.base_nchaintx", allow_null=allow_null)
-    check.require_nonempty_string(audit.get("snapshot_file"), f"{network}.litecoin_snapshot.audit.snapshot_file", allow_null=allow_null)
-    check.require_nonempty_string(audit.get("total_amount"), f"{network}.litecoin_snapshot.audit.total_amount", allow_null=allow_null)
+    check.require_snapshot_file(audit.get("snapshot_file"), f"{network}.litecoin_snapshot.audit.snapshot_file", allow_null=allow_null)
+    check.require_snapshot_total_amount(audit.get("total_amount"), f"{network}.litecoin_snapshot.audit.total_amount", allow_null=allow_null)
 
 
 def validate_auxpow(check, network, profile, allow_null):
@@ -545,6 +578,20 @@ def require_snapshot_audit_string(audit, field):
     return value
 
 
+def require_snapshot_audit_file(audit, field):
+    value = require_snapshot_audit_string(audit, field)
+    if not snapshot_file_valid(value):
+        raise ValueError(f"snapshot audit {field} must be an absolute non-placeholder path")
+    return value
+
+
+def require_snapshot_audit_total_amount(audit, field):
+    value = require_snapshot_audit_string(audit, field)
+    if not snapshot_total_amount_valid(value):
+        raise ValueError(f"snapshot audit {field} must be a positive decimal amount with 8 fractional digits")
+    return value
+
+
 def parse_snapshot_audit(audit_path):
     try:
         audit = json.loads(Path(audit_path).read_text(encoding="utf8"))
@@ -565,8 +612,8 @@ def parse_snapshot_audit(audit_path):
         "snapshot_hash": require_snapshot_audit_hash(audit, "snapshot_hash"),
         "coins": require_snapshot_audit_int(audit, "coins"),
         "base_nchaintx": require_snapshot_audit_int(audit, "base_nchaintx"),
-        "snapshot_file": require_snapshot_audit_string(audit, "snapshot_file"),
-        "total_amount": require_snapshot_audit_string(audit, "total_amount"),
+        "snapshot_file": require_snapshot_audit_file(audit, "snapshot_file"),
+        "total_amount": require_snapshot_audit_total_amount(audit, "total_amount"),
     }
     return parsed
 
