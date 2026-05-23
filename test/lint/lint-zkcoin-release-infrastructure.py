@@ -352,6 +352,10 @@ def main():
         return fail("notes must document zkCoin macOS signing payload approval")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin Windows signing key custody")
+    if "ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER" not in notes_text:
+        return fail("notes must document zkCoin Windows signing key custody owner")
+    if "ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL" not in notes_text:
+        return fail("notes must document zkCoin Windows signing payload approval")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -520,6 +524,9 @@ def main():
         ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_PATH", "parameterized Windows code-signing key path"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY", "parameterized Windows code-signing key custody"),
+        ("ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER", "Windows code-signing key custody owner"),
+        ("ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL", "Windows code-signing payload approval"),
+        ("ZKCOIN_WINDOWS_CODESIGN custody fields must not be placeholders", "Windows signing custody placeholder rejection"),
         ('./detached-sig-create.sh -key "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH"', "zkCoin Windows signing key invocation"),
     )
     for needle, description in release_doc_checks:
@@ -543,6 +550,22 @@ def main():
             "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
         "release source tag provenance and signer authorization before Gitian builds",
+    )
+    if error:
+        return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Codesigner only: Sign the windows binaries",
+            "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH",
+            "ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY",
+            "ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER",
+            "ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL",
+            './detached-sig-create.sh -key "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH"',
+            "Codesigner only: Commit the detached codesign payloads",
+        ),
+        "Windows signing custody before detached signature creation",
     )
     if error:
         return fail(error)
