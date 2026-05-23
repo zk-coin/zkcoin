@@ -32,10 +32,6 @@
       "description": "Choose the zkCoin artifact distribution host and checksum publication path."
     },
     {
-      "id": "descriptor_source_repo",
-      "description": "Repoint deterministic build descriptors to zk-coin/zkcoin or document the exact local URL override required for release builds."
-    },
-    {
       "id": "binary_namespace_decision",
       "description": "Decide whether the first production release keeps litecoin-* binary/artifact names or migrates to zkcoin-* names."
     },
@@ -54,21 +50,6 @@
   ],
   "current_inherited_release_surfaces": [
     {
-      "path": "contrib/gitian-descriptors/gitian-linux.yml",
-      "contains": "https://github.com/litecoin-project/litecoin.git",
-      "reason": "Linux Gitian descriptor still fetches Litecoin source unless overridden."
-    },
-    {
-      "path": "contrib/gitian-descriptors/gitian-win.yml",
-      "contains": "https://github.com/litecoin-project/litecoin.git",
-      "reason": "Windows Gitian descriptor still fetches Litecoin source unless overridden."
-    },
-    {
-      "path": "contrib/gitian-descriptors/gitian-osx.yml",
-      "contains": "https://github.com/litecoin-project/litecoin.git",
-      "reason": "macOS Gitian descriptor still fetches Litecoin source unless overridden."
-    },
-    {
       "path": "contrib/gitian-descriptors/gitian-win-signer.yml",
       "contains": "https://github.com/litecoin-project/litecoin-detached-sigs.git",
       "reason": "Windows signer descriptor still uses Litecoin detached signatures."
@@ -85,8 +66,8 @@
     },
     {
       "path": "doc/release-process.md",
-      "contains": "git clone https://github.com/litecoin-project/litecoin.git",
-      "reason": "Release process still contains inherited Litecoin build instructions and must stay marked blocked."
+      "contains": "git clone https://github.com/litecoin-project/gitian.sigs.ltc.git",
+      "reason": "Release process still contains inherited Litecoin signing and distribution instructions and must stay marked blocked."
     },
     {
       "path": "contrib/gitian-build.py",
@@ -112,6 +93,7 @@
   "notes": [
     "Do not treat Gitian, signing, notarization, upload, or binary verification instructions as production zkCoin release instructions while status is release_infrastructure_not_ready.",
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
+    "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }
