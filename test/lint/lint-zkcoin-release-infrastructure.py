@@ -336,6 +336,8 @@ def main():
         return fail("notes must document detached-signatures macOS payload archive path")
     if "absolute existing tar archives outside the detached-signatures repository" not in notes_text:
         return fail("notes must document detached-signatures payload archive path validation")
+    if "absolute paths, parent traversal, and unexpected top-level entries" not in notes_text:
+        return fail("notes must document detached-signatures payload archive member path validation")
     if "hidden payload entries while preserving .git" not in notes_text:
         return fail("notes must document full detached-signatures payload cleanup")
     if "reject an existing ZKCOIN_DETACHED_SIGS_RELEASE_TAG" not in notes_text:
@@ -534,6 +536,10 @@ def main():
         ("ZKCOIN_DETACHED_SIGS payload archive does not exist", "detached-signatures payload archive existence validation"),
         ("ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED", "detached-signatures payload archive physical path resolution"),
         ('tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null', "detached-signatures payload archive tar validation"),
+        ("ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER", "detached-signatures payload archive member loop"),
+        ("ZKCOIN_DETACHED_SIGS payload archive contains unsafe path", "detached-signatures payload archive unsafe path rejection"),
+        ("ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER_TOP", "detached-signatures payload archive top-level member normalization"),
+        ("ZKCOIN_DETACHED_SIGS payload archive contains unexpected top-level path", "detached-signatures payload archive unexpected top-level rejection"),
         ("Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL", "detached-signatures origin mismatch failure"),
         ("Detached signatures repository must be clean before payload replacement", "detached-signatures dirty checkout guard"),
         ("Detached signatures release branch must be clean before payload replacement", "detached-signatures release branch dirty guard"),
@@ -777,6 +783,9 @@ def main():
             "ZKCOIN_DETACHED_SIGS payload archives must be outside the detached-signatures repository",
             "ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED",
             'tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null',
+            "ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER",
+            "ZKCOIN_DETACHED_SIGS payload archive contains unsafe path",
+            "ZKCOIN_DETACHED_SIGS payload archive contains unexpected top-level path",
             'git remote get-url origin',
             "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL",
             "Detached signatures repository must be clean before payload replacement",

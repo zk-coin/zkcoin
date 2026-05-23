@@ -554,6 +554,25 @@ Codesigner only: Commit the detached codesign payloads:
           ;;
       esac
       tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" >/dev/null
+      if ! tar -tf "$ZKCOIN_DETACHED_SIGS_PAYLOAD_ARCHIVE_RESOLVED" | while IFS= read -r ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER; do
+        case "$ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER" in
+          ''|/*|..|../*|*/../*|*/..)
+            echo "ZKCOIN_DETACHED_SIGS payload archive contains unsafe path: $ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER" >&2
+            exit 1
+            ;;
+        esac
+        ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER_TOP="${ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER#./}"
+        case "$ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER_TOP" in
+          ''|.|osx|osx/*|win|win/*)
+            ;;
+          *)
+            echo "ZKCOIN_DETACHED_SIGS payload archive contains unexpected top-level path: $ZKCOIN_DETACHED_SIGS_PAYLOAD_MEMBER" >&2
+            exit 1
+            ;;
+        esac
+      done; then
+        exit 1
+      fi
     done
     if [ "$(git remote get-url origin)" != "$ZKCOIN_DETACHED_SIGS_REPO_URL" ]; then
         echo "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL" >&2
