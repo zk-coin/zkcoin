@@ -172,12 +172,21 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_aliases_snapshot=False,
         audit_path_parent_missing=False,
         snapshot_path_parent_missing=False,
+        audit_path_parent_unwritable=False,
+        snapshot_path_parent_unwritable=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
         audit_path = os.path.join(self.options.tmpdir, f"{name}.audit.json")
+        dirs_to_restore = []
         if snapshot_path_parent_missing:
             snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
+        elif snapshot_path_parent_unwritable:
+            snapshot_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-dir")
+            os.makedirs(snapshot_dir, exist_ok=True)
+            os.chmod(snapshot_dir, stat.S_IRUSR | stat.S_IXUSR)
+            dirs_to_restore.append(snapshot_dir)
+            snapshot_path = os.path.join(snapshot_dir, f"{name}.dat")
         if audit_path_same_as_snapshot:
             audit_path = snapshot_path
         elif audit_path_aliases_snapshot:
@@ -186,6 +195,12 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             audit_path = os.path.join(alias_dir, "..", os.path.basename(snapshot_path))
         elif audit_path_parent_missing:
             audit_path = os.path.join(self.options.tmpdir, "missing-audit-dir", f"{name}.audit.json")
+        elif audit_path_parent_unwritable:
+            audit_dir = os.path.join(self.options.tmpdir, f"{name}-audit-dir")
+            os.makedirs(audit_dir, exist_ok=True)
+            os.chmod(audit_dir, stat.S_IRUSR | stat.S_IXUSR)
+            dirs_to_restore.append(audit_dir)
+            audit_path = os.path.join(audit_dir, f"{name}.audit.json")
         if snapshot_path_symlink:
             os.symlink(os.path.join(self.options.tmpdir, f"{name}.target"), snapshot_path)
         if audit_path_symlink:
@@ -206,6 +221,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or audit_path_same_as_snapshot
             or audit_path_aliases_snapshot
             or audit_path_parent_missing
+            or audit_path_parent_unwritable
             or audit_path_symlink
         ):
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
@@ -232,6 +248,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             check=False,
             env=env,
         )
+        for directory in dirs_to_restore:
+            os.chmod(directory, stat.S_IRWXU)
 
         calls = []
         if os.path.exists(log_path):
@@ -368,6 +386,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [])
 
+        self.log.info("Reject an unwritable audit summary output directory before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "unwritable-audit-dir",
+            self.scenario(),
+            1,
+            "snapshot audit summary directory is not writable",
+            audit_path_parent_unwritable=True,
+        )
+        assert_equal(calls, [])
+
         self.log.info("Reject a missing snapshot output directory before calling either CLI")
         _, calls, _ = self.assert_snapshot(
             "missing-snapshot-dir",
@@ -375,6 +403,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot output directory does not exist",
             snapshot_path_parent_missing=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject an unwritable snapshot output directory before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "unwritable-snapshot-dir",
+            self.scenario(),
+            1,
+            "snapshot output directory is not writable",
+            snapshot_path_parent_unwritable=True,
         )
         assert_equal(calls, [])
 

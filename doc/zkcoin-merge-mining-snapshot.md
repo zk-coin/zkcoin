@@ -232,8 +232,9 @@ script fail even when the snapshot dump itself succeeded.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the script validates the audit summary output path before running snapshot RPCs: the audit path must not already
 exist, must not equal the snapshot output path, and must have an existing parent
 directory. The snapshot output directory must also exist before the script calls
-either node. The snapshot and audit output paths must be direct files, not
-symlinks, before the operator writes launch artifacts. Paths that resolve
+either node, and snapshot and audit output directories must be writable. The
+snapshot and audit output paths must be direct files, not symlinks, before the
+operator writes launch artifacts. Paths that resolve
 through physical parent directories to the same canonical output target are
 rejected before any node RPC is called.
 

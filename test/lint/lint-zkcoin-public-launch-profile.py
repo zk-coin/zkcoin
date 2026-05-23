@@ -2154,8 +2154,10 @@ def main():
         ("AUDIT_CANONICAL_PATH", "snapshot script canonicalizes audit output paths before collision checks"),
         ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
+        ("snapshot audit summary directory is not writable", "snapshot script rejects unwritable audit output directories"),
         ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
+        ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
         ("snapshot block hash at height", "snapshot script validates source snapshot block hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
@@ -2213,6 +2215,10 @@ def main():
             "snapshot script test rejects missing audit directory before RPC",
         ),
         (
+            "Reject an unwritable audit summary output directory before calling either CLI",
+            "snapshot script test rejects unwritable audit directory before RPC",
+        ),
+        (
             "Reject a symlinked audit summary output path before calling either CLI",
             "snapshot script test rejects symlink audit output before RPC",
         ),
@@ -2223,6 +2229,10 @@ def main():
         (
             "Reject a missing snapshot output directory before calling either CLI",
             "snapshot script test rejects missing snapshot directory before RPC",
+        ),
+        (
+            "Reject an unwritable snapshot output directory before calling either CLI",
+            "snapshot script test rejects unwritable snapshot directory before RPC",
         ),
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
@@ -2367,6 +2377,10 @@ def main():
         (
             "snapshot output directory must also exist",
             "public launch snapshot output directory preflight documentation",
+        ),
+        (
+            "snapshot and audit output directories must be writable",
+            "public launch snapshot output directory writable preflight documentation",
         ),
         (
             "snapshot and audit output paths must be direct files",
