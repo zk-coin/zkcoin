@@ -798,6 +798,41 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 ready_result.stderr.strip() or ready_result.stdout.strip() or "no output",
             )
+        ready_update_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-auxpow",
+                "main",
+                "0x5003",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_update_result.returncode != 0:
+            return "{} --set-auxpow failed against a ready manifest: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                ready_update_result.stderr.strip() or ready_update_result.stdout.strip() or "no output",
+            )
+        try:
+            demoted_manifest = json.loads(ready_update_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --set-auxpow ready-manifest update did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if demoted_manifest.get("status") != "blocked":
+            return "{} --set-auxpow did not demote a ready manifest for review".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if demoted_manifest.get("blockers") != []:
+            return "{} --set-auxpow added blockers while demoting a complete ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         ready_next_result = subprocess.run(
             [
                 sys.executable,
@@ -1226,6 +1261,7 @@ def main():
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
         ("validation_failure_message", "manifest emits detailed transition failures"),
         ("mark_ready", "manifest marks complete profiles ready only after validation"),
+        ("demote_ready_for_review", "manifest demotes edited ready profiles for re-review"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("set_identity", "manifest updates public network identity"),

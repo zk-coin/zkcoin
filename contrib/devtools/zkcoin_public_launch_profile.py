@@ -668,6 +668,11 @@ def mark_ready(manifest):
         )
 
 
+def demote_ready_for_review(manifest):
+    if manifest.get("status") == "ready-for-chainparams":
+        manifest["status"] = "blocked"
+
+
 def write_manifest(path, manifest):
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     tmp_path = path.with_name(path.name + ".tmp")
@@ -966,6 +971,16 @@ def main():
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
+    updated_launch_fields = (
+        args.set_snapshot is not None
+        or args.set_auxpow is not None
+        or args.set_dns_seeds is not None
+        or args.set_identity is not None
+    )
+
+    if updated_launch_fields and not args.mark_ready:
+        demote_ready_for_review(manifest)
+
     if args.mark_ready:
         try:
             mark_ready(manifest)
@@ -974,10 +989,7 @@ def main():
             return 1
 
     updated_manifest = (
-        args.set_snapshot is not None
-        or args.set_auxpow is not None
-        or args.set_dns_seeds is not None
-        or args.set_identity is not None
+        updated_launch_fields
         or args.mark_ready
     )
     allow_blocked = args.allow_blocked or updated_manifest

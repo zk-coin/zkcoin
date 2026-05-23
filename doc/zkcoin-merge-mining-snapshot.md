@@ -133,7 +133,9 @@ Both are intentionally present before behavior changes so tests and review can t
   Before copying values into `chainparams`, run
   `contrib/devtools/zkcoin_public_launch_profile.py --mark-ready --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json`;
   it clears blockers and sets `ready-for-chainparams` only after strict
-  validation confirms every production field is resolved. Then use
+  validation confirms every production field is resolved. Any later `--set-*`
+  update against a ready manifest demotes it back to `blocked`, so rerun
+  `--mark-ready` after reviewing the change. Then use
   `contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams` to emit
   the reviewed `chainparams.cpp` assignment skeleton. After applying the
   snippet, run
