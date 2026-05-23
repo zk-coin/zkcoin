@@ -306,6 +306,12 @@ def main():
         return fail("notes must document parameterized zkCoin detached-signatures release ref")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
+    if "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD" not in notes_text:
+        return fail("notes must document zkCoin release signing key custody record")
+    if "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_OWNER" not in notes_text:
+        return fail("notes must document zkCoin release signing key custody owner")
+    if "ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN" not in notes_text:
+        return fail("notes must document zkCoin release signing key revocation plan")
     if "ZKCOIN_RELEASE_ARTIFACTS" not in notes_text:
         return fail("notes must document explicit zkCoin release artifact checksum set")
     if "local pre-upload verify-zkcoin-release.py check" not in notes_text:
@@ -430,6 +436,10 @@ def main():
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
         ("ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "parameterized release signing key fingerprint"),
         ("ZKCOIN_RELEASE_SIGNING_KEY_ID", "parameterized release signing local key id"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD", "release signing key custody record"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_OWNER", "release signing key custody owner"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN", "release signing key revocation plan"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY custody fields must not be placeholders", "release signing key custody placeholder rejection"),
         ("--with-colons --fingerprint", "release signing key fingerprint validation"),
         ('--local-user "$ZKCOIN_RELEASE_SIGNING_KEY_ID"', "explicit zkCoin release signing key invocation"),
         ("ZKCOIN_RELEASE_ARTIFACTS=(", "explicit release artifact checksum list"),
@@ -508,6 +518,21 @@ def main():
             "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
         "release source tag provenance and signer authorization before Gitian builds",
+    )
+    if error:
+        return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "GPG-sign it with the published zkCoin release signing key",
+            "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD",
+            "ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN",
+            "--with-colons --fingerprint",
+            '--local-user "$ZKCOIN_RELEASE_SIGNING_KEY_ID"',
+            "Verify the local signed checksum manifest and artifacts before uploading",
+        ),
+        "release signing key custody before checksum signing",
     )
     if error:
         return fail(error)
