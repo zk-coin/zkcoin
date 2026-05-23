@@ -716,6 +716,35 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        symlink_artifact_path = Path(temp_dir) / "ltc-block-x-link.dat"
+        symlink_artifact_path.symlink_to(snapshot_artifact_path)
+        symlink_artifact_audit_path = Path(temp_dir) / "symlink-artifact-audit.json"
+        symlink_artifact_audit = dict(audit)
+        symlink_artifact_audit["snapshot_file"] = str(symlink_artifact_path)
+        symlink_artifact_audit_path.write_text(json.dumps(symlink_artifact_audit), encoding="utf8")
+        symlink_artifact_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(symlink_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_artifact_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a symlinked snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must not be a symlink" not in symlink_artifact_result.stderr:
+            return "{} --set-snapshot-audit did not explain symlink snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         malformed_amount_audit_path = Path(temp_dir) / "malformed-amount-audit.json"
         malformed_amount_audit = dict(audit)
         malformed_amount_audit["total_amount"] = "50"
@@ -1835,6 +1864,7 @@ def main():
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
         ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
+        ("snapshot audit file artifact must not be a symlink", "manifest rejects symlinked snapshot audit artifacts"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
@@ -2307,6 +2337,10 @@ def main():
         (
             "verifies the local snapshot artifact size and SHA-256",
             "public launch manifest snapshot artifact verification documentation",
+        ),
+        (
+            "rejects symlinked snapshot artifacts",
+            "public launch manifest snapshot artifact symlink rejection documentation",
         ),
         (
             "changes during zkCoin verification",

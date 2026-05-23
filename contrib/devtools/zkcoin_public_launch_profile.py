@@ -639,6 +639,8 @@ def snapshot_file_sha256(path):
 
 def verify_snapshot_audit_artifact(audit):
     snapshot_path = Path(audit["snapshot_file"])
+    if snapshot_path.is_symlink():
+        raise ValueError(f"snapshot audit file artifact must not be a symlink: {snapshot_path}")
     if not snapshot_path.is_file():
         raise ValueError(f"snapshot audit file artifact does not exist: {snapshot_path}")
     try:
