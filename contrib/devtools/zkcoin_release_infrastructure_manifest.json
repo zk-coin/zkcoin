@@ -29,7 +29,7 @@
     },
     {
       "id": "detached_sigs_repo",
-      "description": "Choose and publish ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG for Windows and macOS signing payloads."
+      "description": "Choose and publish ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, ZKCOIN_DETACHED_SIGS_RELEASE_TAG, ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD, ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER, and ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL for Windows and macOS signing payloads."
     },
     {
       "id": "artifact_download_host",
@@ -95,7 +95,7 @@
     "Release checksum docs require ZKCOIN_RELEASE_BINARY_NAMESPACE before writing SHA256SUMS and reject zkcoin until binary and artifact namespace migration is completed.",
     "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE, reject unauthorized Gitian signer directories, and count only authorized signer identities with published fingerprints before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
-    "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG so inherited Litecoin detached signatures or ambiguous release refs cannot be used by default.",
+    "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, ZKCOIN_DETACHED_SIGS_RELEASE_TAG, ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD, ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER, and ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL so inherited Litecoin detached signatures, ambiguous release refs, or undocumented signing-payload custody cannot be used by default.",
     "Release checksum signing docs require ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT, ZKCOIN_RELEASE_SIGNING_KEY_ID, ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD, ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_OWNER, and ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN before creating SHA256SUMS.asc so a default local GPG key or undocumented custody path cannot sign zkCoin releases by accident.",
     "Release checksum docs enumerate ZKCOIN_RELEASE_ARTIFACTS and compare the release directory to the expected non-debug artifact set before writing SHA256SUMS.",
     "Release docs require a local pre-upload verify-zkcoin-release.py check of SHA256SUMS.asc and the artifact directory before resolving publication targets.",

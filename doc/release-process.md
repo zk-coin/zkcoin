@@ -377,6 +377,20 @@ Codesigner only: Commit the detached codesign payloads:
     cd "${ZKCOIN_DETACHED_SIGS_DIR}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_REF:?set the resolved zkCoin detached-signatures release branch}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    : "${ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD:?set the published zkCoin detached-signatures custody record}"
+    : "${ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER:?set the accountable zkCoin detached-signatures custody owner}"
+    : "${ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL:?set the approved zkCoin detached-signatures payload approval record}"
+    for ZKCOIN_DETACHED_SIGS_CUSTODY_FIELD in \
+      "$ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD" \
+      "$ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER" \
+      "$ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL"; do
+        case "$ZKCOIN_DETACHED_SIGS_CUSTODY_FIELD" in
+          ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+            echo "ZKCOIN_DETACHED_SIGS custody fields must not be placeholders" >&2
+            exit 1
+            ;;
+        esac
+    done
     git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags
     git rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}" >/dev/null
     git checkout "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"
@@ -388,6 +402,7 @@ Codesigner only: Commit the detached codesign payloads:
     git add -A
     git commit -m "point to ${VERSION}"
     git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD
+    git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"
     git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"
 
 Non-codesigners: wait for Windows/macOS detached signatures:
