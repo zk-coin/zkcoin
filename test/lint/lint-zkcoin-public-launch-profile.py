@@ -636,6 +636,35 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    for rejected_seed, description in (
+        ("zkcoinseed", "single-label DNS seed hostname"),
+        ("a" * 64 + ".zkcoin.example", "overlong DNS seed label"),
+    ):
+        invalid_dns_shape_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-dns-seeds",
+                "main",
+                rejected_seed,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if invalid_dns_shape_result.returncode == 0:
+            return "{} --set-dns-seeds accepted a {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if "invalid DNS seed hostname" not in invalid_dns_shape_result.stderr:
+            return "{} --set-dns-seeds did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     identity_result = subprocess.run(
         [
             sys.executable,
@@ -1350,6 +1379,8 @@ def main():
         ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
+        ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
+        ("len(label) <= 63", "manifest rejects overlong DNS seed labels"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
         ("display_path", "manifest guidance preserves non-default manifest paths"),
@@ -1599,7 +1630,7 @@ def main():
             "public launch manifest DNS seed update documentation",
         ),
         (
-            "rejects empty, duplicate, malformed, uppercase, and inherited",
+            "rejects empty, duplicate, single-label, overlong-label,",
             "public launch manifest DNS seed rejection documentation",
         ),
         (
