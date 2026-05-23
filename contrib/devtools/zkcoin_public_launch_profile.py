@@ -433,12 +433,19 @@ def validate_manifest(manifest, allow_blocked):
         if not isinstance(blocker_id, str) or not blocker_id:
             check.error(f"blockers[{index}].id", "must be a non-empty string")
             continue
+        if blocker_id in blocker_ids:
+            check.error(f"blockers[{index}].id", "must be unique")
+        if blocker_id not in REQUIRED_BLOCKERS:
+            check.error(f"blockers[{index}].id", "unknown blocker id")
         blocker_ids.add(blocker_id)
         check.require_string(blocker.get("description"), f"blockers[{index}].description")
     expected_blockers = unresolved_blocker_ids(manifest)
     missing_blockers = sorted(expected_blockers - blocker_ids)
     if status == "blocked" and missing_blockers:
         check.error("blockers", "missing required blocker ids: " + ", ".join(missing_blockers))
+    stale_blockers = sorted(blocker_ids - expected_blockers)
+    if status == "blocked" and stale_blockers:
+        check.error("blockers", "contains resolved or unknown blocker ids: " + ", ".join(stale_blockers))
     if status == "ready-for-chainparams" and blockers:
         check.error("blockers", "must be empty when status is ready-for-chainparams")
     if status == "blocked" and not allow_blocked:
