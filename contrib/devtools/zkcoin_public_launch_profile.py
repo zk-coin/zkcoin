@@ -372,6 +372,18 @@ def parse_hex256(value, label):
     return value
 
 
+def parse_chain_id(value):
+    try:
+        chain_id = int(value, 0)
+    except ValueError:
+        raise ValueError("chain_id must be an integer")
+    if not (0 < chain_id < 0x8000):
+        raise ValueError("chain_id must be non-zero and below 0x8000")
+    if chain_id in FORBIDDEN_PARENT_VERSION_CHAIN_IDS:
+        raise ValueError("chain_id must avoid Litecoin parent versionbits chain-id range 0x2000-0x3fff")
+    return chain_id
+
+
 def remove_blocker(manifest, blocker_id):
     blockers = manifest.get("blockers", [])
     manifest["blockers"] = [
@@ -392,6 +404,23 @@ def set_snapshot(manifest, network, height, block_hash, import_hash):
         "import_hash": parse_hex256(import_hash, "import_hash"),
     }
     remove_blocker(manifest, f"{network}.litecoin_snapshot")
+
+
+def set_auxpow(manifest, network, chain_id):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    networks = manifest.setdefault("networks", {})
+    profile = networks.setdefault(network, {})
+    profile["auxpow"] = {
+        "start_height": 1,
+        "chain_id": parse_chain_id(chain_id),
+        "strict_chain_id": True,
+        "forbidden_parent_version_chain_id_range": [
+            8192,
+            16383,
+        ],
+    }
+    remove_blocker(manifest, f"{network}.auxpow_chain_id")
 
 
 def write_manifest(path, manifest):
@@ -503,7 +532,13 @@ def main():
         metavar=("NETWORK", "HEIGHT", "BLOCK_HASH", "IMPORT_HASH"),
         help="update one network's Litecoin snapshot constants and remove its snapshot blocker",
     )
-    parser.add_argument("--in-place", action="store_true", help="write --set-snapshot changes back to the manifest file")
+    parser.add_argument(
+        "--set-auxpow",
+        nargs=2,
+        metavar=("NETWORK", "CHAIN_ID"),
+        help="update one network's AuxPoW chain id and remove its AuxPoW blocker",
+    )
+    parser.add_argument("--in-place", action="store_true", help="write update changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
 
@@ -523,7 +558,15 @@ def main():
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
-    allow_blocked = args.allow_blocked or args.set_snapshot is not None
+    if args.set_auxpow is not None:
+        try:
+            set_auxpow(manifest, *args.set_auxpow)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    updated_manifest = args.set_snapshot is not None or args.set_auxpow is not None
+    allow_blocked = args.allow_blocked or updated_manifest
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
         print("zkCoin public launch profile manifest failed validation:", file=sys.stderr)
@@ -535,7 +578,7 @@ def main():
                 print(f"  - {blocker}", file=sys.stderr)
         return 1
 
-    if args.set_snapshot is not None:
+    if updated_manifest:
         if args.in_place:
             write_manifest(args.manifest, manifest)
             print(f"Updated {args.manifest}")
@@ -544,7 +587,7 @@ def main():
         return 0
 
     if args.in_place:
-        print("error: --in-place requires --set-snapshot", file=sys.stderr)
+        print("error: --in-place requires --set-snapshot or --set-auxpow", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:
