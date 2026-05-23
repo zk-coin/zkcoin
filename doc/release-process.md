@@ -118,6 +118,26 @@ Check out the source code in the following directory hierarchy.
     : "${ZKCOIN_DETACHED_SIGS_REPO_URL:?set the resolved zkCoin detached-signatures repository URL}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_REF:?set the resolved zkCoin detached-signatures release branch}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    for ZKCOIN_RELEASE_REPO_URL in \
+      "$ZKCOIN_GITIAN_SIGS_REPO_URL" \
+      "$ZKCOIN_DETACHED_SIGS_REPO_URL"; do
+      case "$ZKCOIN_RELEASE_REPO_URL" in
+        ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+          echo "ZKCOIN release repository URLs must not be placeholders" >&2
+          exit 1
+          ;;
+        https://github.com/zk-coin/?*)
+          ;;
+        *)
+          echo "ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org" >&2
+          exit 1
+          ;;
+      esac
+    done
+    if [ "$ZKCOIN_GITIAN_SIGS_REPO_URL" = "$ZKCOIN_DETACHED_SIGS_REPO_URL" ]; then
+        echo "ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories" >&2
+        exit 1
+    fi
     git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"
     git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"
     git clone https://github.com/devrandom/gitian-builder.git

@@ -298,6 +298,10 @@ def main():
         return fail("notes must document parameterized zkCoin Gitian signer quorum")
     if "ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" not in notes_text:
         return fail("notes must document published zkCoin Gitian authorized signer list")
+    if "non-HTTPS release repository URLs" not in notes_text:
+        return fail("notes must document HTTPS validation for zkCoin release repository URLs")
+    if "Gitian signatures and detached-signatures repositories to be distinct" not in notes_text:
+        return fail("notes must document distinct Gitian and detached-signatures repositories")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
@@ -447,6 +451,10 @@ def main():
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
         ("ZKCOIN_GITIAN_SIGS_REPO_URL", "parameterized Gitian signatures repository"),
+        ("ZKCOIN_RELEASE_REPO_URL", "release repository URL validation loop"),
+        ("ZKCOIN release repository URLs must not be placeholders", "release repository URL placeholder rejection"),
+        ("ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org", "release repository URL HTTPS and org validation"),
+        ("ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories", "distinct release repository validation"),
         ("ZKCOIN_GITIAN_SIGNER", "parameterized Gitian signer id"),
         ("ZKCOIN_GITIAN_SIGNER_FINGERPRINT", "parameterized Gitian signer fingerprint"),
         ("ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE", "published Gitian authorized signers file"),
@@ -585,6 +593,22 @@ def main():
         error = require_text(RELEASE_DOC, needle, description)
         if error:
             return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "First time / New builders",
+            "ZKCOIN_RELEASE_REPO_URL",
+            "ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org",
+            "ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories",
+            'git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"',
+            'git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"',
+            "Resolve and sign the zkCoin release source tag before any Gitian build",
+        ),
+        "release repository URL validation before cloning release infrastructure",
+    )
+    if error:
+        return fail(error)
 
     error = require_ordered_text(
         RELEASE_DOC,
