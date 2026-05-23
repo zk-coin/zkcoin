@@ -574,7 +574,7 @@ Codesigner only: Commit the detached codesign payloads:
         echo "Detached signatures release branch must be clean before payload replacement" >&2
         exit 1
     fi
-    rm -rf *
+    find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
     tar xf "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE"
     tar xf "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"
     #copy the notarization ticket to detached-sigs repo
