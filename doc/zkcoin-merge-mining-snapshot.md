@@ -221,6 +221,7 @@ match the expected block hash, if the expected block hash is the null uint256 pl
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed JSON, or if required snapshot/manifest fields are missing or
 inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
+It also fails if the snapshot artifact size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then
