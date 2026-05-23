@@ -135,7 +135,7 @@ cleanup() {
 trap cleanup EXIT
 
 SOURCE_CHAININFO_JSON="$(ltc_cli getblockchaininfo)"
-SOURCE_TIP="$(python3 - "$SOURCE_CHAININFO_JSON" <<'PY'
+read -r SOURCE_CHAIN SOURCE_TIP <<< "$(python3 - "$SOURCE_CHAININFO_JSON" <<'PY'
 import json
 import sys
 
@@ -169,6 +169,14 @@ def require_nonnegative_int(field):
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
     return value
 
+def require_string(field):
+    if field not in chaininfo or not isinstance(chaininfo[field], str) or not chaininfo[field]:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-empty string")
+    return chaininfo[field]
+
+chain = require_string("chain")
+if chain not in ("main", "test"):
+    fail("Litecoin source node chain must be main or test for public snapshot generation")
 blocks = require_nonnegative_int("blocks")
 headers = require_nonnegative_int("headers")
 if headers < blocks:
@@ -178,7 +186,7 @@ if require_bool("initialblockdownload"):
 if require_bool("pruned"):
     fail("Litecoin source node must not be pruned for snapshot generation")
 
-print(blocks)
+print(chain, blocks)
 PY
 )"
 
@@ -214,7 +222,7 @@ fi
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 
-python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
+python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json
 import os
 import re
@@ -223,8 +231,9 @@ import sys
 height = int(sys.argv[1])
 expected_hash = sys.argv[2].lower()
 snapshot_path = sys.argv[3]
-dump_json = sys.argv[4]
-verify_json = sys.argv[5]
+source_chain = sys.argv[4]
+dump_json = sys.argv[5]
+verify_json = sys.argv[6]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 
@@ -308,6 +317,7 @@ if verify_metadata_coins != dump_coins:
 
 summary = {
     "height": height,
+    "source_chain": source_chain,
     "block_hash": expected_hash,
     "coins": verify_coins,
     "base_nchaintx": verify_base_nchaintx,

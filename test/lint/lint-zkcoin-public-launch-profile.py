@@ -377,6 +377,7 @@ def require_public_launch_manifest_current():
                     "snapshot_hash": "33" * 32,
                     "coins": 4,
                     "base_nchaintx": 11,
+                    "source_chain": "main",
                     "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
                     "total_amount": "50.00000000",
                 },
@@ -528,6 +529,7 @@ def require_public_launch_manifest_current():
             "snapshot_hash": "77" * 32,
             "coins": 4,
             "base_nchaintx": 11,
+            "source_chain": "main",
             "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
             "total_amount": "50.00000000",
         }
@@ -567,6 +569,7 @@ def require_public_launch_manifest_current():
                 "snapshot_hash": "77" * 32,
                 "coins": 4,
                 "base_nchaintx": 11,
+                "source_chain": "main",
                 "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
                 "total_amount": "50.00000000",
             },
@@ -666,6 +669,33 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit total_amount must be a positive decimal amount with 8 fractional digits" not in malformed_amount_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain malformed total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        mismatched_source_chain_audit_path = Path(temp_dir) / "mismatched-source-chain-audit.json"
+        mismatched_source_chain_audit = dict(audit)
+        mismatched_source_chain_audit["source_chain"] = "test"
+        mismatched_source_chain_audit_path.write_text(json.dumps(mismatched_source_chain_audit), encoding="utf8")
+        mismatched_source_chain_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(mismatched_source_chain_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_source_chain_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a testnet source audit for main".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit source_chain test does not match main; expected main" not in mismatched_source_chain_result.stderr:
+            return "{} --set-snapshot-audit did not explain source-chain mismatch rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1007,6 +1037,7 @@ def require_public_launch_manifest_current():
                     "snapshot_hash": "aa" * 32,
                     "coins": 4,
                     "base_nchaintx": 11,
+                    "source_chain": "main",
                     "snapshot_file": "/srv/snapshots/ltc-main.dat",
                     "total_amount": "50.00000000",
                 },
@@ -1037,6 +1068,7 @@ def require_public_launch_manifest_current():
                     "snapshot_hash": "bb" * 32,
                     "coins": 5,
                     "base_nchaintx": 12,
+                    "source_chain": "test",
                     "snapshot_file": "/srv/snapshots/ltc-testnet.dat",
                     "total_amount": "25.00000000",
                 },
@@ -1640,6 +1672,8 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
+        ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
+        ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
@@ -1861,6 +1895,7 @@ def main():
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
+        ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
@@ -1885,6 +1920,7 @@ def main():
             "snapshot script test rejects IBD source nodes",
         ),
         ("Reject a pruned Litecoin snapshot source", "snapshot script test rejects pruned source nodes"),
+        ("Reject a non-public Litecoin source chain", "snapshot script test rejects non-public source chains"),
         (
             "Reject a pre-existing audit summary output path before calling either CLI",
             "snapshot script test rejects pre-existing audit output before RPC",
@@ -2030,6 +2066,14 @@ def main():
         (
             "positive decimal total amount with 8 fractional digits",
             "public launch manifest snapshot audit amount documentation",
+        ),
+        (
+            "source_chain",
+            "public launch manifest source-chain audit documentation",
+        ),
+        (
+            "rejects a snapshot audit whose source chain does not match",
+            "public launch manifest source-chain mismatch documentation",
         ),
         (
             "non-empty snapshot file before running zkCoin verification",
