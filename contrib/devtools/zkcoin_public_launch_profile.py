@@ -7,9 +7,12 @@
 """Validate the zkCoin public launch-profile decision manifest."""
 
 import argparse
+import errno
 import hashlib
 import json
+import os
 import re
+import stat
 import sys
 from pathlib import Path
 
@@ -643,33 +646,64 @@ def require_snapshot_audit_source_chain(audit, field):
     return value
 
 
-def snapshot_file_sha256(path):
-    digest = hashlib.sha256()
+def open_regular_file_no_symlink(path, *, symlink_error, missing_error, not_regular_error, open_error):
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if nofollow == 0 and path.is_symlink():
+        raise ValueError(f"{symlink_error}: {path}")
+    flags = os.O_RDONLY | nofollow
     try:
-        with path.open("rb") as snapshot_file:
-            for chunk in iter(lambda: snapshot_file.read(1024 * 1024), b""):
-                digest.update(chunk)
+        fd = os.open(path, flags)
     except OSError as exc:
-        raise ValueError(f"cannot read snapshot audit file artifact: {exc}")
+        if exc.errno == errno.ELOOP:
+            raise ValueError(f"{symlink_error}: {path}")
+        if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+            raise ValueError(f"{missing_error}: {path}")
+        raise ValueError(f"{open_error}: {exc}")
+    try:
+        file_stat = os.fstat(fd)
+    except OSError as exc:
+        os.close(fd)
+        raise ValueError(f"{open_error}: {exc}")
+    if not stat.S_ISREG(file_stat.st_mode):
+        os.close(fd)
+        raise ValueError(f"{not_regular_error}: {path}")
+    return fd, file_stat.st_size
+
+
+def snapshot_file_sha256(snapshot_file):
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: snapshot_file.read(1024 * 1024), b""):
+        digest.update(chunk)
     return digest.hexdigest()
 
 
 def verify_snapshot_audit_artifact(audit):
     snapshot_path = Path(audit["snapshot_file"])
-    if snapshot_path.is_symlink():
-        raise ValueError(f"snapshot audit file artifact must not be a symlink: {snapshot_path}")
-    if not snapshot_path.is_file():
-        raise ValueError(f"snapshot audit file artifact does not exist: {snapshot_path}")
-    try:
-        actual_size = snapshot_path.stat().st_size
-    except OSError as exc:
-        raise ValueError(f"cannot stat snapshot audit file artifact: {exc}")
+    fd, actual_size = open_regular_file_no_symlink(
+        snapshot_path,
+        symlink_error="snapshot audit file artifact must not be a symlink",
+        missing_error="snapshot audit file artifact does not exist",
+        not_regular_error="snapshot audit file artifact must be a regular file",
+        open_error="cannot read snapshot audit file artifact",
+    )
+    snapshot_file = None
     if actual_size != audit["snapshot_file_size"]:
+        os.close(fd)
         raise ValueError(
             "snapshot audit file size mismatch: "
             f"expected={audit['snapshot_file_size']} actual={actual_size}"
         )
-    actual_sha256 = snapshot_file_sha256(snapshot_path)
+    try:
+        snapshot_file = os.fdopen(fd, "rb")
+        fd = None
+        actual_sha256 = snapshot_file_sha256(snapshot_file)
+    except OSError as exc:
+        raise ValueError(f"cannot read snapshot audit file artifact: {exc}")
+    finally:
+        if snapshot_file is not None:
+            snapshot_file.close()
+        elif fd is not None:
+            os.close(fd)
     if actual_sha256 != audit["snapshot_file_sha256"]:
         raise ValueError(
             "snapshot audit file SHA-256 mismatch: "
@@ -679,14 +713,27 @@ def verify_snapshot_audit_artifact(audit):
 
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
-    if audit_summary_path.is_symlink():
-        raise ValueError(f"snapshot audit summary must not be a symlink: {audit_summary_path}")
+    fd, _ = open_regular_file_no_symlink(
+        audit_summary_path,
+        symlink_error="snapshot audit summary must not be a symlink",
+        missing_error="cannot read snapshot audit summary",
+        not_regular_error="snapshot audit summary must be a regular file",
+        open_error="cannot read snapshot audit summary",
+    )
+    audit_summary_file = None
     try:
-        audit = json.loads(audit_summary_path.read_text(encoding="utf8"))
+        audit_summary_file = os.fdopen(fd, "r", encoding="utf8")
+        fd = None
+        audit = json.loads(audit_summary_file.read())
     except OSError as exc:
         raise ValueError(f"cannot read snapshot audit summary: {exc}")
     except json.JSONDecodeError as exc:
         raise ValueError(f"snapshot audit summary is not valid JSON: {exc}")
+    finally:
+        if audit_summary_file is not None:
+            audit_summary_file.close()
+        elif fd is not None:
+            os.close(fd)
 
     if not isinstance(audit, dict):
         raise ValueError("snapshot audit summary must be a JSON object")

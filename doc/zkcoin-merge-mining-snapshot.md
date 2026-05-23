@@ -276,7 +276,8 @@ command with the target profile derived from `source_chain` and the exact audit
 summary path filled in. Printed snapshot and audit paths are shell-quoted when
 needed, so copy the generated command exactly.
 The audit summary path itself must also be a direct file, not a symlink, when
-it is applied to the launch profile.
+it is applied to the launch profile. The manifest update opens the audit summary
+and referenced snapshot artifact as regular files without following symlinks.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
@@ -285,7 +286,7 @@ that does not exceed `84000000.00000000`.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts
 and integral source heights, and reject fractional values instead of rounding or truncating them.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
-against the audit summary and rejects symlinked snapshot artifacts.
+against the audit summary and rejects symlinked snapshot artifacts and other non-file artifacts.
 The manifest update rejects a snapshot audit whose source chain does not match
 the target profile: `main` requires Litecoin `main`, and `testnet` requires
 Litecoin `test`.
