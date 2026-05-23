@@ -37,7 +37,7 @@
     },
     {
       "id": "macos_signing_identity",
-      "description": "Choose macOS bundle identifiers, signing certificate policy, and notarization ownership."
+      "description": "Choose and publish ZKCOIN_MACOS_BUNDLE_ID, macOS signing certificate policy, and notarization ownership."
     },
     {
       "id": "windows_signing_key",
@@ -49,11 +49,6 @@
       "path": "contrib/gitian-descriptors/assign_DISTNAME",
       "contains": "DISTNAME=\"litecoin-${VERSION}\"",
       "reason": "Source archive names still use the temporary Litecoin compatibility namespace."
-    },
-    {
-      "path": "doc/release-process.md",
-      "contains": "org.litecoin.Litecoin-Qt",
-      "reason": "Release process still contains inherited macOS bundle identity and must stay blocked until macOS signing identity is resolved."
     },
     {
       "path": "contrib/gitian-build.py",
@@ -83,6 +78,7 @@
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
     "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL so inherited Litecoin detached signatures cannot be used by default.",
     "Release artifact publication docs require ZKCOIN_RELEASE_ARTIFACT_BASE_URL, ZKCOIN_RELEASE_CHECKSUMS_URL, and ZKCOIN_RELEASE_GITHUB_REPO_URL so inherited Litecoin and Bitcoin publication targets cannot be used by default.",
+    "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID and zkCoin Apple notarization variables so inherited Litecoin bundle identifiers cannot be used by default.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }
