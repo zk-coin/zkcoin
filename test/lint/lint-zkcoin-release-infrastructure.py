@@ -336,6 +336,8 @@ def main():
         return fail("notes must document detached-signatures macOS payload archive path")
     if "absolute existing tar archives outside the detached-signatures repository" not in notes_text:
         return fail("notes must document detached-signatures payload archive path validation")
+    if "hidden payload entries while preserving .git" not in notes_text:
+        return fail("notes must document full detached-signatures payload cleanup")
     if "reject an existing ZKCOIN_DETACHED_SIGS_RELEASE_TAG" not in notes_text:
         return fail("notes must document detached-signatures release tag reuse rejection")
     if "signed tag to resolve to the detached-signatures payload commit" not in notes_text:
@@ -538,6 +540,7 @@ def main():
         ('git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags', "detached-signatures release branch fetch"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag", "detached-signatures release tag reuse rejection"),
         ('rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}"', "detached-signatures release ref validation"),
+        ("find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +", "detached-signatures full payload cleanup"),
         ('git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD', "detached-signatures release tag creation"),
         ('git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"', "detached-signatures release tag verification"),
         ('ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG")"', "detached-signatures release tag commit resolution"),
@@ -780,7 +783,7 @@ def main():
             'git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags',
             "ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag",
             "Detached signatures release branch must be clean before payload replacement",
-            "rm -rf *",
+            "find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +",
             'tar xf "$ZKCOIN_DETACHED_SIGS_OSX_PAYLOAD_ARCHIVE"',
             'tar xf "$ZKCOIN_DETACHED_SIGS_WIN_PAYLOAD_ARCHIVE"',
             'git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD',
@@ -929,6 +932,7 @@ def main():
         (RELEASE_DOC, "--commit litecoin=v${VERSION}", "implicit Gitian source tag input"),
         (RELEASE_DOC, "tar xf signature-osx.tar.gz", "unparameterized macOS detached-signatures payload archive"),
         (RELEASE_DOC, "tar xf signature-win.tar.gz", "unparameterized Windows detached-signatures payload archive"),
+        (RELEASE_DOC, "rm -rf *", "glob-only detached-signatures payload cleanup"),
         (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
         (RELEASE_DOC, "After 3 or more people have gitian-built", "fixed inherited Gitian signer quorum"),
         (RELEASE_DOC, "3 matching signatures", "fixed inherited platform signing quorum"),
