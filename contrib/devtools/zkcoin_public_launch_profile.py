@@ -47,7 +47,7 @@ LITECOIN_BASE58_PREFIXES = {
 LITECOIN_HRPS = {"ltc", "tltc", "ltcmweb", "tmweb"}
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
-REQUIRED_BLOCKERS = {
+BLOCKER_ORDER = (
     "main.litecoin_snapshot",
     "main.auxpow_chain_id",
     "main.public_network_identity",
@@ -56,7 +56,8 @@ REQUIRED_BLOCKERS = {
     "testnet.auxpow_chain_id",
     "testnet.public_network_identity",
     "testnet.dns_seeds",
-}
+)
+REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 
 
 def unresolved_blocker_ids(manifest):
@@ -85,6 +86,11 @@ def unresolved_blocker_ids(manifest):
         if not identity.get("dns_seeds"):
             blockers.add(f"{network}.dns_seeds")
     return blockers
+
+
+def ordered_unresolved_blocker_ids(manifest):
+    blockers = unresolved_blocker_ids(manifest)
+    return [blocker for blocker in BLOCKER_ORDER if blocker in blockers]
 
 
 class Validation:
@@ -779,9 +785,62 @@ def chainparams_sync_errors(manifest, chainparams_text):
     return errors
 
 
+def next_blocker_command(blocker_id):
+    network, blocker = blocker_id.split(".", 1)
+    manifest_path = DEFAULT_MANIFEST.relative_to(ROOT_DIR)
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    if blocker == "litecoin_snapshot":
+        return (
+            "select the final Litecoin snapshot and run "
+            f"{tool_path} --set-snapshot {network} <height> <block_hash> <normalized_import_hash> "
+            f"--in-place {manifest_path}"
+        )
+    if blocker == "auxpow_chain_id":
+        return (
+            "select a non-Litecoin AuxPoW child chain id and run "
+            f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
+        )
+    if blocker == "public_network_identity":
+        return (
+            "select non-Litecoin public identity values and run "
+            f"{tool_path} --set-identity {network} <message_start> <port> <pubkey> <script> "
+            f"<script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
+        )
+    if blocker == "dns_seeds":
+        return (
+            "provision zkCoin DNS seed infrastructure and run "
+            f"{tool_path} --set-dns-seeds {network} seed1.example,seed2.example --in-place {manifest_path}"
+        )
+    raise ValueError(f"unknown blocker id: {blocker_id}")
+
+
+def next_action_text(manifest):
+    manifest_path = DEFAULT_MANIFEST.relative_to(ROOT_DIR)
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    lines = ["zkCoin public launch profile next action:"]
+    if blockers:
+        lines.append(f"  - next blocker: {blockers[0]}")
+        lines.append(f"  - action: {next_blocker_command(blockers[0])}")
+        if len(blockers) > 1:
+            lines.append("  - later blockers: " + ", ".join(blockers[1:]))
+        return "\n".join(lines)
+
+    if manifest.get("status") == "blocked":
+        lines.append("  - next step: mark the complete manifest ready for chainparams")
+        lines.append(f"  - command: {tool_path} --mark-ready --in-place {manifest_path}")
+        return "\n".join(lines)
+
+    lines.append("  - next step: apply the ready manifest to chainparams and verify sync")
+    lines.append(f"  - emit: {tool_path} --emit-chainparams {manifest_path}")
+    lines.append(f"  - verify: {tool_path} --check-chainparams src/chainparams.cpp {manifest_path}")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
+    parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
         "--check-chainparams",
@@ -886,6 +945,8 @@ def main():
         or args.mark_ready
     )
     allow_blocked = args.allow_blocked or updated_manifest
+    if args.next_action:
+        allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
         print("zkCoin public launch profile manifest failed validation:", file=sys.stderr)
@@ -903,6 +964,13 @@ def main():
             print(f"Updated {args.manifest}")
         else:
             print(json.dumps(manifest, indent=2, sort_keys=False))
+        return 0
+
+    if args.next_action:
+        if args.in_place:
+            print("error: --next-action does not write the manifest", file=sys.stderr)
+            return 1
+        print(next_action_text(manifest))
         return 0
 
     if args.in_place:

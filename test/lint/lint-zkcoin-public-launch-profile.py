@@ -331,6 +331,32 @@ def require_public_launch_manifest_current():
                 needle,
             )
 
+    next_action_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--next-action",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if next_action_result.returncode != 0:
+        return "{} --next-action failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            next_action_result.stderr.strip() or next_action_result.stdout.strip() or "no output",
+        )
+    if "next blocker: main.litecoin_snapshot" not in next_action_result.stdout:
+        return "{} --next-action did not select the first unresolved blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--set-snapshot main <height> <block_hash> <normalized_import_hash>" not in next_action_result.stdout:
+        return "{} --next-action did not print the snapshot handoff command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     update_result = subprocess.run(
         [
             sys.executable,
@@ -704,6 +730,27 @@ def require_public_launch_manifest_current():
 
         complete_path = Path(temp_dir) / "complete.json"
         complete_path.write_text(json.dumps(complete_manifest), encoding="utf8")
+        complete_next_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(complete_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if complete_next_result.returncode != 0:
+            return "{} --next-action failed for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--mark-ready --in-place" not in complete_next_result.stdout:
+            return "{} --next-action did not point complete blocked manifests at --mark-ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         mark_ready_result = subprocess.run(
             [
                 sys.executable,
@@ -750,6 +797,26 @@ def require_public_launch_manifest_current():
             return "{} rejected a complete ready manifest with unique public launch values: {}".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 ready_result.stderr.strip() or ready_result.stdout.strip() or "no output",
+            )
+        ready_next_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_next_result.returncode != 0:
+            return "{} --next-action failed for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--emit-chainparams" not in ready_next_result.stdout or "--check-chainparams" not in ready_next_result.stdout:
+            return "{} --next-action did not print ready-manifest chainparams handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
         emit_result = subprocess.run(
@@ -1032,6 +1099,7 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
+        ("--next-action", "manifest next-action guidance flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("--mark-ready", "manifest guarded ready transition flag"),
@@ -1043,6 +1111,8 @@ def main():
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
+        ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
+        ("next_action_text", "manifest prints next action guidance"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
         ("validation_failure_message", "manifest emits detailed transition failures"),
@@ -1299,6 +1369,10 @@ def main():
         (
             "ready-for-chainparams",
             "public launch manifest ready status documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --next-action",
+            "public launch manifest next-action documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --mark-ready",
