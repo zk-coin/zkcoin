@@ -136,9 +136,39 @@ Generate list of authors:
 
     git log --format='- %aN' v(current version, e.g. 0.20.0)..v(new version, e.g. 0.20.1) | sort -fiu
 
-Tag the version (or release candidate) in git:
+Resolve and sign the zkCoin release source tag before any Gitian build:
 
-    git tag -s v(new version, e.g. 0.20.0)
+```bash
+: "${ZKCOIN_RELEASE_VERSION:?set the zkCoin release version, without a leading v}"
+: "${ZKCOIN_RELEASE_TAG:?set the signed zkCoin source tag, usually v${ZKCOIN_RELEASE_VERSION}}"
+: "${ZKCOIN_RELEASE_SOURCE_COMMIT:?set the exact zkCoin source commit for the release tag}"
+
+case "$ZKCOIN_RELEASE_VERSION" in
+  v*|*/*|*..*|*[\ \	]*)
+    echo "ZKCOIN_RELEASE_VERSION must be a bare version without v, slashes, spaces, or repeated dots" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$ZKCOIN_RELEASE_TAG" != "v${ZKCOIN_RELEASE_VERSION}" ]; then
+  echo "ZKCOIN_RELEASE_TAG must be v${ZKCOIN_RELEASE_VERSION}" >&2
+  exit 1
+fi
+
+git check-ref-format "refs/tags/$ZKCOIN_RELEASE_TAG" || {
+  echo "ZKCOIN_RELEASE_TAG is not a valid tag name" >&2
+  exit 1
+}
+
+ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED="$(git rev-parse --verify "$ZKCOIN_RELEASE_SOURCE_COMMIT^{commit}")"
+git tag -s "$ZKCOIN_RELEASE_TAG" "$ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED"
+git verify-tag "$ZKCOIN_RELEASE_TAG"
+ZKCOIN_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_RELEASE_TAG")"
+if [ "$ZKCOIN_RELEASE_TAG_COMMIT" != "$ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED" ]; then
+  echo "ZKCOIN_RELEASE_TAG does not point at ZKCOIN_RELEASE_SOURCE_COMMIT" >&2
+  exit 1
+fi
+```
 
 ### Setup and perform Gitian builds
 
@@ -148,9 +178,18 @@ Setup Gitian descriptors:
 
     pushd ./litecoin
     export SIGNER="(your Gitian key, ie bluematt, sipa, etc)"
-    export VERSION=(new version, e.g. 0.20.0)
-    git fetch
-    git checkout v${VERSION}
+    : "${ZKCOIN_RELEASE_VERSION:?set the zkCoin release version, without a leading v}"
+    : "${ZKCOIN_RELEASE_TAG:?set the signed zkCoin source tag}"
+    : "${ZKCOIN_RELEASE_SOURCE_COMMIT:?set the exact zkCoin source commit for the release tag}"
+    export VERSION="$ZKCOIN_RELEASE_VERSION"
+    git fetch --tags
+    git verify-tag "$ZKCOIN_RELEASE_TAG"
+    ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED="$(git rev-parse --verify "$ZKCOIN_RELEASE_SOURCE_COMMIT^{commit}")"
+    git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"
+    if [ "$(git rev-parse HEAD)" != "$ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED" ]; then
+        echo "Gitian checkout does not match ZKCOIN_RELEASE_SOURCE_COMMIT" >&2
+        exit 1
+    fi
     popd
 
 Ensure your zkCoin Gitian signatures repository is up-to-date if you wish to
@@ -202,16 +241,16 @@ The gbuild invocations below <b>DO NOT DO THIS</b> by default.
     export GITIAN_MEMORY=3000
     
     pushd ./gitian-builder
-    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit "litecoin=${ZKCOIN_RELEASE_TAG}" ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
     ./bin/gsign --signer "$SIGNER" --release ${VERSION}-linux --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
     mv build/out/litecoin-*.tar.gz build/out/src/litecoin-*.tar.gz ../
 
-    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit "litecoin=${ZKCOIN_RELEASE_TAG}" ../litecoin/contrib/gitian-descriptors/gitian-win.yml
     ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-unsigned --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-win.yml
     mv build/out/litecoin-*-win-unsigned.tar.gz inputs/litecoin-win-unsigned.tar.gz
     mv build/out/litecoin-*.zip build/out/litecoin-*.exe ../
 
-    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit "litecoin=${ZKCOIN_RELEASE_TAG}" ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
     ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-unsigned --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
     mv build/out/litecoin-*-osx-unsigned.tar.gz inputs/litecoin-osx-unsigned.tar.gz
     mv build/out/litecoin-*.tar.gz build/out/litecoin-*.dmg ../
@@ -552,8 +591,9 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 : "${ZKCOIN_RELEASE_NOTES_PATH:?set the archived zkCoin release notes path under doc/release-notes/}"
 : "${ZKCOIN_RELEASE_NOTES_BRANCH:?set the zkCoin release branch that receives archived notes}"
 : "${ZKCOIN_RELEASE_NOTES_OWNER:?set the accountable zkCoin release-notes owner}"
+: "${ZKCOIN_RELEASE_VERSION:?set the zkCoin release version for archived notes}"
 
-ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${VERSION}.md"
+ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${ZKCOIN_RELEASE_VERSION}.md"
 if [ "$ZKCOIN_RELEASE_NOTES_PATH" != "$ZKCOIN_EXPECTED_RELEASE_NOTES_PATH" ]; then
   echo "ZKCOIN_RELEASE_NOTES_PATH must match $ZKCOIN_EXPECTED_RELEASE_NOTES_PATH" >&2
   exit 1
@@ -605,6 +645,12 @@ git diff --quiet --no-ext-diff \
 : "${ZKCOIN_RELEASE_GITHUB_TAG:?set the signed zkCoin release tag for the GitHub release}"
 : "${ZKCOIN_RELEASE_GITHUB_TITLE:?set the zkCoin GitHub release title}"
 : "${ZKCOIN_RELEASE_GITHUB_OWNER:?set the accountable zkCoin GitHub release owner}"
+: "${ZKCOIN_RELEASE_TAG:?set the signed zkCoin source tag}"
+
+if [ "$ZKCOIN_RELEASE_GITHUB_TAG" != "$ZKCOIN_RELEASE_TAG" ]; then
+  echo "ZKCOIN_RELEASE_GITHUB_TAG must match ZKCOIN_RELEASE_TAG" >&2
+  exit 1
+fi
 ```
 
 - Create the GitHub release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` using

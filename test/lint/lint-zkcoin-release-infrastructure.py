@@ -43,6 +43,7 @@ UPSTREAM_LITECOIN_GITIAN_SIGS_REPO = "https://github.com/litecoin-project/gitian
 UPSTREAM_LITECOIN_GITHUB_RELEASE_URL = "https://github.com/litecoin-project/litecoin/releases/new"
 UPSTREAM_LITECOIN_MACOS_BUNDLE_ID = "org.litecoin.Litecoin-Qt"
 REQUIRED_BLOCKERS = {
+    "source_tag_version_provenance",
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
     "detached_sigs_repo",
@@ -283,6 +284,12 @@ def main():
     if not isinstance(notes, list):
         return fail("notes must be an array")
     notes_text = "\n".join(note for note in notes if isinstance(note, str))
+    if "ZKCOIN_RELEASE_VERSION" not in notes_text:
+        return fail("notes must document parameterized zkCoin release version provenance")
+    if "ZKCOIN_RELEASE_TAG" not in notes_text:
+        return fail("notes must document parameterized zkCoin release tag provenance")
+    if "ZKCOIN_RELEASE_SOURCE_COMMIT" not in notes_text:
+        return fail("notes must document parameterized zkCoin source commit provenance")
     if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
     if "ZKCOIN_RELEASE_BINARY_NAMESPACE" not in notes_text:
@@ -377,6 +384,20 @@ def main():
         ("It is not binary release readiness", "source-vs-binary readiness boundary"),
         ("does not authorize publishing binaries", "binary publication blocker"),
         ("git clone https://github.com/zk-coin/zkcoin.git litecoin", "zkCoin source clone"),
+        ("ZKCOIN_RELEASE_VERSION", "parameterized release version"),
+        ("ZKCOIN_RELEASE_TAG", "parameterized release source tag"),
+        ("ZKCOIN_RELEASE_SOURCE_COMMIT", "parameterized release source commit"),
+        ("ZKCOIN_RELEASE_VERSION must be a bare version without v, slashes, spaces, or repeated dots", "release version shape validation"),
+        ("ZKCOIN_RELEASE_TAG must be v${ZKCOIN_RELEASE_VERSION}", "release tag version binding"),
+        ('git check-ref-format "refs/tags/$ZKCOIN_RELEASE_TAG"', "release tag ref validation"),
+        ('git tag -s "$ZKCOIN_RELEASE_TAG" "$ZKCOIN_RELEASE_SOURCE_COMMIT_RESOLVED"', "signed release source tag creation"),
+        ('git verify-tag "$ZKCOIN_RELEASE_TAG"', "release source tag signature verification"),
+        ('ZKCOIN_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_RELEASE_TAG")"', "release source tag commit resolution"),
+        ("ZKCOIN_RELEASE_TAG does not point at ZKCOIN_RELEASE_SOURCE_COMMIT", "release tag commit binding failure"),
+        ('export VERSION="$ZKCOIN_RELEASE_VERSION"', "Gitian version derived from zkCoin release version"),
+        ('git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"', "Gitian checkout from signed release source tag"),
+        ("Gitian checkout does not match ZKCOIN_RELEASE_SOURCE_COMMIT", "Gitian source commit binding failure"),
+        ('--commit "litecoin=${ZKCOIN_RELEASE_TAG}"', "Gitian build source tag input"),
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
         ("ZKCOIN_GITIAN_SIGS_REPO_URL", "parameterized Gitian signatures repository"),
@@ -428,7 +449,7 @@ def main():
         ("ZKCOIN_RELEASE_NOTES_PATH", "parameterized release notes path"),
         ("ZKCOIN_RELEASE_NOTES_BRANCH", "parameterized release notes branch"),
         ("ZKCOIN_RELEASE_NOTES_OWNER", "parameterized release notes owner"),
-        ('ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${VERSION}.md"', "version-aligned release notes path"),
+        ('ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${ZKCOIN_RELEASE_VERSION}.md"', "version-aligned release notes path"),
         ("ZKCOIN_RELEASE_NOTES_PATH must match $ZKCOIN_EXPECTED_RELEASE_NOTES_PATH", "release notes archive path validation"),
         ('git check-ref-format --branch "$ZKCOIN_RELEASE_NOTES_BRANCH"', "release notes branch validation"),
         ('rev-parse --verify --quiet "$ZKCOIN_RELEASE_NOTES_BRANCH^{commit}"', "release notes branch commit validation"),
@@ -440,6 +461,7 @@ def main():
         ("ZKCOIN_RELEASE_GITHUB_TAG", "parameterized GitHub release tag"),
         ("ZKCOIN_RELEASE_GITHUB_TITLE", "parameterized GitHub release title"),
         ("ZKCOIN_RELEASE_GITHUB_OWNER", "parameterized GitHub release owner"),
+        ("ZKCOIN_RELEASE_GITHUB_TAG must match ZKCOIN_RELEASE_TAG", "GitHub release tag binding"),
         ("Resolve the zkCoin GitHub release metadata", "GitHub release metadata boundary"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
@@ -456,6 +478,22 @@ def main():
         error = require_text(RELEASE_DOC, needle, description)
         if error:
             return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Resolve and sign the zkCoin release source tag before any Gitian build",
+            'git verify-tag "$ZKCOIN_RELEASE_TAG"',
+            "Setup Gitian descriptors",
+            'export VERSION="$ZKCOIN_RELEASE_VERSION"',
+            'git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"',
+            '--commit "litecoin=${ZKCOIN_RELEASE_TAG}"',
+            "After the published zkCoin Gitian signer quorum has built",
+        ),
+        "release source tag provenance before Gitian builds",
+    )
+    if error:
+        return fail(error)
 
     error = require_ordered_text(
         RELEASE_DOC,
@@ -552,6 +590,10 @@ def main():
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
         (RELEASE_DOC, "/path/to/codesign.key", "placeholder Windows signing key path"),
+        (RELEASE_DOC, "git tag -s v(new version, e.g. 0.20.0)", "placeholder source release tag"),
+        (RELEASE_DOC, "export VERSION=(new version, e.g. 0.20.0)", "placeholder release version export"),
+        (RELEASE_DOC, "git checkout v${VERSION}", "implicit source release tag checkout"),
+        (RELEASE_DOC, "--commit litecoin=v${VERSION}", "implicit Gitian source tag input"),
         (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
         (RELEASE_DOC, "After 3 or more people have gitian-built", "fixed inherited Gitian signer quorum"),
         (RELEASE_DOC, "3 matching signatures", "fixed inherited platform signing quorum"),
