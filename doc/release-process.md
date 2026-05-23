@@ -530,8 +530,27 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 
 - Announce the release through the resolved zkCoin release channels.
 
-- Archive release notes for the new version to `doc/release-notes/` on `master`
-  and the release branch.
+- Resolve the zkCoin release-notes archival targets before creating the GitHub
+  release:
+
+```bash
+: "${ZKCOIN_RELEASE_NOTES_PATH:?set the archived zkCoin release notes path under doc/release-notes/}"
+: "${ZKCOIN_RELEASE_NOTES_BRANCH:?set the zkCoin release branch that receives archived notes}"
+: "${ZKCOIN_RELEASE_NOTES_OWNER:?set the accountable zkCoin release-notes owner}"
+
+case "$ZKCOIN_RELEASE_NOTES_PATH" in
+  doc/release-notes/*.md)
+    ;;
+  *)
+    echo "ZKCOIN_RELEASE_NOTES_PATH must be under doc/release-notes/ and end in .md" >&2
+    exit 1
+    ;;
+esac
+```
+
+- Archive release notes to `$ZKCOIN_RELEASE_NOTES_PATH` on `master` and
+  `$ZKCOIN_RELEASE_NOTES_BRANCH`. Keep this blocked until
+  `$ZKCOIN_RELEASE_NOTES_OWNER` has verified both archival commits.
 
 - Resolve the zkCoin GitHub release metadata before creating the GitHub release:
 
