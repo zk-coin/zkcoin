@@ -2061,6 +2061,7 @@ def main():
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
+        ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
@@ -2086,6 +2087,7 @@ def main():
         ("Reject a zero snapshot height", "snapshot script test rejects zero snapshot height"),
         ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
+        ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         (
             "Reject a Litecoin source still in initial block download",
             "snapshot script test rejects IBD source nodes",
@@ -2230,6 +2232,10 @@ def main():
         (
             "positive Litecoin snapshot height",
             "public launch snapshot positive height documentation",
+        ),
+        (
+            "source has headers ahead of downloaded blocks",
+            "public launch snapshot source headers synced documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",

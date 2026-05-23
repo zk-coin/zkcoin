@@ -214,9 +214,9 @@ release publication.
 
 The script fails closed if the source node does not report usable
 `getblockchaininfo`, if the source is still in initial block download, if the
-source is pruned, if the requested snapshot height is zero or malformed, if the
-source node does not report the expected block hash for height X, if the
-expected block hash is the null uint256 placeholder, if
+source has headers ahead of downloaded blocks, if the source is pruned, if the
+requested snapshot height is zero or malformed, if the source node does not
+report the expected block hash for height X, if the expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed JSON, or if required snapshot/manifest fields are missing or
 inconsistent. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
