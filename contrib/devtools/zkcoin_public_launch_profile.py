@@ -661,8 +661,11 @@ def verify_snapshot_audit_artifact(audit):
 
 
 def parse_snapshot_audit(audit_path):
+    audit_summary_path = Path(audit_path)
+    if audit_summary_path.is_symlink():
+        raise ValueError(f"snapshot audit summary must not be a symlink: {audit_summary_path}")
     try:
-        audit = json.loads(Path(audit_path).read_text(encoding="utf8"))
+        audit = json.loads(audit_summary_path.read_text(encoding="utf8"))
     except OSError as exc:
         raise ValueError(f"cannot read snapshot audit summary: {exc}")
     except json.JSONDecodeError as exc:

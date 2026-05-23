@@ -662,6 +662,31 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        symlink_audit_path = Path(temp_dir) / "snapshot-audit-link.json"
+        symlink_audit_path.symlink_to(audit_path)
+        symlink_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(symlink_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a symlinked audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must not be a symlink" not in symlink_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain symlink audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         incomplete_audit_path = Path(temp_dir) / "incomplete-audit.json"
         incomplete_audit = dict(audit)
         incomplete_audit.pop("snapshot_hash")
@@ -1858,6 +1883,7 @@ def main():
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
+        ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
@@ -2273,6 +2299,10 @@ def main():
         (
             "ZKCOIN_SNAPSHOT_AUDIT_JSON",
             "public launch snapshot audit summary documentation",
+        ),
+        (
+            "audit summary path itself must also be a direct file",
+            "public launch snapshot audit summary symlink rejection documentation",
         ),
         (
             "positive Litecoin snapshot height",
