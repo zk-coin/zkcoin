@@ -505,9 +505,14 @@ contrib/verifybinaries/verify-zkcoin-release.py \
   the new version. Keep this blocked until each target repository and owner is
   explicitly documented for the release.
 
-- Announce the release through the resolved zkCoin release channels. Keep this
-  blocked until the announcement channels and owners are explicitly documented
-  for the release.
+- Resolve the zkCoin release announcement channels before announcing:
+
+```bash
+: "${ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS:?set the resolved zkCoin release announcement channels}"
+: "${ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER:?set the accountable zkCoin announcement owner}"
+```
+
+- Announce the release through the resolved zkCoin release channels.
 
 - Archive release notes for the new version to `doc/release-notes/` on `master`
   and the release branch.
