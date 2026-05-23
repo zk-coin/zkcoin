@@ -100,8 +100,12 @@ Both are intentionally present before behavior changes so tests and review can t
   must be replaced with structurally valid public magic, ports, DNS seeds,
   unique address prefixes, and distinct HRPs. Inherited Litecoin DNS and fixed
   seeds are cleared until zkCoin-specific seed infrastructure is generated, so
-  public launch remains fail-closed on missing zkCoin DNS seeds. Regtest remains
-  the only place where these values can be overridden by CLI for rehearsal.
+  public launch remains fail-closed on missing zkCoin DNS seeds. The fail-closed
+  startup error lists the exact hardcoded launch checks that still fail, so a
+  release engineer can distinguish missing snapshot, AuxPoW, script-rule,
+  shielded, chain-history, and public identity work before public networks are
+  enabled. Regtest remains the only place where these values can be overridden
+  by CLI for rehearsal.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.

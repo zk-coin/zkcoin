@@ -1329,13 +1329,19 @@ bool AppInitParameterInteraction(const ArgsManager& args)
                 return InitError(strprintf(Untranslated("%s is only supported on regtest; production launch consensus parameters must be hardcoded in chainparams."), arg));
             }
         }
-        if (!HasConfiguredPublicLaunchProfile(chainparams)) {
-            return InitError(Untranslated(
+        const PublicLaunchProfileStatus public_launch = GetPublicLaunchProfileStatus(chainparams);
+        if (!public_launch.configured) {
+            std::string error =
                 "zkCoin public networks are disabled until the production launch profile is hardcoded in chainparams: "
                 "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
                 "activate script validation rules for the first launch block, keep shielded transactions inactive for the first launch block, "
                 "clear inherited Litecoin chain history assumptions, "
-                "and replace the inherited Litecoin public network identity."));
+                "and replace the inherited Litecoin public network identity.";
+            const std::vector<std::string> failures = GetPublicLaunchProfileFailures(public_launch, /*snapshot_imported=*/true, /*at_launch_tip=*/true);
+            if (!failures.empty()) {
+                error += " Missing hardcoded launch checks: " + Join(failures, "; ") + ".";
+            }
+            return InitError(Untranslated(error));
         }
     }
     std::string shielded_deployment_error;

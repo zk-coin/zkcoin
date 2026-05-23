@@ -283,6 +283,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockab
     const CNonMockablePublicIdentityParams chainParams;
     const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
 
+    BOOST_CHECK(GetPublicNetworkIdentityFailures(identity).empty());
     BOOST_CHECK(!chainParams.IsMockableChain());
     BOOST_CHECK(identity.configured);
     BOOST_CHECK(!identity.inherited_litecoin_public_identity);
@@ -302,6 +303,30 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_accepts_non_litecoin_non_mockab
     BOOST_CHECK(identity.mweb_hrp_shape_valid);
     BOOST_CHECK(identity.hrps_unique);
     BOOST_CHECK(!IsInheritedLitecoinPublicNetworkIdentity(chainParams));
+}
+
+static bool HasFailure(const std::vector<std::string>& failures, const std::string& expected)
+{
+    for (const std::string& failure : failures) {
+        if (failure == expected) {
+            return true;
+        }
+    }
+    return false;
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_failure_reasons_are_actionable)
+{
+    CNonMockablePublicIdentityParams chainParams;
+    chainParams.SetDnsSeeds({"seed.litecoin.example"});
+    chainParams.SetMwebHrp("zkc");
+
+    const std::vector<std::string> failures = GetPublicNetworkIdentityFailures(
+        GetPublicNetworkIdentityStatus(chainParams));
+
+    BOOST_CHECK(HasFailure(failures, "DNS seed list still references Litecoin infrastructure"));
+    BOOST_CHECK(HasFailure(failures, "Bech32 and MWEB HRPs must be distinct"));
+    BOOST_CHECK(!HasFailure(failures, "P2P message start has an invalid public-network shape"));
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_or_malformed_values)
@@ -472,6 +497,30 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_fails_closed_until_consta
 {
     check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::MAIN);
     check_public_launch_profile_fails_closed(*m_node.args, CBaseChainParams::TESTNET);
+}
+
+BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_failure_reasons_are_actionable)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const std::vector<std::string> failures = GetPublicLaunchProfileFailures(
+        GetPublicLaunchProfileStatus(*chainParams),
+        /*snapshot_imported=*/true,
+        /*at_launch_tip=*/true);
+
+    BOOST_CHECK(HasFailure(failures, "snapshot consensus parameters are not configured"));
+    BOOST_CHECK(HasFailure(failures, "AuxPoW is not active for the first launch block"));
+    BOOST_CHECK(HasFailure(failures, "script validation rules are not active for the first launch block"));
+    BOOST_CHECK(HasFailure(failures, "public network identity is inherited from Litecoin or malformed"));
+    BOOST_CHECK(!HasFailure(failures, "configured snapshot has not been imported"));
+    BOOST_CHECK(!HasFailure(failures, "node is not at the genesis launch tip"));
+
+    CNonMockablePublicIdentityParams completeParams;
+    completeParams.ConfigureCompleteLaunchProfile();
+    const std::vector<std::string> complete_failures = GetPublicLaunchProfileFailures(
+        GetPublicLaunchProfileStatus(completeParams),
+        /*snapshot_imported=*/true,
+        /*at_launch_tip=*/true);
+    BOOST_CHECK(complete_failures.empty());
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)

@@ -1737,7 +1737,6 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("ltc_snapshot", ltc_snapshot);
 
     const bool auxpow_active_at_launch = launch_profile.auxpow_active_at_launch;
-    const bool chain_id_encodable = launch_profile.chain_id_encodable;
     const bool chain_id_parent_version_safe = launch_profile.chain_id_parent_version_safe;
     const bool chain_id_configured = launch_profile.chain_id_configured;
     const bool script_rules_active_at_launch = launch_profile.script_rules_active_at_launch;
@@ -1747,50 +1746,8 @@ RPCHelpMan getblockchaininfo()
     const bool shielded_inactive_at_launch = launch_profile.shielded_inactive_at_launch;
     const bool at_launch_tip = ::ChainActive().Height() == 0;
     UniValue public_network_identity_failures(UniValue::VARR);
-    if (!public_network_identity.message_start_shape_valid) {
-        public_network_identity_failures.push_back("P2P message start has an invalid public-network shape");
-    }
-    if (public_network_identity.inherited_litecoin_message_start) {
-        public_network_identity_failures.push_back("P2P message start still matches Litecoin");
-    }
-    if (!public_network_identity.default_port_shape_valid) {
-        public_network_identity_failures.push_back("default P2P port is missing or reserved");
-    }
-    if (public_network_identity.inherited_litecoin_default_port) {
-        public_network_identity_failures.push_back("default P2P port still matches Litecoin");
-    }
-    if (!public_network_identity.dns_seeds_shape_valid) {
-        public_network_identity_failures.push_back("DNS seed list is empty or contains malformed hostnames");
-    }
-    if (public_network_identity.inherited_litecoin_dns_seed) {
-        public_network_identity_failures.push_back("DNS seed list still references Litecoin infrastructure");
-    }
-    if (public_network_identity.fixed_seeds_present) {
-        public_network_identity_failures.push_back("fixed seed list is present and must be regenerated or cleared");
-    }
-    if (!public_network_identity.base58_prefixes_shape_valid) {
-        public_network_identity_failures.push_back("Base58 prefixes have invalid public-network lengths");
-    }
-    if (!public_network_identity.base58_prefixes_unique) {
-        public_network_identity_failures.push_back("Base58 prefixes contain duplicate byte sequences");
-    }
-    if (public_network_identity.inherited_litecoin_base58_prefixes) {
-        public_network_identity_failures.push_back("Base58 prefixes still match Litecoin");
-    }
-    if (!public_network_identity.bech32_hrp_shape_valid) {
-        public_network_identity_failures.push_back("Bech32 HRP is empty or malformed");
-    }
-    if (public_network_identity.inherited_litecoin_bech32_hrp) {
-        public_network_identity_failures.push_back("Bech32 HRP still matches Litecoin");
-    }
-    if (!public_network_identity.mweb_hrp_shape_valid) {
-        public_network_identity_failures.push_back("MWEB HRP is empty or malformed");
-    }
-    if (public_network_identity.inherited_litecoin_mweb_hrp) {
-        public_network_identity_failures.push_back("MWEB HRP still matches Litecoin");
-    }
-    if (!public_network_identity.hrps_unique) {
-        public_network_identity_failures.push_back("Bech32 and MWEB HRPs must be distinct");
+    for (const std::string& failure : GetPublicNetworkIdentityFailures(public_network_identity)) {
+        public_network_identity_failures.push_back(failure);
     }
 
     UniValue public_network_identity_obj(UniValue::VOBJ);
@@ -1813,35 +1770,8 @@ RPCHelpMan getblockchaininfo()
     public_network_identity_obj.pushKV("failures", public_network_identity_failures);
 
     UniValue launch_failures(UniValue::VARR);
-    if (!snapshot_configured) {
-        launch_failures.push_back("snapshot consensus parameters are not configured");
-    }
-    if (!snapshot_imported) {
-        launch_failures.push_back("configured snapshot has not been imported");
-    }
-    if (!auxpow_active_at_launch) {
-        launch_failures.push_back("AuxPoW is not active for the first launch block");
-    }
-    if (!chain_id_encodable || !consensusParams.auxpow.fStrictChainId) {
-        launch_failures.push_back("AuxPoW chain id is not configured for strict merge mining");
-    }
-    if (chain_id_encodable && !chain_id_parent_version_safe) {
-        launch_failures.push_back("AuxPoW chain id overlaps Litecoin parent versionbits chain-id range");
-    }
-    if (!script_rules_active_at_launch) {
-        launch_failures.push_back("script validation rules are not active for the first launch block");
-    }
-    if (!shielded_inactive_at_launch) {
-        launch_failures.push_back("shielded pool is active in the first launch block");
-    }
-    if (!chain_history_clean) {
-        launch_failures.push_back("inherited Litecoin chain history assumptions are not cleared");
-    }
-    if (!public_network_identity_configured) {
-        launch_failures.push_back("public network identity is inherited from Litecoin or malformed");
-    }
-    if (!at_launch_tip) {
-        launch_failures.push_back("node is not at the genesis launch tip");
+    for (const std::string& failure : GetPublicLaunchProfileFailures(launch_profile, snapshot_imported, at_launch_tip)) {
+        launch_failures.push_back(failure);
     }
 
     UniValue launch_readiness(UniValue::VOBJ);

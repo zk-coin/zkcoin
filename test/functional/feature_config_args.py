@@ -124,7 +124,11 @@ class ConfArgsTest(BitcoinTestFramework):
             "configure the Litecoin block-X snapshot, activate strict AuxPoW for the first launch block with a parent-version-safe chain id, "
             "activate script validation rules for the first launch block, keep shielded transactions inactive for the first launch block, "
             "clear inherited Litecoin chain history assumptions, "
-            "and replace the inherited Litecoin public network identity."
+            "and replace the inherited Litecoin public network identity. "
+            "Missing hardcoded launch checks: snapshot consensus parameters are not configured; "
+            "AuxPoW is not active for the first launch block; "
+            "script validation rules are not active for the first launch block; "
+            "public network identity is inherited from Litecoin or malformed."
         )
         for chain in ["main", "test"]:
             self.nodes[0].assert_start_raises_init_error(
