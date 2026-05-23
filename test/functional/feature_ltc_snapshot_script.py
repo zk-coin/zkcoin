@@ -169,6 +169,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         snapshot_path_symlink=False,
         audit_path_symlink=False,
         audit_path_same_as_snapshot=False,
+        audit_path_aliases_snapshot=False,
         audit_path_parent_missing=False,
         snapshot_path_parent_missing=False,
     ):
@@ -179,6 +180,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
         if audit_path_same_as_snapshot:
             audit_path = snapshot_path
+        elif audit_path_aliases_snapshot:
+            alias_dir = os.path.join(self.options.tmpdir, "snapshot-path-alias")
+            os.makedirs(alias_dir, exist_ok=True)
+            audit_path = os.path.join(alias_dir, "..", os.path.basename(snapshot_path))
         elif audit_path_parent_missing:
             audit_path = os.path.join(self.options.tmpdir, "missing-audit-dir", f"{name}.audit.json")
         if snapshot_path_symlink:
@@ -195,7 +200,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         env = os.environ.copy()
         env["ZKCOIN_SNAPSHOT_FAKE_LOG"] = log_path
         env["ZKCOIN_SNAPSHOT_FAKE_SCENARIO"] = json.dumps(scenario)
-        if write_audit or precreate_audit or audit_path_same_as_snapshot or audit_path_parent_missing or audit_path_symlink:
+        if (
+            write_audit
+            or precreate_audit
+            or audit_path_same_as_snapshot
+            or audit_path_aliases_snapshot
+            or audit_path_parent_missing
+            or audit_path_symlink
+        ):
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
             env.pop("ZKCOIN_SNAPSHOT_AUDIT_JSON", None)
@@ -333,6 +345,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary path must differ from snapshot output path",
             audit_path_same_as_snapshot=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject an audit summary path aliasing the snapshot output path before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "audit-path-aliases-snapshot",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must differ from snapshot output path",
+            audit_path_aliases_snapshot=True,
         )
         assert_equal(calls, [])
 
