@@ -29,9 +29,10 @@ script refuses to rewind it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
 Only use rewind mode on a dedicated disposable snapshot node.
 
 The script prints snapshot-related launch-node arguments, including
--ltcsnapshotfile=<path>, after the snapshot manifest is dumped and verified.
-Combine them with the AuxPoW launch profile and confirm launch_readiness before
-mining the first child block.
+-ltcsnapshotfile=<path>, and the public launch-profile manifest update command
+after the snapshot manifest is dumped and verified. Combine them with the
+AuxPoW launch profile and confirm launch_readiness before mining the first
+child block.
 EOF
 }
 
@@ -243,6 +244,14 @@ print(f"-ltcsnapshotheight={height}")
 print(f"-ltcsnapshotblockhash={expected_hash}")
 print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={snapshot_path}")
+print()
+print("Snapshot public launch-profile manifest update:")
+print("Replace NETWORK with main or testnet after selecting the target public profile.")
+print(
+    "contrib/devtools/zkcoin_public_launch_profile.py "
+    f"--set-snapshot NETWORK {height} {expected_hash} {import_hash} "
+    "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+)
 print()
 print("Combine these with the AuxPoW launch profile and confirm")
 print("getblockchaininfo.launch_readiness.ready is true before mining.")

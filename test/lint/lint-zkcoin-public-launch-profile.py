@@ -19,6 +19,8 @@ SIGNET_TEST = ROOT_DIR / "test" / "functional" / "feature_signet.py"
 LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
 PUBLIC_LAUNCH_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile_manifest.json"
 PUBLIC_LAUNCH_MANIFEST_TOOL = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile.py"
+LTC_SNAPSHOT_SCRIPT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_ltc_snapshot.sh"
+LTC_SNAPSHOT_SCRIPT_TEST = ROOT_DIR / "test" / "functional" / "feature_ltc_snapshot_script.py"
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
 DNSSEED_POLICY = ROOT_DIR / "doc" / "dnsseed-policy.md"
 SEEDS_README = ROOT_DIR / "contrib" / "seeds" / "README.md"
@@ -327,6 +329,57 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 needle,
             )
+
+    update_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-snapshot",
+            "main",
+            "321",
+            "11" * 32,
+            "22" * 32,
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if update_result.returncode != 0:
+        return "{} --set-snapshot failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            update_result.stderr.strip() or update_result.stdout.strip() or "no output",
+        )
+    try:
+        updated_manifest = json.loads(update_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --set-snapshot did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    updated_snapshot = updated_manifest["networks"]["main"]["litecoin_snapshot"]
+    if updated_snapshot != {
+        "height": 321,
+        "block_hash": "11" * 32,
+        "import_hash": "22" * 32,
+    }:
+        return "{} --set-snapshot did not update main snapshot fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    updated_blockers = {
+        blocker.get("id")
+        for blocker in updated_manifest.get("blockers", [])
+        if isinstance(blocker, dict)
+    }
+    if "main.litecoin_snapshot" in updated_blockers:
+        return "{} --set-snapshot did not remove the resolved main snapshot blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "main.auxpow_chain_id" not in updated_blockers:
+        return "{} --set-snapshot removed unrelated blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     return None
 
 
@@ -500,6 +553,9 @@ def main():
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
+        ("--set-snapshot", "manifest snapshot update flag"),
+        ("remove_blocker(manifest, f\"{network}.litecoin_snapshot\")", "manifest removes resolved snapshot blocker"),
+        ("unresolved_blocker_ids", "manifest derives blockers from unresolved fields"),
         ("hashUTXORoot", "manifest emits snapshot import hash assignment"),
         ("nStartHeight = 0", "manifest emits always-active Taproot height reset"),
         ("vSeeds.emplace_back", "manifest emits DNS seed assignments"),
@@ -661,6 +717,26 @@ def main():
         if error:
             return fail(LAUNCH_PREFLIGHT, error)
 
+    ltc_snapshot_script_checks = (
+        ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
+        ("--set-snapshot NETWORK", "snapshot script prints network-specific manifest update command"),
+        ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
+    )
+    for needle, description in ltc_snapshot_script_checks:
+        error = require_text(LTC_SNAPSHOT_SCRIPT, needle, description)
+        if error:
+            return fail(LTC_SNAPSHOT_SCRIPT, error)
+
+    ltc_snapshot_script_test_checks = (
+        ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
+        ("--set-snapshot NETWORK", "snapshot script test checks manifest update command"),
+        ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
+    )
+    for needle, description in ltc_snapshot_script_test_checks:
+        error = require_text(LTC_SNAPSHOT_SCRIPT_TEST, needle, description)
+        if error:
+            return fail(LTC_SNAPSHOT_SCRIPT_TEST, error)
+
     doc_checks = (
         (
             "Public `main` and `testnet` startup is fail-closed",
@@ -699,6 +775,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --emit-chainparams",
             "public launch manifest chainparams emitter documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --set-snapshot NETWORK",
+            "public launch manifest snapshot update documentation",
+        ),
+        (
+            "removes only that network's snapshot blocker",
+            "public launch manifest partial blocker documentation",
         ),
     )
     for needle, description in doc_checks:
