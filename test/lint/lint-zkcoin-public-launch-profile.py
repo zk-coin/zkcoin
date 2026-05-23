@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Check that public zkCoin launch parameters stay fail-closed."""
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -523,6 +524,11 @@ def require_public_launch_manifest_current():
         )
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        snapshot_artifact_path = Path(temp_dir) / "ltc-block-x.dat"
+        snapshot_artifact = b"snapshot"
+        snapshot_artifact_path.write_bytes(snapshot_artifact)
+        snapshot_artifact_sha256 = hashlib.sha256(snapshot_artifact).hexdigest()
+
         audit_path = Path(temp_dir) / "snapshot-audit.json"
         audit = {
             "height": 777,
@@ -532,9 +538,9 @@ def require_public_launch_manifest_current():
             "coins": 4,
             "base_nchaintx": 11,
             "source_chain": "main",
-            "snapshot_file_size": 8,
-            "snapshot_file_sha256": "88" * 32,
-            "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+            "snapshot_file_size": len(snapshot_artifact),
+            "snapshot_file_sha256": snapshot_artifact_sha256,
+            "snapshot_file": str(snapshot_artifact_path),
             "total_amount": "50.00000000",
         }
         audit_path.write_text(json.dumps(audit), encoding="utf8")
@@ -574,9 +580,9 @@ def require_public_launch_manifest_current():
                 "coins": 4,
                 "base_nchaintx": 11,
                 "source_chain": "main",
-                "snapshot_file_size": 8,
-                "snapshot_file_sha256": "88" * 32,
-                "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+                "snapshot_file_size": len(snapshot_artifact),
+                "snapshot_file_sha256": snapshot_artifact_sha256,
+                "snapshot_file": str(snapshot_artifact_path),
                 "total_amount": "50.00000000",
             },
         }:
@@ -675,6 +681,87 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit total_amount must be a positive decimal amount with 8 fractional digits" not in malformed_amount_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain malformed total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        missing_artifact_audit_path = Path(temp_dir) / "missing-artifact-audit.json"
+        missing_artifact_audit = dict(audit)
+        missing_artifact_audit["snapshot_file"] = str(Path(temp_dir) / "missing-ltc-block-x.dat")
+        missing_artifact_audit_path.write_text(json.dumps(missing_artifact_audit), encoding="utf8")
+        missing_artifact_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(missing_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if missing_artifact_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a missing snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact does not exist" not in missing_artifact_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain missing snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        mismatched_size_audit_path = Path(temp_dir) / "mismatched-size-audit.json"
+        mismatched_size_audit = dict(audit)
+        mismatched_size_audit["snapshot_file_size"] = len(snapshot_artifact) + 1
+        mismatched_size_audit_path.write_text(json.dumps(mismatched_size_audit), encoding="utf8")
+        mismatched_size_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(mismatched_size_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_size_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a mismatched snapshot file size".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file size mismatch" not in mismatched_size_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain snapshot file size mismatch".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        mismatched_sha_audit_path = Path(temp_dir) / "mismatched-sha-audit.json"
+        mismatched_sha_audit = dict(audit)
+        mismatched_sha_audit["snapshot_file_sha256"] = "99" * 32
+        mismatched_sha_audit_path.write_text(json.dumps(mismatched_sha_audit), encoding="utf8")
+        mismatched_sha_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(mismatched_sha_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_sha_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a mismatched snapshot file SHA-256".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file SHA-256 mismatch" not in mismatched_sha_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain snapshot file SHA-256 mismatch".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1681,11 +1768,15 @@ def main():
         ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
+        ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
+        ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
+        ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
+        ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
@@ -2097,6 +2188,10 @@ def main():
         (
             "snapshot file SHA-256",
             "public launch manifest snapshot file SHA-256 documentation",
+        ),
+        (
+            "verifies the local snapshot artifact size and SHA-256",
+            "public launch manifest snapshot artifact verification documentation",
         ),
         (
             "rejects a snapshot audit whose source chain does not match",
