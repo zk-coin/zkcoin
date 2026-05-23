@@ -326,9 +326,11 @@ def require_public_launch_manifest_current():
     output = result.stdout
     for needle in (
         "main.litecoin_snapshot.height",
+        "main.litecoin_snapshot.audit.snapshot_hash",
         "main.auxpow.chain_id",
         "main.public_network_identity.dns_seeds",
         "testnet.litecoin_snapshot.height",
+        "testnet.litecoin_snapshot.audit.snapshot_hash",
         "testnet.auxpow.chain_id",
         "testnet.public_network_identity.dns_seeds",
     ):
@@ -371,6 +373,13 @@ def require_public_launch_manifest_current():
                 "height": 321,
                 "block_hash": "11" * 32,
                 "import_hash": "22" * 32,
+                "audit": {
+                    "snapshot_hash": "33" * 32,
+                    "coins": 4,
+                    "base_nchaintx": 11,
+                    "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+                    "total_amount": "50.00000000",
+                },
             }
         )
         stale_blocker_path = Path(temp_dir) / "stale-blocker.json"
@@ -451,6 +460,40 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        missing_audit_manifest = json.loads(json.dumps(manifest))
+        missing_audit_manifest["networks"]["main"]["litecoin_snapshot"] = {
+            "height": 321,
+            "block_hash": "11" * 32,
+            "import_hash": "22" * 32,
+        }
+        missing_audit_manifest["blockers"] = [
+            blocker
+            for blocker in missing_audit_manifest["blockers"]
+            if blocker.get("id") != "main.litecoin_snapshot"
+        ]
+        missing_audit_path = Path(temp_dir) / "missing-audit.json"
+        missing_audit_path.write_text(json.dumps(missing_audit_manifest), encoding="utf8")
+        missing_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(missing_audit_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if missing_audit_result.returncode == 0:
+            return "{} accepted resolved snapshot constants without audit metadata".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.litecoin_snapshot.audit: must be an object" not in missing_audit_result.stderr:
+            return "{} did not report missing snapshot audit metadata".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     manual_snapshot_result = subprocess.run(
         [
             sys.executable,
@@ -520,6 +563,13 @@ def require_public_launch_manifest_current():
             "height": 777,
             "block_hash": "55" * 32,
             "import_hash": "66" * 32,
+            "audit": {
+                "snapshot_hash": "77" * 32,
+                "coins": 4,
+                "base_nchaintx": 11,
+                "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+                "total_amount": "50.00000000",
+            },
         }:
             return "{} --set-snapshot-audit did not update main snapshot fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -899,6 +949,13 @@ def require_public_launch_manifest_current():
                 "height": 321,
                 "block_hash": "11" * 32,
                 "import_hash": "22" * 32,
+                "audit": {
+                    "snapshot_hash": "aa" * 32,
+                    "coins": 4,
+                    "base_nchaintx": 11,
+                    "snapshot_file": "/srv/snapshots/ltc-main.dat",
+                    "total_amount": "50.00000000",
+                },
             },
             "chain_id": 0x5001,
             "identity": {
@@ -922,6 +979,13 @@ def require_public_launch_manifest_current():
                 "height": 654,
                 "block_hash": "33" * 32,
                 "import_hash": "44" * 32,
+                "audit": {
+                    "snapshot_hash": "bb" * 32,
+                    "coins": 5,
+                    "base_nchaintx": 12,
+                    "snapshot_file": "/srv/snapshots/ltc-testnet.dat",
+                    "total_amount": "25.00000000",
+                },
             },
             "chain_id": 0x5002,
             "identity": {
@@ -1522,6 +1586,9 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
+        ("litecoin_snapshot.audit.snapshot_hash", "manifest reports unresolved snapshot audit blockers"),
+        ("snapshot_hash", "manifest preserves snapshot audit hash metadata"),
+        ("base_nchaintx", "manifest preserves snapshot audit transaction-count metadata"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
         ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
@@ -1865,6 +1932,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest audit-backed snapshot update documentation",
+        ),
+        (
+            "stores those audit fields with the snapshot constants",
+            "public launch manifest snapshot audit retention documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",

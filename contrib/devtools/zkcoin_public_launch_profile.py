@@ -73,7 +73,12 @@ def unresolved_blocker_ids(manifest):
     for network in NETWORKS:
         profile = networks.get(network, {})
         snapshot = profile.get("litecoin_snapshot", {})
-        if any(snapshot.get(field) is None for field in ("height", "block_hash", "import_hash")):
+        snapshot_audit = snapshot.get("audit", {})
+        if (
+            any(snapshot.get(field) is None for field in ("height", "block_hash", "import_hash"))
+            or not isinstance(snapshot_audit, dict)
+            or any(snapshot_audit.get(field) is None for field in ("snapshot_hash", "coins", "base_nchaintx", "snapshot_file", "total_amount"))
+        ):
             blockers.add(f"{network}.litecoin_snapshot")
 
         auxpow = profile.get("auxpow", {})
@@ -155,6 +160,13 @@ class Validation:
         if not isinstance(value, int) or value <= 0:
             self.error(path, "must be a positive integer")
 
+    def require_nonempty_string(self, value, path, *, allow_null):
+        if value is None and allow_null:
+            self.blockers.append(path)
+            return
+        if not isinstance(value, str) or not value:
+            self.error(path, "must be a non-empty string")
+
 
 def dns_seed_valid(seed):
     if (
@@ -216,6 +228,12 @@ def validate_snapshot(check, network, profile, allow_null):
     check.require_positive_int(snapshot.get("height"), f"{network}.litecoin_snapshot.height", allow_null=allow_null)
     check.require_hex256(snapshot.get("block_hash"), f"{network}.litecoin_snapshot.block_hash", allow_null=allow_null)
     check.require_hex256(snapshot.get("import_hash"), f"{network}.litecoin_snapshot.import_hash", allow_null=allow_null)
+    audit = check.require_object(snapshot.get("audit"), f"{network}.litecoin_snapshot.audit")
+    check.require_hex256(audit.get("snapshot_hash"), f"{network}.litecoin_snapshot.audit.snapshot_hash", allow_null=allow_null)
+    check.require_positive_int(audit.get("coins"), f"{network}.litecoin_snapshot.audit.coins", allow_null=allow_null)
+    check.require_positive_int(audit.get("base_nchaintx"), f"{network}.litecoin_snapshot.audit.base_nchaintx", allow_null=allow_null)
+    check.require_nonempty_string(audit.get("snapshot_file"), f"{network}.litecoin_snapshot.audit.snapshot_file", allow_null=allow_null)
+    check.require_nonempty_string(audit.get("total_amount"), f"{network}.litecoin_snapshot.audit.total_amount", allow_null=allow_null)
 
 
 def validate_auxpow(check, network, profile, allow_null):
@@ -543,11 +561,13 @@ def parse_snapshot_audit(audit_path):
         "block_hash": require_snapshot_audit_hash(audit, "block_hash"),
         "import_hash": require_snapshot_audit_hash(audit, "import_hash"),
     }
-    require_snapshot_audit_int(audit, "coins")
-    require_snapshot_audit_int(audit, "base_nchaintx")
-    require_snapshot_audit_hash(audit, "snapshot_hash")
-    require_snapshot_audit_string(audit, "snapshot_file")
-    require_snapshot_audit_string(audit, "total_amount")
+    parsed["audit"] = {
+        "snapshot_hash": require_snapshot_audit_hash(audit, "snapshot_hash"),
+        "coins": require_snapshot_audit_int(audit, "coins"),
+        "base_nchaintx": require_snapshot_audit_int(audit, "base_nchaintx"),
+        "snapshot_file": require_snapshot_audit_string(audit, "snapshot_file"),
+        "total_amount": require_snapshot_audit_string(audit, "total_amount"),
+    }
     return parsed
 
 
@@ -616,22 +636,25 @@ def remove_blocker(manifest, blocker_id):
     ]
 
 
-def set_snapshot(manifest, network, height, block_hash, import_hash):
+def set_snapshot(manifest, network, height, block_hash, import_hash, audit=None):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
     networks = manifest.setdefault("networks", {})
     profile = networks.setdefault(network, {})
-    profile["litecoin_snapshot"] = {
+    snapshot = {
         "height": parse_height(height),
         "block_hash": parse_hex256(block_hash, "block_hash"),
         "import_hash": parse_hex256(import_hash, "import_hash"),
     }
+    if audit is not None:
+        snapshot["audit"] = audit
+    profile["litecoin_snapshot"] = snapshot
     remove_blocker(manifest, f"{network}.litecoin_snapshot")
 
 
 def set_snapshot_from_audit(manifest, network, audit_path):
     audit = parse_snapshot_audit(audit_path)
-    set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"])
+    set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
 
 
 def set_auxpow(manifest, network, chain_id):

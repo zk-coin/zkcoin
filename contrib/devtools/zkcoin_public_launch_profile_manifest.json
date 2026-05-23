@@ -41,7 +41,14 @@
       "litecoin_snapshot": {
         "height": null,
         "block_hash": null,
-        "import_hash": null
+        "import_hash": null,
+        "audit": {
+          "snapshot_hash": null,
+          "coins": null,
+          "base_nchaintx": null,
+          "snapshot_file": null,
+          "total_amount": null
+        }
       },
       "auxpow": {
         "start_height": 1,
@@ -97,7 +104,14 @@
       "litecoin_snapshot": {
         "height": null,
         "block_hash": null,
-        "import_hash": null
+        "import_hash": null,
+        "audit": {
+          "snapshot_hash": null,
+          "coins": null,
+          "base_nchaintx": null,
+          "snapshot_file": null,
+          "total_amount": null
+        }
       },
       "auxpow": {
         "start_height": 1,
