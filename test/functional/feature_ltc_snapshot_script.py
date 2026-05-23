@@ -353,6 +353,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject a Litecoin source with headers ahead of downloaded blocks")
+        _, calls, _ = self.assert_snapshot(
+            "source-headers-ahead",
+            self.scenario(source_headers=HEIGHT + 1),
+            1,
+            "Litecoin source node headers are ahead of downloaded blocks",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject a Litecoin source still in initial block download")
         _, calls, _ = self.assert_snapshot(
             "source-ibd",

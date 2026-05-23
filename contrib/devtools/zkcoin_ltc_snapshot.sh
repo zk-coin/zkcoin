@@ -186,6 +186,8 @@ blocks = require_nonnegative_int("blocks")
 headers = require_nonnegative_int("headers")
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
+if headers > blocks:
+    fail("Litecoin source node headers are ahead of downloaded blocks; wait for the source to finish syncing")
 if require_bool("initialblockdownload"):
     fail("Litecoin source node is still in initial block download")
 if require_bool("pruned"):
