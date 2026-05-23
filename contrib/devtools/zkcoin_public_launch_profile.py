@@ -498,6 +498,59 @@ def parse_hex256(value, label):
     return value
 
 
+def require_snapshot_audit_int(audit, field):
+    if field not in audit:
+        raise ValueError(f"snapshot audit missing field: {field}")
+    value = audit[field]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"snapshot audit {field} must be an integer")
+    if value <= 0:
+        raise ValueError(f"snapshot audit {field} must be positive")
+    return value
+
+
+def require_snapshot_audit_hash(audit, field):
+    if field not in audit:
+        raise ValueError(f"snapshot audit missing field: {field}")
+    value = audit[field]
+    if not isinstance(value, str):
+        raise ValueError(f"snapshot audit {field} must be a 64-character hex string")
+    return parse_hex256(value, f"snapshot audit {field}")
+
+
+def require_snapshot_audit_string(audit, field):
+    if field not in audit:
+        raise ValueError(f"snapshot audit missing field: {field}")
+    value = audit[field]
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"snapshot audit {field} must be a non-empty string")
+    return value
+
+
+def parse_snapshot_audit(audit_path):
+    try:
+        audit = json.loads(Path(audit_path).read_text(encoding="utf8"))
+    except OSError as exc:
+        raise ValueError(f"cannot read snapshot audit summary: {exc}")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"snapshot audit summary is not valid JSON: {exc}")
+
+    if not isinstance(audit, dict):
+        raise ValueError("snapshot audit summary must be a JSON object")
+
+    parsed = {
+        "height": require_snapshot_audit_int(audit, "height"),
+        "block_hash": require_snapshot_audit_hash(audit, "block_hash"),
+        "import_hash": require_snapshot_audit_hash(audit, "import_hash"),
+    }
+    require_snapshot_audit_int(audit, "coins")
+    require_snapshot_audit_int(audit, "base_nchaintx")
+    require_snapshot_audit_hash(audit, "snapshot_hash")
+    require_snapshot_audit_string(audit, "snapshot_file")
+    require_snapshot_audit_string(audit, "total_amount")
+    return parsed
+
+
 def parse_chain_id(value):
     try:
         chain_id = int(value, 0)
@@ -574,6 +627,11 @@ def set_snapshot(manifest, network, height, block_hash, import_hash):
         "import_hash": parse_hex256(import_hash, "import_hash"),
     }
     remove_blocker(manifest, f"{network}.litecoin_snapshot")
+
+
+def set_snapshot_from_audit(manifest, network, audit_path):
+    audit = parse_snapshot_audit(audit_path)
+    set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"])
 
 
 def set_auxpow(manifest, network, chain_id):
@@ -862,8 +920,8 @@ def next_blocker_command(blocker_id, manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     if blocker == "litecoin_snapshot":
         return (
-            "select the final Litecoin snapshot and run "
-            f"{tool_path} --set-snapshot {network} <height> <block_hash> <normalized_import_hash> "
+            "select and verify the final Litecoin snapshot, then run "
+            f"{tool_path} --set-snapshot-audit {network} <snapshot_audit.json> "
             f"--in-place {manifest_path}"
         )
     if blocker == "auxpow_chain_id":
@@ -926,6 +984,12 @@ def main():
         help="update one network's Litecoin snapshot constants and remove its snapshot blocker",
     )
     parser.add_argument(
+        "--set-snapshot-audit",
+        nargs=2,
+        metavar=("NETWORK", "AUDIT_JSON"),
+        help="update one network's Litecoin snapshot constants from a verified snapshot audit summary",
+    )
+    parser.add_argument(
         "--set-auxpow",
         nargs=2,
         metavar=("NETWORK", "CHAIN_ID"),
@@ -973,9 +1037,20 @@ def main():
         print(f"error: {args.manifest} is not valid JSON: {exc}", file=sys.stderr)
         return 1
 
+    if args.set_snapshot is not None and args.set_snapshot_audit is not None:
+        print("error: use either --set-snapshot or --set-snapshot-audit, not both", file=sys.stderr)
+        return 1
+
     if args.set_snapshot is not None:
         try:
             set_snapshot(manifest, *args.set_snapshot)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    if args.set_snapshot_audit is not None:
+        try:
+            set_snapshot_from_audit(manifest, *args.set_snapshot_audit)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
@@ -1003,6 +1078,7 @@ def main():
 
     updated_launch_fields = (
         args.set_snapshot is not None
+        or args.set_snapshot_audit is not None
         or args.set_auxpow is not None
         or args.set_dns_seeds is not None
         or args.set_identity is not None
@@ -1052,7 +1128,7 @@ def main():
         return 0
 
     if args.in_place:
-        print("error: --in-place requires --set-snapshot, --set-auxpow, --set-dns-seeds, --set-identity, or --mark-ready", file=sys.stderr)
+        print("error: --in-place requires --set-snapshot, --set-snapshot-audit, --set-auxpow, --set-dns-seeds, --set-identity, or --mark-ready", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:

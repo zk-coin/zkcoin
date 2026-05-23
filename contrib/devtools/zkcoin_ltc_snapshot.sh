@@ -33,6 +33,10 @@ The script prints snapshot-related launch-node arguments, including
 after the snapshot manifest is dumped and verified. Combine them with the
 AuxPoW launch profile and confirm launch_readiness before mining the first
 child block.
+
+Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> to write the verified audit summary that
+zkcoin_public_launch_profile.py --set-snapshot-audit consumes for the public
+launch-profile handoff.
 EOF
 }
 
@@ -144,6 +148,7 @@ VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 
 python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json
+import os
 import re
 import sys
 
@@ -237,7 +242,17 @@ summary = {
     "total_amount": total_amount,
 }
 
+audit_json_path = os.environ.get("ZKCOIN_SNAPSHOT_AUDIT_JSON")
+if audit_json_path:
+    if os.path.exists(audit_json_path):
+        fail(f"snapshot audit summary already exists: {audit_json_path}")
+    with open(audit_json_path, "x", encoding="utf8") as audit_file:
+        json.dump(summary, audit_file, indent=2, sort_keys=True)
+        audit_file.write("\n")
+
 print("Snapshot verified.")
+if audit_json_path:
+    print(f"Snapshot audit summary written: {audit_json_path}")
 print()
 print("Snapshot launch-node arguments:")
 print(f"-ltcsnapshotheight={height}")
@@ -246,10 +261,10 @@ print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={snapshot_path}")
 print()
 print("Snapshot public launch-profile manifest update:")
-print("Replace NETWORK with main or testnet after selecting the target public profile.")
+print("Use the audit summary path for the target public profile.")
 print(
     "contrib/devtools/zkcoin_public_launch_profile.py "
-    f"--set-snapshot NETWORK {height} {expected_hash} {import_hash} "
+    f"--set-snapshot-audit NETWORK <snapshot_audit.json> "
     "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
 )
 print()

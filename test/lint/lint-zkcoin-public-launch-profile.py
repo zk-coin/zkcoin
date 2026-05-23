@@ -359,7 +359,7 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not select the first unresolved blocker".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
-    if "--set-snapshot main <height> <block_hash> <normalized_import_hash>" not in next_action_result.stdout:
+    if "--set-snapshot-audit main <snapshot_audit.json>" not in next_action_result.stdout:
         return "{} --next-action did not print the snapshot handoff command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
@@ -501,6 +501,95 @@ def require_public_launch_manifest_current():
         return "{} --set-snapshot removed unrelated blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        audit_path = Path(temp_dir) / "snapshot-audit.json"
+        audit = {
+            "height": 777,
+            "block_hash": "55" * 32,
+            "import_hash": "66" * 32,
+            "snapshot_hash": "77" * 32,
+            "coins": 4,
+            "base_nchaintx": 11,
+            "snapshot_file": "/srv/snapshots/ltc-block-x.dat",
+            "total_amount": "50.00000000",
+        }
+        audit_path.write_text(json.dumps(audit), encoding="utf8")
+        audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if audit_result.returncode != 0:
+            return "{} --set-snapshot-audit failed: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                audit_result.stderr.strip() or audit_result.stdout.strip() or "no output",
+            )
+        try:
+            audit_manifest = json.loads(audit_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --set-snapshot-audit did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        audit_snapshot = audit_manifest["networks"]["main"]["litecoin_snapshot"]
+        if audit_snapshot != {
+            "height": 777,
+            "block_hash": "55" * 32,
+            "import_hash": "66" * 32,
+        }:
+            return "{} --set-snapshot-audit did not update main snapshot fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        audit_blockers = {
+            blocker.get("id")
+            for blocker in audit_manifest.get("blockers", [])
+            if isinstance(blocker, dict)
+        }
+        if "main.litecoin_snapshot" in audit_blockers:
+            return "{} --set-snapshot-audit did not remove the resolved main snapshot blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.auxpow_chain_id" not in audit_blockers:
+            return "{} --set-snapshot-audit removed unrelated blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        incomplete_audit_path = Path(temp_dir) / "incomplete-audit.json"
+        incomplete_audit = dict(audit)
+        incomplete_audit.pop("snapshot_hash")
+        incomplete_audit_path.write_text(json.dumps(incomplete_audit), encoding="utf8")
+        incomplete_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(incomplete_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if incomplete_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an incomplete audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit missing field: snapshot_hash" not in incomplete_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain incomplete audit rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
     auxpow_result = subprocess.run(
         [
@@ -1452,10 +1541,13 @@ def main():
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("--set-snapshot", "manifest snapshot update flag"),
+        ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
         ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
+        ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
+        ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
         ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
@@ -1669,7 +1761,8 @@ def main():
 
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
-        ("--set-snapshot NETWORK", "snapshot script prints network-specific manifest update command"),
+        ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("--set-snapshot-audit NETWORK", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
     for needle, description in ltc_snapshot_script_checks:
@@ -1679,7 +1772,8 @@ def main():
 
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
-        ("--set-snapshot NETWORK", "snapshot script test checks manifest update command"),
+        ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("--set-snapshot-audit NETWORK", "snapshot script test checks audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
     )
     for needle, description in ltc_snapshot_script_test_checks:
@@ -1791,8 +1885,12 @@ def main():
             "public launch preflight DNS seed suffix documentation",
         ),
         (
-            "zkcoin_public_launch_profile.py \\\n  --set-snapshot NETWORK",
-            "public launch manifest snapshot update documentation",
+            "ZKCOIN_SNAPSHOT_AUDIT_JSON",
+            "public launch snapshot audit summary documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
+            "public launch manifest audit-backed snapshot update documentation",
         ),
         (
             "removes only that network's snapshot blocker",
