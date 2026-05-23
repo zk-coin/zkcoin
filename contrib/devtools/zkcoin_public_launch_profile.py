@@ -634,6 +634,30 @@ def set_identity(
     remove_blocker(manifest, f"{network}.public_network_identity")
 
 
+def validation_failure_message(prefix, check):
+    lines = [prefix]
+    for error in check.errors:
+        lines.append(f"  - {error}")
+    if check.blockers:
+        lines.append("Blocked launch-profile fields:")
+        for blocker in check.blockers:
+            lines.append(f"  - {blocker}")
+    return "\n".join(lines)
+
+
+def mark_ready(manifest):
+    manifest["status"] = "ready-for-chainparams"
+    manifest["blockers"] = []
+    check = validate_manifest(manifest, allow_blocked=False)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "cannot mark launch profile ready for chainparams until all production fields are resolved:",
+                check,
+            )
+        )
+
+
 def write_manifest(path, manifest):
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     tmp_path = path.with_name(path.name + ".tmp")
@@ -773,6 +797,11 @@ def main():
         ),
         help="update one network's public identity values and remove its public identity blocker",
     )
+    parser.add_argument(
+        "--mark-ready",
+        action="store_true",
+        help="set status to ready-for-chainparams and clear blockers only after strict validation passes",
+    )
     parser.add_argument("--in-place", action="store_true", help="write update changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
@@ -814,11 +843,19 @@ def main():
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
+    if args.mark_ready:
+        try:
+            mark_ready(manifest)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
     updated_manifest = (
         args.set_snapshot is not None
         or args.set_auxpow is not None
         or args.set_dns_seeds is not None
         or args.set_identity is not None
+        or args.mark_ready
     )
     allow_blocked = args.allow_blocked or updated_manifest
     check = validate_manifest(manifest, allow_blocked)
@@ -841,7 +878,7 @@ def main():
         return 0
 
     if args.in_place:
-        print("error: --in-place requires --set-snapshot, --set-auxpow, --set-dns-seeds, or --set-identity", file=sys.stderr)
+        print("error: --in-place requires --set-snapshot, --set-auxpow, --set-dns-seeds, --set-identity, or --mark-ready", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:

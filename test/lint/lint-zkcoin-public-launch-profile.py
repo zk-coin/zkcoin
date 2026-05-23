@@ -613,9 +613,7 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
-    ready_manifest = json.loads(json.dumps(manifest))
-    ready_manifest["status"] = "ready-for-chainparams"
-    ready_manifest["blockers"] = []
+    complete_manifest = json.loads(json.dumps(manifest))
     ready_profiles = {
         "main": {
             "snapshot": {
@@ -665,12 +663,80 @@ def require_public_launch_manifest_current():
         },
     }
     for network, values in ready_profiles.items():
-        profile = ready_manifest["networks"][network]
+        profile = complete_manifest["networks"][network]
         profile["litecoin_snapshot"].update(values["snapshot"])
         profile["auxpow"]["chain_id"] = values["chain_id"]
         profile["public_network_identity"].update(values["identity"])
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        unresolved_path = Path(temp_dir) / "unresolved.json"
+        unresolved_path.write_text(json.dumps(manifest), encoding="utf8")
+        unresolved_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--mark-ready",
+                "--in-place",
+                str(unresolved_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if unresolved_result.returncode == 0:
+            return "{} --mark-ready accepted unresolved production launch fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "cannot mark launch profile ready" not in unresolved_result.stderr:
+            return "{} --mark-ready did not explain unresolved production launch fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.litecoin_snapshot.height" not in unresolved_result.stderr:
+            return "{} --mark-ready did not report unresolved snapshot fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        unresolved_after = json.loads(unresolved_path.read_text(encoding="utf8"))
+        if unresolved_after.get("status") != "blocked":
+            return "{} --mark-ready --in-place wrote an unresolved manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        complete_path = Path(temp_dir) / "complete.json"
+        complete_path.write_text(json.dumps(complete_manifest), encoding="utf8")
+        mark_ready_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--mark-ready",
+                str(complete_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mark_ready_result.returncode != 0:
+            return "{} --mark-ready rejected a complete manifest with unique public launch values: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                mark_ready_result.stderr.strip() or mark_ready_result.stdout.strip() or "no output",
+            )
+        try:
+            ready_manifest = json.loads(mark_ready_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --mark-ready did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if ready_manifest.get("status") != "ready-for-chainparams":
+            return "{} --mark-ready did not set ready-for-chainparams status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_manifest.get("blockers") != []:
+            return "{} --mark-ready did not clear resolved blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         ready_path = Path(temp_dir) / "ready.json"
         ready_path.write_text(json.dumps(ready_manifest), encoding="utf8")
         ready_result = subprocess.run(
@@ -916,6 +982,7 @@ def main():
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
+        ("--mark-ready", "manifest guarded ready transition flag"),
         ("--set-snapshot", "manifest snapshot update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
@@ -926,6 +993,8 @@ def main():
         ("parse_default_port", "manifest parses public identity default port"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
+        ("validation_failure_message", "manifest emits detailed transition failures"),
+        ("mark_ready", "manifest marks complete profiles ready only after validation"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("set_identity", "manifest updates public network identity"),
@@ -1177,6 +1246,10 @@ def main():
         (
             "ready-for-chainparams",
             "public launch manifest ready status documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --mark-ready",
+            "public launch manifest guarded ready transition documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --emit-chainparams",
