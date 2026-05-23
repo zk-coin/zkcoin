@@ -494,13 +494,28 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 - Upload zips and installers, as well as `SHA256SUMS.asc` from the last step, to
   the resolved zkCoin artifact host.
 
-- Verify the published checksums and artifacts from the resolved public URLs:
+- Verify the published checksums and artifacts from the resolved public URLs.
+  Keep this in a clean directory so local build outputs cannot satisfy the
+  post-publication check:
 
 ```bash
+ZKCOIN_PUBLIC_VERIFY_DIR="./release-artifacts/public-verify"
+rm -rf "$ZKCOIN_PUBLIC_VERIFY_DIR"
+mkdir -p "$ZKCOIN_PUBLIC_VERIFY_DIR"
+
+curl --fail --location --show-error --silent \
+  --output "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc" \
+  "$ZKCOIN_RELEASE_CHECKSUMS_URL"
+
+cmp -s ./SHA256SUMS.asc "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc" || {
+  echo "Published SHA256SUMS.asc does not match the locally signed manifest" >&2
+  exit 1
+}
+
 contrib/verifybinaries/verify-zkcoin-release.py \
-  --checksums ./SHA256SUMS.asc \
+  --checksums "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc" \
   --trusted-fingerprint "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
-  --artifacts-dir ./release-artifacts \
+  --artifacts-dir "$ZKCOIN_PUBLIC_VERIFY_DIR" \
   --download-base "$ZKCOIN_RELEASE_ARTIFACT_BASE_URL"
 ```
 

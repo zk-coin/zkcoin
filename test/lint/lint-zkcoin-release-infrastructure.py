@@ -303,6 +303,8 @@ def main():
         return fail("notes must document local pre-upload zkCoin artifact verification")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
+    if "ZKCOIN_PUBLIC_VERIFY_DIR" not in notes_text:
+        return fail("notes must document public zkCoin post-upload checksum verification")
     if "ZKCOIN_RELEASE_WEBSITE_REPO_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin release metadata publication targets")
     if "ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" not in notes_text:
@@ -406,6 +408,15 @@ def main():
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
+        ("ZKCOIN_PUBLIC_VERIFY_DIR", "clean public artifact verification directory"),
+        ("Keep this in a clean directory so local build outputs cannot satisfy the", "public post-publication isolation"),
+        ("curl --fail --location --show-error --silent", "public checksum fetch"),
+        ('--output "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"', "public checksum fetch output"),
+        ('"$ZKCOIN_RELEASE_CHECKSUMS_URL"', "public checksum URL fetch"),
+        ('cmp -s ./SHA256SUMS.asc "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"', "public checksum manifest comparison"),
+        ("Published SHA256SUMS.asc does not match the locally signed manifest", "public checksum mismatch failure"),
+        ('--checksums "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"', "post-publication public checksum verification"),
+        ('--artifacts-dir "$ZKCOIN_PUBLIC_VERIFY_DIR"', "clean public artifact verification"),
         ("ZKCOIN_RELEASE_WEBSITE_REPO_URL", "parameterized website repository URL"),
         ("ZKCOIN_RELEASE_WEBSITE_OWNER", "parameterized website publication owner"),
         ("ZKCOIN_RELEASE_INDEX_REPO_URL", "parameterized release index repository URL"),
@@ -445,6 +456,22 @@ def main():
         error = require_text(RELEASE_DOC, needle, description)
         if error:
             return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Resolve the zkCoin artifact publication targets before uploading anything",
+            "Upload zips and installers",
+            "Verify the published checksums and artifacts from the resolved public URLs",
+            "curl --fail --location --show-error --silent",
+            'cmp -s ./SHA256SUMS.asc "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"',
+            '--checksums "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"',
+            "Resolve the zkCoin release-index and website publication targets",
+        ),
+        "public checksum fetch and verification before metadata publication",
+    )
+    if error:
+        return fail(error)
 
     error = require_ordered_text(
         RELEASE_DOC,
@@ -532,6 +559,7 @@ def main():
         (RELEASE_DOC, "git tag -s v${VERSION} HEAD", "implicit detached-signatures release tag"),
         (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
         (RELEASE_DOC, "sha256sum * > SHA256SUMS", "wildcard release checksum command"),
+        (RELEASE_DOC, "--artifacts-dir ./release-artifacts", "post-publication verification against non-clean artifact directory"),
         (RELEASE_DOC, "blocked until the announcement channels and owners are explicitly documented", "prose-only announcement channel gate"),
         (RELEASE_DOC, "Archive release notes for the new version to `doc/release-notes/` on `master`", "ambiguous release notes archival"),
         (RELEASE_DOC, "Create a release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` with a link", "ambiguous GitHub release creation"),
