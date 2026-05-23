@@ -157,6 +157,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         name,
         scenario,
         *,
+        height=HEIGHT,
         expected_hash=BLOCK_HASH,
         allow_rewind=False,
         write_audit=False,
@@ -194,7 +195,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         result = subprocess.run(
             [
                 self.snapshot_script(),
-                str(HEIGHT),
+                str(height),
                 expected_hash,
                 snapshot_path,
                 self.fake_litecoin_cli,
@@ -232,6 +233,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
     def run_test(self):
         self.fake_litecoin_cli = self.write_fake_cli("fake-litecoin-cli.py")
         self.fake_zkcoin_cli = self.write_fake_cli("fake-zkcoin-cli.py")
+
+        self.log.info("Reject a zero snapshot height before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "zero-height",
+            self.scenario(),
+            1,
+            "height must be a positive integer",
+            height=0,
+        )
+        assert_equal(calls, [])
 
         self.log.info("Reject a null expected snapshot block hash before calling either CLI")
         _, calls, _ = self.assert_snapshot(
