@@ -93,6 +93,7 @@
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "Gitian binary descriptors install rustc and cargo and enable --enable-rust-shielded-verifier plus --enable-rust-orchard-verifier so release binaries cannot be built with the unsupported C++ shielded-verifier fallback.",
+    "Rust shielded verifier builds derive or require an explicit Rust target triple from the configured host, verify rustc target support and installed target standard libraries, and link the target-specific libzkc_shielded_verifier.a so Gitian cross-builds cannot accidentally use a host Rust staticlib.",
     "Release checksum docs require ZKCOIN_RELEASE_BINARY_NAMESPACE before writing SHA256SUMS and reject zkcoin until binary and artifact namespace migration is completed.",
     "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE, reject unauthorized Gitian signer directories, and count only authorized signer identities with published fingerprints before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",

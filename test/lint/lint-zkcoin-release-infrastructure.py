@@ -108,6 +108,16 @@ REQUIRED_VERIFYBINARIES_DIST = (
     "contrib/verifybinaries/verify-zkcoin-release.py",
     "contrib/verifybinaries/verify.sh",
 )
+REQUIRED_RUST_SHIELDED_VERIFIER_TARGETS = (
+    "x86_64-unknown-linux-gnu",
+    "arm-unknown-linux-gnueabihf",
+    "armv7-unknown-linux-gnueabihf",
+    "aarch64-unknown-linux-gnu",
+    "riscv64gc-unknown-linux-gnu",
+    "x86_64-pc-windows-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+)
 
 
 def fail(message):
@@ -194,6 +204,34 @@ def require_wallet_interface_dist_entries():
             SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
             ", ".join(missing),
         )
+    return None
+
+
+def require_rust_shielded_verifier_target_mapping():
+    configure_text = CONFIGURE.read_text(encoding="utf8")
+    makefile_text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
+    for needle in (
+        "with-rust-shielded-verifier-target",
+        "RUST_SHIELDED_VERIFIER_TARGET",
+        "cannot derive Rust shielded verifier target",
+        "rustc does not support target",
+        "rust std library for target",
+    ):
+        if needle not in configure_text:
+            return "configure scripts missing Rust shielded verifier target mapping guard: {}".format(needle)
+    for target in REQUIRED_RUST_SHIELDED_VERIFIER_TARGETS:
+        if target not in configure_text:
+            return "configure scripts missing Rust shielded verifier target mapping: {}".format(target)
+    for needle in (
+        "target/@RUST_SHIELDED_VERIFIER_TARGET@/release/libzkc_shielded_verifier.a",
+        "RUST_SHIELDED_VERIFIER_TARGET_ARG = --target @RUST_SHIELDED_VERIFIER_TARGET@",
+        "$(CARGO) build --locked --release --lib $(RUST_SHIELDED_VERIFIER_TARGET_ARG)",
+    ):
+        if needle not in makefile_text:
+            return "{} missing Rust target-specific verifier build rule: {}".format(
+                SRC_MAKEFILE_AM.relative_to(ROOT_DIR),
+                needle,
+            )
     return None
 
 
@@ -308,6 +346,10 @@ def main():
         return fail("notes must document Rust toolchain requirement for Gitian binary descriptors")
     if "--enable-rust-shielded-verifier plus --enable-rust-orchard-verifier" not in notes_text:
         return fail("notes must document real Orchard verifier flags for Gitian binary descriptors")
+    if "derive or require an explicit Rust target triple from the configured host" not in notes_text:
+        return fail("notes must document Rust verifier target mapping")
+    if "target-specific libzkc_shielded_verifier.a" not in notes_text:
+        return fail("notes must document target-specific Rust verifier staticlib linkage")
     if "ZKCOIN_RELEASE_BINARY_NAMESPACE" not in notes_text:
         return fail("notes must document parameterized zkCoin binary namespace decision")
     if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
@@ -988,6 +1030,10 @@ def main():
         return fail(error)
 
     error = require_wallet_interface_dist_entries()
+    if error:
+        return fail(error)
+
+    error = require_rust_shielded_verifier_target_mapping()
     if error:
         return fail(error)
 

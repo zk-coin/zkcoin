@@ -186,6 +186,12 @@ AC_ARG_ENABLE([rust-orchard-verifier],
     [enable_rust_orchard_verifier=$enableval],
     [enable_rust_orchard_verifier=no])
 
+AC_ARG_WITH([rust-shielded-verifier-target],
+    AS_HELP_STRING([--with-rust-shielded-verifier-target=TRIPLE],
+    [Rust target triple for the shielded verifier staticlib (default: derive from host)]),
+    [rust_shielded_verifier_target=$withval],
+    [rust_shielded_verifier_target=auto])
+
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
   [enable QR code support (default is yes if qt is enabled and libqrencode is found)])],
@@ -1541,7 +1547,54 @@ if test "x$enable_rust_shielded_verifier" = "xyes" || test "x$enable_rust_orchar
   if test "x$CARGO" = "xno"; then
     AC_MSG_ERROR([cargo is required for Rust shielded verifier builds])
   fi
+  AC_PATH_PROG([RUSTC], [rustc], [no])
+  if test "x$RUSTC" = "xno"; then
+    AC_MSG_ERROR([rustc is required for Rust shielded verifier builds])
+  fi
+  if test "x$rust_shielded_verifier_target" = "xauto"; then
+    case $host in
+      x86_64-linux-gnu*|x86_64-*-linux-gnu*)
+        rust_shielded_verifier_target=x86_64-unknown-linux-gnu
+        ;;
+      arm-linux-gnueabihf*|arm-*-linux-gnueabihf*)
+        rust_shielded_verifier_target=arm-unknown-linux-gnueabihf
+        ;;
+      armv7-linux-gnueabihf*|armv7-*-linux-gnueabihf*)
+        rust_shielded_verifier_target=armv7-unknown-linux-gnueabihf
+        ;;
+      aarch64-linux-gnu*|aarch64-*-linux-gnu*)
+        rust_shielded_verifier_target=aarch64-unknown-linux-gnu
+        ;;
+      riscv64-linux-gnu*|riscv64-*-linux-gnu*)
+        rust_shielded_verifier_target=riscv64gc-unknown-linux-gnu
+        ;;
+      x86_64-w64-mingw32*|x86_64-*-mingw32*)
+        rust_shielded_verifier_target=x86_64-pc-windows-gnu
+        ;;
+      x86_64-*-darwin*)
+        rust_shielded_verifier_target=x86_64-apple-darwin
+        ;;
+      aarch64-*-darwin*)
+        rust_shielded_verifier_target=aarch64-apple-darwin
+        ;;
+      *)
+        AC_MSG_ERROR([cannot derive Rust shielded verifier target for host $host; use --with-rust-shielded-verifier-target])
+        ;;
+    esac
+  fi
+  if test "x$rust_shielded_verifier_target" = "x" || test "x$rust_shielded_verifier_target" = "xno"; then
+    AC_MSG_ERROR([Rust shielded verifier target must be a target triple])
+  fi
+  if ! "$RUSTC" --print target-list | grep -x "$rust_shielded_verifier_target" >/dev/null 2>&1; then
+    AC_MSG_ERROR([rustc does not support target $rust_shielded_verifier_target])
+  fi
+  rust_shielded_verifier_target_libdir="$("$RUSTC" --print target-libdir --target="$rust_shielded_verifier_target" 2>/dev/null || true)"
+  if test "x$rust_shielded_verifier_target_libdir" = "x" || test ! -d "$rust_shielded_verifier_target_libdir"; then
+    AC_MSG_ERROR([rust std library for target $rust_shielded_verifier_target is not installed])
+  fi
 fi
+RUST_SHIELDED_VERIFIER_TARGET=$rust_shielded_verifier_target
+AC_SUBST(RUST_SHIELDED_VERIFIER_TARGET)
 
 AC_LANG_POP
 

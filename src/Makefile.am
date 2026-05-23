@@ -64,7 +64,8 @@ LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SHANI)
 endif
 
 if ENABLE_RUST_SHIELDED_VERIFIER
-RUST_SHIELDED_VERIFIER_LIB = $(srcdir)/rust/shielded-verifier/target/release/libzkc_shielded_verifier.a
+RUST_SHIELDED_VERIFIER_LIB = $(srcdir)/rust/shielded-verifier/target/@RUST_SHIELDED_VERIFIER_TARGET@/release/libzkc_shielded_verifier.a
+RUST_SHIELDED_VERIFIER_TARGET_ARG = --target @RUST_SHIELDED_VERIFIER_TARGET@
 if ENABLE_RUST_ORCHARD_VERIFIER
 RUST_SHIELDED_VERIFIER_FEATURES = --features orchard-verifier
 else
@@ -72,9 +73,10 @@ RUST_SHIELDED_VERIFIER_FEATURES =
 endif
 
 $(RUST_SHIELDED_VERIFIER_LIB): FORCE
-	$(AM_V_at)cd $(srcdir)/rust/shielded-verifier && $(CARGO) build --locked --release --lib $(RUST_SHIELDED_VERIFIER_FEATURES)
+	$(AM_V_at)cd $(srcdir)/rust/shielded-verifier && $(CARGO) build --locked --release --lib $(RUST_SHIELDED_VERIFIER_TARGET_ARG) $(RUST_SHIELDED_VERIFIER_FEATURES)
 else
 RUST_SHIELDED_VERIFIER_LIB =
+RUST_SHIELDED_VERIFIER_TARGET_ARG =
 RUST_SHIELDED_VERIFIER_FEATURES =
 endif
 
