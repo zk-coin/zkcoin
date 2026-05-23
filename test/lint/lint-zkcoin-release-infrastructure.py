@@ -342,6 +342,14 @@ def main():
         return fail("notes must document parameterized zkCoin GitHub release metadata")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
+    if "ZKCOIN_MACOS_CODESIGN_IDENTITY" not in notes_text:
+        return fail("notes must document zkCoin macOS code-signing identity")
+    if "ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY" not in notes_text:
+        return fail("notes must document zkCoin macOS signing certificate custody")
+    if "ZKCOIN_MACOS_CODESIGN_CERT_OWNER" not in notes_text:
+        return fail("notes must document zkCoin macOS signing certificate custody owner")
+    if "ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL" not in notes_text:
+        return fail("notes must document zkCoin macOS signing payload approval")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin Windows signing key custody")
 
@@ -503,6 +511,12 @@ def main():
         ("ZKCOIN_MACOS_APPLE_ID", "parameterized macOS notarization Apple ID"),
         ("ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM", "parameterized macOS notarization keychain item"),
         ("ZKCOIN_MACOS_ASC_PROVIDER", "parameterized macOS Apple provider"),
+        ("ZKCOIN_MACOS_CODESIGN_IDENTITY", "parameterized macOS code-signing identity"),
+        ("ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY", "macOS signing certificate custody record"),
+        ("ZKCOIN_MACOS_CODESIGN_CERT_OWNER", "macOS signing certificate custody owner"),
+        ("ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL", "macOS signing payload approval record"),
+        ("ZKCOIN_MACOS_CODESIGN custody fields must not be placeholders", "macOS signing custody placeholder rejection"),
+        ('./detached-sig-create.sh -s "$ZKCOIN_MACOS_CODESIGN_IDENTITY"', "zkCoin macOS signing identity invocation"),
         ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_PATH", "parameterized Windows code-signing key path"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY", "parameterized Windows code-signing key custody"),
@@ -529,6 +543,23 @@ def main():
             "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
         "release source tag provenance and signer authorization before Gitian builds",
+    )
+    if error:
+        return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Codesigner only: Sign the macOS binary",
+            "ZKCOIN_MACOS_CODESIGN_IDENTITY",
+            "ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY",
+            "ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL",
+            './detached-sig-create.sh -s "$ZKCOIN_MACOS_CODESIGN_IDENTITY"',
+            "Notarize the disk image",
+            '--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"',
+            "Codesigner only: Sign the windows binaries",
+        ),
+        "macOS signing custody before detached signature creation",
     )
     if error:
         return fail(error)
@@ -656,6 +687,7 @@ def main():
         (RELEASE_DOC, "org.bitcoincore.bitcoin-qt", "Bitcoin Core Flatpak target"),
         (RELEASE_DOC, "bitcoin-core-snap", "Bitcoin Core snap target"),
         (RELEASE_DOC, UPSTREAM_LITECOIN_MACOS_BUNDLE_ID, "Litecoin macOS bundle identifier"),
+        (RELEASE_DOC, './detached-sig-create.sh -s "Key ID"', "placeholder macOS signing key id"),
         (RELEASE_DOC, "<apple-id-email>", "placeholder Apple ID"),
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
