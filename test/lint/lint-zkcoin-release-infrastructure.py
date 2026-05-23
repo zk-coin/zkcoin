@@ -328,6 +328,10 @@ def main():
         return fail("notes must document zkCoin detached-signatures custody owner")
     if "ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL" not in notes_text:
         return fail("notes must document zkCoin detached-signatures payload approval")
+    if "local detached-signatures origin matches ZKCOIN_DETACHED_SIGS_REPO_URL" not in notes_text:
+        return fail("notes must document detached-signatures payload repo origin verification")
+    if "before replacing payload contents" not in notes_text:
+        return fail("notes must document detached-signatures clean checkout guards")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD" not in notes_text:
@@ -512,6 +516,9 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER", "detached-signatures custody owner"),
         ("ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL", "detached-signatures payload approval record"),
         ("ZKCOIN_DETACHED_SIGS custody fields must not be placeholders", "detached-signatures custody placeholder rejection"),
+        ("Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL", "detached-signatures origin mismatch failure"),
+        ("Detached signatures repository must be clean before payload replacement", "detached-signatures dirty checkout guard"),
+        ("Detached signatures release branch must be clean before payload replacement", "detached-signatures release branch dirty guard"),
         ('git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags', "detached-signatures release branch fetch"),
         ('rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}"', "detached-signatures release ref validation"),
         ('git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD', "detached-signatures release tag creation"),
@@ -741,7 +748,12 @@ def main():
             "Codesigner only: Commit the detached codesign payloads",
             "ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD",
             "ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL",
+            'git remote get-url origin',
+            "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL",
+            "Detached signatures repository must be clean before payload replacement",
             'git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags',
+            "Detached signatures release branch must be clean before payload replacement",
+            "rm -rf *",
             'git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD',
             'git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
             'git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',

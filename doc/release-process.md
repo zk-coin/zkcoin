@@ -519,9 +519,21 @@ Codesigner only: Commit the detached codesign payloads:
             ;;
         esac
     done
+    if [ "$(git remote get-url origin)" != "$ZKCOIN_DETACHED_SIGS_REPO_URL" ]; then
+        echo "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL" >&2
+        exit 1
+    fi
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Detached signatures repository must be clean before payload replacement" >&2
+        exit 1
+    fi
     git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags
     git rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}" >/dev/null
     git checkout "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Detached signatures release branch must be clean before payload replacement" >&2
+        exit 1
+    fi
     rm -rf *
     tar xf signature-osx.tar.gz
     tar xf signature-win.tar.gz
