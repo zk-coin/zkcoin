@@ -14,6 +14,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 CIRRUS_CONFIG = ROOT_DIR / ".cirrus.yml"
 LAUNCH_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_validation.sh"
 ORCHARD_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_orchard_auxpow.sh"
+RELEASE_CANDIDATE_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_candidate_validation.sh"
 SMOKE_WRAPPER = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_smoke.sh"
 VALIDATION_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_validation_manifest.json"
 TASK_NAME = "zkCoin canonical launch validation [real Orchard AuxPoW]"
@@ -34,6 +35,10 @@ REQUIRED_MANIFEST_LISTS = {
         "lints",
         "unit_tests",
         "functional_tests",
+    ),
+    "release_candidate": (
+        "commands",
+        "source_artifact_commands",
     ),
 }
 REQUIRED_MANIFEST_BLOCKS = {
@@ -215,6 +220,11 @@ def load_manifest():
                 raise ValueError(
                     "{} {}.{}.commands must be a list".format(VALIDATION_MANIFEST, section, key)
                 )
+    release_candidate = manifest.get("release_candidate")
+    if not isinstance(release_candidate.get("wrapper"), str):
+        raise ValueError(
+            "{} release_candidate.wrapper must be a string".format(VALIDATION_MANIFEST)
+        )
     return manifest
 
 
@@ -293,6 +303,33 @@ def main():
             smoke["source_dist"]["condition"],
             smoke["source_dist"]["commands"],
             smoke_label,
+        ),
+    ):
+        if error:
+            return fail(error)
+
+    release_candidate = manifest["release_candidate"]
+    release_candidate_label = str(RELEASE_CANDIDATE_WRAPPER.relative_to(ROOT_DIR))
+    wrapper_path = release_candidate["wrapper"]
+    if wrapper_path != release_candidate_label:
+        return fail(
+            "{} release_candidate.wrapper must be {}".format(
+                VALIDATION_MANIFEST.relative_to(ROOT_DIR),
+                release_candidate_label,
+            )
+        )
+
+    release_candidate_commands = shell_commands(RELEASE_CANDIDATE_WRAPPER)
+    for error in (
+        check_tokens(
+            release_candidate_commands,
+            release_candidate["commands"],
+            release_candidate_label,
+        ),
+        check_tokens(
+            release_candidate_commands,
+            release_candidate["source_artifact_commands"],
+            release_candidate_label,
         ),
     ):
         if error:

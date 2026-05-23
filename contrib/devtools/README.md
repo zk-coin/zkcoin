@@ -36,6 +36,29 @@ JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
   contrib/devtools/zkcoin_launch_validation.sh
 ```
 
+zkcoin_release_candidate_validation.sh
+======================================
+
+Runs the release-candidate validation gate for source-release readiness. It
+first runs `zkcoin_launch_validation.sh`, then runs
+`zkcoin_source_dist_realproof_smoke.sh` so the generated source tarball is
+rebuilt from scratch and proves the real Orchard AuxPoW regression from the
+unpacked release source.
+
+This wrapper is intentionally heavier than the canonical launch validation
+loop. Use it before tagging or publishing a source release candidate; keep using
+`zkcoin_launch_validation.sh` and `zkcoin_launch_smoke.sh` for normal launch-path
+iteration. Passing this wrapper still does not make the inherited Gitian,
+signing, or binary-verification infrastructure production-ready.
+
+Example:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  TEST_RUNNER_PORT_MIN=28000 \
+  contrib/devtools/zkcoin_release_candidate_validation.sh
+```
+
 zkcoin_launch_smoke.sh
 ======================
 
@@ -58,9 +81,10 @@ release-candidate work.
 Set `SKIP_BUILD=1` to reuse already-built binaries, and `RUN_DISTDIR=0` to skip
 the source tarball smoke while iterating.
 
-The expected canonical and smoke-lane checks are tracked in
+The expected canonical, smoke-lane, and release-candidate source-artifact
+checks are tracked in
 `zkcoin_launch_validation_manifest.json`; `test/lint/lint-zkcoin-launch-validation.py`
-fails if either wrapper stops executing a manifest entry.
+fails if a wrapper stops executing a manifest entry.
 
 Example:
 
