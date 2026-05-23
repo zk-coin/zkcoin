@@ -826,9 +826,17 @@ def chainparams_sync_errors(manifest, chainparams_text):
     return errors
 
 
-def next_blocker_command(blocker_id):
+def display_path(path):
+    path = Path(path)
+    try:
+        resolved = path.resolve()
+        return str(resolved.relative_to(ROOT_DIR))
+    except ValueError:
+        return str(path)
+
+
+def next_blocker_command(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
-    manifest_path = DEFAULT_MANIFEST.relative_to(ROOT_DIR)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     if blocker == "litecoin_snapshot":
         return (
@@ -855,14 +863,14 @@ def next_blocker_command(blocker_id):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
-def next_action_text(manifest):
-    manifest_path = DEFAULT_MANIFEST.relative_to(ROOT_DIR)
+def next_action_text(manifest, manifest_path):
+    manifest_path = display_path(manifest_path)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(manifest)
     lines = ["zkCoin public launch profile next action:"]
     if blockers:
         lines.append(f"  - next blocker: {blockers[0]}")
-        lines.append(f"  - action: {next_blocker_command(blockers[0])}")
+        lines.append(f"  - action: {next_blocker_command(blockers[0], manifest_path)}")
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
         return "\n".join(lines)
@@ -1018,7 +1026,7 @@ def main():
         if args.in_place:
             print("error: --next-action does not write the manifest", file=sys.stderr)
             return 1
-        print(next_action_text(manifest))
+        print(next_action_text(manifest, args.manifest))
         return 0
 
     if args.in_place:
