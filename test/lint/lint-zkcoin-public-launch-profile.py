@@ -750,6 +750,10 @@ def require_public_launch_manifest_current():
             return "{} --next-action did not point complete blocked manifests at --mark-ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if str(complete_path) not in complete_next_result.stdout:
+            return "{} --next-action did not preserve the checked complete manifest path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         mark_ready_result = subprocess.run(
             [
@@ -851,6 +855,10 @@ def require_public_launch_manifest_current():
             )
         if "--emit-chainparams" not in ready_next_result.stdout or "--check-chainparams" not in ready_next_result.stdout:
             return "{} --next-action did not print ready-manifest chainparams handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if str(ready_path) not in ready_next_result.stdout:
+            return "{} --next-action did not preserve the checked ready manifest path".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1255,6 +1263,7 @@ def main():
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
+        ("display_path", "manifest guidance preserves non-default manifest paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("next_action_text", "manifest prints next action guidance"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
