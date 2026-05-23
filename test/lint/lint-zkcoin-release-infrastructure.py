@@ -41,6 +41,7 @@ DETACHED_SIGS_NOT_CONFIGURED_REPO = "https://example.invalid/zkcoin-detached-sig
 UPSTREAM_LITECOIN_DETACHED_SIGS_REPO = "https://github.com/litecoin-project/litecoin-detached-sigs.git"
 UPSTREAM_LITECOIN_GITIAN_SIGS_REPO = "https://github.com/litecoin-project/gitian.sigs.ltc.git"
 UPSTREAM_LITECOIN_GITHUB_RELEASE_URL = "https://github.com/litecoin-project/litecoin/releases/new"
+UPSTREAM_LITECOIN_MACOS_BUNDLE_ID = "org.litecoin.Litecoin-Qt"
 REQUIRED_BLOCKERS = {
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
@@ -276,6 +277,8 @@ def main():
         return fail("notes must document fail-closed detached-signatures signer descriptors")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
+    if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
+        return fail("notes must document parameterized zkCoin macOS notarization identity")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -338,6 +341,11 @@ def main():
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
+        ("ZKCOIN_MACOS_BUNDLE_ID", "parameterized macOS bundle identifier"),
+        ("ZKCOIN_MACOS_APPLE_ID", "parameterized macOS notarization Apple ID"),
+        ("ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM", "parameterized macOS notarization keychain item"),
+        ("ZKCOIN_MACOS_ASC_PROVIDER", "parameterized macOS Apple provider"),
+        ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
@@ -404,6 +412,10 @@ def main():
         (RELEASE_DOC, "bitcoincore.org", "Bitcoin Core website target"),
         (RELEASE_DOC, "org.bitcoincore.bitcoin-qt", "Bitcoin Core Flatpak target"),
         (RELEASE_DOC, "bitcoin-core-snap", "Bitcoin Core snap target"),
+        (RELEASE_DOC, UPSTREAM_LITECOIN_MACOS_BUNDLE_ID, "Litecoin macOS bundle identifier"),
+        (RELEASE_DOC, "<apple-id-email>", "placeholder Apple ID"),
+        (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
+        (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)

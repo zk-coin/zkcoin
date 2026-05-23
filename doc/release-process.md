@@ -255,6 +255,10 @@ Codesigner only: Sign the macOS binary:
 
     transfer litecoin-osx-unsigned.tar.gz to macOS for signing
     tar xf litecoin-osx-unsigned.tar.gz
+    : "${ZKCOIN_MACOS_BUNDLE_ID:?set the resolved zkCoin macOS bundle identifier}"
+    : "${ZKCOIN_MACOS_APPLE_ID:?set the Apple ID used for zkCoin notarization}"
+    : "${ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM:?set the zkCoin notarization keychain item name}"
+    : "${ZKCOIN_MACOS_ASC_PROVIDER:?set the zkCoin Apple provider shortcode}"
     ./detached-sig-create.sh -s "Key ID"
     Enter the keychain password and authorize the signature
     
@@ -263,23 +267,23 @@ Codesigner only: Sign the macOS binary:
     First time setup for codesigner, requires creation of app-specific-password via Apple ID website.
     Once password is obtained, save it to the macOS Keychain for future reference:
 
-    $   xcrun altool -u "<apple-id-email>" -p "<app-specific-password>" --store-password-in-keychain-item "<apple-id-notarisation-app-specific-password>"
+    $   xcrun altool -u "$ZKCOIN_MACOS_APPLE_ID" -p "<app-specific-password>" --store-password-in-keychain-item "$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM"
 
-    If <team-id-shortcode> is unknown for team accounts with multiple organisations, query:
+    If the Apple provider shortcode is unknown for team accounts with multiple organisations, query:
 
-    $   xcrun altool --list-providers -u "<apple-id-email>" -p "@keychain:<apple-id-notarisation-app-specific-password>"
+    $   xcrun altool --list-providers -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM"
 
     Notarize the disk image:
 
-    $   xcrun altool --notarize-app --primary-bundle-id "org.litecoin.Litecoin-Qt" -u "<apple-id-email>" -p "@keychain:<apple-id-notarisation-app-specific-password>" --asc-provider <team-id-shortcode> -t osx -f litecoin-${VERSION}-osx.dmg
+    $   xcrun altool --notarize-app --primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID" -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM" --asc-provider "$ZKCOIN_MACOS_ASC_PROVIDER" -t osx -f litecoin-${VERSION}-osx.dmg
 
     The notarization takes a few minutes. Check the status:
 
-    $   xcrun altool --notarization-info <request-uuid> -u "<apple-id-email>" -p "@keychain:<apple-id-notarisation-app-specific-password>" --asc-provider <team-id-shortcode>
+    $   xcrun altool --notarization-info <request-uuid> -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM" --asc-provider "$ZKCOIN_MACOS_ASC_PROVIDER"
 
     If notarization fails, query log with uuid:
 
-    $   xcrun altool --notarization-info <request-uuid> -u "<apple-id-email>" -p "@keychain:<apple-id-notarisation-app-specific-password>" --asc-provider <team-id-shortcode>
+    $   xcrun altool --notarization-info <request-uuid> -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM" --asc-provider "$ZKCOIN_MACOS_ASC_PROVIDER"
 
     Staple the notarization ticket onto the application
 
