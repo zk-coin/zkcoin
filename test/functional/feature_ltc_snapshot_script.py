@@ -470,6 +470,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject fractional Litecoin source chain heights")
+        _, calls, _ = self.assert_snapshot(
+            "fractional-chaininfo-blocks",
+            self.scenario(chaininfo_overrides={"blocks": HEIGHT + 0.5}),
+            1,
+            "litecoin-cli getblockchaininfo.blocks must be a non-negative integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject a Litecoin source with headers ahead of downloaded blocks")
         _, calls, _ = self.assert_snapshot(
             "source-headers-ahead",
@@ -672,6 +681,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(verify_json=self.verify_json(total_amount="84000000.00000001")),
             1,
             "verifysnapshotmanifest.total_amount must not exceed 84000000.00000000",
+        )
+
+        self.log.info("Reject fractional snapshot dump heights")
+        self.assert_snapshot(
+            "fractional-dump-height",
+            self.scenario(dump_json=self.dump_json(base_height=HEIGHT + 0.5)),
+            1,
+            "dumptxoutset.base_height must be an integer",
+        )
+
+        self.log.info("Reject fractional verifier coin counts")
+        self.assert_snapshot(
+            "fractional-verify-coins",
+            self.scenario(verify_json=self.verify_json(coins=4.5)),
+            1,
+            "verifysnapshotmanifest.coins must be an integer",
         )
 
         self.log.info("Reject zero snapshot dump coin count")
