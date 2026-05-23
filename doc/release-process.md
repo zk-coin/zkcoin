@@ -371,9 +371,26 @@ end-user confusion about which file to pick, as well as save storage
 space *do not publish these to the zkCoin artifact host, checksum manifest, or
 release index*.
 
-- GPG-sign it, delete the unsigned file:
+- GPG-sign it with the published zkCoin release signing key, delete the
+  unsigned file:
 ```
-gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc
+: "${ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT:?set the independently verified zkCoin release signing key fingerprint}"
+: "${ZKCOIN_RELEASE_SIGNING_KEY_ID:?set the local GPG key id for the zkCoin release signing key}"
+
+ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT_NORMALIZED="$(
+  printf '%s' "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
+    | tr -d '[:space:]' \
+    | tr '[:lower:]' '[:upper:]'
+)"
+
+if ! gpg --batch --with-colons --fingerprint "$ZKCOIN_RELEASE_SIGNING_KEY_ID" \
+  | awk -F: '$1 == "fpr" { print $10 }' \
+  | grep -Fx "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT_NORMALIZED"; then
+    echo "ZKCOIN_RELEASE_SIGNING_KEY_ID does not match ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" >&2
+    exit 1
+fi
+
+gpg --batch --local-user "$ZKCOIN_RELEASE_SIGNING_KEY_ID" --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc
 rm SHA256SUMS
 ```
 (the digest algorithm is forced to sha256 to avoid confusion of the `Hash:` header that GPG adds with the SHA256 used for the files)

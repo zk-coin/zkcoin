@@ -275,6 +275,8 @@ def main():
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
         return fail("notes must document fail-closed detached-signatures signer descriptors")
+    if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
+        return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
@@ -338,6 +340,10 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "parameterized release signing key fingerprint"),
+        ("ZKCOIN_RELEASE_SIGNING_KEY_ID", "parameterized release signing local key id"),
+        ("--with-colons --fingerprint", "release signing key fingerprint validation"),
+        ('--local-user "$ZKCOIN_RELEASE_SIGNING_KEY_ID"', "explicit zkCoin release signing key invocation"),
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
@@ -422,6 +428,7 @@ def main():
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
         (RELEASE_DOC, "/path/to/codesign.key", "placeholder Windows signing key path"),
+        (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)
