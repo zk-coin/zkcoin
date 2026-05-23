@@ -278,6 +278,8 @@ def validate_snapshot(check, network, profile, allow_null):
     check.require_positive_int(audit.get("coins"), f"{network}.litecoin_snapshot.audit.coins", allow_null=allow_null)
     check.require_positive_int(audit.get("base_nchaintx"), f"{network}.litecoin_snapshot.audit.base_nchaintx", allow_null=allow_null)
     check.require_snapshot_source_chain(audit.get("source_chain"), f"{network}.litecoin_snapshot.audit.source_chain", network, allow_null=allow_null)
+    check.require_positive_int(audit.get("snapshot_file_size"), f"{network}.litecoin_snapshot.audit.snapshot_file_size", allow_null=allow_null)
+    check.require_hex256(audit.get("snapshot_file_sha256"), f"{network}.litecoin_snapshot.audit.snapshot_file_sha256", allow_null=allow_null)
     check.require_snapshot_file(audit.get("snapshot_file"), f"{network}.litecoin_snapshot.audit.snapshot_file", allow_null=allow_null)
     check.require_snapshot_total_amount(audit.get("total_amount"), f"{network}.litecoin_snapshot.audit.total_amount", allow_null=allow_null)
 
@@ -633,6 +635,8 @@ def parse_snapshot_audit(audit_path):
         "coins": require_snapshot_audit_int(audit, "coins"),
         "base_nchaintx": require_snapshot_audit_int(audit, "base_nchaintx"),
         "source_chain": require_snapshot_audit_source_chain(audit, "source_chain"),
+        "snapshot_file_size": require_snapshot_audit_int(audit, "snapshot_file_size"),
+        "snapshot_file_sha256": require_snapshot_audit_hash(audit, "snapshot_file_sha256"),
         "snapshot_file": require_snapshot_audit_file(audit, "snapshot_file"),
         "total_amount": require_snapshot_audit_total_amount(audit, "total_amount"),
     }

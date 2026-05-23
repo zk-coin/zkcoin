@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the Litecoin snapshot operator shell wrapper with controlled CLI JSON."""
 
+import hashlib
 import json
 import os
 import stat
@@ -260,6 +261,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert_equal(audit["import_hash"], IMPORT_HASH)
         assert_equal(audit["snapshot_hash"], SNAPSHOT_HASH)
         assert_equal(audit["snapshot_file"], snapshot_path)
+        with open(snapshot_path, "rb") as snapshot_file:
+            snapshot_bytes = snapshot_file.read()
+        assert_equal(audit["snapshot_file_size"], len(snapshot_bytes))
+        assert_equal(audit["snapshot_file_sha256"], hashlib.sha256(snapshot_bytes).hexdigest())
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 

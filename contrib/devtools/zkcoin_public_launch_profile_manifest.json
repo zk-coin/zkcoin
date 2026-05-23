@@ -47,6 +47,8 @@
           "coins": null,
           "base_nchaintx": null,
           "source_chain": null,
+          "snapshot_file_size": null,
+          "snapshot_file_sha256": null,
           "snapshot_file": null,
           "total_amount": null
         }
@@ -111,6 +113,8 @@
           "coins": null,
           "base_nchaintx": null,
           "source_chain": null,
+          "snapshot_file_size": null,
+          "snapshot_file_sha256": null,
           "snapshot_file": null,
           "total_amount": null
         }
