@@ -233,7 +233,9 @@ When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the script validates the audit summary
 exist, must not equal the snapshot output path, and must have an existing parent
 directory. The snapshot output directory must also exist before the script calls
 either node. The snapshot and audit output paths must be direct files, not
-symlinks, before the operator writes launch artifacts.
+symlinks, before the operator writes launch artifacts. Paths that resolve
+through physical parent directories to the same canonical output target are
+rejected before any node RPC is called.
 
 Example:
 

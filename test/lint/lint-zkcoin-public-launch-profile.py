@@ -2150,6 +2150,8 @@ def main():
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
+        ("SNAPSHOT_CANONICAL_PATH", "snapshot script canonicalizes output paths before collision checks"),
+        ("AUDIT_CANONICAL_PATH", "snapshot script canonicalizes audit output paths before collision checks"),
         ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
@@ -2201,6 +2203,10 @@ def main():
         (
             "Reject an audit summary path matching the snapshot output path before calling either CLI",
             "snapshot script test rejects audit path collisions before RPC",
+        ),
+        (
+            "Reject an audit summary path aliasing the snapshot output path before calling either CLI",
+            "snapshot script test rejects canonical audit path collisions before RPC",
         ),
         (
             "Reject a missing audit summary output directory before calling either CLI",
@@ -2365,6 +2371,10 @@ def main():
         (
             "snapshot and audit output paths must be direct files",
             "public launch snapshot output symlink rejection documentation",
+        ),
+        (
+            "same canonical output target",
+            "public launch snapshot canonical output collision documentation",
         ),
         (
             "well-formed non-null block hash for height X",
