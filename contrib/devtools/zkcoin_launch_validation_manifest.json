@@ -68,6 +68,16 @@
       }
     ]
   },
+  "release_candidate": {
+    "wrapper": "contrib/devtools/zkcoin_release_candidate_validation.sh",
+    "commands": [
+      "contrib/devtools/zkcoin_launch_validation.sh",
+      "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh"
+    ],
+    "source_artifact_commands": [
+      "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh"
+    ]
+  },
   "smoke": {
     "build": {
       "condition": "if [[ \"${SKIP_BUILD:-0}\" != \"1\" ]]; then",

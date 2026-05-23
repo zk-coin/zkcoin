@@ -136,6 +136,23 @@ JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
 
 Individual unit or functional tests are useful while iterating, but they do not replace this combined launch validation loop.
 
+Before tagging or publishing a source release candidate, run the heavier
+release-candidate gate as well:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  TEST_RUNNER_PORT_MIN=28000 \
+  contrib/devtools/zkcoin_release_candidate_validation.sh
+```
+
+That wrapper runs the canonical launch validation loop, then builds the source
+tarball, unpacks it into a temporary build root, configures the real Orchard
+verifier backend there, rebuilds `litecoind`, `litecoin-cli`, and
+`test_litecoin`, and reruns the real Orchard AuxPoW regression from the
+unpacked release source. It is a source-artifact gate only; signing, Gitian, and
+binary-verification infrastructure must still be replaced before production
+release publication.
+
 ## Block-X Snapshot Constant Generation
 
 `contrib/devtools/zkcoin_ltc_snapshot.sh` is the operator tool for turning a selected Litecoin block X into launch constants. It requires:

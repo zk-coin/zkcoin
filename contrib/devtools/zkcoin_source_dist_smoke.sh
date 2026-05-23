@@ -36,6 +36,7 @@ fi
 tar -tf "$tarball" > "$entries_file"
 
 required_entries=(
+  "${distdir}/contrib/devtools/zkcoin_release_candidate_validation.sh"
   "${distdir}/contrib/devtools/zkcoin_source_dist_realproof_smoke.sh"
   "${distdir}/contrib/devtools/zkcoin_source_dist_smoke.sh"
   "${distdir}/src/crypto/blake3/blake3.c"

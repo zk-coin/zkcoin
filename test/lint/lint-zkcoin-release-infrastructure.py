@@ -12,6 +12,7 @@ import sys
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_infrastructure_manifest.json"
 DEVTOOLS_README = ROOT_DIR / "contrib" / "devtools" / "README.md"
+RELEASE_CANDIDATE_VALIDATION = ROOT_DIR / "contrib" / "devtools" / "zkcoin_release_candidate_validation.sh"
 SOURCE_DIST_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_smoke.sh"
 SOURCE_DIST_REALPROOF_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_realproof_smoke.sh"
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
@@ -253,14 +254,19 @@ def main():
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_infrastructure_manifest.json", "release manifest dist packaging"),
+        (MAKEFILE_AM, "contrib/devtools/zkcoin_release_candidate_validation.sh", "release-candidate validation packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_smoke.sh", "source dist smoke packaging"),
+        (DEVTOOLS_README, "zkcoin_release_candidate_validation.sh", "release-candidate validation documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_smoke.sh", "source dist smoke documentation"),
+        (SOURCE_DIST_SMOKE, "zkcoin_release_candidate_validation.sh", "release-candidate validation tarball entry"),
         (SOURCE_DIST_SMOKE, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke tarball entry"),
         (SOURCE_DIST_SMOKE, "make dist-gzip", "source tarball build command"),
         (SOURCE_DIST_SMOKE, "tar -tf", "source tarball listing command"),
         (SOURCE_DIST_SMOKE, "rust/shielded-verifier/target", "Cargo target exclusion check"),
+        (RELEASE_CANDIDATE_VALIDATION, "zkcoin_launch_validation.sh", "release-candidate canonical launch validation command"),
+        (RELEASE_CANDIDATE_VALIDATION, "zkcoin_source_dist_realproof_smoke.sh", "release-candidate source artifact proof command"),
         (SOURCE_DIST_REALPROOF_SMOKE, "make dist-gzip", "source real-proof tarball build command"),
         (SOURCE_DIST_REALPROOF_SMOKE, "--enable-rust-orchard-verifier", "source real-proof Orchard verifier configure"),
         (SOURCE_DIST_REALPROOF_SMOKE, "ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1", "source real-proof required functional regression"),
