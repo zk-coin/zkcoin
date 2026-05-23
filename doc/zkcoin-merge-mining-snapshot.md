@@ -132,7 +132,11 @@ Both are intentionally present before behavior changes so tests and review can t
   it clears blockers and sets `ready-for-chainparams` only after strict
   validation confirms every production field is resolved. Then use
   `contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams` to emit
-  the reviewed `chainparams.cpp` assignment skeleton.
+  the reviewed `chainparams.cpp` assignment skeleton. After applying the
+  snippet, run
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp`
+  against the ready manifest so the committed `chainparams.cpp` stays
+  synchronized with the reviewed launch manifest.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
