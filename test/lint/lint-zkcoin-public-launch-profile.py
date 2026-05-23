@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Check that public zkCoin launch parameters stay fail-closed."""
 
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -16,6 +17,8 @@ INIT = ROOT_DIR / "src" / "init.cpp"
 POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
 SIGNET_TEST = ROOT_DIR / "test" / "functional" / "feature_signet.py"
 LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
+PUBLIC_LAUNCH_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile_manifest.json"
+PUBLIC_LAUNCH_MANIFEST_TOOL = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile.py"
 LAUNCH_DOC = ROOT_DIR / "doc" / "zkcoin-merge-mining-snapshot.md"
 DNSSEED_POLICY = ROOT_DIR / "doc" / "dnsseed-policy.md"
 SEEDS_README = ROOT_DIR / "contrib" / "seeds" / "README.md"
@@ -238,6 +241,95 @@ def require_generated_fixed_seed_header_current():
     return None
 
 
+def require_public_launch_manifest_current():
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--allow-blocked",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return "{} failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            result.stderr.strip() or result.stdout.strip() or "no output",
+        )
+
+    manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
+    if manifest.get("version") != 1:
+        return "{} version must be 1".format(PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR))
+    if manifest.get("status") != "blocked":
+        return "{} must remain blocked until final public launch constants are selected".format(
+            PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR)
+        )
+
+    required_blockers = {
+        "main.litecoin_snapshot",
+        "main.auxpow_chain_id",
+        "main.public_network_identity",
+        "main.dns_seeds",
+        "testnet.litecoin_snapshot",
+        "testnet.auxpow_chain_id",
+        "testnet.public_network_identity",
+        "testnet.dns_seeds",
+    }
+    blocker_ids = {
+        blocker.get("id")
+        for blocker in manifest.get("blockers", [])
+        if isinstance(blocker, dict)
+    }
+    missing_blockers = sorted(required_blockers - blocker_ids)
+    if missing_blockers:
+        return "{} missing blockers: {}".format(
+            PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR),
+            ", ".join(missing_blockers),
+        )
+
+    for network in ("main", "testnet"):
+        profile = manifest.get("networks", {}).get(network, {})
+        if profile.get("auxpow", {}).get("start_height") != 1:
+            return "{} {} AuxPoW start height must be 1".format(
+                PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR),
+                network,
+            )
+        if profile.get("auxpow", {}).get("forbidden_parent_version_chain_id_range") != [8192, 16383]:
+            return "{} {} AuxPoW parent-version forbidden range must be [8192, 16383]".format(
+                PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR),
+                network,
+            )
+        if profile.get("shielded_pool", {}).get("active_at_launch") is not False:
+            return "{} {} shielded pool must be inactive at launch".format(
+                PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR),
+                network,
+            )
+        if profile.get("public_network_identity", {}).get("fixed_seeds") != []:
+            return "{} {} fixed seeds must remain empty in the launch manifest".format(
+                PUBLIC_LAUNCH_MANIFEST.relative_to(ROOT_DIR),
+                network,
+            )
+
+    output = result.stdout
+    for needle in (
+        "main.litecoin_snapshot.height",
+        "main.auxpow.chain_id",
+        "main.public_network_identity.dns_seeds",
+        "testnet.litecoin_snapshot.height",
+        "testnet.auxpow.chain_id",
+        "testnet.public_network_identity.dns_seeds",
+    ):
+        if needle not in output:
+            return "{} did not report blocked field {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                needle,
+            )
+    return None
+
+
 def class_block(text, class_name, next_class_name):
     start_marker = "class {} : public CChainParams".format(class_name)
     start = text.find(start_marker)
@@ -399,6 +491,23 @@ def main():
     error = require_public_identity_configured_gate(launchprofile_text)
     if error:
         return fail(LAUNCHPROFILE, error)
+
+    manifest_tool_checks = (
+        ("FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)", "manifest rejects Litecoin parent-version chain-id range"),
+        ("LITECOIN_MESSAGE_STARTS", "manifest rejects inherited Litecoin message starts"),
+        ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
+        ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
+        ("ready-for-chainparams", "manifest ready status"),
+        ("--allow-blocked", "manifest lint-mode flag"),
+    )
+    for needle, description in manifest_tool_checks:
+        error = require_text(PUBLIC_LAUNCH_MANIFEST_TOOL, needle, description)
+        if error:
+            return fail(PUBLIC_LAUNCH_MANIFEST_TOOL, error)
+
+    error = require_public_launch_manifest_current()
+    if error:
+        return fail(PUBLIC_LAUNCH_MANIFEST, error)
 
     init_checks = (
         ("if (!chainparams.IsMockableChain()) {", "public launch gate outside regtest"),
@@ -569,6 +678,18 @@ def main():
         (
             "startup error lists the exact hardcoded launch checks that still fail",
             "public launch startup diagnostics documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile_manifest.json",
+            "public launch manifest documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --allow-blocked",
+            "public launch manifest validator documentation",
+        ),
+        (
+            "ready-for-chainparams",
+            "public launch manifest ready status documentation",
         ),
     )
     for needle, description in doc_checks:

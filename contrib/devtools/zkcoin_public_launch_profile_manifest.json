@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "status": "blocked",
+  "purpose": "Machine-readable checklist for the public zkCoin launch profile that must be populated before enabling public main or test networks in chainparams.",
+  "blockers": [
+    {
+      "id": "main.litecoin_snapshot",
+      "description": "Select the final Litecoin mainnet block-X height, block hash, and normalized import hash."
+    },
+    {
+      "id": "main.auxpow_chain_id",
+      "description": "Select the final mainnet AuxPoW child chain id outside the Litecoin parent versionbits-derived range."
+    },
+    {
+      "id": "main.public_network_identity",
+      "description": "Select non-Litecoin mainnet message start, default port, Base58 prefixes, Bech32 HRP, and MWEB HRP."
+    },
+    {
+      "id": "main.dns_seeds",
+      "description": "Provision at least one zkCoin mainnet DNS seed from zkCoin node infrastructure."
+    },
+    {
+      "id": "testnet.litecoin_snapshot",
+      "description": "Select the final Litecoin testnet launch snapshot height, block hash, and normalized import hash."
+    },
+    {
+      "id": "testnet.auxpow_chain_id",
+      "description": "Select the final testnet AuxPoW child chain id outside the Litecoin parent versionbits-derived range."
+    },
+    {
+      "id": "testnet.public_network_identity",
+      "description": "Select non-Litecoin testnet message start, default port, Base58 prefixes, Bech32 HRP, and MWEB HRP."
+    },
+    {
+      "id": "testnet.dns_seeds",
+      "description": "Provision at least one zkCoin testnet DNS seed from zkCoin node infrastructure."
+    }
+  ],
+  "networks": {
+    "main": {
+      "litecoin_snapshot": {
+        "height": null,
+        "block_hash": null,
+        "import_hash": null
+      },
+      "auxpow": {
+        "start_height": 1,
+        "chain_id": null,
+        "strict_chain_id": true,
+        "forbidden_parent_version_chain_id_range": [
+          8192,
+          16383
+        ]
+      },
+      "script_rules": {
+        "active_at_launch": true,
+        "required_rules": [
+          "BIP16",
+          "BIP34",
+          "BIP65",
+          "BIP66",
+          "CSV",
+          "Segwit",
+          "Taproot"
+        ]
+      },
+      "shielded_pool": {
+        "active_at_launch": false,
+        "scaffold_proofs": false,
+        "real_proof_backend": "orchard-v1",
+        "activation_policy": "post-launch-only"
+      },
+      "chain_history": {
+        "minimum_chain_work": "0000000000000000000000000000000000000000000000000000000000000000",
+        "default_assume_valid": "0000000000000000000000000000000000000000000000000000000000000000",
+        "checkpoints_policy": "genesis-only-or-empty",
+        "chain_tx_data": "neutral"
+      },
+      "public_network_identity": {
+        "message_start": null,
+        "default_port": null,
+        "dns_seeds": [],
+        "fixed_seeds": [],
+        "base58_prefixes": {
+          "pubkey_address": null,
+          "script_address": null,
+          "script_address2": null,
+          "secret_key": null,
+          "ext_public_key": null,
+          "ext_secret_key": null
+        },
+        "bech32_hrp": null,
+        "mweb_hrp": null
+      }
+    },
+    "testnet": {
+      "litecoin_snapshot": {
+        "height": null,
+        "block_hash": null,
+        "import_hash": null
+      },
+      "auxpow": {
+        "start_height": 1,
+        "chain_id": null,
+        "strict_chain_id": true,
+        "forbidden_parent_version_chain_id_range": [
+          8192,
+          16383
+        ]
+      },
+      "script_rules": {
+        "active_at_launch": true,
+        "required_rules": [
+          "BIP16",
+          "BIP34",
+          "BIP65",
+          "BIP66",
+          "CSV",
+          "Segwit",
+          "Taproot"
+        ]
+      },
+      "shielded_pool": {
+        "active_at_launch": false,
+        "scaffold_proofs": false,
+        "real_proof_backend": "orchard-v1",
+        "activation_policy": "post-launch-only"
+      },
+      "chain_history": {
+        "minimum_chain_work": "0000000000000000000000000000000000000000000000000000000000000000",
+        "default_assume_valid": "0000000000000000000000000000000000000000000000000000000000000000",
+        "checkpoints_policy": "genesis-only-or-empty",
+        "chain_tx_data": "neutral"
+      },
+      "public_network_identity": {
+        "message_start": null,
+        "default_port": null,
+        "dns_seeds": [],
+        "fixed_seeds": [],
+        "base58_prefixes": {
+          "pubkey_address": null,
+          "script_address": null,
+          "script_address2": null,
+          "secret_key": null,
+          "ext_public_key": null,
+          "ext_secret_key": null
+        },
+        "bech32_hrp": null,
+        "mweb_hrp": null
+      }
+    }
+  }
+}

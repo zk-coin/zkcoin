@@ -106,6 +106,13 @@ Both are intentionally present before behavior changes so tests and review can t
   shielded, chain-history, and public identity work before public networks are
   enabled. Regtest remains the only place where these values can be overridden
   by CLI for rehearsal.
+- `contrib/devtools/zkcoin_public_launch_profile_manifest.json` is the
+  machine-readable handoff for those final public launch constants. Keep it in
+  `blocked` status while any snapshot, AuxPoW chain id, DNS seed, or public
+  network identity value is still undecided; lint validates the blocked schema
+  with `contrib/devtools/zkcoin_public_launch_profile.py --allow-blocked`.
+  Before copying values into `chainparams`, remove the blockers, set status to
+  `ready-for-chainparams`, and run the validator without `--allow-blocked`.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
