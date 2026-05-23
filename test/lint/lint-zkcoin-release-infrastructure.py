@@ -296,6 +296,8 @@ def main():
         return fail("notes must document parameterized zkCoin binary namespace decision")
     if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
         return fail("notes must document parameterized zkCoin Gitian signer quorum")
+    if "ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE" not in notes_text:
+        return fail("notes must document published zkCoin Gitian authorized signer list")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
@@ -401,7 +403,18 @@ def main():
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
         ("ZKCOIN_GITIAN_SIGS_REPO_URL", "parameterized Gitian signatures repository"),
+        ("ZKCOIN_GITIAN_SIGNER", "parameterized Gitian signer id"),
+        ("ZKCOIN_GITIAN_SIGNER_FINGERPRINT", "parameterized Gitian signer fingerprint"),
+        ("ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE", "published Gitian authorized signers file"),
+        ("ZKCOIN_GITIAN_SIGNER must be a single authorized signer id", "Gitian signer id validation"),
+        ("ZKCOIN_GITIAN_SIGNER_FINGERPRINT must be at least 40 hex characters", "Gitian signer fingerprint length validation"),
+        ("ZKCOIN_GITIAN_SIGNER and fingerprint are not in the authorized zkCoin Gitian signer list", "Gitian signer authorization validation"),
+        ('export SIGNER="$ZKCOIN_GITIAN_SIGNER"', "Gitian signer derived from authorized zkCoin signer"),
         ("ZKCOIN_GITIAN_SIGNER_QUORUM", "parameterized Gitian signer quorum"),
+        ("ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS", "unauthorized Gitian signer detection"),
+        ("contains unauthorized Gitian signer directories", "unauthorized Gitian signer failure"),
+        ("ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT", "authorized Gitian signer quorum count"),
+        ("authorized Gitian signers; require", "authorized Gitian signer quorum failure"),
         ("published zkCoin Gitian signer quorum", "zkCoin Gitian signer quorum boundary"),
         ("ZKCOIN_GITIAN_RELEASE", "Gitian signer quorum release loop"),
         ("${VERSION}-win-signed", "Gitian signed Windows quorum check"),
@@ -485,12 +498,16 @@ def main():
             "Resolve and sign the zkCoin release source tag before any Gitian build",
             'git verify-tag "$ZKCOIN_RELEASE_TAG"',
             "Setup Gitian descriptors",
+            "ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE",
+            'export SIGNER="$ZKCOIN_GITIAN_SIGNER"',
             'export VERSION="$ZKCOIN_RELEASE_VERSION"',
             'git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"',
             '--commit "litecoin=${ZKCOIN_RELEASE_TAG}"',
             "After the published zkCoin Gitian signer quorum has built",
+            "ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS",
+            "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
-        "release source tag provenance before Gitian builds",
+        "release source tag provenance and signer authorization before Gitian builds",
     )
     if error:
         return fail(error)
@@ -590,6 +607,7 @@ def main():
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
         (RELEASE_DOC, "/path/to/codesign.key", "placeholder Windows signing key path"),
+        (RELEASE_DOC, 'export SIGNER="(your Gitian key, ie bluematt, sipa, etc)"', "placeholder Gitian signer"),
         (RELEASE_DOC, "git tag -s v(new version, e.g. 0.20.0)", "placeholder source release tag"),
         (RELEASE_DOC, "export VERSION=(new version, e.g. 0.20.0)", "placeholder release version export"),
         (RELEASE_DOC, "git checkout v${VERSION}", "implicit source release tag checkout"),
