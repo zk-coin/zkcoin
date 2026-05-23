@@ -354,6 +354,36 @@ NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from 
 
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 
+### Resolve approved Rust Gitian toolchain provenance
+
+Before binary Gitian builds, place the approved Rust toolchain provenance files
+in `gitian-builder/inputs`. `gbuild` copies these files into the build script
+workspace and includes their hashes in the input manifest, so the real Orchard
+verifier toolchain is an auditable release input rather than hidden builder
+state.
+
+Each file is a plain `KEY=value` file, not a shell script:
+
+    ZKCOIN_GITIAN_RUSTC_VERSION=<approved rustc version>
+    ZKCOIN_GITIAN_RUSTC_COMMIT_HASH=<approved rustc commit hash>
+    ZKCOIN_GITIAN_CARGO_VERSION=<approved cargo version>
+    ZKCOIN_GITIAN_CARGO_COMMIT_HASH=<approved cargo commit hash>
+    ZKCOIN_GITIAN_RUST_TARGETS=<descriptor target list>
+
+Required descriptor files and target lists:
+
+    inputs/zkcoin-gitian-rust-toolchain-linux.env
+    ZKCOIN_GITIAN_RUST_TARGETS=x86_64-unknown-linux-gnu arm-unknown-linux-gnueabihf aarch64-unknown-linux-gnu riscv64gc-unknown-linux-gnu
+
+    inputs/zkcoin-gitian-rust-toolchain-win.env
+    ZKCOIN_GITIAN_RUST_TARGETS=x86_64-pc-windows-gnu
+
+    inputs/zkcoin-gitian-rust-toolchain-osx.env
+    ZKCOIN_GITIAN_RUST_TARGETS=x86_64-apple-darwin
+
+Do not use TODO, TBD, or angle-bracket placeholder values. The Gitian
+descriptors reject missing or duplicate fields, placeholder values, non-lowercase or non-40-character commit hashes, mismatched `rustc` and `cargo` versions or commit hashes, target-list drift, and missing Rust standard libraries for every descriptor target before building depends or release binaries.
+
 ### Build and sign Litecoin Core for Linux, Windows, and macOS:
 
     export GITIAN_THREADS=2

@@ -53,6 +53,7 @@ DIST_CONTRIB = \
 	       $(top_srcdir)/contrib/devtools/zkcoin_local_fork_auxpow.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_ltc_snapshot.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_orchard_auxpow.sh \
+	       $(top_srcdir)/contrib/devtools/zkcoin_gitian_rust_toolchain_check.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_release_infrastructure_manifest.json \
 	       $(top_srcdir)/contrib/devtools/zkcoin_release_candidate_validation.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_source_dist_realproof_smoke.sh \

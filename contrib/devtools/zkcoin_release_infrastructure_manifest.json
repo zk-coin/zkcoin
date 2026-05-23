@@ -28,6 +28,10 @@
       "description": "Choose and publish HTTPS ZKCOIN_GITIAN_SIGS_REPO_URL, ZKCOIN_GITIAN_SIGNER_QUORUM, ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE, and authorized signer fingerprints for the zkCoin Gitian signer quorum."
     },
     {
+      "id": "gitian_rust_toolchain_provenance",
+      "description": "Choose and publish the descriptor-specific zkcoin-gitian-rust-toolchain-*.env input files with ZKCOIN_GITIAN_RUSTC_VERSION, ZKCOIN_GITIAN_RUSTC_COMMIT_HASH, ZKCOIN_GITIAN_CARGO_VERSION, ZKCOIN_GITIAN_CARGO_COMMIT_HASH, and ZKCOIN_GITIAN_RUST_TARGETS, then install matching Rust target standard libraries before real Orchard Gitian binary builds."
+    },
+    {
       "id": "detached_sigs_repo",
       "description": "Choose and publish HTTPS ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, ZKCOIN_DETACHED_SIGS_RELEASE_TAG, ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD, ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER, and ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL for Windows and macOS signing payloads."
     },
@@ -93,6 +97,7 @@
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "Gitian binary descriptors install rustc and cargo and enable --enable-rust-shielded-verifier plus --enable-rust-orchard-verifier so release binaries cannot be built with the unsupported C++ shielded-verifier fallback.",
+    "Gitian binary descriptors require descriptor-specific zkcoin-gitian-rust-toolchain-*.env input files, reject missing, duplicate, or placeholder ZKCOIN_GITIAN_RUSTC_VERSION, ZKCOIN_GITIAN_RUSTC_COMMIT_HASH, ZKCOIN_GITIAN_CARGO_VERSION, ZKCOIN_GITIAN_CARGO_COMMIT_HASH, and ZKCOIN_GITIAN_RUST_TARGETS values, require the commit-hash fields to be full lowercase 40-character hashes, compare them to the installed rustc and cargo binaries, verify descriptor target-list binding, and verify every Rust target standard library before building real Orchard binaries.",
     "Rust shielded verifier builds derive or require an explicit Rust target triple from the configured host, verify rustc target support and installed target standard libraries, and link the target-specific libzkc_shielded_verifier.a so Gitian cross-builds cannot accidentally use a host Rust staticlib.",
     "Rust shielded verifier Cargo config replaces crates.io with committed vendored sources and source distribution checks require the vendor checksums for Orchard, halo2_proofs, and sha2 so release builds do not depend on live registry resolution.",
     "Release checksum docs require ZKCOIN_RELEASE_BINARY_NAMESPACE before writing SHA256SUMS and reject zkcoin until binary and artifact namespace migration is completed.",

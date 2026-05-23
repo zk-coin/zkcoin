@@ -140,6 +140,20 @@ TEST_RUNNER_PORT_MIN=28000 \
   contrib/devtools/zkcoin_source_dist_realproof_smoke.sh
 ```
 
+zkcoin_gitian_rust_toolchain_check.sh
+=====================================
+
+Validates the Rust toolchain provenance file copied into a Gitian binary build.
+The script reads a plain `KEY=value` file without sourcing it, rejects
+placeholder or duplicate fields, requires full lowercase 40-character commit
+hashes, compares the approved `rustc` and `cargo` versions plus commit hashes
+to the installed tools, checks the descriptor target list, and verifies that
+Rust standard libraries are installed for every target.
+
+This is a Gitian binary release guard. It does not choose production Rust
+toolchain constants; release engineering must publish the approved values and
+stage the descriptor-specific input files before running `gbuild`.
+
 clang-format-diff.py
 ===================
 
