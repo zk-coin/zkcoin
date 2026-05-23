@@ -279,6 +279,8 @@ def main():
         return fail("notes must document parameterized zkCoin artifact publication targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
+    if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
+        return fail("notes must document parameterized zkCoin Windows signing key custody")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -346,6 +348,9 @@ def main():
         ("ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM", "parameterized macOS notarization keychain item"),
         ("ZKCOIN_MACOS_ASC_PROVIDER", "parameterized macOS Apple provider"),
         ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
+        ("ZKCOIN_WINDOWS_CODESIGN_KEY_PATH", "parameterized Windows code-signing key path"),
+        ("ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY", "parameterized Windows code-signing key custody"),
+        ('./detached-sig-create.sh -key "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH"', "zkCoin Windows signing key invocation"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
@@ -416,6 +421,7 @@ def main():
         (RELEASE_DOC, "<apple-id-email>", "placeholder Apple ID"),
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
+        (RELEASE_DOC, "/path/to/codesign.key", "placeholder Windows signing key path"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)

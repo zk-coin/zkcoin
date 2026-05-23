@@ -41,7 +41,7 @@
     },
     {
       "id": "windows_signing_key",
-      "description": "Choose Windows signing key custody and detached-signature workflow."
+      "description": "Choose and publish ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY and the authorized Windows code-signing key workflow."
     }
   ],
   "current_inherited_release_surfaces": [
@@ -79,6 +79,7 @@
     "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL so inherited Litecoin detached signatures cannot be used by default.",
     "Release artifact publication docs require ZKCOIN_RELEASE_ARTIFACT_BASE_URL, ZKCOIN_RELEASE_CHECKSUMS_URL, and ZKCOIN_RELEASE_GITHUB_REPO_URL so inherited Litecoin and Bitcoin publication targets cannot be used by default.",
     "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID and zkCoin Apple notarization variables so inherited Litecoin bundle identifiers cannot be used by default.",
+    "Windows signing docs require ZKCOIN_WINDOWS_CODESIGN_KEY_PATH and ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY so placeholder signing key paths cannot be used by default.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }
