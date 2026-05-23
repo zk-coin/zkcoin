@@ -332,6 +332,10 @@ def main():
         return fail("notes must document detached-signatures payload repo origin verification")
     if "before replacing payload contents" not in notes_text:
         return fail("notes must document detached-signatures clean checkout guards")
+    if "reject an existing ZKCOIN_DETACHED_SIGS_RELEASE_TAG" not in notes_text:
+        return fail("notes must document detached-signatures release tag reuse rejection")
+    if "signed tag to resolve to the detached-signatures payload commit" not in notes_text:
+        return fail("notes must document detached-signatures release tag commit binding")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD" not in notes_text:
@@ -520,9 +524,12 @@ def main():
         ("Detached signatures repository must be clean before payload replacement", "detached-signatures dirty checkout guard"),
         ("Detached signatures release branch must be clean before payload replacement", "detached-signatures release branch dirty guard"),
         ('git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags', "detached-signatures release branch fetch"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag", "detached-signatures release tag reuse rejection"),
         ('rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}"', "detached-signatures release ref validation"),
         ('git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD', "detached-signatures release tag creation"),
         ('git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"', "detached-signatures release tag verification"),
+        ('ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG")"', "detached-signatures release tag commit resolution"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG does not point at the detached-signatures payload commit", "detached-signatures release tag commit binding failure"),
         ('--commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}"', "detached-signatures signed tag Gitian input"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
@@ -752,10 +759,13 @@ def main():
             "Detached signatures origin does not match ZKCOIN_DETACHED_SIGS_REPO_URL",
             "Detached signatures repository must be clean before payload replacement",
             'git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags',
+            "ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag",
             "Detached signatures release branch must be clean before payload replacement",
             "rm -rf *",
             'git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD',
             'git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
+            "ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT",
+            "ZKCOIN_DETACHED_SIGS_RELEASE_TAG does not point at the detached-signatures payload commit",
             'git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
             "Non-codesigners: wait for Windows/macOS detached signatures",
         ),
