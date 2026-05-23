@@ -276,7 +276,7 @@ transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-25
 an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
-against the audit summary.
+against the audit summary and rejects symlinked snapshot artifacts.
 The manifest update rejects a snapshot audit whose source chain does not match
 the target profile: `main` requires Litecoin `main`, and `testnet` requires
 Litecoin `test`.
