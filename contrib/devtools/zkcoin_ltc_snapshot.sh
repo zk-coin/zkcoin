@@ -317,6 +317,7 @@ python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$SN
 import json
 import os
 import re
+import shlex
 import sys
 
 height = int(sys.argv[1])
@@ -406,6 +407,9 @@ snapshot_hash = require_hash(verify, "verifysnapshotmanifest", "snapshot_hash")
 import_hash = require_hash(verify, "verifysnapshotmanifest", "import_hash")
 total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")
 
+def shell_quote(value):
+    return shlex.quote(value)
+
 if dump_height != height:
     fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")
 
@@ -455,14 +459,14 @@ print("Snapshot launch-node arguments:")
 print(f"-ltcsnapshotheight={height}")
 print(f"-ltcsnapshotblockhash={expected_hash}")
 print(f"-ltcsnapshotutxoroot={import_hash}")
-print(f"-ltcsnapshotfile={snapshot_path}")
+print(f"-ltcsnapshotfile={shell_quote(snapshot_path)}")
 print()
 print("Snapshot public launch-profile manifest update:")
 if audit_json_path:
     print("Apply the verified audit summary to the matching public profile.")
     print(
         "contrib/devtools/zkcoin_public_launch_profile.py "
-        f"--set-snapshot-audit {target_network} {audit_json_path} "
+        f"--set-snapshot-audit {target_network} {shell_quote(audit_json_path)} "
         "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     )
 else:
