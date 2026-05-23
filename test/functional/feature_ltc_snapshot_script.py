@@ -61,6 +61,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                     if command == "getblockchaininfo":
                         source_tip = scenario.get("source_tip", scenario["height"])
                         chaininfo = {
+                            "chain": scenario.get("source_chain", "main"),
                             "blocks": source_tip,
                             "headers": scenario.get("source_headers", source_tip),
                             "initialblockdownload": scenario.get("initialblockdownload", False),
@@ -252,6 +253,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         with open(audit_path, encoding="utf8") as audit_file:
             audit = json.load(audit_file)
         assert_equal(audit["height"], HEIGHT)
+        assert_equal(audit["source_chain"], "main")
         assert_equal(audit["block_hash"], BLOCK_HASH)
         assert_equal(audit["import_hash"], IMPORT_HASH)
         assert_equal(audit["snapshot_hash"], SNAPSHOT_HASH)
@@ -323,6 +325,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(pruned=True),
             1,
             "Litecoin source node must not be pruned for snapshot generation",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject a non-public Litecoin source chain")
+        _, calls, _ = self.assert_snapshot(
+            "source-regtest",
+            self.scenario(source_chain="regtest"),
+            1,
+            "Litecoin source node chain must be main or test for public snapshot generation",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
