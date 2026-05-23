@@ -139,16 +139,34 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         value.update(overrides)
         return value
 
-    def run_snapshot(self, name, scenario, *, expected_hash=BLOCK_HASH, allow_rewind=False, precreate_snapshot=False):
+    def run_snapshot(
+        self,
+        name,
+        scenario,
+        *,
+        expected_hash=BLOCK_HASH,
+        allow_rewind=False,
+        write_audit=False,
+        precreate_snapshot=False,
+        precreate_audit=False,
+    ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
+        audit_path = os.path.join(self.options.tmpdir, f"{name}.audit.json")
         if precreate_snapshot:
             with open(snapshot_path, "wb") as snapshot_file:
                 snapshot_file.write(b"existing")
+        if precreate_audit:
+            with open(audit_path, "w", encoding="utf8") as audit_file:
+                audit_file.write("{}\n")
 
         env = os.environ.copy()
         env["ZKCOIN_SNAPSHOT_FAKE_LOG"] = log_path
         env["ZKCOIN_SNAPSHOT_FAKE_SCENARIO"] = json.dumps(scenario)
+        if write_audit or precreate_audit:
+            env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
+        else:
+            env.pop("ZKCOIN_SNAPSHOT_AUDIT_JSON", None)
         if allow_rewind:
             env["ZKCOIN_SNAPSHOT_ALLOW_REWIND"] = "1"
         else:
@@ -202,19 +220,38 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(),
             0,
             "Snapshot verified.",
+            write_audit=True,
         )
+        audit_path = os.path.join(self.options.tmpdir, "happy.audit.json")
         assert f"-ltcsnapshotheight={HEIGHT}" in result.stdout
         assert f"-ltcsnapshotblockhash={BLOCK_HASH}" in result.stdout
         assert f"-ltcsnapshotutxoroot={IMPORT_HASH}" in result.stdout
         assert f"-ltcsnapshotfile={snapshot_path}" in result.stdout
+        assert f"Snapshot audit summary written: {audit_path}" in result.stdout
         assert "Snapshot public launch-profile manifest update:" in result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
-            f"--set-snapshot NETWORK {HEIGHT} {BLOCK_HASH} {IMPORT_HASH} "
+            "--set-snapshot-audit NETWORK <snapshot_audit.json> "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in result.stdout
+        with open(audit_path, encoding="utf8") as audit_file:
+            audit = json.load(audit_file)
+        assert_equal(audit["height"], HEIGHT)
+        assert_equal(audit["block_hash"], BLOCK_HASH)
+        assert_equal(audit["import_hash"], IMPORT_HASH)
+        assert_equal(audit["snapshot_hash"], SNAPSHOT_HASH)
+        assert_equal(audit["snapshot_file"], snapshot_path)
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject a pre-existing audit summary output path")
+        self.assert_snapshot(
+            "preexisting-audit",
+            self.scenario(),
+            1,
+            "snapshot audit summary already exists",
+            precreate_audit=True,
+        )
 
         self.log.info("Reject a pre-existing output path before calling either CLI")
         _, calls, _ = self.assert_snapshot(
