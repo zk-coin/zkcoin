@@ -263,7 +263,8 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
-transaction count, `source_chain`, an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
+transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
+an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
 The manifest update rejects a snapshot audit whose source chain does not match
 the target profile: `main` requires Litecoin `main`, and `testnet` requires
 Litecoin `test`.

@@ -226,11 +226,25 @@ fi
 if [[ ! -s "$SNAPSHOT_PATH" ]]; then
   die "snapshot output is empty after dumptxoutset: $SNAPSHOT_PATH"
 fi
+SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
+if [[ ! "$SNAPSHOT_FILE_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+  die "snapshot output size is not a positive byte count: $SNAPSHOT_FILE_SIZE"
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  SNAPSHOT_FILE_SHA256="$(sha256sum "$SNAPSHOT_PATH" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+  SNAPSHOT_FILE_SHA256="$(shasum -a 256 "$SNAPSHOT_PATH" | awk '{print $1}')"
+else
+  die "missing sha256sum or shasum for snapshot artifact fingerprinting"
+fi
+if [[ ! "$SNAPSHOT_FILE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  die "snapshot output SHA-256 fingerprint is malformed: $SNAPSHOT_FILE_SHA256"
+fi
 
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 
-python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
+python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$SNAPSHOT_FILE_SIZE" "$SNAPSHOT_FILE_SHA256" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json
 import os
 import re
@@ -240,8 +254,10 @@ height = int(sys.argv[1])
 expected_hash = sys.argv[2].lower()
 snapshot_path = sys.argv[3]
 source_chain = sys.argv[4]
-dump_json = sys.argv[5]
-verify_json = sys.argv[6]
+snapshot_file_size = int(sys.argv[5])
+snapshot_file_sha256 = sys.argv[6]
+dump_json = sys.argv[7]
+verify_json = sys.argv[8]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 
@@ -326,6 +342,8 @@ if verify_metadata_coins != dump_coins:
 summary = {
     "height": height,
     "source_chain": source_chain,
+    "snapshot_file_size": snapshot_file_size,
+    "snapshot_file_sha256": snapshot_file_sha256,
     "block_hash": expected_hash,
     "coins": verify_coins,
     "base_nchaintx": verify_base_nchaintx,
