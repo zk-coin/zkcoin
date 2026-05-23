@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -611,6 +612,137 @@ def require_public_launch_manifest_current():
         return "{} --set-identity did not explain inherited message-start rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    ready_manifest = json.loads(json.dumps(manifest))
+    ready_manifest["status"] = "ready-for-chainparams"
+    ready_manifest["blockers"] = []
+    ready_profiles = {
+        "main": {
+            "snapshot": {
+                "height": 321,
+                "block_hash": "11" * 32,
+                "import_hash": "22" * 32,
+            },
+            "chain_id": 0x5001,
+            "identity": {
+                "message_start": [250, 191, 181, 217],
+                "default_port": 19445,
+                "dns_seeds": ["seed1.zkcoin.example"],
+                "base58_prefixes": {
+                    "pubkey_address": [75],
+                    "script_address": [76],
+                    "script_address2": [77],
+                    "secret_key": [178],
+                    "ext_public_key": [4, 32, 36, 49],
+                    "ext_secret_key": [4, 32, 36, 50],
+                },
+                "bech32_hrp": "zk",
+                "mweb_hrp": "zkmweb",
+            },
+        },
+        "testnet": {
+            "snapshot": {
+                "height": 654,
+                "block_hash": "33" * 32,
+                "import_hash": "44" * 32,
+            },
+            "chain_id": 0x5002,
+            "identity": {
+                "message_start": [250, 191, 181, 218],
+                "default_port": 29445,
+                "dns_seeds": ["seed1.test.zkcoin.example"],
+                "base58_prefixes": {
+                    "pubkey_address": [85],
+                    "script_address": [86],
+                    "script_address2": [87],
+                    "secret_key": [188],
+                    "ext_public_key": [4, 32, 36, 51],
+                    "ext_secret_key": [4, 32, 36, 52],
+                },
+                "bech32_hrp": "tzk",
+                "mweb_hrp": "tzkmweb",
+            },
+        },
+    }
+    for network, values in ready_profiles.items():
+        profile = ready_manifest["networks"][network]
+        profile["litecoin_snapshot"].update(values["snapshot"])
+        profile["auxpow"]["chain_id"] = values["chain_id"]
+        profile["public_network_identity"].update(values["identity"])
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ready_path = Path(temp_dir) / "ready.json"
+        ready_path.write_text(json.dumps(ready_manifest), encoding="utf8")
+        ready_result = subprocess.run(
+            [sys.executable, str(PUBLIC_LAUNCH_MANIFEST_TOOL), str(ready_path)],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_result.returncode != 0:
+            return "{} rejected a complete ready manifest with unique public launch values: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                ready_result.stderr.strip() or ready_result.stdout.strip() or "no output",
+            )
+
+        emit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--emit-chainparams",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if emit_result.returncode != 0 or "testnet public launch profile generated" not in emit_result.stdout:
+            return "{} did not emit chainparams from a complete ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        collision_manifest = json.loads(json.dumps(ready_manifest))
+        testnet = collision_manifest["networks"]["testnet"]
+        testnet["auxpow"]["chain_id"] = ready_profiles["main"]["chain_id"]
+        testnet_identity = testnet["public_network_identity"]
+        testnet_identity["message_start"] = ready_profiles["main"]["identity"]["message_start"]
+        testnet_identity["default_port"] = ready_profiles["main"]["identity"]["default_port"]
+        testnet_identity["dns_seeds"] = ready_profiles["main"]["identity"]["dns_seeds"]
+        testnet_identity["base58_prefixes"]["pubkey_address"] = (
+            ready_profiles["main"]["identity"]["base58_prefixes"]["pubkey_address"]
+        )
+        testnet_identity["bech32_hrp"] = ready_profiles["main"]["identity"]["bech32_hrp"]
+        testnet_identity["mweb_hrp"] = ready_profiles["main"]["identity"]["mweb_hrp"]
+
+        collision_path = Path(temp_dir) / "collision.json"
+        collision_path.write_text(json.dumps(collision_manifest), encoding="utf8")
+        collision_result = subprocess.run(
+            [sys.executable, str(PUBLIC_LAUNCH_MANIFEST_TOOL), str(collision_path)],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if collision_result.returncode == 0:
+            return "{} accepted cross-network public launch value collisions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        for needle in (
+            "testnet.auxpow.chain_id",
+            "testnet.public_network_identity.message_start",
+            "testnet.public_network_identity.default_port",
+            "testnet.public_network_identity.dns_seeds[0]",
+            "testnet.public_network_identity.base58_prefixes.pubkey_address",
+            "testnet.public_network_identity.bech32_hrp",
+            "testnet.public_network_identity.mweb_hrp",
+        ):
+            if needle not in collision_result.stderr:
+                return "{} did not report cross-network collision for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    needle,
+                )
     return None
 
 
@@ -792,6 +924,8 @@ def main():
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
+        ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
+        ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("set_identity", "manifest updates public network identity"),
@@ -1035,6 +1169,10 @@ def main():
         (
             "rejects inherited Litecoin message",
             "public launch manifest identity rejection documentation",
+        ),
+        (
+            "distinct AuxPoW chain ids, message starts, ports, DNS seed hostnames",
+            "public launch manifest cross-network uniqueness documentation",
         ),
         (
             "ready-for-chainparams",
