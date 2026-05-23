@@ -12,11 +12,17 @@
 #include <vector>
 
 static constexpr std::size_t MAX_BECH32_HRP_LENGTH = 83;
+static constexpr uint32_t PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5a4b;
 
 bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
 {
     // BIP9 parent versions with top bits 0x20000000 decode as AuxPoW chain ids 0x2000-0x3fff.
     return chain_id < 0x2000 || chain_id > 0x3fff;
+}
+
+static bool AuxPowChainIdUsesLaunchPlaceholder(uint32_t chain_id)
+{
+    return chain_id == PLACEHOLDER_AUXPOW_CHAIN_ID;
 }
 
 bool HasLaunchNeutralChainHistory(const CChainParams& chainparams)
@@ -367,9 +373,12 @@ PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chain
         consensus.auxpow.nChainId < 0x8000;
     status.chain_id_parent_version_safe = AuxPowChainIdAvoidsLitecoinParentVersionRange(consensus.auxpow.nChainId);
     status.chain_id_strict = consensus.auxpow.fStrictChainId;
+    status.chain_id_placeholder = !chainparams.IsMockableChain() &&
+        AuxPowChainIdUsesLaunchPlaceholder(consensus.auxpow.nChainId);
     status.chain_id_configured = status.chain_id_encodable &&
         status.chain_id_parent_version_safe &&
-        consensus.auxpow.fStrictChainId;
+        consensus.auxpow.fStrictChainId &&
+        !status.chain_id_placeholder;
     status.script_rules_active_at_launch = HasLaunchActiveScriptRules(chainparams);
     status.shielded_inactive_at_launch = !consensus.shielded_pool.IsEnabled(1);
     status.chain_history_clean = HasLaunchNeutralChainHistory(chainparams);
@@ -406,6 +415,12 @@ std::vector<std::string> GetPublicLaunchProfileFailures(
     }
     if (status.chain_id_encodable && !status.chain_id_parent_version_safe) {
         failures.emplace_back("AuxPoW chain id overlaps Litecoin parent versionbits chain-id range");
+    }
+    if (status.chain_id_placeholder &&
+        status.chain_id_encodable &&
+        status.chain_id_parent_version_safe &&
+        status.chain_id_strict) {
+        failures.emplace_back("AuxPoW chain id still uses the launch placeholder");
     }
     if (!status.script_rules_active_at_launch) {
         failures.emplace_back("script validation rules are not active for the first launch block");

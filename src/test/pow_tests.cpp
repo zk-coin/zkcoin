@@ -250,13 +250,14 @@ public:
     void SetBase58Prefix(Base58Type type, std::vector<unsigned char> prefix) { base58Prefixes[type] = std::move(prefix); }
     void SetBech32Hrp(std::string hrp) { bech32_hrp = std::move(hrp); }
     void SetMwebHrp(std::string hrp) { mweb_hrp = std::move(hrp); }
+    void SetAuxPowChainId(uint32_t chain_id) { consensus.auxpow.nChainId = chain_id; }
     void ConfigureCompleteLaunchProfile()
     {
         consensus.ltc_snapshot.nHeight = 2250000;
         consensus.ltc_snapshot.hashBlock = uint256S("0x1111111111111111111111111111111111111111111111111111111111111111");
         consensus.ltc_snapshot.hashUTXORoot = uint256S("0x2222222222222222222222222222222222222222222222222222222222222222");
         consensus.auxpow.nStartHeight = 1;
-        consensus.auxpow.nChainId = 0x5a4b;
+        consensus.auxpow.nChainId = 0x5001;
         consensus.auxpow.fStrictChainId = true;
         consensus.BIP16Height = 1;
         consensus.BIP34Height = 1;
@@ -498,7 +499,8 @@ static void check_public_launch_profile_fails_closed(const ArgsManager& args, co
     BOOST_CHECK(!status.auxpow_active_at_launch);
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
-    BOOST_CHECK(status.chain_id_configured);
+    BOOST_CHECK(status.chain_id_placeholder);
+    BOOST_CHECK(!status.chain_id_configured);
     BOOST_CHECK(!status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
     BOOST_CHECK(status.chain_history_clean);
@@ -542,6 +544,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_failure_reasons_are_actio
 
     BOOST_CHECK(HasFailure(failures, "snapshot consensus parameters are not configured"));
     BOOST_CHECK(HasFailure(failures, "AuxPoW is not active for the first launch block"));
+    BOOST_CHECK(HasFailure(failures, "AuxPoW chain id still uses the launch placeholder"));
     BOOST_CHECK(HasFailure(failures, "script validation rules are not active for the first launch block"));
     BOOST_CHECK(HasFailure(failures, "public network identity is inherited from Litecoin or malformed"));
     BOOST_CHECK(!HasFailure(failures, "configured snapshot has not been imported"));
@@ -554,6 +557,19 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_failure_reasons_are_actio
         /*snapshot_imported=*/true,
         /*at_launch_tip=*/true);
     BOOST_CHECK(complete_failures.empty());
+
+    CNonMockablePublicIdentityParams placeholderParams;
+    placeholderParams.ConfigureCompleteLaunchProfile();
+    placeholderParams.SetAuxPowChainId(0x5a4b);
+    const PublicLaunchProfileStatus placeholder_status = GetPublicLaunchProfileStatus(placeholderParams);
+    BOOST_CHECK(!placeholder_status.configured);
+    BOOST_CHECK(placeholder_status.chain_id_placeholder);
+    BOOST_CHECK(!placeholder_status.chain_id_configured);
+    const std::vector<std::string> placeholder_failures = GetPublicLaunchProfileFailures(
+        placeholder_status,
+        /*snapshot_imported=*/true,
+        /*at_launch_tip=*/true);
+    BOOST_CHECK(HasFailure(placeholder_failures, "AuxPoW chain id still uses the launch placeholder"));
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)
@@ -567,6 +583,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_defaults_are_local_only)
     BOOST_CHECK(!status.auxpow_active_at_launch);
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(!status.chain_id_placeholder);
     BOOST_CHECK(status.chain_id_configured);
     BOOST_CHECK(status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
@@ -618,6 +635,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_launch_profile_accepts_complete_rehears
     BOOST_CHECK(status.auxpow_active_at_launch);
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(!status.chain_id_placeholder);
     BOOST_CHECK(status.chain_id_configured);
     BOOST_CHECK(status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
@@ -651,6 +669,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_accepts_complete_non_mock
     BOOST_CHECK(status.auxpow_active_at_launch);
     BOOST_CHECK(status.chain_id_encodable);
     BOOST_CHECK(status.chain_id_parent_version_safe);
+    BOOST_CHECK(!status.chain_id_placeholder);
     BOOST_CHECK(status.chain_id_configured);
     BOOST_CHECK(status.script_rules_active_at_launch);
     BOOST_CHECK(status.shielded_inactive_at_launch);
@@ -664,7 +683,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_launch_profile_accepts_complete_non_mock
     BOOST_CHECK(!consensus.ltc_snapshot.hashBlock.IsNull());
     BOOST_CHECK(!consensus.ltc_snapshot.hashUTXORoot.IsNull());
     BOOST_CHECK_EQUAL(consensus.auxpow.nStartHeight, 1);
-    BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 0x5a4bU);
+    BOOST_CHECK_EQUAL(consensus.auxpow.nChainId, 0x5001U);
     BOOST_CHECK(consensus.auxpow.fStrictChainId);
     BOOST_CHECK(HasLaunchActiveScriptRules(chainParams));
     BOOST_CHECK(HasLaunchNeutralChainHistory(chainParams));

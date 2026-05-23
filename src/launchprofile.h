@@ -38,6 +38,7 @@ struct PublicLaunchProfileStatus {
     bool chain_id_encodable{false};
     bool chain_id_parent_version_safe{false};
     bool chain_id_strict{false};
+    bool chain_id_placeholder{false};
     bool chain_id_configured{false};
     bool script_rules_active_at_launch{false};
     bool shielded_inactive_at_launch{false};

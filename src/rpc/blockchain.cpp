@@ -1585,7 +1585,7 @@ RPCHelpMan getblockchaininfo()
                             {RPCResult::Type::BOOL, "snapshot_configured", "whether block-X snapshot consensus constants are configured"},
                             {RPCResult::Type::BOOL, "snapshot_imported", "whether the configured block-X snapshot import marker is present"},
                             {RPCResult::Type::BOOL, "auxpow_active_at_launch", "whether AuxPoW is active for the first post-genesis launch block"},
-                            {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, and strict"},
+                            {RPCResult::Type::BOOL, "chain_id_configured", "whether the AuxPoW child chain id is non-zero, encodable, strict, parent-version safe, and not the launch placeholder"},
                             {RPCResult::Type::BOOL, "chain_id_parent_version_safe", "whether the AuxPoW child chain id avoids Litecoin parent versionbits chain-id encodings"},
                             {RPCResult::Type::BOOL, "script_rules_active_at_launch", "whether legacy and Taproot script validation rules are active for the first post-genesis launch block"},
                             {RPCResult::Type::BOOL, "chain_history_clean", "whether inherited Litecoin sync checkpoints, assume-valid, minimum-work, and transaction-rate assumptions have been cleared"},

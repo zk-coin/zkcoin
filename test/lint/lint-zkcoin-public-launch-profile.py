@@ -111,6 +111,7 @@ LAUNCH_PROFILE_MARKERS = (
         "status.chain_id_parent_version_safe = AuxPowChainIdAvoidsLitecoinParentVersionRange(consensus.auxpow.nChainId);",
         "readiness rejects Litecoin parent-version chain-id range",
     ),
+    ("status.chain_id_placeholder", "readiness rejects placeholder public AuxPoW chain id"),
     ("consensus.auxpow.fStrictChainId;", "readiness requires strict AuxPoW chain id"),
     (
         "status.script_rules_active_at_launch = HasLaunchActiveScriptRules(chainparams);",
@@ -570,6 +571,29 @@ def require_public_launch_manifest_current():
         )
     if "0x2000-0x3fff" not in unsafe_auxpow_result.stderr:
         return "{} --set-auxpow did not explain the parent-versionbits chain-id rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    placeholder_auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-auxpow",
+            "main",
+            "0x5a4b",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if placeholder_auxpow_result.returncode == 0:
+        return "{} --set-auxpow accepted the launch placeholder chain id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "placeholder chain id 0x5a4b" not in placeholder_auxpow_result.stderr:
+        return "{} --set-auxpow did not explain placeholder chain-id rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -1311,6 +1335,7 @@ def require_chain_id_configured_gate(text):
         "status.chain_id_encodable",
         "status.chain_id_parent_version_safe",
         "consensus.auxpow.fStrictChainId",
+        "!status.chain_id_placeholder",
     )
     missing = [term for term in required_terms if term not in gate]
     if missing:
@@ -1411,6 +1436,7 @@ def main():
 
     manifest_tool_checks = (
         ("FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)", "manifest rejects Litecoin parent-version chain-id range"),
+        ("PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B", "manifest rejects placeholder AuxPoW chain id"),
         ("LITECOIN_MESSAGE_STARTS", "manifest rejects inherited Litecoin message starts"),
         ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
         ("RESERVED_DNS_SEED_SUFFIXES", "manifest rejects reserved DNS seed suffixes"),
@@ -1508,6 +1534,8 @@ def main():
             "ChainParams_PUBLIC_launch_profile_failure_reasons_are_actionable",
             "runtime public launch failure reason unit test",
         ),
+        ("AuxPoW chain id still uses the launch placeholder", "runtime placeholder AuxPoW chain-id failure coverage"),
+        ("SetAuxPowChainId(0x5a4b)", "runtime placeholder AuxPoW chain-id rejection fixture"),
         (
             "ChainParams_PUBLIC_identity_failure_reasons_are_actionable",
             "runtime public identity failure reason unit test",
@@ -1681,6 +1709,14 @@ def main():
         (
             "0x2000..0x3fff",
             "public launch manifest AuxPoW forbidden range documentation",
+        ),
+        (
+            "local launch placeholder `0x5a4b`",
+            "public launch manifest AuxPoW placeholder rejection documentation",
+        ),
+        (
+            "no longer the local launch placeholder",
+            "public launch readiness AuxPoW placeholder documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",

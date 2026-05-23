@@ -51,6 +51,7 @@ LITECOIN_BASE58_PREFIXES = {
 LITECOIN_HRPS = {"ltc", "tltc", "ltcmweb", "tmweb"}
 RESERVED_DNS_SEED_SUFFIXES = {"example", "invalid", "local", "localhost", "test"}
 MAX_BECH32_HRP_LENGTH = 83
+PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
 BLOCKER_ORDER = (
@@ -226,6 +227,8 @@ def validate_auxpow(check, network, profile, allow_null):
         check.blockers.append(f"{network}.auxpow.chain_id")
     elif not isinstance(chain_id, int) or not (0 < chain_id < 0x8000):
         check.error(f"{network}.auxpow.chain_id", "must be a non-zero AuxPoW-version encodable integer below 0x8000")
+    elif chain_id == PLACEHOLDER_AUXPOW_CHAIN_ID:
+        check.error(f"{network}.auxpow.chain_id", "must not use launch placeholder chain id 0x5a4b")
     elif chain_id in FORBIDDEN_PARENT_VERSION_CHAIN_IDS:
         check.error(f"{network}.auxpow.chain_id", "must avoid Litecoin parent versionbits chain-id range 0x2000-0x3fff")
     check.require_bool(auxpow.get("strict_chain_id"), f"{network}.auxpow.strict_chain_id", True)
@@ -502,6 +505,8 @@ def parse_chain_id(value):
         raise ValueError("chain_id must be an integer")
     if not (0 < chain_id < 0x8000):
         raise ValueError("chain_id must be non-zero and below 0x8000")
+    if chain_id == PLACEHOLDER_AUXPOW_CHAIN_ID:
+        raise ValueError("chain_id must not use launch placeholder chain id 0x5a4b")
     if chain_id in FORBIDDEN_PARENT_VERSION_CHAIN_IDS:
         raise ValueError("chain_id must avoid Litecoin parent versionbits chain-id range 0x2000-0x3fff")
     return chain_id
