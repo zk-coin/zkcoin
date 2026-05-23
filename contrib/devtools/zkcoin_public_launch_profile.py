@@ -981,7 +981,7 @@ def main():
         "--set-snapshot",
         nargs=4,
         metavar=("NETWORK", "HEIGHT", "BLOCK_HASH", "IMPORT_HASH"),
-        help="update one network's Litecoin snapshot constants and remove its snapshot blocker",
+        help="rejected for public manifests; use --set-snapshot-audit with verified snapshot output",
     )
     parser.add_argument(
         "--set-snapshot-audit",
@@ -1042,11 +1042,8 @@ def main():
         return 1
 
     if args.set_snapshot is not None:
-        try:
-            set_snapshot(manifest, *args.set_snapshot)
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 1
+        print("error: manual snapshot constants are not accepted; use --set-snapshot-audit with a verified snapshot audit summary", file=sys.stderr)
+        return 1
 
     if args.set_snapshot_audit is not None:
         try:

@@ -451,7 +451,7 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
-    update_result = subprocess.run(
+    manual_snapshot_result = subprocess.run(
         [
             sys.executable,
             str(PUBLIC_LAUNCH_MANIFEST_TOOL),
@@ -467,38 +467,12 @@ def require_public_launch_manifest_current():
         stderr=subprocess.PIPE,
         text=True,
     )
-    if update_result.returncode != 0:
-        return "{} --set-snapshot failed: {}".format(
+    if manual_snapshot_result.returncode == 0:
+        return "{} --set-snapshot accepted manual public snapshot constants".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
-            update_result.stderr.strip() or update_result.stdout.strip() or "no output",
         )
-    try:
-        updated_manifest = json.loads(update_result.stdout)
-    except json.JSONDecodeError as exc:
-        return "{} --set-snapshot did not emit JSON: {}".format(
-            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
-            exc,
-        )
-    updated_snapshot = updated_manifest["networks"]["main"]["litecoin_snapshot"]
-    if updated_snapshot != {
-        "height": 321,
-        "block_hash": "11" * 32,
-        "import_hash": "22" * 32,
-    }:
-        return "{} --set-snapshot did not update main snapshot fields".format(
-            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
-        )
-    updated_blockers = {
-        blocker.get("id")
-        for blocker in updated_manifest.get("blockers", [])
-        if isinstance(blocker, dict)
-    }
-    if "main.litecoin_snapshot" in updated_blockers:
-        return "{} --set-snapshot did not remove the resolved main snapshot blocker".format(
-            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
-        )
-    if "main.auxpow_chain_id" not in updated_blockers:
-        return "{} --set-snapshot removed unrelated blockers".format(
+    if "manual snapshot constants are not accepted" not in manual_snapshot_result.stderr:
+        return "{} --set-snapshot did not explain manual snapshot rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -1540,7 +1514,7 @@ def main():
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("--mark-ready", "manifest guarded ready transition flag"),
-        ("--set-snapshot", "manifest snapshot update flag"),
+        ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
@@ -1891,6 +1865,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest audit-backed snapshot update documentation",
+        ),
+        (
+            "Manual public snapshot constants are not accepted",
+            "public launch manifest rejects manual snapshot constants documentation",
         ),
         (
             "removes only that network's snapshot blocker",
