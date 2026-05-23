@@ -297,11 +297,20 @@ Setup Gitian descriptors:
     fi
     popd
 
-Ensure your zkCoin Gitian signatures repository is up-to-date if you wish to
-gverify your builds against other Gitian signatures.
+Ensure your zkCoin Gitian signatures repository remote is the resolved zkCoin
+Gitian signatures repository and that the local checkout is clean before
+updating it for cross-builder verification.
 
     pushd "./${GITIAN_SIGS_DIR}"
-    git pull
+    if [ "$(git remote get-url origin)" != "$ZKCOIN_GITIAN_SIGS_REPO_URL" ]; then
+        echo "Gitian signatures origin does not match ZKCOIN_GITIAN_SIGS_REPO_URL" >&2
+        exit 1
+    fi
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Gitian signatures repository must be clean before update" >&2
+        exit 1
+    fi
+    git pull --ff-only
     popd
 
 Ensure gitian-builder is still on the pinned zkCoin release build commit:
