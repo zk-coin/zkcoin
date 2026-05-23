@@ -2162,9 +2162,11 @@ def main():
         ("snapshot block hash at height", "snapshot script validates source snapshot block hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
+        ("snapshot output must not be a symlink after dumptxoutset", "snapshot script rejects symlink dump artifacts"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
         ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
+        ("snapshot output became a symlink during verification", "snapshot script rejects verifier-time symlink replacement"),
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
         ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
@@ -2237,7 +2239,9 @@ def main():
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
+        ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
+        ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
         ("Reject zero snapshot dump coin count", "snapshot script test rejects zero dump coin counts"),
@@ -2449,6 +2453,10 @@ def main():
         (
             "changes during zkCoin verification",
             "snapshot operator verifier-time artifact mutation documentation",
+        ),
+        (
+            "becomes a symlink after dump or verification",
+            "snapshot operator post-write symlink rejection documentation",
         ),
         (
             "rejects a snapshot audit whose source chain does not match",

@@ -93,16 +93,31 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                         print("{}")
                     elif command == "dumptxoutset":
                         if not scenario.get("skip_snapshot_write", False):
-                            with open(command_args[0], "wb") as snapshot_file:
-                                if not scenario.get("empty_snapshot_write", False):
-                                    snapshot_file.write(b"snapshot")
+                            if scenario.get("symlink_snapshot_write", False):
+                                snapshot_target_path = command_args[0] + ".target"
+                                with open(snapshot_target_path, "wb") as snapshot_file:
+                                    if not scenario.get("empty_snapshot_write", False):
+                                        snapshot_file.write(b"snapshot")
+                                os.symlink(snapshot_target_path, command_args[0])
+                            else:
+                                with open(command_args[0], "wb") as snapshot_file:
+                                    if not scenario.get("empty_snapshot_write", False):
+                                        snapshot_file.write(b"snapshot")
                         print(scenario.get("dump_raw", json.dumps(scenario["dump_json"])))
                     else:
                         fail(f"unexpected litecoin command: {command}")
                 elif role == "zkcoin":
                     if command != "verifysnapshotmanifest":
                         fail(f"unexpected zkcoin command: {command}")
-                    if scenario.get("mutate_snapshot_during_verify", False):
+                    if scenario.get("replace_snapshot_with_symlink_during_verify", False):
+                        snapshot_target_path = command_args[0] + ".verify-target"
+                        with open(command_args[0], "rb") as snapshot_file:
+                            snapshot_bytes = snapshot_file.read()
+                        os.unlink(command_args[0])
+                        with open(snapshot_target_path, "wb") as snapshot_file:
+                            snapshot_file.write(snapshot_bytes)
+                        os.symlink(snapshot_target_path, command_args[0])
+                    elif scenario.get("mutate_snapshot_during_verify", False):
                         with open(command_args[0], "ab") as snapshot_file:
                             snapshot_file.write(b"mutated")
                     print(scenario.get("verify_raw", json.dumps(scenario["verify_json"])))
@@ -606,12 +621,30 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
 
+        self.log.info("Reject symlink snapshot dump artifact before verification")
+        _, calls, _ = self.assert_snapshot(
+            "symlink-dump-file",
+            self.scenario(symlink_snapshot_write=True),
+            1,
+            "snapshot output must not be a symlink after dumptxoutset",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
         self.log.info("Reject snapshot artifact mutation during verification")
         _, calls, snapshot_path = self.assert_snapshot(
             "mutated-during-verify",
             self.scenario(mutate_snapshot_during_verify=True),
             1,
             "snapshot output changed during verification",
+        )
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject snapshot artifact symlink replacement during verification")
+        _, calls, snapshot_path = self.assert_snapshot(
+            "symlink-during-verify",
+            self.scenario(replace_snapshot_with_symlink_during_verify=True),
+            1,
+            "snapshot output became a symlink during verification",
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 
