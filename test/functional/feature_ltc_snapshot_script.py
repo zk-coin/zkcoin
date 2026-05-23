@@ -405,6 +405,25 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "Set ZKCOIN_SNAPSHOT_ALLOW_REWIND=1",
         )
 
+        self.log.info("Reject malformed rewind restore block hash before invalidating the source")
+        _, calls, _ = self.assert_snapshot(
+            "rewind-malformed-restore-hash",
+            self.scenario(
+                source_tip=HEIGHT + 1,
+                block_hashes={str(HEIGHT + 1): "not-a-uint256"},
+            ),
+            1,
+            f"restore block hash at height {HEIGHT + 1} must be 64 hex characters",
+            allow_rewind=True,
+        )
+        assert_equal(
+            calls,
+            [
+                {"role": "litecoin", "cmd": "getblockchaininfo", "args": []},
+                {"role": "litecoin", "cmd": "getblockhash", "args": [str(HEIGHT + 1)]},
+            ],
+        )
+
         self.log.info("Rewind and restore a disposable snapshot source when explicitly allowed")
         _, calls, _ = self.assert_snapshot(
             "rewind-happy",
