@@ -120,6 +120,28 @@ Check out the source code in the following directory hierarchy.
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
     : "${ZKCOIN_GITIAN_BUILDER_REPO_URL:?set the resolved Gitian builder repository URL}"
     : "${ZKCOIN_GITIAN_BUILDER_COMMIT:?set the exact Gitian builder commit}"
+    for ZKCOIN_DETACHED_SIGS_RELEASE_FIELD in \
+      "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" \
+      "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"; do
+      case "$ZKCOIN_DETACHED_SIGS_RELEASE_FIELD" in
+        ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+          echo "ZKCOIN_DETACHED_SIGS release refs must not be placeholders" >&2
+          exit 1
+          ;;
+      esac
+    done
+    git check-ref-format --branch "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" >/dev/null || {
+        echo "ZKCOIN_DETACHED_SIGS_RELEASE_REF must be a valid branch name" >&2
+        exit 1
+    }
+    git check-ref-format "refs/tags/$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" || {
+        echo "ZKCOIN_DETACHED_SIGS_RELEASE_TAG must be a valid tag name" >&2
+        exit 1
+    }
+    if [ "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" = "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" ]; then
+        echo "ZKCOIN_DETACHED_SIGS_RELEASE_REF and ZKCOIN_DETACHED_SIGS_RELEASE_TAG must be distinct" >&2
+        exit 1
+    fi
     for ZKCOIN_RELEASE_REPO_URL in \
       "$ZKCOIN_GITIAN_SIGS_REPO_URL" \
       "$ZKCOIN_DETACHED_SIGS_REPO_URL"; do
