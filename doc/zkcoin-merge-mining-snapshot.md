@@ -111,6 +111,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked` status while any snapshot, AuxPoW chain id, DNS seed, or public
   network identity value is still undecided; lint validates the blocked schema
   with `contrib/devtools/zkcoin_public_launch_profile.py --allow-blocked`.
+  After selecting a final AuxPoW child chain id, update the target profile with
+  `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
+  the validator accepts decimal or `0x...` input but rejects zero, values outside
+  the AuxPoW version field, and the Litecoin parent versionbits-derived
+  `0x2000..0x3fff` range.
   Before copying values into `chainparams`, remove the blockers, set status to
   `ready-for-chainparams`, run the validator without `--allow-blocked`, and use
   `contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams` to emit

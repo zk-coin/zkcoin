@@ -380,6 +380,79 @@ def require_public_launch_manifest_current():
         return "{} --set-snapshot removed unrelated blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-auxpow",
+            "main",
+            "0x5001",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if auxpow_result.returncode != 0:
+        return "{} --set-auxpow failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            auxpow_result.stderr.strip() or auxpow_result.stdout.strip() or "no output",
+        )
+    try:
+        auxpow_manifest = json.loads(auxpow_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --set-auxpow did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    auxpow = auxpow_manifest["networks"]["main"]["auxpow"]
+    if auxpow != {
+        "start_height": 1,
+        "chain_id": 0x5001,
+        "strict_chain_id": True,
+        "forbidden_parent_version_chain_id_range": [8192, 16383],
+    }:
+        return "{} --set-auxpow did not update main AuxPoW fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    auxpow_blockers = {
+        blocker.get("id")
+        for blocker in auxpow_manifest.get("blockers", [])
+        if isinstance(blocker, dict)
+    }
+    if "main.auxpow_chain_id" in auxpow_blockers:
+        return "{} --set-auxpow did not remove the resolved main AuxPoW blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "main.litecoin_snapshot" not in auxpow_blockers:
+        return "{} --set-auxpow removed unrelated blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-auxpow",
+            "main",
+            "0x2000",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_auxpow_result.returncode == 0:
+        return "{} --set-auxpow accepted a Litecoin parent-versionbits chain id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "0x2000-0x3fff" not in unsafe_auxpow_result.stderr:
+        return "{} --set-auxpow did not explain the parent-versionbits chain-id rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     return None
 
 
@@ -554,6 +627,10 @@ def main():
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--set-snapshot", "manifest snapshot update flag"),
+        ("--set-auxpow", "manifest AuxPoW update flag"),
+        ("parse_chain_id", "manifest parses AuxPoW chain id"),
+        ("set_auxpow", "manifest updates AuxPoW chain id"),
+        ("remove_blocker(manifest, f\"{network}.auxpow_chain_id\")", "manifest removes resolved AuxPoW blocker"),
         ("remove_blocker(manifest, f\"{network}.litecoin_snapshot\")", "manifest removes resolved snapshot blocker"),
         ("unresolved_blocker_ids", "manifest derives blockers from unresolved fields"),
         ("hashUTXORoot", "manifest emits snapshot import hash assignment"),
@@ -767,6 +844,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --allow-blocked",
             "public launch manifest validator documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
+            "public launch manifest AuxPoW update documentation",
+        ),
+        (
+            "0x2000..0x3fff",
+            "public launch manifest AuxPoW forbidden range documentation",
         ),
         (
             "ready-for-chainparams",
