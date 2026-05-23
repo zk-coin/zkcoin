@@ -393,11 +393,27 @@ for ZKCOIN_GITIAN_RELEASE in \
 done
 ```
 
-- Create `SHA256SUMS.asc` for the builds, and GPG-sign it. Verify the release
-  directory contains exactly the expected non-debug artifact set before writing
-  checksums:
+- Create `SHA256SUMS.asc` for the builds, and GPG-sign it. Confirm the
+  explicit binary/artifact namespace decision before writing checksums, then
+  verify the release directory contains exactly the expected non-debug artifact
+  set:
 
 ```bash
+: "${ZKCOIN_RELEASE_BINARY_NAMESPACE:?set to litecoin-compatibility for the current retained names, or zkcoin after completing namespace migration}"
+
+case "$ZKCOIN_RELEASE_BINARY_NAMESPACE" in
+  litecoin-compatibility)
+    ;;
+  zkcoin)
+    echo "ZKCOIN_RELEASE_BINARY_NAMESPACE=zkcoin requires binary and artifact namespace migration before signing" >&2
+    exit 1
+    ;;
+  *)
+    echo "ZKCOIN_RELEASE_BINARY_NAMESPACE must be litecoin-compatibility or zkcoin" >&2
+    exit 1
+    ;;
+esac
+
 ZKCOIN_RELEASE_ARTIFACTS=(
   "litecoin-${VERSION}-aarch64-linux-gnu.tar.gz"
   "litecoin-${VERSION}-arm-linux-gnueabihf.tar.gz"

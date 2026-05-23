@@ -272,6 +272,8 @@ def main():
     notes_text = "\n".join(note for note in notes if isinstance(note, str))
     if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
+    if "ZKCOIN_RELEASE_BINARY_NAMESPACE" not in notes_text:
+        return fail("notes must document parameterized zkCoin binary namespace decision")
     if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
         return fail("notes must document parameterized zkCoin Gitian signer quorum")
     if "verify-zkcoin-release.py" not in notes_text:
@@ -343,6 +345,9 @@ def main():
         ("zkcoin_release_infrastructure_manifest.json", "release infrastructure manifest reference"),
         ("Do not publish zkCoin artifacts from this process", "publish blocker warning"),
         ("temporary compatibility namespace", "temporary binary namespace explanation"),
+        ("ZKCOIN_RELEASE_BINARY_NAMESPACE", "parameterized binary namespace decision"),
+        ("ZKCOIN_RELEASE_BINARY_NAMESPACE=zkcoin requires binary and artifact namespace migration before signing", "zkcoin namespace migration guard"),
+        ("must be litecoin-compatibility or zkcoin", "binary namespace decision validation"),
         ("zkcoin_release_candidate_validation.sh", "source release-candidate validation gate"),
         ("It is not binary release readiness", "source-vs-binary readiness boundary"),
         ("does not authorize publishing binaries", "binary publication blocker"),
