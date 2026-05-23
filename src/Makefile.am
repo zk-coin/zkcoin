@@ -943,6 +943,7 @@ CTAES_DIST += crypto/ctaes/test.c
 RUST_SHIELDED_VERIFIER_DIST = rust/shielded-verifier/Cargo.lock
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/Cargo.toml
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/README.md
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/.cargo/config.toml
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/examples/orchard_mint_vector.rs
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/examples/orchard_spend_vector.rs
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/include/zkc_shielded_verifier.h
@@ -958,6 +959,13 @@ RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_orchard_consensu
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt
 RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/halo2_proofs/.cargo-checksum.json
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/halo2_proofs/Cargo.toml
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/orchard/.cargo-checksum.json
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/orchard/Cargo.toml
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/sha2/.cargo-checksum.json
+RUST_SHIELDED_VERIFIER_DIST += rust/shielded-verifier/vendor/sha2/Cargo.toml
 
 CLEANFILES = $(EXTRA_LIBRARIES)
 

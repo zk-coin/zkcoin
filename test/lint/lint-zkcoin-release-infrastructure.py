@@ -18,6 +18,8 @@ SOURCE_DIST_REALPROOF_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
 ZKCOIN_VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify-zkcoin-release.py"
+RUST_SHIELDED_VERIFIER_CARGO_CONFIG = ROOT_DIR / "src" / "rust" / "shielded-verifier" / ".cargo" / "config.toml"
+RUST_SHIELDED_VERIFIER_VENDOR = ROOT_DIR / "src" / "rust" / "shielded-verifier" / "vendor"
 VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
 CONTRIB_README = ROOT_DIR / "contrib" / "README.md"
 GITIAN_BUILD = ROOT_DIR / "contrib" / "gitian-build.py"
@@ -70,6 +72,7 @@ REQUIRED_RUST_SHIELDED_VERIFIER_DIST = (
     "rust/shielded-verifier/Cargo.lock",
     "rust/shielded-verifier/Cargo.toml",
     "rust/shielded-verifier/README.md",
+    "rust/shielded-verifier/.cargo/config.toml",
     "rust/shielded-verifier/examples/orchard_mint_vector.rs",
     "rust/shielded-verifier/examples/orchard_spend_vector.rs",
     "rust/shielded-verifier/include/zkc_shielded_verifier.h",
@@ -85,6 +88,13 @@ REQUIRED_RUST_SHIELDED_VERIFIER_DIST = (
     "rust/shielded-verifier/tests/cxx_unsupported_consensus_smoke.cpp",
     "rust/shielded-verifier/tests/vectors/orchard_mint_vector.txt",
     "rust/shielded-verifier/tests/vectors/orchard_spend_vector.txt",
+    "rust/shielded-verifier/vendor",
+    "rust/shielded-verifier/vendor/halo2_proofs/.cargo-checksum.json",
+    "rust/shielded-verifier/vendor/halo2_proofs/Cargo.toml",
+    "rust/shielded-verifier/vendor/orchard/.cargo-checksum.json",
+    "rust/shielded-verifier/vendor/orchard/Cargo.toml",
+    "rust/shielded-verifier/vendor/sha2/.cargo-checksum.json",
+    "rust/shielded-verifier/vendor/sha2/Cargo.toml",
 )
 REQUIRED_LIBMW_DIST = (
     "LIBMW_DIST",
@@ -235,6 +245,42 @@ def require_rust_shielded_verifier_target_mapping():
     return None
 
 
+def require_rust_shielded_verifier_vendor():
+    config_text = RUST_SHIELDED_VERIFIER_CARGO_CONFIG.read_text(encoding="utf8")
+    for needle in (
+        '[source.crates-io]',
+        'replace-with = "vendored-sources"',
+        '[source.vendored-sources]',
+        'directory = "vendor"',
+    ):
+        if needle not in config_text:
+            return "{} missing vendored Cargo source config: {}".format(
+                RUST_SHIELDED_VERIFIER_CARGO_CONFIG.relative_to(ROOT_DIR),
+                needle,
+            )
+    for crate in ("orchard", "halo2_proofs", "sha2"):
+        crate_dir = RUST_SHIELDED_VERIFIER_VENDOR / crate
+        for required in ("Cargo.toml", ".cargo-checksum.json"):
+            if not (crate_dir / required).is_file():
+                return "{} missing vendored crate file: {}/{}".format(
+                    RUST_SHIELDED_VERIFIER_VENDOR.relative_to(ROOT_DIR),
+                    crate,
+                    required,
+                )
+    vendor_crates = [path for path in RUST_SHIELDED_VERIFIER_VENDOR.iterdir() if path.is_dir()]
+    vendor_checksums = list(RUST_SHIELDED_VERIFIER_VENDOR.glob("*/.cargo-checksum.json"))
+    if len(vendor_crates) < 90:
+        return "{} has too few vendored crates: {}".format(
+            RUST_SHIELDED_VERIFIER_VENDOR.relative_to(ROOT_DIR),
+            len(vendor_crates),
+        )
+    if len(vendor_crates) != len(vendor_checksums):
+        return "{} must have one cargo checksum per vendored crate".format(
+            RUST_SHIELDED_VERIFIER_VENDOR.relative_to(ROOT_DIR)
+        )
+    return None
+
+
 def require_source_dist_smoke_entries():
     text = SOURCE_DIST_SMOKE.read_text(encoding="utf8")
     required_entries = [
@@ -350,6 +396,10 @@ def main():
         return fail("notes must document Rust verifier target mapping")
     if "target-specific libzkc_shielded_verifier.a" not in notes_text:
         return fail("notes must document target-specific Rust verifier staticlib linkage")
+    if "Cargo config replaces crates.io with committed vendored sources" not in notes_text:
+        return fail("notes must document vendored Cargo sources")
+    if "vendor checksums for Orchard, halo2_proofs, and sha2" not in notes_text:
+        return fail("notes must document vendored Rust verifier checksum sentinels")
     if "ZKCOIN_RELEASE_BINARY_NAMESPACE" not in notes_text:
         return fail("notes must document parameterized zkCoin binary namespace decision")
     if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
@@ -1034,6 +1084,10 @@ def main():
         return fail(error)
 
     error = require_rust_shielded_verifier_target_mapping()
+    if error:
+        return fail(error)
+
+    error = require_rust_shielded_verifier_vendor()
     if error:
         return fail(error)
 
