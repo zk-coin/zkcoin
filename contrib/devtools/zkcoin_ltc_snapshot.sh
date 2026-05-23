@@ -92,6 +92,9 @@ case "$SNAPSHOT_PATH" in
   *) SNAPSHOT_PATH="$(pwd -P)/$SNAPSHOT_PATH" ;;
 esac
 
+if [[ -L "$SNAPSHOT_PATH" ]]; then
+  die "snapshot output path must not be a symlink: $SNAPSHOT_PATH"
+fi
 if [[ -e "$SNAPSHOT_PATH" ]]; then
   die "snapshot output already exists: $SNAPSHOT_PATH"
 fi
@@ -108,6 +111,9 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   esac
   if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
+  fi
+  if [[ -L "$AUDIT_JSON_PATH" ]]; then
+    die "snapshot audit summary path must not be a symlink: $AUDIT_JSON_PATH"
   fi
   if [[ -e "$AUDIT_JSON_PATH" ]]; then
     die "snapshot audit summary already exists: $AUDIT_JSON_PATH"
