@@ -116,6 +116,8 @@ Check out the source code in the following directory hierarchy.
     export ZKCOIN_DETACHED_SIGS_DIR="${ZKCOIN_DETACHED_SIGS_DIR:-zkcoin-detached-sigs}"
     : "${ZKCOIN_GITIAN_SIGS_REPO_URL:?set the resolved zkCoin Gitian signatures repository URL}"
     : "${ZKCOIN_DETACHED_SIGS_REPO_URL:?set the resolved zkCoin detached-signatures repository URL}"
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_REF:?set the resolved zkCoin detached-signatures release branch}"
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
     git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"
     git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"
     git clone https://github.com/devrandom/gitian-builder.git
@@ -302,7 +304,11 @@ Codesigner only: Sign the windows binaries:
 Codesigner only: Commit the detached codesign payloads:
 
     cd "${ZKCOIN_DETACHED_SIGS_DIR}"
-    #checkout the appropriate branch for this release series
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_REF:?set the resolved zkCoin detached-signatures release branch}"
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags
+    git rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}" >/dev/null
+    git checkout "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"
     rm -rf *
     tar xf signature-osx.tar.gz
     tar xf signature-win.tar.gz
@@ -310,8 +316,8 @@ Codesigner only: Commit the detached codesign payloads:
     cp dist/Litecoin-Qt.app/Contents/CodeResources osx/dist/Litecoin-Qt.app/Contents/
     git add -A
     git commit -m "point to ${VERSION}"
-    git tag -s v${VERSION} HEAD
-    git push the current branch and new tag
+    git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD
+    git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"
 
 Non-codesigners: wait for Windows/macOS detached signatures:
 
@@ -322,7 +328,8 @@ Non-codesigners: wait for Windows/macOS detached signatures:
 Create (and optionally verify) the signed macOS binary:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}" ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
     ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-signed --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
     ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-osx-signed ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
     mv build/out/litecoin-osx-signed.dmg ../litecoin-${VERSION}-osx.dmg
@@ -331,7 +338,8 @@ Create (and optionally verify) the signed macOS binary:
 Create (and optionally verify) the signed Windows binaries:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}" ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
     ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-signed --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
     ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-win-signed ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
     mv build/out/litecoin-*win64-setup.exe ../litecoin-${VERSION}-win64-setup.exe

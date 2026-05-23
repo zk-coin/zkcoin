@@ -277,6 +277,8 @@ def main():
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
         return fail("notes must document fail-closed detached-signatures signer descriptors")
+    if "ZKCOIN_DETACHED_SIGS_RELEASE_REF" not in notes_text:
+        return fail("notes must document parameterized zkCoin detached-signatures release ref")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
@@ -345,6 +347,12 @@ def main():
         ("${VERSION}-win-signed", "Gitian signed Windows quorum check"),
         ("${VERSION}-osx-signed", "Gitian signed macOS quorum check"),
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_REF", "parameterized detached-signatures release branch"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG", "parameterized detached-signatures release tag"),
+        ('git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags', "detached-signatures release branch fetch"),
+        ('rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}"', "detached-signatures release ref validation"),
+        ('git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD', "detached-signatures release tag creation"),
+        ('--commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}"', "detached-signatures signed tag Gitian input"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
         ("ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "parameterized release signing key fingerprint"),
@@ -438,6 +446,9 @@ def main():
         (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
         (RELEASE_DOC, "After 3 or more people have gitian-built", "fixed inherited Gitian signer quorum"),
         (RELEASE_DOC, "3 matching signatures", "fixed inherited platform signing quorum"),
+        (RELEASE_DOC, "#checkout the appropriate branch for this release series", "ambiguous detached-signatures release branch"),
+        (RELEASE_DOC, "git tag -s v${VERSION} HEAD", "implicit detached-signatures release tag"),
+        (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)

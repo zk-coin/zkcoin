@@ -25,7 +25,7 @@
     },
     {
       "id": "detached_sigs_repo",
-      "description": "Choose and publish ZKCOIN_DETACHED_SIGS_REPO_URL for Windows and macOS signing payloads."
+      "description": "Choose and publish ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG for Windows and macOS signing payloads."
     },
     {
       "id": "artifact_download_host",
@@ -77,7 +77,7 @@
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and count Gitian signer directories before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
-    "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL so inherited Litecoin detached signatures cannot be used by default.",
+    "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG so inherited Litecoin detached signatures or ambiguous release refs cannot be used by default.",
     "Release checksum signing docs require ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT and ZKCOIN_RELEASE_SIGNING_KEY_ID before creating SHA256SUMS.asc so a default local GPG key cannot sign zkCoin releases by accident.",
     "Release artifact publication docs require ZKCOIN_RELEASE_ARTIFACT_BASE_URL, ZKCOIN_RELEASE_CHECKSUMS_URL, and ZKCOIN_RELEASE_GITHUB_REPO_URL so inherited Litecoin and Bitcoin publication targets cannot be used by default.",
     "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID and zkCoin Apple notarization variables so inherited Litecoin bundle identifiers cannot be used by default.",
