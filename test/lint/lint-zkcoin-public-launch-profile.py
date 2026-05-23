@@ -797,6 +797,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        over_maximum_amount_audit_path = Path(temp_dir) / "over-maximum-amount-audit.json"
+        over_maximum_amount_audit = dict(audit)
+        over_maximum_amount_audit["total_amount"] = "84000000.00000001"
+        over_maximum_amount_audit_path.write_text(json.dumps(over_maximum_amount_audit), encoding="utf8")
+        over_maximum_amount_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(over_maximum_amount_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if over_maximum_amount_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an over-maximum snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit total_amount must not exceed 84000000.00000000" not in over_maximum_amount_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain over-maximum total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         missing_artifact_audit_path = Path(temp_dir) / "missing-artifact-audit.json"
         missing_artifact_audit = dict(audit)
         missing_artifact_audit["snapshot_file"] = str(Path(temp_dir) / "missing-ltc-block-x.dat")
@@ -1883,6 +1910,7 @@ def main():
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
+        ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
@@ -1896,6 +1924,7 @@ def main():
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
+        ("must not exceed {SNAPSHOT_MAX_MONEY_TEXT}", "manifest rejects over-maximum snapshot audit amounts"),
         ("litecoin_snapshot.audit.snapshot_hash", "manifest reports unresolved snapshot audit blockers"),
         ("snapshot_hash", "manifest preserves snapshot audit hash metadata"),
         ("base_nchaintx", "manifest preserves snapshot audit transaction-count metadata"),
@@ -2132,7 +2161,9 @@ def main():
         ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
+        ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
+        ("must not exceed {MAX_MONEY_TEXT}", "snapshot script rejects over-maximum verifier total amount"),
         ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
         ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
@@ -2182,6 +2213,7 @@ def main():
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
+        ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
         ("Reject zero snapshot dump coin count", "snapshot script test rejects zero dump coin counts"),
         ("Reject zero verifier base transaction count", "snapshot script test rejects zero base transaction count"),
         ("Print the testnet snapshot audit manifest handoff", "snapshot script test checks source-chain manifest handoff mapping"),
@@ -2347,6 +2379,10 @@ def main():
         (
             "positive decimal total amount with 8 fractional digits",
             "public launch manifest snapshot audit amount documentation",
+        ),
+        (
+            "not exceed `84000000.00000000`",
+            "public launch manifest snapshot audit amount cap documentation",
         ),
         (
             "positive coin and transaction counts",

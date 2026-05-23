@@ -56,6 +56,9 @@ PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
 SNAPSHOT_TOTAL_AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
+SNAPSHOT_COIN = 100000000
+SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
+SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
 SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
     "testnet": "test",
@@ -196,7 +199,10 @@ class Validation:
             self.blockers.append(path)
             return
         if not snapshot_total_amount_valid(value):
-            self.error(path, "must be a positive decimal amount with 8 fractional digits")
+            self.error(
+                path,
+                f"must be a positive decimal amount with 8 fractional digits not exceeding {SNAPSHOT_MAX_MONEY_TEXT}",
+            )
 
     def require_snapshot_source_chain(self, value, path, network, *, allow_null):
         if value is None and allow_null:
@@ -272,12 +278,20 @@ def snapshot_file_valid(value):
     )
 
 
+def snapshot_total_amount_atoms(value):
+    if (
+        not isinstance(value, str)
+        or SNAPSHOT_TOTAL_AMOUNT_RE.fullmatch(value) is None
+        or value == "0.00000000"
+    ):
+        return None
+    whole, fractional = value.split(".")
+    return int(whole) * SNAPSHOT_COIN + int(fractional)
+
+
 def snapshot_total_amount_valid(value):
-    return (
-        isinstance(value, str)
-        and SNAPSHOT_TOTAL_AMOUNT_RE.fullmatch(value) is not None
-        and value != "0.00000000"
-    )
+    atoms = snapshot_total_amount_atoms(value)
+    return atoms is not None and atoms <= SNAPSHOT_MAX_MONEY
 
 
 def validate_snapshot(check, network, profile, allow_null):
@@ -614,8 +628,11 @@ def require_snapshot_audit_file(audit, field):
 
 def require_snapshot_audit_total_amount(audit, field):
     value = require_snapshot_audit_string(audit, field)
-    if not snapshot_total_amount_valid(value):
+    atoms = snapshot_total_amount_atoms(value)
+    if atoms is None:
         raise ValueError(f"snapshot audit {field} must be a positive decimal amount with 8 fractional digits")
+    if atoms > SNAPSHOT_MAX_MONEY:
+        raise ValueError(f"snapshot audit {field} must not exceed {SNAPSHOT_MAX_MONEY_TEXT}")
     return value
 
 

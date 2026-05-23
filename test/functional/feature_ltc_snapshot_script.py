@@ -547,6 +547,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "verifysnapshotmanifest.total_amount must be a positive decimal amount with 8 fractional digits",
         )
 
+        self.log.info("Reject over maximum verifier total amount")
+        self.assert_snapshot(
+            "over-maximum-total-amount",
+            self.scenario(verify_json=self.verify_json(total_amount="84000000.00000001")),
+            1,
+            "verifysnapshotmanifest.total_amount must not exceed 84000000.00000000",
+        )
+
         self.log.info("Reject zero snapshot dump coin count")
         self.assert_snapshot(
             "zero-dump-coins",

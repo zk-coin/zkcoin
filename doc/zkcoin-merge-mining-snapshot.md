@@ -275,7 +275,8 @@ it is applied to the launch profile.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
-an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
+an absolute snapshot file path, and positive decimal total amount with 8 fractional digits
+that does not exceed `84000000.00000000`.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary and rejects symlinked snapshot artifacts.
