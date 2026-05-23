@@ -26,6 +26,10 @@ GITIAN_SOURCE_DESCRIPTORS = (
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win.yml",
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx.yml",
 )
+GITIAN_SIGNER_DESCRIPTORS = (
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win-signer.yml",
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx-signer.yml",
+)
 CONFIGURE = ROOT_DIR / "configure.ac"
 MAKEFILE_AM = ROOT_DIR / "Makefile.am"
 SRC_MAKEFILE_AM = ROOT_DIR / "src" / "Makefile.am"
@@ -33,6 +37,9 @@ UPSTREAM_VERIFY_ENV = "ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES"
 UPSTREAM_GITIAN_ENV = "ZKCOIN_ALLOW_BITCOIN_GITIAN_BUILD"
 ZKCOIN_SOURCE_REPO = "https://github.com/zk-coin/zkcoin.git"
 UPSTREAM_LITECOIN_SOURCE_REPO = "https://github.com/litecoin-project/litecoin.git"
+DETACHED_SIGS_NOT_CONFIGURED_REPO = "https://example.invalid/zkcoin-detached-sigs-not-configured.git"
+UPSTREAM_LITECOIN_DETACHED_SIGS_REPO = "https://github.com/litecoin-project/litecoin-detached-sigs.git"
+UPSTREAM_LITECOIN_GITIAN_SIGS_REPO = "https://github.com/litecoin-project/gitian.sigs.ltc.git"
 REQUIRED_BLOCKERS = {
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
@@ -218,6 +225,23 @@ def require_gitian_source_descriptors():
     return None
 
 
+def require_gitian_signer_descriptors():
+    for descriptor in GITIAN_SIGNER_DESCRIPTORS:
+        text = descriptor.read_text(encoding="utf8")
+        if DETACHED_SIGS_NOT_CONFIGURED_REPO not in text:
+            return "{} must default to fail-closed detached-signatures URL: {}".format(
+                descriptor.relative_to(ROOT_DIR),
+                DETACHED_SIGS_NOT_CONFIGURED_REPO,
+            )
+        if UPSTREAM_LITECOIN_DETACHED_SIGS_REPO in text:
+            return "{} must not fetch inherited Litecoin detached signatures".format(
+                descriptor.relative_to(ROOT_DIR)
+            )
+        if '"dir": "signature"' not in text:
+            return "{} must keep the Gitian signature input directory".format(descriptor.relative_to(ROOT_DIR))
+    return None
+
+
 def main():
     try:
         manifest = json.loads(MANIFEST.read_text(encoding="utf8"))
@@ -247,6 +271,8 @@ def main():
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
+    if "example.invalid detached-signatures URL" not in notes_text:
+        return fail("notes must document fail-closed detached-signatures signer descriptors")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -285,6 +311,10 @@ def main():
     if error:
         return fail(error)
 
+    error = require_gitian_signer_descriptors()
+    if error:
+        return fail(error)
+
     release_doc_checks = (
         ("zkCoin release infrastructure is not production-ready", "fail-closed release status warning"),
         ("zkcoin_release_infrastructure_manifest.json", "release infrastructure manifest reference"),
@@ -296,6 +326,10 @@ def main():
         ("git clone https://github.com/zk-coin/zkcoin.git litecoin", "zkCoin source clone"),
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
+        ("ZKCOIN_GITIAN_SIGS_REPO_URL", "parameterized Gitian signatures repository"),
+        ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
+        ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
+        ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
@@ -323,6 +357,8 @@ def main():
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_candidate_validation.sh", "release-candidate validation packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_smoke.sh", "source dist smoke packaging"),
+        (GITIAN_SIGNER_DESCRIPTORS[0], DETACHED_SIGS_NOT_CONFIGURED_REPO, "Windows signer fail-closed detached-signatures remote"),
+        (GITIAN_SIGNER_DESCRIPTORS[1], DETACHED_SIGS_NOT_CONFIGURED_REPO, "macOS signer fail-closed detached-signatures remote"),
         (DEVTOOLS_README, "zkcoin_release_candidate_validation.sh", "release-candidate validation documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke documentation"),
         (DEVTOOLS_README, "zkcoin_source_dist_smoke.sh", "source dist smoke documentation"),
@@ -347,6 +383,12 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "bitcoin-core-", "Bitcoin Core artifact prefix"),
         (ZKCOIN_VERIFY_SCRIPT, "bitcoincore.org", "Bitcoin Core download host"),
         (ZKCOIN_VERIFY_SCRIPT, "bitcoin.org", "Bitcoin download host"),
+        (GITIAN_SIGNER_DESCRIPTORS[0], UPSTREAM_LITECOIN_DETACHED_SIGS_REPO, "Litecoin detached-signatures repository"),
+        (GITIAN_SIGNER_DESCRIPTORS[1], UPSTREAM_LITECOIN_DETACHED_SIGS_REPO, "Litecoin detached-signatures repository"),
+        (RELEASE_DOC, UPSTREAM_LITECOIN_DETACHED_SIGS_REPO, "Litecoin detached-signatures repository"),
+        (RELEASE_DOC, UPSTREAM_LITECOIN_GITIAN_SIGS_REPO, "Litecoin Gitian signatures repository"),
+        (RELEASE_DOC, "gitian.sigs.ltc", "Litecoin Gitian signatures directory"),
+        (RELEASE_DOC, "litecoin-detached-sigs", "Litecoin detached-signatures directory"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)

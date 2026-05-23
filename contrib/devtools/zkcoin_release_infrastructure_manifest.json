@@ -21,11 +21,11 @@
     },
     {
       "id": "gitian_sigs_repo",
-      "description": "Choose and document the zkCoin Gitian signatures repository and signer quorum."
+      "description": "Choose and publish ZKCOIN_GITIAN_SIGS_REPO_URL and the zkCoin Gitian signer quorum."
     },
     {
       "id": "detached_sigs_repo",
-      "description": "Choose and document the zkCoin detached-signatures repository for Windows and macOS signing payloads."
+      "description": "Choose and publish ZKCOIN_DETACHED_SIGS_REPO_URL for Windows and macOS signing payloads."
     },
     {
       "id": "artifact_download_host",
@@ -46,24 +46,14 @@
   ],
   "current_inherited_release_surfaces": [
     {
-      "path": "contrib/gitian-descriptors/gitian-win-signer.yml",
-      "contains": "https://github.com/litecoin-project/litecoin-detached-sigs.git",
-      "reason": "Windows signer descriptor still uses Litecoin detached signatures."
-    },
-    {
-      "path": "contrib/gitian-descriptors/gitian-osx-signer.yml",
-      "contains": "https://github.com/litecoin-project/litecoin-detached-sigs.git",
-      "reason": "macOS signer descriptor still uses Litecoin detached signatures."
-    },
-    {
       "path": "contrib/gitian-descriptors/assign_DISTNAME",
       "contains": "DISTNAME=\"litecoin-${VERSION}\"",
       "reason": "Source archive names still use the temporary Litecoin compatibility namespace."
     },
     {
       "path": "doc/release-process.md",
-      "contains": "git clone https://github.com/litecoin-project/gitian.sigs.ltc.git",
-      "reason": "Release process still contains inherited Litecoin signing and distribution instructions and must stay marked blocked."
+      "contains": "litecoin.org server",
+      "reason": "Release process still contains inherited artifact publication targets and must stay marked blocked."
     },
     {
       "path": "contrib/gitian-build.py",
@@ -91,6 +81,7 @@
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
+    "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL so inherited Litecoin detached signatures cannot be used by default.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }
