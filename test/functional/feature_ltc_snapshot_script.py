@@ -325,6 +325,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "missing verifysnapshotmanifest field: import_hash",
         )
 
+        self.log.info("Reject malformed verifier total amount")
+        self.assert_snapshot(
+            "malformed-total-amount",
+            self.scenario(verify_json=self.verify_json(total_amount="50")),
+            1,
+            "verifysnapshotmanifest.total_amount must be a positive decimal amount with 8 fractional digits",
+        )
+
         self.log.info("Reject dump/verify coin count mismatches")
         self.assert_snapshot(
             "coin-count-mismatch",
