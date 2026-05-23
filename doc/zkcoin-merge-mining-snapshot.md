@@ -212,11 +212,13 @@ release publication.
 - a `litecoin-cli` command pointed at the source Litecoin node;
 - a `zkcoin-cli` command pointed at a zkCoin node with `verifysnapshotmanifest`.
 
-The script fails closed if the source node does not report the expected block
-hash for height X, if `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or
-`verifysnapshotmanifest` returns malformed JSON, or if required
-snapshot/manifest fields are missing or inconsistent. If the source node is
-already beyond height X, it refuses to rewind unless
+The script fails closed if the source node does not report usable
+`getblockchaininfo`, if the source is still in initial block download, if the
+source is pruned, if the source node does not report the expected block hash for
+height X, if `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
+returns malformed JSON, or if required snapshot/manifest fields are missing or
+inconsistent. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
+If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then
 reconsiders it on exit. A failed restore makes the script fail even when the
