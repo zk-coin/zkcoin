@@ -206,7 +206,15 @@ if (( SOURCE_TIP > HEIGHT )); then
     die "Litecoin source tip $SOURCE_TIP is beyond height $HEIGHT. Set ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 only on a disposable snapshot node."
   fi
 
-  RESTORE_BLOCK_HASH="$(ltc_cli getblockhash "$((HEIGHT + 1))")"
+  RESTORE_CANDIDATE_HASH="$(ltc_cli getblockhash "$((HEIGHT + 1))")"
+  RESTORE_CANDIDATE_HASH="$(printf '%s' "$RESTORE_CANDIDATE_HASH" | tr '[:upper:]' '[:lower:]')"
+  if [[ ! "$RESTORE_CANDIDATE_HASH" =~ ^[0-9a-f]{64}$ ]]; then
+    die "restore block hash at height $((HEIGHT + 1)) must be 64 hex characters"
+  fi
+  if [[ "$RESTORE_CANDIDATE_HASH" == "$NULL_UINT256" ]]; then
+    die "restore block hash at height $((HEIGHT + 1)) must not be the null uint256"
+  fi
+  RESTORE_BLOCK_HASH="$RESTORE_CANDIDATE_HASH"
   echo "Rewinding Litecoin source to height $HEIGHT by invalidating $RESTORE_BLOCK_HASH" >&2
   ltc_cli invalidateblock "$RESTORE_BLOCK_HASH" >/dev/null
 

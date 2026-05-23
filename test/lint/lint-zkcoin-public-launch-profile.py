@@ -2066,6 +2066,7 @@ def main():
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
+        ("restore block hash at height", "snapshot script validates rewind restore hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
@@ -2088,6 +2089,7 @@ def main():
         ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
+        ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
         (
             "Reject a Litecoin source still in initial block download",
             "snapshot script test rejects IBD source nodes",
@@ -2236,6 +2238,10 @@ def main():
         (
             "source has headers ahead of downloaded blocks",
             "public launch snapshot source headers synced documentation",
+        ),
+        (
+            "validates the block `X + 1` restore hash before invalidating",
+            "public launch snapshot rewind restore-hash validation documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",
