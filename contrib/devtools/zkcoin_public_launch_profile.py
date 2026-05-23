@@ -324,9 +324,102 @@ def validate_manifest(manifest, allow_blocked):
     return check
 
 
+def cpp_string(value):
+    return json.dumps(value)
+
+
+def cpp_byte(value):
+    return f"0x{value:02x}"
+
+
+def cpp_byte_array(values):
+    return "{" + ", ".join(cpp_byte(value) for value in values) + "}"
+
+
+def cpp_base58(prefix):
+    if len(prefix) == 1:
+        return f"std::vector<unsigned char>(1, {prefix[0]})"
+    return cpp_byte_array(prefix)
+
+
+def emit_network_chainparams(network, profile):
+    identity = profile["public_network_identity"]
+    snapshot = profile["litecoin_snapshot"]
+    auxpow = profile["auxpow"]
+    base58 = identity["base58_prefixes"]
+    message_start = identity["message_start"]
+
+    lines = [
+        f"// {network} public launch profile generated from zkcoin_public_launch_profile_manifest.json",
+        f"        consensus.ltc_snapshot.nHeight = {snapshot['height']};",
+        f"        consensus.ltc_snapshot.hashBlock = uint256S(\"0x{snapshot['block_hash']}\");",
+        f"        consensus.ltc_snapshot.hashUTXORoot = uint256S(\"0x{snapshot['import_hash']}\");",
+        f"        consensus.auxpow.nStartHeight = {auxpow['start_height']};",
+        f"        consensus.auxpow.nChainId = {auxpow['chain_id']};",
+        "        consensus.auxpow.fStrictChainId = true;",
+        "        consensus.shielded_pool.nStartHeight = -1;",
+        "        consensus.shielded_pool.fAllowScaffoldProofs = false;",
+        "        consensus.BIP16Height = 1;",
+        "        consensus.BIP34Height = 1;",
+        "        consensus.BIP34Hash = uint256{};",
+        "        consensus.BIP65Height = 1;",
+        "        consensus.BIP66Height = 1;",
+        "        consensus.CSVHeight = 1;",
+        "        consensus.SegwitHeight = 1;",
+        "        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;",
+        "        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;",
+        "        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartHeight = 0;",
+        "        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeoutHeight = 0;",
+        "        consensus.nMinimumChainWork = uint256{};",
+        "        consensus.defaultAssumeValid = uint256{};",
+    ]
+    for index, byte in enumerate(message_start):
+        lines.append(f"        pchMessageStart[{index}] = {cpp_byte(byte)};")
+    lines.extend(
+        [
+            f"        nDefaultPort = {identity['default_port']};",
+            "        vSeeds.clear();",
+        ]
+    )
+    for seed in identity["dns_seeds"]:
+        lines.append(f"        vSeeds.emplace_back({cpp_string(seed)});")
+    lines.extend(
+        [
+            "        vFixedSeeds.clear();",
+            f"        base58Prefixes[PUBKEY_ADDRESS] = {cpp_base58(base58['pubkey_address'])};",
+            f"        base58Prefixes[SCRIPT_ADDRESS] = {cpp_base58(base58['script_address'])};",
+            f"        base58Prefixes[SCRIPT_ADDRESS2] = {cpp_base58(base58['script_address2'])};",
+            f"        base58Prefixes[SECRET_KEY] = {cpp_base58(base58['secret_key'])};",
+            f"        base58Prefixes[EXT_PUBLIC_KEY] = {cpp_base58(base58['ext_public_key'])};",
+            f"        base58Prefixes[EXT_SECRET_KEY] = {cpp_base58(base58['ext_secret_key'])};",
+            f"        bech32_hrp = {cpp_string(identity['bech32_hrp'])};",
+            f"        mweb_hrp = {cpp_string(identity['mweb_hrp'])};",
+            "        checkpointData = {",
+            "            {",
+            "                {0, consensus.hashGenesisBlock},",
+            "            }",
+            "        };",
+            "        chainTxData = ChainTxData{",
+            "            /* nTime    */ 0,",
+            "            /* nTxCount */ 0,",
+            "            /* dTxRate  */ 0,",
+            "        };",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def emit_chainparams(manifest):
+    return "\n\n".join(
+        emit_network_chainparams(network, manifest["networks"][network])
+        for network in NETWORKS
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
+    parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
 
@@ -349,6 +442,15 @@ def main():
             for blocker in check.blockers:
                 print(f"  - {blocker}", file=sys.stderr)
         return 1
+
+    if args.emit_chainparams:
+        if check.blockers:
+            print("error: cannot emit chainparams while launch-profile fields are blocked", file=sys.stderr)
+            for blocker in check.blockers:
+                print(f"  - {blocker}", file=sys.stderr)
+            return 1
+        print(emit_chainparams(manifest))
+        return 0
 
     if check.blockers:
         print("zkCoin public launch profile manifest is schema-valid but blocked.")
