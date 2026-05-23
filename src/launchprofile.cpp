@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+static constexpr std::size_t MAX_BECH32_HRP_LENGTH = 83;
+
 bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id)
 {
     // BIP9 parent versions with top bits 0x20000000 decode as AuxPoW chain ids 0x2000-0x3fff.
@@ -225,7 +227,7 @@ static bool Base58PrefixesUnique(const CChainParams& chainparams)
 
 static bool HrpShapeValid(const std::string& hrp)
 {
-    if (hrp.empty()) {
+    if (hrp.empty() || hrp.size() > MAX_BECH32_HRP_LENGTH) {
         return false;
     }
     for (const char c : hrp) {

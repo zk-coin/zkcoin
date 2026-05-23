@@ -446,6 +446,14 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_
     }
     {
         CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetBech32Hrp(std::string(84, 'z'));
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.bech32_hrp_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
         chainParams.SetMwebHrp("ltcmweb");
         const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
         BOOST_CHECK(!identity.configured);
@@ -455,6 +463,14 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_
     {
         CNonMockablePublicIdentityParams chainParams;
         chainParams.SetMwebHrp("ZKCMWEB");
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK(!identity.configured);
+        BOOST_CHECK(!identity.mweb_hrp_shape_valid);
+        BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetMwebHrp(std::string(84, 'm'));
         const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
         BOOST_CHECK(!identity.configured);
         BOOST_CHECK(!identity.mweb_hrp_shape_valid);

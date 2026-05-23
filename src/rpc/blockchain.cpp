@@ -1604,9 +1604,9 @@ RPCHelpMan getblockchaininfo()
                                 {RPCResult::Type::BOOL, "base58_prefixes_shape_valid", "whether Base58 prefixes have valid public address/key prefix lengths"},
                                 {RPCResult::Type::BOOL, "base58_prefixes_unique", "whether Base58 prefix byte sequences are unique"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_bech32_hrp", "whether the Bech32 HRP still matches Litecoin mainnet or testnet"},
-                                {RPCResult::Type::BOOL, "bech32_hrp_shape_valid", "whether the Bech32 HRP is non-empty lowercase printable ASCII"},
+                                {RPCResult::Type::BOOL, "bech32_hrp_shape_valid", "whether the Bech32 HRP is non-empty lowercase printable ASCII at most 83 characters"},
                                 {RPCResult::Type::BOOL, "inherited_litecoin_mweb_hrp", "whether the MWEB HRP still matches Litecoin mainnet or testnet"},
-                                {RPCResult::Type::BOOL, "mweb_hrp_shape_valid", "whether the MWEB HRP is non-empty lowercase printable ASCII"},
+                                {RPCResult::Type::BOOL, "mweb_hrp_shape_valid", "whether the MWEB HRP is non-empty lowercase printable ASCII at most 83 characters"},
                                 {RPCResult::Type::BOOL, "hrps_unique", "whether Bech32 and MWEB HRPs are distinct"},
                                 {RPCResult::Type::ARR, "failures", "failed public identity replacement checks",
                                 {
