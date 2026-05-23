@@ -528,6 +528,10 @@ Codesigner only: Commit the detached codesign payloads:
         exit 1
     fi
     git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags
+    if git rev-parse --verify --quiet "refs/tags/$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" >/dev/null; then
+        echo "ZKCOIN_DETACHED_SIGS_RELEASE_TAG already exists; choose a new signed payload tag" >&2
+        exit 1
+    fi
     git rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}" >/dev/null
     git checkout "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"
     if [ -n "$(git status --porcelain)" ]; then
@@ -543,6 +547,11 @@ Codesigner only: Commit the detached codesign payloads:
     git commit -m "point to ${VERSION}"
     git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD
     git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"
+    ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT="$(git rev-list -n 1 "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG")"
+    if [ "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG_COMMIT" != "$(git rev-parse HEAD)" ]; then
+        echo "ZKCOIN_DETACHED_SIGS_RELEASE_TAG does not point at the detached-signatures payload commit" >&2
+        exit 1
+    fi
     git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"
 
 Non-codesigners: wait for Windows/macOS detached signatures:
