@@ -375,7 +375,10 @@ Codesigner only: Sign the macOS binary:
 
     The notarization takes a few minutes. Check the status:
 
-    $   xcrun altool --notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID" -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM" --asc-provider "$ZKCOIN_MACOS_ASC_PROVIDER"
+    $   : "${ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG:?set the local zkCoin macOS notarization status log path}"
+    $   case "$ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG" in ''|TODO|TBD|todo|tbd|*'<'*|*'>'*) echo "ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG must not be a placeholder" >&2; exit 1;; esac
+    $   xcrun altool --notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID" -u "$ZKCOIN_MACOS_APPLE_ID" -p "@keychain:$ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM" --asc-provider "$ZKCOIN_MACOS_ASC_PROVIDER" | tee "$ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG"
+    $   grep -E 'Status: (success|accepted)' "$ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG"
 
     If notarization fails, query log with uuid:
 
@@ -384,6 +387,8 @@ Codesigner only: Sign the macOS binary:
     Staple the notarization ticket onto the application
 
     $   xcrun stapler staple dist/Litecoin-Qt.app
+    $   xcrun stapler validate dist/Litecoin-Qt.app
+    $   spctl --assess --type execute --verbose=4 dist/Litecoin-Qt.app
 
 Codesigner only: Sign the windows binaries:
 

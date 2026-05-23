@@ -354,6 +354,10 @@ def main():
         return fail("notes must document zkCoin macOS app-specific password source")
     if "ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID" not in notes_text:
         return fail("notes must document zkCoin macOS notarization request UUID")
+    if "ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG" not in notes_text:
+        return fail("notes must document zkCoin macOS notarization status log")
+    if "stapler validation" not in notes_text or "spctl assessment" not in notes_text:
+        return fail("notes must document zkCoin macOS notarization completion validation")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin Windows signing key custody")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER" not in notes_text:
@@ -531,7 +535,13 @@ def main():
         ('unset ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD', "macOS app-specific password cleanup"),
         ("ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID", "macOS notarization request UUID"),
         ("ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID must not be a placeholder", "macOS notarization request UUID placeholder rejection"),
+        ("ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG", "macOS notarization status log"),
+        ("ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG must not be a placeholder", "macOS notarization status log placeholder rejection"),
+        ('tee "$ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG"', "macOS notarization status log capture"),
+        ("grep -E 'Status: (success|accepted)'", "macOS notarization success status check"),
         ('--notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID"', "macOS notarization request lookup"),
+        ("xcrun stapler validate dist/Litecoin-Qt.app", "macOS stapled ticket validation"),
+        ("spctl --assess --type execute --verbose=4 dist/Litecoin-Qt.app", "macOS Gatekeeper assessment"),
         ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_PATH", "parameterized Windows code-signing key path"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY", "parameterized Windows code-signing key custody"),
@@ -574,10 +584,15 @@ def main():
             'unset ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD',
             "Notarize the disk image",
             "ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID",
+            "ZKCOIN_MACOS_NOTARIZATION_STATUS_LOG",
             '--notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID"',
+            "grep -E 'Status: (success|accepted)'",
             "Staple the notarization ticket",
+            "xcrun stapler validate dist/Litecoin-Qt.app",
+            "spctl --assess --type execute --verbose=4 dist/Litecoin-Qt.app",
+            "#copy the notarization ticket to detached-sigs repo",
         ),
-        "macOS notarization operational values before status checks",
+        "macOS notarization success and stapler validation before ticket copy",
     )
     if error:
         return fail(error)
