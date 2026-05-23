@@ -112,8 +112,12 @@ If you're using the automated script (found in [contrib/gitian-build.py](/contri
 Check out the source code in the following directory hierarchy.
 
     cd /path/to/your/toplevel/build
-    git clone https://github.com/litecoin-project/gitian.sigs.ltc.git
-    git clone https://github.com/litecoin-project/litecoin-detached-sigs.git
+    export GITIAN_SIGS_DIR="${GITIAN_SIGS_DIR:-zkcoin-gitian.sigs}"
+    export ZKCOIN_DETACHED_SIGS_DIR="${ZKCOIN_DETACHED_SIGS_DIR:-zkcoin-detached-sigs}"
+    : "${ZKCOIN_GITIAN_SIGS_REPO_URL:?set the resolved zkCoin Gitian signatures repository URL}"
+    : "${ZKCOIN_DETACHED_SIGS_REPO_URL:?set the resolved zkCoin detached-signatures repository URL}"
+    git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"
+    git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"
     git clone https://github.com/devrandom/gitian-builder.git
     git clone https://github.com/zk-coin/zkcoin.git litecoin
 
@@ -147,9 +151,10 @@ Setup Gitian descriptors:
     git checkout v${VERSION}
     popd
 
-Ensure your gitian.sigs.ltc are up-to-date if you wish to gverify your builds against other Gitian signatures.
+Ensure your zkCoin Gitian signatures repository is up-to-date if you wish to
+gverify your builds against other Gitian signatures.
 
-    pushd ./gitian.sigs.ltc
+    pushd "./${GITIAN_SIGS_DIR}"
     git pull
     popd
 
@@ -184,7 +189,7 @@ Only missing files will be fetched, so this is safe to re-run for each build.
 NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from local URLs. For example:
 
     pushd ./gitian-builder
-    ./bin/gbuild --url litecoin=/path/to/litecoin,signature=/path/to/sigs {rest of arguments}
+    ./bin/gbuild --url litecoin=/path/to/litecoin,signature=/path/to/zkcoin-detached-sigs {rest of arguments}
     popd
 
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
@@ -196,16 +201,16 @@ The gbuild invocations below <b>DO NOT DO THIS</b> by default.
     
     pushd ./gitian-builder
     ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
-    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-linux --destination ../gitian.sigs.ltc/ ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-linux --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
     mv build/out/litecoin-*.tar.gz build/out/src/litecoin-*.tar.gz ../
 
     ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-win.yml
-    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-unsigned --destination ../gitian.sigs.ltc/ ../litecoin/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-unsigned --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-win.yml
     mv build/out/litecoin-*-win-unsigned.tar.gz inputs/litecoin-win-unsigned.tar.gz
     mv build/out/litecoin-*.zip build/out/litecoin-*.exe ../
 
     ./bin/gbuild --num-make $GITIAN_THREADS --memory $GITIAN_MEMORY --commit litecoin=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
-    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-unsigned --destination ../gitian.sigs.ltc/ ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-unsigned --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
     mv build/out/litecoin-*-osx-unsigned.tar.gz inputs/litecoin-osx-unsigned.tar.gz
     mv build/out/litecoin-*.tar.gz build/out/litecoin-*.dmg ../
     popd
@@ -216,7 +221,7 @@ Build output expected:
   2. linux 32-bit and 64-bit dist tarballs (`litecoin-${VERSION}-linux[32|64].tar.gz`)
   3. windows 32-bit and 64-bit unsigned installers and dist zips (`litecoin-${VERSION}-win[32|64]-setup-unsigned.exe`, `litecoin-${VERSION}-win[32|64].zip`)
   4. macOS unsigned installer and dist tarball (`litecoin-${VERSION}-osx-unsigned.dmg`, `litecoin-${VERSION}-osx64.tar.gz`)
-  5. Gitian signatures (in `gitian.sigs.ltc/${VERSION}-<linux|{win,osx}-unsigned>/(your Gitian key)/`)
+  5. Gitian signatures (in `${GITIAN_SIGS_DIR}/${VERSION}-<linux|{win,osx}-unsigned>/(your Gitian key)/`)
 
 ### Verify other gitian builders signatures to your own. (Optional)
 
@@ -225,16 +230,16 @@ Add other gitian builders keys to your gpg keyring, and/or refresh keys: See `..
 Verify the signatures
 
     pushd ./gitian-builder
-    ./bin/gverify -v -d ../gitian.sigs.ltc/ -r ${VERSION}-linux ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
-    ./bin/gverify -v -d ../gitian.sigs.ltc/ -r ${VERSION}-win-unsigned ../litecoin/contrib/gitian-descriptors/gitian-win.yml
-    ./bin/gverify -v -d ../gitian.sigs.ltc/ -r ${VERSION}-osx-unsigned ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-linux ../litecoin/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-win-unsigned ../litecoin/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-osx-unsigned ../litecoin/contrib/gitian-descriptors/gitian-osx.yml
     popd
 
 ### Next steps:
 
-Commit your signature to gitian.sigs.ltc:
+Commit your signature to the zkCoin Gitian signatures repository:
 
-    pushd gitian.sigs.ltc
+    pushd "${GITIAN_SIGS_DIR}"
     git add ${VERSION}-linux/"${SIGNER}"
     git add ${VERSION}-win-unsigned/"${SIGNER}"
     git add ${VERSION}-osx-unsigned/"${SIGNER}"
@@ -289,7 +294,7 @@ Codesigner only: Sign the windows binaries:
 
 Codesigner only: Commit the detached codesign payloads:
 
-    cd ~/litecoin-detached-sigs
+    cd "${ZKCOIN_DETACHED_SIGS_DIR}"
     #checkout the appropriate branch for this release series
     rm -rf *
     tar xf signature-osx.tar.gz
@@ -304,33 +309,33 @@ Codesigner only: Commit the detached codesign payloads:
 Non-codesigners: wait for Windows/macOS detached signatures:
 
 - Once the Windows/macOS builds each have 3 matching signatures, they will be signed with their respective release keys.
-- Detached signatures will then be committed to the [litecoin-detached-sigs](https://github.com/litecoin-project/litecoin-detached-sigs) repository, which can be combined with the unsigned apps to create signed binaries.
+- Detached signatures will then be committed to the configured zkCoin detached-signatures repository, which can be combined with the unsigned apps to create signed binaries.
 
 Create (and optionally verify) the signed macOS binary:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
-    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-signed --destination ../gitian.sigs.ltc/ ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
-    ./bin/gverify -v -d ../gitian.sigs.ltc/ -r ${VERSION}-osx-signed ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-signed --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-osx-signed ../litecoin/contrib/gitian-descriptors/gitian-osx-signer.yml
     mv build/out/litecoin-osx-signed.dmg ../litecoin-${VERSION}-osx.dmg
     popd
 
 Create (and optionally verify) the signed Windows binaries:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
-    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gbuild -i --url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}" --commit signature=v${VERSION} ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-signed --destination "../${GITIAN_SIGS_DIR}/" ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gverify -v -d "../${GITIAN_SIGS_DIR}/" -r ${VERSION}-win-signed ../litecoin/contrib/gitian-descriptors/gitian-win-signer.yml
     mv build/out/litecoin-*win64-setup.exe ../litecoin-${VERSION}-win64-setup.exe
     popd
 
 Commit your signature for the signed macOS/Windows binaries:
 
-    pushd gitian.sigs.ltc
+    pushd "${GITIAN_SIGS_DIR}"
     git add ${VERSION}-osx-signed/"${SIGNER}"
     git add ${VERSION}-win-signed/"${SIGNER}"
     git commit -m "Add ${SIGNER} ${VERSION} signed binaries signatures"
-    git push  # Assuming you can push to the gitian.sigs.ltc tree
+    git push  # Assuming you can push to the zkCoin Gitian signatures tree
     popd
 
 ### After 3 or more people have gitian-built and their results match:

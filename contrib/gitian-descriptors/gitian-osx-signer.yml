@@ -10,7 +10,7 @@ packages:
 - "xorriso"
 - "python3-pip"
 remotes:
-- "url": "https://github.com/litecoin-project/litecoin-detached-sigs.git"
+- "url": "https://example.invalid/zkcoin-detached-sigs-not-configured.git"
   "dir": "signature"
 - "url": "https://github.com/achow101/signapple.git"
   "dir": "signapple"
