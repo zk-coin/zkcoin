@@ -316,6 +316,12 @@ def require_int(obj, source, field):
         fail(f"{source}.{field} must be a non-negative integer")
     return parsed
 
+def require_positive_int(obj, source, field):
+    parsed = require_int(obj, source, field)
+    if parsed <= 0:
+        fail(f"{source}.{field} must be positive")
+    return parsed
+
 def require_hash(obj, source, field):
     value = require_field(obj, source, field)
     if not isinstance(value, str):
@@ -336,12 +342,12 @@ verify = load_json("verifysnapshotmanifest", verify_json)
 
 dump_height = require_int(dump, "dumptxoutset", "base_height")
 dump_hash = require_hash(dump, "dumptxoutset", "base_hash")
-dump_coins = require_int(dump, "dumptxoutset", "coins_written")
+dump_coins = require_positive_int(dump, "dumptxoutset", "coins_written")
 verify_height = require_int(verify, "verifysnapshotmanifest", "base_height")
 verify_hash = require_hash(verify, "verifysnapshotmanifest", "base_hash")
-verify_coins = require_int(verify, "verifysnapshotmanifest", "coins")
-verify_metadata_coins = require_int(verify, "verifysnapshotmanifest", "metadata_coins")
-verify_base_nchaintx = require_int(verify, "verifysnapshotmanifest", "base_nchaintx")
+verify_coins = require_positive_int(verify, "verifysnapshotmanifest", "coins")
+verify_metadata_coins = require_positive_int(verify, "verifysnapshotmanifest", "metadata_coins")
+verify_base_nchaintx = require_positive_int(verify, "verifysnapshotmanifest", "base_nchaintx")
 snapshot_hash = require_hash(verify, "verifysnapshotmanifest", "snapshot_hash")
 import_hash = require_hash(verify, "verifysnapshotmanifest", "import_hash")
 total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")

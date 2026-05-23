@@ -2073,6 +2073,7 @@ def main():
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
+        ("require_positive_int", "snapshot script requires positive audit counts"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
         ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
         ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
@@ -2122,6 +2123,8 @@ def main():
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
+        ("Reject zero snapshot dump coin count", "snapshot script test rejects zero dump coin counts"),
+        ("Reject zero verifier base transaction count", "snapshot script test rejects zero base transaction count"),
         ("Print the testnet snapshot audit manifest handoff", "snapshot script test checks source-chain manifest handoff mapping"),
         ("--set-snapshot-audit testnet", "snapshot script test checks audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
@@ -2281,6 +2284,10 @@ def main():
         (
             "positive decimal total amount with 8 fractional digits",
             "public launch manifest snapshot audit amount documentation",
+        ),
+        (
+            "positive coin and transaction counts",
+            "public launch snapshot positive audit count documentation",
         ),
         (
             "source_chain",

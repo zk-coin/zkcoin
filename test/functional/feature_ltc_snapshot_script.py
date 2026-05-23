@@ -535,6 +535,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "verifysnapshotmanifest.total_amount must be a positive decimal amount with 8 fractional digits",
         )
 
+        self.log.info("Reject zero snapshot dump coin count")
+        self.assert_snapshot(
+            "zero-dump-coins",
+            self.scenario(dump_json=self.dump_json(coins_written=0)),
+            1,
+            "dumptxoutset.coins_written must be positive",
+        )
+
+        self.log.info("Reject zero verifier base transaction count")
+        self.assert_snapshot(
+            "zero-base-nchaintx",
+            self.scenario(verify_json=self.verify_json(base_nchaintx=0)),
+            1,
+            "verifysnapshotmanifest.base_nchaintx must be positive",
+        )
+
         self.log.info("Reject dump/verify coin count mismatches")
         self.assert_snapshot(
             "coin-count-mismatch",
