@@ -220,7 +220,7 @@ report a well-formed non-null block hash for height X, if that hash does not
 match the expected block hash, if the expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed JSON, or if required snapshot/manifest fields are missing or
-inconsistent. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
+inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then
@@ -273,6 +273,7 @@ The manifest validator reads the verified `height`, `block_hash`, and `import_ha
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
 an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
+The snapshot operator and manifest handoff only accept positive coin and transaction counts.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary.
 The manifest update rejects a snapshot audit whose source chain does not match
