@@ -2066,6 +2066,7 @@ def main():
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
+        ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
@@ -2111,6 +2112,10 @@ def main():
         (
             "Reject a missing audit summary output directory before calling either CLI",
             "snapshot script test rejects missing audit directory before RPC",
+        ),
+        (
+            "Reject a missing snapshot output directory before calling either CLI",
+            "snapshot script test rejects missing snapshot directory before RPC",
         ),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
@@ -2242,6 +2247,10 @@ def main():
         (
             "validates the block `X + 1` restore hash before invalidating",
             "public launch snapshot rewind restore-hash validation documentation",
+        ),
+        (
+            "snapshot output directory must also exist",
+            "public launch snapshot output directory preflight documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",

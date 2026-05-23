@@ -229,7 +229,8 @@ anything, then reconsiders block `X + 1` on exit. A failed restore makes the
 script fail even when the snapshot dump itself succeeded.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the script validates the audit summary output path before running snapshot RPCs: the audit path must not already
 exist, must not equal the snapshot output path, and must have an existing parent
-directory.
+directory. The snapshot output directory must also exist before the script calls
+either node.
 
 Example:
 

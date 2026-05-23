@@ -95,6 +95,10 @@ esac
 if [[ -e "$SNAPSHOT_PATH" ]]; then
   die "snapshot output already exists: $SNAPSHOT_PATH"
 fi
+SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
+if [[ ! -d "$SNAPSHOT_DIR" ]]; then
+  die "snapshot output directory does not exist: $SNAPSHOT_DIR"
+fi
 
 if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   AUDIT_JSON_PATH="$ZKCOIN_SNAPSHOT_AUDIT_JSON"
