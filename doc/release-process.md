@@ -106,7 +106,7 @@ Check out the source code in the following directory hierarchy.
     git clone https://github.com/litecoin-project/gitian.sigs.ltc.git
     git clone https://github.com/litecoin-project/litecoin-detached-sigs.git
     git clone https://github.com/devrandom/gitian-builder.git
-    git clone https://github.com/litecoin-project/litecoin.git
+    git clone https://github.com/zk-coin/zkcoin.git litecoin
 
 ### Litecoin maintainers/release engineers, suggestion for writing release notes
 

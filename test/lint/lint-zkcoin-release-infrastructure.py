@@ -19,17 +19,23 @@ RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
 VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
 GITIAN_BUILD = ROOT_DIR / "contrib" / "gitian-build.py"
+GITIAN_SOURCE_DESCRIPTORS = (
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-linux.yml",
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-win.yml",
+    ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-osx.yml",
+)
 CONFIGURE = ROOT_DIR / "configure.ac"
 MAKEFILE_AM = ROOT_DIR / "Makefile.am"
 SRC_MAKEFILE_AM = ROOT_DIR / "src" / "Makefile.am"
 UPSTREAM_VERIFY_ENV = "ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES"
 UPSTREAM_GITIAN_ENV = "ZKCOIN_ALLOW_BITCOIN_GITIAN_BUILD"
+ZKCOIN_SOURCE_REPO = "https://github.com/zk-coin/zkcoin.git"
+UPSTREAM_LITECOIN_SOURCE_REPO = "https://github.com/litecoin-project/litecoin.git"
 REQUIRED_BLOCKERS = {
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
     "detached_sigs_repo",
     "artifact_download_host",
-    "descriptor_source_repo",
     "binary_namespace_decision",
     "macos_signing_identity",
     "windows_signing_key",
@@ -181,6 +187,23 @@ def require_source_dist_smoke_entries():
     return None
 
 
+def require_gitian_source_descriptors():
+    for descriptor in GITIAN_SOURCE_DESCRIPTORS:
+        text = descriptor.read_text(encoding="utf8")
+        if ZKCOIN_SOURCE_REPO not in text:
+            return "{} must fetch zkCoin source repo: {}".format(
+                descriptor.relative_to(ROOT_DIR),
+                ZKCOIN_SOURCE_REPO,
+            )
+        if UPSTREAM_LITECOIN_SOURCE_REPO in text:
+            return "{} must not fetch inherited Litecoin source repo".format(descriptor.relative_to(ROOT_DIR))
+        if '"dir": "litecoin"' not in text:
+            return "{} must retain the litecoin input directory until namespace migration is decided".format(
+                descriptor.relative_to(ROOT_DIR)
+            )
+    return None
+
+
 def main():
     try:
         manifest = json.loads(MANIFEST.read_text(encoding="utf8"))
@@ -242,6 +265,10 @@ def main():
         if contains not in path.read_text(encoding="utf8"):
             return fail("{} no longer contains manifest marker {!r}; update the manifest with the release-infra change".format(relpath, contains))
 
+    error = require_gitian_source_descriptors()
+    if error:
+        return fail(error)
+
     release_doc_checks = (
         ("zkCoin release infrastructure is not production-ready", "fail-closed release status warning"),
         ("zkcoin_release_infrastructure_manifest.json", "release infrastructure manifest reference"),
@@ -250,6 +277,7 @@ def main():
         ("zkcoin_release_candidate_validation.sh", "source release-candidate validation gate"),
         ("It is not binary release readiness", "source-vs-binary readiness boundary"),
         ("does not authorize publishing binaries", "binary publication blocker"),
+        ("git clone https://github.com/zk-coin/zkcoin.git litecoin", "zkCoin source clone"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
