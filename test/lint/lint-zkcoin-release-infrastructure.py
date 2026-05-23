@@ -283,6 +283,8 @@ def main():
         return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_ARTIFACTS" not in notes_text:
         return fail("notes must document explicit zkCoin release artifact checksum set")
+    if "local pre-upload verify-zkcoin-release.py check" not in notes_text:
+        return fail("notes must document local pre-upload zkCoin artifact verification")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
@@ -366,6 +368,8 @@ def main():
         ("ZKCOIN_ACTUAL_ARTIFACTS", "actual release artifact set"),
         ("Release artifact set does not match the expected zkCoin non-debug artifacts", "release artifact set mismatch failure"),
         ('sha256sum "${ZKCOIN_RELEASE_ARTIFACTS[@]}" > SHA256SUMS', "explicit release artifact checksum command"),
+        ("Verify the local signed checksum manifest and artifacts before uploading", "pre-upload local artifact verification"),
+        ("--artifacts-dir .", "pre-upload local artifact directory verification"),
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
