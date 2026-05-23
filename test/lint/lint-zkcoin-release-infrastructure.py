@@ -304,6 +304,12 @@ def main():
         return fail("notes must document fail-closed detached-signatures signer descriptors")
     if "ZKCOIN_DETACHED_SIGS_RELEASE_REF" not in notes_text:
         return fail("notes must document parameterized zkCoin detached-signatures release ref")
+    if "ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD" not in notes_text:
+        return fail("notes must document zkCoin detached-signatures custody record")
+    if "ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER" not in notes_text:
+        return fail("notes must document zkCoin detached-signatures custody owner")
+    if "ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL" not in notes_text:
+        return fail("notes must document zkCoin detached-signatures payload approval")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
     if "ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD" not in notes_text:
@@ -428,9 +434,14 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_REF", "parameterized detached-signatures release branch"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG", "parameterized detached-signatures release tag"),
+        ("ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD", "detached-signatures custody record"),
+        ("ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER", "detached-signatures custody owner"),
+        ("ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL", "detached-signatures payload approval record"),
+        ("ZKCOIN_DETACHED_SIGS custody fields must not be placeholders", "detached-signatures custody placeholder rejection"),
         ('git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags', "detached-signatures release branch fetch"),
         ('rev-parse --verify --quiet "$ZKCOIN_DETACHED_SIGS_RELEASE_REF^{commit}"', "detached-signatures release ref validation"),
         ('git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD', "detached-signatures release tag creation"),
+        ('git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"', "detached-signatures release tag verification"),
         ('--commit "signature=${ZKCOIN_DETACHED_SIGS_RELEASE_TAG}"', "detached-signatures signed tag Gitian input"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
@@ -518,6 +529,23 @@ def main():
             "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
         "release source tag provenance and signer authorization before Gitian builds",
+    )
+    if error:
+        return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Codesigner only: Commit the detached codesign payloads",
+            "ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD",
+            "ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL",
+            'git fetch origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF:$ZKCOIN_DETACHED_SIGS_RELEASE_REF" --tags',
+            'git tag -s "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG" HEAD',
+            'git verify-tag "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
+            'git push origin "$ZKCOIN_DETACHED_SIGS_RELEASE_REF" "$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
+            "Non-codesigners: wait for Windows/macOS detached signatures",
+        ),
+        "detached-signatures custody before payload publication",
     )
     if error:
         return fail(error)
