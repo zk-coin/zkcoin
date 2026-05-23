@@ -41,6 +41,8 @@ python3 - "$INFO_JSON" <<'PY'
 import json
 import sys
 
+PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
+
 try:
     info = json.loads(sys.argv[1])
 except json.JSONDecodeError as exc:
@@ -312,6 +314,8 @@ if shielded["real_proof_backend"] != "orchard-v1":
     posture_failures.append(f"shielded real proof backend is not orchard-v1: {shielded['real_proof_backend']}")
 if shielded["real_proof_verification"] is not True:
     posture_failures.append("shielded real proof verification is not available")
+if auxpow["chain_id"] == PLACEHOLDER_AUXPOW_CHAIN_ID:
+    posture_failures.append("AuxPoW chain id is still the local launch placeholder 0x5a4b")
 
 if readiness["ready"] is True and failures == [] and public_identity["failures"] == [] and not false_ready_fields and not posture_failures:
     print("Launch preflight passed.")

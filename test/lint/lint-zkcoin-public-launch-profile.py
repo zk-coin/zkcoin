@@ -18,6 +18,7 @@ INIT = ROOT_DIR / "src" / "init.cpp"
 POW_TESTS = ROOT_DIR / "src" / "test" / "pow_tests.cpp"
 SIGNET_TEST = ROOT_DIR / "test" / "functional" / "feature_signet.py"
 LAUNCH_PREFLIGHT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_launch_preflight.sh"
+LAUNCH_PREFLIGHT_TEST = ROOT_DIR / "test" / "functional" / "feature_launch_preflight_script.py"
 PUBLIC_LAUNCH_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile_manifest.json"
 PUBLIC_LAUNCH_MANIFEST_TOOL = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile.py"
 LTC_SNAPSHOT_SCRIPT = ROOT_DIR / "contrib" / "devtools" / "zkcoin_ltc_snapshot.sh"
@@ -1629,6 +1630,10 @@ def main():
             "getblockchaininfo.auxpow.strict_chain_id must be true when launch_readiness.chain_id_configured is true",
             "preflight cross-checks strict AuxPoW chain-id detail",
         ),
+        (
+            "AuxPoW chain id is still the local launch placeholder 0x5a4b",
+            "preflight rejects placeholder AuxPoW chain id",
+        ),
         ("message_start_shape_valid", "preflight requires message-start shape detail"),
         ("dns_seeds_shape_valid", "preflight requires DNS seed shape detail"),
         ("base58_prefixes_unique", "preflight requires Base58 uniqueness detail"),
@@ -1646,6 +1651,21 @@ def main():
         error = require_text(LAUNCH_PREFLIGHT, needle, description)
         if error:
             return fail(LAUNCH_PREFLIGHT, error)
+
+    preflight_test_checks = (
+        (
+            "Reject placeholder AuxPoW chain id in launch preflight",
+            "preflight fake-CLI placeholder AuxPoW chain-id coverage",
+        ),
+        (
+            '"AuxPoW chain id is still the local launch placeholder 0x5a4b"',
+            "preflight fake-CLI placeholder AuxPoW chain-id assertion",
+        ),
+    )
+    for needle, description in preflight_test_checks:
+        error = require_text(LAUNCH_PREFLIGHT_TEST, needle, description)
+        if error:
+            return fail(LAUNCH_PREFLIGHT_TEST, error)
 
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
@@ -1681,6 +1701,10 @@ def main():
             "Litecoin parent versionbits chain-id range documentation",
         ),
         ("launch_readiness.chain_id_parent_version_safe=true", "preflight parent-version-safe readiness documentation"),
+        (
+            "rejects the local launch placeholder `0x5a4b` chain id",
+            "preflight placeholder AuxPoW chain-id documentation",
+        ),
         (
             "transactions must remain inactive for the first launch block",
             "shielded launch posture documentation",
