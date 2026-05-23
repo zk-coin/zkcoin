@@ -281,6 +281,8 @@ def main():
         return fail("notes must document parameterized zkCoin detached-signatures release ref")
     if "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" not in notes_text:
         return fail("notes must document parameterized zkCoin release checksum signing key")
+    if "ZKCOIN_RELEASE_ARTIFACTS" not in notes_text:
+        return fail("notes must document explicit zkCoin release artifact checksum set")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
@@ -359,6 +361,11 @@ def main():
         ("ZKCOIN_RELEASE_SIGNING_KEY_ID", "parameterized release signing local key id"),
         ("--with-colons --fingerprint", "release signing key fingerprint validation"),
         ('--local-user "$ZKCOIN_RELEASE_SIGNING_KEY_ID"', "explicit zkCoin release signing key invocation"),
+        ("ZKCOIN_RELEASE_ARTIFACTS=(", "explicit release artifact checksum list"),
+        ("ZKCOIN_EXPECTED_ARTIFACTS", "expected release artifact set"),
+        ("ZKCOIN_ACTUAL_ARTIFACTS", "actual release artifact set"),
+        ("Release artifact set does not match the expected zkCoin non-debug artifacts", "release artifact set mismatch failure"),
+        ('sha256sum "${ZKCOIN_RELEASE_ARTIFACTS[@]}" > SHA256SUMS', "explicit release artifact checksum command"),
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
@@ -449,6 +456,7 @@ def main():
         (RELEASE_DOC, "#checkout the appropriate branch for this release series", "ambiguous detached-signatures release branch"),
         (RELEASE_DOC, "git tag -s v${VERSION} HEAD", "implicit detached-signatures release tag"),
         (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
+        (RELEASE_DOC, "sha256sum * > SHA256SUMS", "wildcard release checksum command"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)
