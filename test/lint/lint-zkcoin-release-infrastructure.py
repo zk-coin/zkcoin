@@ -271,6 +271,8 @@ def main():
     notes_text = "\n".join(note for note in notes if isinstance(note, str))
     if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
+    if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
+        return fail("notes must document parameterized zkCoin Gitian signer quorum")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
@@ -337,6 +339,11 @@ def main():
         ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
         ("not embed production signing keys", "parameterized binary verification boundary"),
         ("ZKCOIN_GITIAN_SIGS_REPO_URL", "parameterized Gitian signatures repository"),
+        ("ZKCOIN_GITIAN_SIGNER_QUORUM", "parameterized Gitian signer quorum"),
+        ("published zkCoin Gitian signer quorum", "zkCoin Gitian signer quorum boundary"),
+        ("ZKCOIN_GITIAN_RELEASE", "Gitian signer quorum release loop"),
+        ("${VERSION}-win-signed", "Gitian signed Windows quorum check"),
+        ("${VERSION}-osx-signed", "Gitian signed macOS quorum check"),
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
@@ -429,6 +436,8 @@ def main():
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
         (RELEASE_DOC, "/path/to/codesign.key", "placeholder Windows signing key path"),
         (RELEASE_DOC, "gpg --digest-algo sha256 --clearsign SHA256SUMS # outputs SHA256SUMS.asc", "unqualified release checksum signing command"),
+        (RELEASE_DOC, "After 3 or more people have gitian-built", "fixed inherited Gitian signer quorum"),
+        (RELEASE_DOC, "3 matching signatures", "fixed inherited platform signing quorum"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)

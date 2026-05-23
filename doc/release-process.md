@@ -249,7 +249,8 @@ Commit your signature to the zkCoin Gitian signatures repository:
 
 Codesigner only: Create Windows/macOS detached signatures:
 - Only one person handles codesigning. Everyone else should skip to the next step.
-- Only once the Windows/macOS builds each have 3 matching signatures may they be signed with their respective release keys.
+- Only once the Windows/macOS builds each satisfy the published zkCoin Gitian
+  signer quorum may they be signed with their respective release keys.
 
 Codesigner only: Sign the macOS binary:
 
@@ -314,7 +315,8 @@ Codesigner only: Commit the detached codesign payloads:
 
 Non-codesigners: wait for Windows/macOS detached signatures:
 
-- Once the Windows/macOS builds each have 3 matching signatures, they will be signed with their respective release keys.
+- Once the Windows/macOS builds satisfy the published zkCoin Gitian signer
+  quorum, they will be signed with their respective release keys.
 - Detached signatures will then be committed to the configured zkCoin detached-signatures repository, which can be combined with the unsigned apps to create signed binaries.
 
 Create (and optionally verify) the signed macOS binary:
@@ -344,7 +346,44 @@ Commit your signature for the signed macOS/Windows binaries:
     git push  # Assuming you can push to the zkCoin Gitian signatures tree
     popd
 
-### After 3 or more people have gitian-built and their results match:
+### After the published zkCoin Gitian signer quorum has built and results match:
+
+- Verify that every Gitian release output set satisfies the published zkCoin
+  signer quorum before creating checksums:
+
+```bash
+: "${ZKCOIN_GITIAN_SIGNER_QUORUM:?set the resolved zkCoin Gitian signer quorum count}"
+
+case "$ZKCOIN_GITIAN_SIGNER_QUORUM" in
+  ''|*[!0-9]*)
+    echo "ZKCOIN_GITIAN_SIGNER_QUORUM must be a positive integer" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$ZKCOIN_GITIAN_SIGNER_QUORUM" -lt 1 ]; then
+    echo "ZKCOIN_GITIAN_SIGNER_QUORUM must be at least 1" >&2
+    exit 1
+fi
+
+for ZKCOIN_GITIAN_RELEASE in \
+  "${VERSION}-linux" \
+  "${VERSION}-win-unsigned" \
+  "${VERSION}-osx-unsigned" \
+  "${VERSION}-win-signed" \
+  "${VERSION}-osx-signed"; do
+    ZKCOIN_GITIAN_SIGNER_COUNT="$(
+      find "${GITIAN_SIGS_DIR}/${ZKCOIN_GITIAN_RELEASE}" \
+        -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
+        | wc -l \
+        | tr -d '[:space:]'
+    )"
+    if [ "$ZKCOIN_GITIAN_SIGNER_COUNT" -lt "$ZKCOIN_GITIAN_SIGNER_QUORUM" ]; then
+        echo "${ZKCOIN_GITIAN_RELEASE} has ${ZKCOIN_GITIAN_SIGNER_COUNT} Gitian signers; require ${ZKCOIN_GITIAN_SIGNER_QUORUM}" >&2
+        exit 1
+    fi
+done
+```
 
 - Create `SHA256SUMS.asc` for the builds, and GPG-sign it:
 
