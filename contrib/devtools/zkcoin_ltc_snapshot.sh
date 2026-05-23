@@ -127,6 +127,16 @@ zk_cli() {
   "${ZK_CLI[@]}" -rpcclienttimeout=9999999 "$@"
 }
 
+snapshot_sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$SNAPSHOT_PATH" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$SNAPSHOT_PATH" | awk '{print $1}'
+  else
+    die "missing sha256sum or shasum for snapshot artifact fingerprinting"
+  fi
+}
+
 RESTORE_BLOCK_HASH=""
 cleanup() {
   local status=$?
@@ -255,19 +265,21 @@ SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
 if [[ ! "$SNAPSHOT_FILE_SIZE" =~ ^[1-9][0-9]*$ ]]; then
   die "snapshot output size is not a positive byte count: $SNAPSHOT_FILE_SIZE"
 fi
-if command -v sha256sum >/dev/null 2>&1; then
-  SNAPSHOT_FILE_SHA256="$(sha256sum "$SNAPSHOT_PATH" | awk '{print $1}')"
-elif command -v shasum >/dev/null 2>&1; then
-  SNAPSHOT_FILE_SHA256="$(shasum -a 256 "$SNAPSHOT_PATH" | awk '{print $1}')"
-else
-  die "missing sha256sum or shasum for snapshot artifact fingerprinting"
-fi
+SNAPSHOT_FILE_SHA256="$(snapshot_sha256)"
 if [[ ! "$SNAPSHOT_FILE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   die "snapshot output SHA-256 fingerprint is malformed: $SNAPSHOT_FILE_SHA256"
 fi
 
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
+POST_VERIFY_SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
+if [[ "$POST_VERIFY_SNAPSHOT_FILE_SIZE" != "$SNAPSHOT_FILE_SIZE" ]]; then
+  die "snapshot output changed during verification: size_before=$SNAPSHOT_FILE_SIZE size_after=$POST_VERIFY_SNAPSHOT_FILE_SIZE"
+fi
+POST_VERIFY_SNAPSHOT_FILE_SHA256="$(snapshot_sha256)"
+if [[ "$POST_VERIFY_SNAPSHOT_FILE_SHA256" != "$SNAPSHOT_FILE_SHA256" ]]; then
+  die "snapshot output changed during verification: sha256_before=$SNAPSHOT_FILE_SHA256 sha256_after=$POST_VERIFY_SNAPSHOT_FILE_SHA256"
+fi
 
 python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$SNAPSHOT_FILE_SIZE" "$SNAPSHOT_FILE_SHA256" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
 import json

@@ -102,6 +102,9 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                 elif role == "zkcoin":
                     if command != "verifysnapshotmanifest":
                         fail(f"unexpected zkcoin command: {command}")
+                    if scenario.get("mutate_snapshot_during_verify", False):
+                        with open(command_args[0], "ab") as snapshot_file:
+                            snapshot_file.write(b"mutated")
                     print(scenario.get("verify_raw", json.dumps(scenario["verify_json"])))
                 else:
                     fail(f"unexpected role: {role}")
@@ -516,6 +519,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "snapshot output is empty after dumptxoutset",
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject snapshot artifact mutation during verification")
+        _, calls, snapshot_path = self.assert_snapshot(
+            "mutated-during-verify",
+            self.scenario(mutate_snapshot_during_verify=True),
+            1,
+            "snapshot output changed during verification",
+        )
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 
         self.log.info("Reject missing verifier manifest fields")
         missing_import_hash = self.verify_json()

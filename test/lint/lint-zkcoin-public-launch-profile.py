@@ -2073,6 +2073,8 @@ def main():
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
+        ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
+        ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
         ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
@@ -2122,6 +2124,7 @@ def main():
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
+        ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject zero snapshot dump coin count", "snapshot script test rejects zero dump coin counts"),
         ("Reject zero verifier base transaction count", "snapshot script test rejects zero base transaction count"),
@@ -2304,6 +2307,10 @@ def main():
         (
             "verifies the local snapshot artifact size and SHA-256",
             "public launch manifest snapshot artifact verification documentation",
+        ),
+        (
+            "changes during zkCoin verification",
+            "snapshot operator verifier-time artifact mutation documentation",
         ),
         (
             "rejects a snapshot audit whose source chain does not match",
