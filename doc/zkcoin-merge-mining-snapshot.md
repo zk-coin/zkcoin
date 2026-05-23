@@ -199,6 +199,19 @@ It prints the snapshot-related launch-node arguments:
 -ltcsnapshotfile=<snapshot_path>
 ```
 
+It also prints the corresponding public launch-profile manifest update command:
+
+```bash
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --set-snapshot NETWORK <height> <block_hash> <normalized_import_hash> \
+  --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json
+```
+
+Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
+The manifest validator removes only that network's snapshot blocker; the
+remaining AuxPoW, DNS seed, and public identity blockers stay explicit until
+their production values are selected.
+
 Keep `-ltcsnapshotfile` with the other snapshot arguments for launch rehearsal and reindex operations. Startup fails closed if snapshot constants are configured with `-reindex` or `-reindex-chainstate` but the snapshot file path is missing.
 
 After the first child block is mined, rehearse both rebuild paths against the

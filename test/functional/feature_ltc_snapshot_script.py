@@ -207,6 +207,12 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert f"-ltcsnapshotblockhash={BLOCK_HASH}" in result.stdout
         assert f"-ltcsnapshotutxoroot={IMPORT_HASH}" in result.stdout
         assert f"-ltcsnapshotfile={snapshot_path}" in result.stdout
+        assert "Snapshot public launch-profile manifest update:" in result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot NETWORK {HEIGHT} {BLOCK_HASH} {IMPORT_HASH} "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in result.stdout
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 

@@ -59,6 +59,34 @@ REQUIRED_BLOCKERS = {
 }
 
 
+def unresolved_blocker_ids(manifest):
+    blockers = set()
+    networks = manifest.get("networks", {})
+    for network in NETWORKS:
+        profile = networks.get(network, {})
+        snapshot = profile.get("litecoin_snapshot", {})
+        if any(snapshot.get(field) is None for field in ("height", "block_hash", "import_hash")):
+            blockers.add(f"{network}.litecoin_snapshot")
+
+        auxpow = profile.get("auxpow", {})
+        if auxpow.get("chain_id") is None:
+            blockers.add(f"{network}.auxpow_chain_id")
+
+        identity = profile.get("public_network_identity", {})
+        base58 = identity.get("base58_prefixes", {})
+        if (
+            identity.get("message_start") is None
+            or identity.get("default_port") is None
+            or identity.get("bech32_hrp") is None
+            or identity.get("mweb_hrp") is None
+            or any(base58.get(field) is None for field, _ in BASE58_FIELDS)
+        ):
+            blockers.add(f"{network}.public_network_identity")
+        if not identity.get("dns_seeds"):
+            blockers.add(f"{network}.dns_seeds")
+    return blockers
+
+
 class Validation:
     def __init__(self, allow_blocked):
         self.allow_blocked = allow_blocked
@@ -302,7 +330,8 @@ def validate_manifest(manifest, allow_blocked):
             continue
         blocker_ids.add(blocker_id)
         check.require_string(blocker.get("description"), f"blockers[{index}].description")
-    missing_blockers = sorted(REQUIRED_BLOCKERS - blocker_ids)
+    expected_blockers = unresolved_blocker_ids(manifest)
+    missing_blockers = sorted(expected_blockers - blocker_ids)
     if status == "blocked" and missing_blockers:
         check.error("blockers", "missing required blocker ids: " + ", ".join(missing_blockers))
     if status == "ready-for-chainparams" and blockers:
@@ -322,6 +351,54 @@ def validate_manifest(manifest, allow_blocked):
         validate_identity(check, network, profile, allow_null)
 
     return check
+
+
+def parse_height(value):
+    try:
+        height = int(value)
+    except ValueError:
+        raise ValueError("height must be a non-negative integer")
+    if height < 0:
+        raise ValueError("height must be a non-negative integer")
+    return height
+
+
+def parse_hex256(value, label):
+    value = value.lower()
+    if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise ValueError(f"{label} must be a 64-character hex string")
+    if value == ZERO_UINT256:
+        raise ValueError(f"{label} must not be the null uint256")
+    return value
+
+
+def remove_blocker(manifest, blocker_id):
+    blockers = manifest.get("blockers", [])
+    manifest["blockers"] = [
+        blocker
+        for blocker in blockers
+        if not (isinstance(blocker, dict) and blocker.get("id") == blocker_id)
+    ]
+
+
+def set_snapshot(manifest, network, height, block_hash, import_hash):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    networks = manifest.setdefault("networks", {})
+    profile = networks.setdefault(network, {})
+    profile["litecoin_snapshot"] = {
+        "height": parse_height(height),
+        "block_hash": parse_hex256(block_hash, "block_hash"),
+        "import_hash": parse_hex256(import_hash, "import_hash"),
+    }
+    remove_blocker(manifest, f"{network}.litecoin_snapshot")
+
+
+def write_manifest(path, manifest):
+    text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(text, encoding="utf8")
+    tmp_path.replace(path)
 
 
 def cpp_string(value):
@@ -420,6 +497,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
+    parser.add_argument(
+        "--set-snapshot",
+        nargs=4,
+        metavar=("NETWORK", "HEIGHT", "BLOCK_HASH", "IMPORT_HASH"),
+        help="update one network's Litecoin snapshot constants and remove its snapshot blocker",
+    )
+    parser.add_argument("--in-place", action="store_true", help="write --set-snapshot changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
 
@@ -432,7 +516,15 @@ def main():
         print(f"error: {args.manifest} is not valid JSON: {exc}", file=sys.stderr)
         return 1
 
-    check = validate_manifest(manifest, args.allow_blocked)
+    if args.set_snapshot is not None:
+        try:
+            set_snapshot(manifest, *args.set_snapshot)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    allow_blocked = args.allow_blocked or args.set_snapshot is not None
+    check = validate_manifest(manifest, allow_blocked)
     if check.errors:
         print("zkCoin public launch profile manifest failed validation:", file=sys.stderr)
         for error in check.errors:
@@ -441,6 +533,18 @@ def main():
             print("Blocked launch-profile fields:", file=sys.stderr)
             for blocker in check.blockers:
                 print(f"  - {blocker}", file=sys.stderr)
+        return 1
+
+    if args.set_snapshot is not None:
+        if args.in_place:
+            write_manifest(args.manifest, manifest)
+            print(f"Updated {args.manifest}")
+        else:
+            print(json.dumps(manifest, indent=2, sort_keys=False))
+        return 0
+
+    if args.in_place:
+        print("error: --in-place requires --set-snapshot", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:
