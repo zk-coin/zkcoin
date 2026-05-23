@@ -202,6 +202,14 @@ if (( SOURCE_TIP > HEIGHT )); then
   RESTORE_BLOCK_HASH="$(ltc_cli getblockhash "$((HEIGHT + 1))")"
   echo "Rewinding Litecoin source to height $HEIGHT by invalidating $RESTORE_BLOCK_HASH" >&2
   ltc_cli invalidateblock "$RESTORE_BLOCK_HASH" >/dev/null
+
+  POST_REWIND_TIP="$(ltc_cli getblockcount)"
+  if [[ ! "$POST_REWIND_TIP" =~ ^[0-9]+$ ]]; then
+    die "litecoin-cli getblockcount after rewind returned unexpected value: $POST_REWIND_TIP"
+  fi
+  if (( POST_REWIND_TIP != HEIGHT )); then
+    die "Litecoin source tip after rewind is $POST_REWIND_TIP; expected $HEIGHT"
+  fi
 fi
 
 ACTUAL_BLOCK_HASH="$(ltc_cli getblockhash "$HEIGHT")"

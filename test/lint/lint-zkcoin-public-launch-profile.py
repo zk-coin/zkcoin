@@ -1900,6 +1900,7 @@ def main():
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
+        ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
@@ -1921,6 +1922,10 @@ def main():
         ),
         ("Reject a pruned Litecoin snapshot source", "snapshot script test rejects pruned source nodes"),
         ("Reject a non-public Litecoin source chain", "snapshot script test rejects non-public source chains"),
+        (
+            "Reject rewind that does not leave the source at the snapshot height",
+            "snapshot script test rejects post-rewind tip mismatches",
+        ),
         (
             "Reject a pre-existing audit summary output path before calling either CLI",
             "snapshot script test rejects pre-existing audit output before RPC",
@@ -2090,6 +2095,10 @@ def main():
         (
             "Litecoin source node must not be pruned for snapshot generation",
             "snapshot operator pruned source rejection documentation",
+        ),
+        (
+            "confirms the source tip is exactly height X after invalidation",
+            "snapshot operator post-rewind tip verification documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",
