@@ -521,6 +521,96 @@ def require_public_launch_manifest_current():
         return "{} --set-dns-seeds did not explain inherited seed hostname rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    identity_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-identity",
+            "main",
+            "fa,bf,b5,d9",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if identity_result.returncode != 0:
+        return "{} --set-identity failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            identity_result.stderr.strip() or identity_result.stdout.strip() or "no output",
+        )
+    try:
+        identity_manifest = json.loads(identity_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --set-identity did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    identity = identity_manifest["networks"]["main"]["public_network_identity"]
+    if identity["message_start"] != [250, 191, 181, 217]:
+        return "{} --set-identity did not update message start".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if identity["base58_prefixes"]["ext_public_key"] != [4, 32, 36, 49]:
+        return "{} --set-identity did not parse compact extended public key bytes".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    identity_blockers = {
+        blocker.get("id")
+        for blocker in identity_manifest.get("blockers", [])
+        if isinstance(blocker, dict)
+    }
+    if "main.public_network_identity" in identity_blockers:
+        return "{} --set-identity did not remove the resolved main public identity blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "main.dns_seeds" not in identity_blockers:
+        return "{} --set-identity removed unrelated DNS seed blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_identity_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-identity",
+            "main",
+            "fb,c0,b6,db",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_identity_result.returncode == 0:
+        return "{} --set-identity accepted an inherited Litecoin message start".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "non-Litecoin non-printable magic bytes" not in unsafe_identity_result.stderr:
+        return "{} --set-identity did not explain inherited message-start rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     return None
 
 
@@ -697,10 +787,15 @@ def main():
         ("--set-snapshot", "manifest snapshot update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
+        ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
+        ("parse_byte_sequence", "manifest parses public identity byte fields"),
+        ("parse_default_port", "manifest parses public identity default port"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
+        ("set_identity", "manifest updates public network identity"),
+        ("remove_blocker(manifest, f\"{network}.public_network_identity\")", "manifest removes resolved public identity blocker"),
         ("remove_blocker(manifest, f\"{network}.dns_seeds\")", "manifest removes resolved DNS seed blocker"),
         ("remove_blocker(manifest, f\"{network}.auxpow_chain_id\")", "manifest removes resolved AuxPoW blocker"),
         ("remove_blocker(manifest, f\"{network}.litecoin_snapshot\")", "manifest removes resolved snapshot blocker"),
@@ -932,6 +1027,14 @@ def main():
         (
             "rejects empty, duplicate, malformed, uppercase, and inherited",
             "public launch manifest DNS seed rejection documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --set-identity NETWORK",
+            "public launch manifest identity update documentation",
+        ),
+        (
+            "rejects inherited Litecoin message",
+            "public launch manifest identity rejection documentation",
         ),
         (
             "ready-for-chainparams",
