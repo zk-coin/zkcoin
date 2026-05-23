@@ -239,6 +239,18 @@ def require_gitian_source_descriptors():
             return "{} must retain the litecoin input directory until namespace migration is decided".format(
                 descriptor.relative_to(ROOT_DIR)
             )
+        for package in ('- "cargo"', '- "rustc"'):
+            if package not in text:
+                return "{} must install Rust toolchain package for real Orchard verifier builds: {}".format(
+                    descriptor.relative_to(ROOT_DIR),
+                    package,
+                )
+        for configure_flag in ("--enable-rust-shielded-verifier", "--enable-rust-orchard-verifier"):
+            if configure_flag not in text:
+                return "{} must enable real Orchard verifier Gitian builds: {}".format(
+                    descriptor.relative_to(ROOT_DIR),
+                    configure_flag,
+                )
     return None
 
 
@@ -292,6 +304,10 @@ def main():
         return fail("notes must document parameterized zkCoin source commit provenance")
     if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
+    if "Gitian binary descriptors install rustc and cargo" not in notes_text:
+        return fail("notes must document Rust toolchain requirement for Gitian binary descriptors")
+    if "--enable-rust-shielded-verifier plus --enable-rust-orchard-verifier" not in notes_text:
+        return fail("notes must document real Orchard verifier flags for Gitian binary descriptors")
     if "ZKCOIN_RELEASE_BINARY_NAMESPACE" not in notes_text:
         return fail("notes must document parameterized zkCoin binary namespace decision")
     if "ZKCOIN_GITIAN_SIGNER_QUORUM" not in notes_text:
