@@ -350,6 +350,10 @@ def main():
         return fail("notes must document zkCoin macOS signing certificate custody owner")
     if "ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL" not in notes_text:
         return fail("notes must document zkCoin macOS signing payload approval")
+    if "ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD_SOURCE" not in notes_text:
+        return fail("notes must document zkCoin macOS app-specific password source")
+    if "ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID" not in notes_text:
+        return fail("notes must document zkCoin macOS notarization request UUID")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin Windows signing key custody")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER" not in notes_text:
@@ -521,6 +525,13 @@ def main():
         ("ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL", "macOS signing payload approval record"),
         ("ZKCOIN_MACOS_CODESIGN custody fields must not be placeholders", "macOS signing custody placeholder rejection"),
         ('./detached-sig-create.sh -s "$ZKCOIN_MACOS_CODESIGN_IDENTITY"', "zkCoin macOS signing identity invocation"),
+        ("ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD_SOURCE", "macOS notarization app-specific password source"),
+        ("ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD_SOURCE must not be a placeholder", "macOS app-specific password source placeholder rejection"),
+        ('read -r -s ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD', "macOS app-specific password secret prompt"),
+        ('unset ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD', "macOS app-specific password cleanup"),
+        ("ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID", "macOS notarization request UUID"),
+        ("ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID must not be a placeholder", "macOS notarization request UUID placeholder rejection"),
+        ('--notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID"', "macOS notarization request lookup"),
         ('--primary-bundle-id "$ZKCOIN_MACOS_BUNDLE_ID"', "zkCoin macOS notarization bundle id"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_PATH", "parameterized Windows code-signing key path"),
         ("ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY", "parameterized Windows code-signing key custody"),
@@ -550,6 +561,23 @@ def main():
             "ZKCOIN_GITIAN_AUTHORIZED_SIGNER_COUNT",
         ),
         "release source tag provenance and signer authorization before Gitian builds",
+    )
+    if error:
+        return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "First time setup for codesigner",
+            "ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD_SOURCE",
+            'read -r -s ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD',
+            'unset ZKCOIN_MACOS_APP_SPECIFIC_PASSWORD',
+            "Notarize the disk image",
+            "ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID",
+            '--notarization-info "$ZKCOIN_MACOS_NOTARIZATION_REQUEST_UUID"',
+            "Staple the notarization ticket",
+        ),
+        "macOS notarization operational values before status checks",
     )
     if error:
         return fail(error)
@@ -711,6 +739,8 @@ def main():
         (RELEASE_DOC, "bitcoin-core-snap", "Bitcoin Core snap target"),
         (RELEASE_DOC, UPSTREAM_LITECOIN_MACOS_BUNDLE_ID, "Litecoin macOS bundle identifier"),
         (RELEASE_DOC, './detached-sig-create.sh -s "Key ID"', "placeholder macOS signing key id"),
+        (RELEASE_DOC, "<app-specific-password>", "placeholder macOS app-specific password"),
+        (RELEASE_DOC, "<request-uuid>", "placeholder macOS notarization request UUID"),
         (RELEASE_DOC, "<apple-id-email>", "placeholder Apple ID"),
         (RELEASE_DOC, "<apple-id-notarisation-app-specific-password>", "placeholder Apple keychain item"),
         (RELEASE_DOC, "<team-id-shortcode>", "placeholder Apple provider shortcode"),
