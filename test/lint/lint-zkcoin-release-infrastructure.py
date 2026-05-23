@@ -302,6 +302,12 @@ def main():
         return fail("notes must document HTTPS validation for zkCoin release repository URLs")
     if "Gitian signatures and detached-signatures repositories to be distinct" not in notes_text:
         return fail("notes must document distinct Gitian and detached-signatures repositories")
+    if "reject placeholder detached-signatures release refs before clone" not in notes_text:
+        return fail("notes must document detached-signatures release ref placeholder rejection before clone")
+    if "ZKCOIN_DETACHED_SIGS_RELEASE_REF as a branch name" not in notes_text:
+        return fail("notes must document detached-signatures release branch shape validation")
+    if "ZKCOIN_DETACHED_SIGS_RELEASE_TAG as a tag name" not in notes_text:
+        return fail("notes must document detached-signatures release tag shape validation")
     if "ZKCOIN_GITIAN_BUILDER_COMMIT" not in notes_text:
         return fail("notes must document pinned zkCoin Gitian builder commit provenance")
     if "instead of using git pull" not in notes_text:
@@ -487,6 +493,11 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_REF", "parameterized detached-signatures release branch"),
         ("ZKCOIN_DETACHED_SIGS_RELEASE_TAG", "parameterized detached-signatures release tag"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_FIELD", "detached-signatures release ref validation loop"),
+        ("ZKCOIN_DETACHED_SIGS release refs must not be placeholders", "detached-signatures release ref placeholder rejection"),
+        ('git check-ref-format --branch "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"', "detached-signatures release branch shape validation"),
+        ('git check-ref-format "refs/tags/$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"', "detached-signatures release tag shape validation"),
+        ("ZKCOIN_DETACHED_SIGS_RELEASE_REF and ZKCOIN_DETACHED_SIGS_RELEASE_TAG must be distinct", "detached-signatures release ref/tag distinct validation"),
         ("ZKCOIN_DETACHED_SIGS_CUSTODY_RECORD", "detached-signatures custody record"),
         ("ZKCOIN_DETACHED_SIGS_CUSTODY_OWNER", "detached-signatures custody owner"),
         ("ZKCOIN_DETACHED_SIGS_PAYLOAD_APPROVAL", "detached-signatures payload approval record"),
@@ -611,6 +622,11 @@ def main():
         RELEASE_DOC,
         (
             "First time / New builders",
+            "ZKCOIN_DETACHED_SIGS_RELEASE_FIELD",
+            "ZKCOIN_DETACHED_SIGS release refs must not be placeholders",
+            'git check-ref-format --branch "$ZKCOIN_DETACHED_SIGS_RELEASE_REF"',
+            'git check-ref-format "refs/tags/$ZKCOIN_DETACHED_SIGS_RELEASE_TAG"',
+            "ZKCOIN_DETACHED_SIGS_RELEASE_REF and ZKCOIN_DETACHED_SIGS_RELEASE_TAG must be distinct",
             "ZKCOIN_RELEASE_REPO_URL",
             "ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org",
             "ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories",
