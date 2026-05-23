@@ -488,6 +488,16 @@ contrib/verifybinaries/verify-zkcoin-release.py \
   --download-base "$ZKCOIN_RELEASE_ARTIFACT_BASE_URL"
 ```
 
+- Resolve the zkCoin release-index and website publication targets before
+  updating public metadata:
+
+```bash
+: "${ZKCOIN_RELEASE_WEBSITE_REPO_URL:?set the resolved zkCoin website repository URL}"
+: "${ZKCOIN_RELEASE_WEBSITE_OWNER:?set the accountable zkCoin website publication owner}"
+: "${ZKCOIN_RELEASE_INDEX_REPO_URL:?set the resolved zkCoin release index repository URL}"
+: "${ZKCOIN_RELEASE_INDEX_OWNER:?set the accountable zkCoin release index publication owner}"
+```
+
 - Update the resolved zkCoin website and release index with the new version,
   artifact URLs, and checksum URL.
 

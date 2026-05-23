@@ -287,6 +287,8 @@ def main():
         return fail("notes must document local pre-upload zkCoin artifact verification")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
+    if "ZKCOIN_RELEASE_WEBSITE_REPO_URL" not in notes_text:
+        return fail("notes must document parameterized zkCoin release metadata publication targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
@@ -373,6 +375,11 @@ def main():
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
+        ("ZKCOIN_RELEASE_WEBSITE_REPO_URL", "parameterized website repository URL"),
+        ("ZKCOIN_RELEASE_WEBSITE_OWNER", "parameterized website publication owner"),
+        ("ZKCOIN_RELEASE_INDEX_REPO_URL", "parameterized release index repository URL"),
+        ("ZKCOIN_RELEASE_INDEX_OWNER", "parameterized release index publication owner"),
+        ("Resolve the zkCoin release-index and website publication targets", "release metadata publication boundary"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
         ("ZKCOIN_MACOS_BUNDLE_ID", "parameterized macOS bundle identifier"),
