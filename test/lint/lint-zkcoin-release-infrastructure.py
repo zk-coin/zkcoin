@@ -48,6 +48,7 @@ REQUIRED_BLOCKERS = {
     "detached_sigs_repo",
     "artifact_download_host",
     "release_announcement_channels",
+    "release_notes_archive",
     "github_release_metadata",
     "binary_namespace_decision",
     "macos_signing_identity",
@@ -295,6 +296,8 @@ def main():
         return fail("notes must document parameterized zkCoin release metadata publication targets")
     if "ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" not in notes_text:
         return fail("notes must document parameterized zkCoin release announcement targets")
+    if "ZKCOIN_RELEASE_NOTES_PATH" not in notes_text:
+        return fail("notes must document parameterized zkCoin release notes archival targets")
     if "ZKCOIN_RELEASE_GITHUB_TAG" not in notes_text:
         return fail("notes must document parameterized zkCoin GitHub release metadata")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
@@ -394,6 +397,11 @@ def main():
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS", "parameterized announcement channels"),
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER", "parameterized announcement owner"),
         ("Resolve the zkCoin release announcement channels", "release announcement boundary"),
+        ("ZKCOIN_RELEASE_NOTES_PATH", "parameterized release notes path"),
+        ("ZKCOIN_RELEASE_NOTES_BRANCH", "parameterized release notes branch"),
+        ("ZKCOIN_RELEASE_NOTES_OWNER", "parameterized release notes owner"),
+        ("ZKCOIN_RELEASE_NOTES_PATH must be under doc/release-notes/ and end in .md", "release notes archive path validation"),
+        ("Resolve the zkCoin release-notes archival targets", "release notes archival boundary"),
         ("ZKCOIN_RELEASE_GITHUB_TAG", "parameterized GitHub release tag"),
         ("ZKCOIN_RELEASE_GITHUB_TITLE", "parameterized GitHub release title"),
         ("ZKCOIN_RELEASE_GITHUB_OWNER", "parameterized GitHub release owner"),
@@ -487,6 +495,7 @@ def main():
         (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
         (RELEASE_DOC, "sha256sum * > SHA256SUMS", "wildcard release checksum command"),
         (RELEASE_DOC, "blocked until the announcement channels and owners are explicitly documented", "prose-only announcement channel gate"),
+        (RELEASE_DOC, "Archive release notes for the new version to `doc/release-notes/` on `master`", "ambiguous release notes archival"),
         (RELEASE_DOC, "Create a release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` with a link", "ambiguous GitHub release creation"),
     )
     for path, needle, description in absent_checks:
