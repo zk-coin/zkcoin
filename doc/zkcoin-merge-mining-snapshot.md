@@ -115,7 +115,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, and the Litecoin parent versionbits-derived
-  `0x2000..0x3fff` range.
+  `0x2000..0x3fff` range. After provisioning zkCoin-operated DNS seeds, update
+  the target profile with `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK seed1.example,seed2.example`;
+  the validator rejects empty, duplicate, malformed, uppercase, and inherited
+  Litecoin seed hostnames.
   Before copying values into `chainparams`, remove the blockers, set status to
   `ready-for-chainparams`, run the validator without `--allow-blocked`, and use
   `contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams` to emit
