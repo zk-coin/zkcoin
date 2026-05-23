@@ -222,7 +222,7 @@ public:
         pchMessageStart[2] = 0x6f;
         pchMessageStart[3] = 0xc2;
         nDefaultPort = 29333;
-        vSeeds = {"seed.zkcoin.example"};
+        vSeeds = {"seed.zkcoin.net"};
         vFixedSeeds.clear();
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 75);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 85);
@@ -318,7 +318,7 @@ static bool HasFailure(const std::vector<std::string>& failures, const std::stri
 BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_failure_reasons_are_actionable)
 {
     CNonMockablePublicIdentityParams chainParams;
-    chainParams.SetDnsSeeds({"seed.litecoin.example"});
+    chainParams.SetDnsSeeds({"seed.litecoin.net"});
     chainParams.SetMwebHrp("zkc");
 
     const std::vector<std::string> failures = GetPublicNetworkIdentityFailures(
@@ -365,7 +365,7 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_
     }
     {
         CNonMockablePublicIdentityParams chainParams;
-        chainParams.SetDnsSeeds({"seed.litecoin.example"});
+        chainParams.SetDnsSeeds({"seed.litecoin.net"});
         const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
         BOOST_CHECK(!identity.configured);
         BOOST_CHECK(identity.inherited_litecoin_dns_seed);
@@ -373,11 +373,28 @@ BOOST_AUTO_TEST_CASE(ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_
     }
     {
         CNonMockablePublicIdentityParams chainParams;
-        chainParams.SetDnsSeeds({"Seed.zkcoin.example"});
+        chainParams.SetDnsSeeds({"Seed.zkcoin.net"});
         const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
         BOOST_CHECK(!identity.configured);
         BOOST_CHECK(!identity.dns_seeds_shape_valid);
         BOOST_CHECK(!identity.inherited_litecoin_public_identity);
+    }
+    for (const std::string& seed : std::vector<std::string>{
+             "zkcoinseed",
+             std::string(64, 'a') + ".zkcoin.net",
+             "seed.zkcoin.123",
+             "seed.zkcoin.example",
+             "seed.zkcoin.invalid",
+             "seed.zkcoin.local",
+             "seed.zkcoin.localhost",
+             "seed.zkcoin.test",
+         }) {
+        CNonMockablePublicIdentityParams chainParams;
+        chainParams.SetDnsSeeds({seed});
+        const PublicNetworkIdentityStatus identity = GetPublicNetworkIdentityStatus(chainParams);
+        BOOST_CHECK_MESSAGE(!identity.configured, seed);
+        BOOST_CHECK_MESSAGE(!identity.dns_seeds_shape_valid, seed);
+        BOOST_CHECK_MESSAGE(!identity.inherited_litecoin_public_identity, seed);
     }
     {
         CNonMockablePublicIdentityParams chainParams;

@@ -156,6 +156,10 @@ LAUNCH_PROFILE_MARKERS = (
         "status.dns_seeds_shape_valid = DnsSeedsShapeValid(chainparams);",
         "identity readiness validates DNS seed shape",
     ),
+    ("ReservedDnsSeedSuffix", "runtime identity rejects reserved DNS seed suffixes"),
+    ("label_count < 2", "runtime identity rejects single-label DNS seed hostnames"),
+    ("label_length > 63", "runtime identity rejects overlong DNS seed labels"),
+    ("!final_label_has_alpha", "runtime identity rejects numeric final-label DNS seed hostnames"),
     (
         "status.inherited_litecoin_base58_prefixes = HasAnyLitecoinBase58Prefix(chainparams);",
         "identity readiness rejects partial inherited Base58 prefixes",
@@ -1500,6 +1504,9 @@ def main():
             "ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_or_malformed_values",
             "runtime negative non-mockable public identity unit test",
         ),
+        ("seed.zkcoin.localhost", "runtime reserved DNS seed suffix rejection coverage"),
+        ("std::string(64, 'a') + \".zkcoin.net\"", "runtime overlong DNS seed label rejection coverage"),
+        ("seed.zkcoin.123", "runtime numeric final-label DNS seed rejection coverage"),
         (
             "CNonMockablePublicIdentityParams",
             "test-only non-mockable public identity chainparams",
@@ -1672,6 +1679,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
             "public launch manifest chainparams sync-check documentation",
+        ),
+        (
+            "reserved-suffix DNS seed",
+            "public launch preflight DNS seed suffix documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot NETWORK",

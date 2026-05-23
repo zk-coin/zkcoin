@@ -104,6 +104,15 @@ static bool HasLitecoinDnsSeed(const CChainParams& chainparams)
     return false;
 }
 
+static bool ReservedDnsSeedSuffix(const std::string& suffix)
+{
+    return suffix == "example" ||
+        suffix == "invalid" ||
+        suffix == "local" ||
+        suffix == "localhost" ||
+        suffix == "test";
+}
+
 static bool DnsSeedShapeValid(const std::string& seed)
 {
     if (seed.empty() || seed.size() > 253 ||
@@ -111,22 +120,43 @@ static bool DnsSeedShapeValid(const std::string& seed)
         seed.back() == '-' || seed.back() == '.') {
         return false;
     }
+
+    std::size_t label_count = 1;
+    std::size_t label_length = 0;
+    std::size_t final_label_start = 0;
+    bool final_label_has_alpha = false;
+
     for (std::size_t i = 0; i < seed.size(); ++i) {
         const char c = seed[i];
         if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+            ++label_length;
+            if (label_length > 63) {
+                return false;
+            }
+            if (c >= 'a' && c <= 'z') {
+                final_label_has_alpha = true;
+            }
             continue;
         }
         if (c == '.') {
-            if (i == 0 || i + 1 == seed.size() ||
-                seed[i - 1] == '-' || seed[i - 1] == '.' ||
+            if (label_length == 0 ||
+                seed[i - 1] == '-' ||
                 seed[i + 1] == '-' || seed[i + 1] == '.') {
                 return false;
             }
+            ++label_count;
+            label_length = 0;
+            final_label_start = i + 1;
+            final_label_has_alpha = false;
             continue;
         }
         return false;
     }
-    return true;
+
+    if (label_count < 2 || !final_label_has_alpha) {
+        return false;
+    }
+    return !ReservedDnsSeedSuffix(seed.substr(final_label_start));
 }
 
 static bool DnsSeedsShapeValid(const CChainParams& chainparams)
