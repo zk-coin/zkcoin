@@ -166,8 +166,11 @@ def dns_seed_valid(seed):
     if any(marker in seed for marker in ("litecoin", "thrasher.io", "koin-project.com")):
         return False
     labels = seed.split(".")
+    if len(labels) < 2:
+        return False
     return all(
         label
+        and len(label) <= 63
         and not label.startswith("-")
         and not label.endswith("-")
         and re.fullmatch(r"[a-z0-9-]+", label) is not None

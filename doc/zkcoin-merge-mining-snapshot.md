@@ -124,8 +124,9 @@ Both are intentionally present before behavior changes so tests and review can t
   the AuxPoW version field, and the Litecoin parent versionbits-derived
   `0x2000..0x3fff` range. After provisioning zkCoin-operated DNS seeds, update
   the target profile with `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK seed1.example,seed2.example`;
-  the validator rejects empty, duplicate, malformed, uppercase, and inherited
-  Litecoin seed hostnames. After choosing the public network identity, update
+  the validator rejects empty, duplicate, single-label, overlong-label,
+  malformed, uppercase, and inherited Litecoin seed hostnames. After choosing
+  the public network identity, update
   the target profile with `contrib/devtools/zkcoin_public_launch_profile.py --set-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`;
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
