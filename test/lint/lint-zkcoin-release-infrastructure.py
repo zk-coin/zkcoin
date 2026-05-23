@@ -302,6 +302,10 @@ def main():
         return fail("notes must document HTTPS validation for zkCoin release repository URLs")
     if "Gitian signatures and detached-signatures repositories to be distinct" not in notes_text:
         return fail("notes must document distinct Gitian and detached-signatures repositories")
+    if "ZKCOIN_GITIAN_BUILDER_COMMIT" not in notes_text:
+        return fail("notes must document pinned zkCoin Gitian builder commit provenance")
+    if "instead of using git pull" not in notes_text:
+        return fail("notes must document pinned Gitian builder updates")
     if "verify-zkcoin-release.py" not in notes_text:
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
@@ -455,6 +459,15 @@ def main():
         ("ZKCOIN release repository URLs must not be placeholders", "release repository URL placeholder rejection"),
         ("ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org", "release repository URL HTTPS and org validation"),
         ("ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories", "distinct release repository validation"),
+        ("ZKCOIN_GITIAN_BUILDER_REPO_URL", "parameterized Gitian builder repository"),
+        ("ZKCOIN_GITIAN_BUILDER_COMMIT", "pinned Gitian builder commit"),
+        ("ZKCOIN_GITIAN_BUILDER_REPO_URL must not be a placeholder", "Gitian builder repository placeholder rejection"),
+        ("ZKCOIN_GITIAN_BUILDER_REPO_URL must be an HTTPS GitHub repository URL", "Gitian builder repository URL validation"),
+        ("ZKCOIN_GITIAN_BUILDER_COMMIT must be a full 40-character commit id", "Gitian builder commit length validation"),
+        ('git clone "$ZKCOIN_GITIAN_BUILDER_REPO_URL" gitian-builder', "parameterized Gitian builder clone"),
+        ('git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"', "pinned Gitian builder checkout"),
+        ("Gitian builder checkout does not match ZKCOIN_GITIAN_BUILDER_COMMIT", "Gitian builder checkout binding failure"),
+        ("Ensure gitian-builder is still on the pinned zkCoin release build commit", "pinned Gitian builder refresh boundary"),
         ("ZKCOIN_GITIAN_SIGNER", "parameterized Gitian signer id"),
         ("ZKCOIN_GITIAN_SIGNER_FINGERPRINT", "parameterized Gitian signer fingerprint"),
         ("ZKCOIN_GITIAN_AUTHORIZED_SIGNERS_FILE", "published Gitian authorized signers file"),
@@ -601,8 +614,12 @@ def main():
             "ZKCOIN_RELEASE_REPO_URL",
             "ZKCOIN release repository URLs must use HTTPS and point at the zk-coin GitHub org",
             "ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories",
+            "ZKCOIN_GITIAN_BUILDER_REPO_URL",
+            "ZKCOIN_GITIAN_BUILDER_COMMIT must be a full 40-character commit id",
             'git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"',
             'git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"',
+            'git clone "$ZKCOIN_GITIAN_BUILDER_REPO_URL" gitian-builder',
+            'git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"',
             "Resolve and sign the zkCoin release source tag before any Gitian build",
         ),
         "release repository URL validation before cloning release infrastructure",
@@ -620,6 +637,9 @@ def main():
             'export SIGNER="$ZKCOIN_GITIAN_SIGNER"',
             'export VERSION="$ZKCOIN_RELEASE_VERSION"',
             'git checkout --detach "$ZKCOIN_RELEASE_TAG^{commit}"',
+            "Ensure gitian-builder is still on the pinned zkCoin release build commit",
+            "git fetch origin",
+            'git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"',
             '--commit "litecoin=${ZKCOIN_RELEASE_TAG}"',
             "After the published zkCoin Gitian signer quorum has built",
             "ZKCOIN_GITIAN_UNAUTHORIZED_SIGNERS",
@@ -813,6 +833,8 @@ def main():
         (RELEASE_DOC, UPSTREAM_LITECOIN_GITHUB_RELEASE_URL, "Litecoin GitHub release URL"),
         (RELEASE_DOC, "gitian.sigs.ltc", "Litecoin Gitian signatures directory"),
         (RELEASE_DOC, "litecoin-detached-sigs", "Litecoin detached-signatures directory"),
+        (RELEASE_DOC, "git clone https://github.com/devrandom/gitian-builder.git", "hard-coded Gitian builder clone"),
+        (RELEASE_DOC, "Ensure gitian-builder is up-to-date:", "unpinned Gitian builder update"),
         (RELEASE_DOC, "litecoin.org server", "Litecoin artifact publication host"),
         (RELEASE_DOC, "Update litecoin.org version", "Litecoin website update"),
         (RELEASE_DOC, "blog.litecoin.org", "Litecoin blog target"),

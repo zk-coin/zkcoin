@@ -118,6 +118,8 @@ Check out the source code in the following directory hierarchy.
     : "${ZKCOIN_DETACHED_SIGS_REPO_URL:?set the resolved zkCoin detached-signatures repository URL}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_REF:?set the resolved zkCoin detached-signatures release branch}"
     : "${ZKCOIN_DETACHED_SIGS_RELEASE_TAG:?set the signed zkCoin detached-signatures release tag}"
+    : "${ZKCOIN_GITIAN_BUILDER_REPO_URL:?set the resolved Gitian builder repository URL}"
+    : "${ZKCOIN_GITIAN_BUILDER_COMMIT:?set the exact Gitian builder commit}"
     for ZKCOIN_RELEASE_REPO_URL in \
       "$ZKCOIN_GITIAN_SIGS_REPO_URL" \
       "$ZKCOIN_DETACHED_SIGS_REPO_URL"; do
@@ -138,9 +140,38 @@ Check out the source code in the following directory hierarchy.
         echo "ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_DETACHED_SIGS_REPO_URL must be distinct repositories" >&2
         exit 1
     fi
+    case "$ZKCOIN_GITIAN_BUILDER_REPO_URL" in
+      ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+        echo "ZKCOIN_GITIAN_BUILDER_REPO_URL must not be a placeholder" >&2
+        exit 1
+        ;;
+      https://github.com/?*/?*)
+        ;;
+      *)
+        echo "ZKCOIN_GITIAN_BUILDER_REPO_URL must be an HTTPS GitHub repository URL" >&2
+        exit 1
+        ;;
+    esac
+    case "$ZKCOIN_GITIAN_BUILDER_COMMIT" in
+      *[!0-9a-f]*)
+        echo "ZKCOIN_GITIAN_BUILDER_COMMIT must be a lowercase hex commit id" >&2
+        exit 1
+        ;;
+    esac
+    if [ "${#ZKCOIN_GITIAN_BUILDER_COMMIT}" -ne 40 ]; then
+        echo "ZKCOIN_GITIAN_BUILDER_COMMIT must be a full 40-character commit id" >&2
+        exit 1
+    fi
     git clone "$ZKCOIN_GITIAN_SIGS_REPO_URL" "$GITIAN_SIGS_DIR"
     git clone "$ZKCOIN_DETACHED_SIGS_REPO_URL" "$ZKCOIN_DETACHED_SIGS_DIR"
-    git clone https://github.com/devrandom/gitian-builder.git
+    git clone "$ZKCOIN_GITIAN_BUILDER_REPO_URL" gitian-builder
+    pushd ./gitian-builder
+    git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"
+    if [ "$(git rev-parse HEAD)" != "$ZKCOIN_GITIAN_BUILDER_COMMIT" ]; then
+        echo "Gitian builder checkout does not match ZKCOIN_GITIAN_BUILDER_COMMIT" >&2
+        exit 1
+    fi
+    popd
     git clone https://github.com/zk-coin/zkcoin.git litecoin
 
 ### Litecoin maintainers/release engineers, suggestion for writing release notes
@@ -251,10 +282,15 @@ gverify your builds against other Gitian signatures.
     git pull
     popd
 
-Ensure gitian-builder is up-to-date:
+Ensure gitian-builder is still on the pinned zkCoin release build commit:
 
     pushd ./gitian-builder
-    git pull
+    git fetch origin
+    git checkout --detach "$ZKCOIN_GITIAN_BUILDER_COMMIT"
+    if [ "$(git rev-parse HEAD)" != "$ZKCOIN_GITIAN_BUILDER_COMMIT" ]; then
+        echo "Gitian builder checkout does not match ZKCOIN_GITIAN_BUILDER_COMMIT" >&2
+        exit 1
+    fi
     popd
 
 ### Fetch and create inputs: (first time, or when dependency versions change)
