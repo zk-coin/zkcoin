@@ -533,8 +533,18 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 - Archive release notes for the new version to `doc/release-notes/` on `master`
   and the release branch.
 
-- Create a release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` with a link to the
-  archived release notes and published `SHA256SUMS.asc`.
+- Resolve the zkCoin GitHub release metadata before creating the GitHub release:
+
+```bash
+: "${ZKCOIN_RELEASE_GITHUB_REPO_URL:?set the resolved zkCoin GitHub release repository URL}"
+: "${ZKCOIN_RELEASE_GITHUB_TAG:?set the signed zkCoin release tag for the GitHub release}"
+: "${ZKCOIN_RELEASE_GITHUB_TITLE:?set the zkCoin GitHub release title}"
+: "${ZKCOIN_RELEASE_GITHUB_OWNER:?set the accountable zkCoin GitHub release owner}"
+```
+
+- Create the GitHub release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` using
+  `$ZKCOIN_RELEASE_GITHUB_TAG` and `$ZKCOIN_RELEASE_GITHUB_TITLE`, with a link
+  to the archived release notes and published `SHA256SUMS.asc`.
 
 ### Additional information
 

@@ -48,6 +48,7 @@ REQUIRED_BLOCKERS = {
     "detached_sigs_repo",
     "artifact_download_host",
     "release_announcement_channels",
+    "github_release_metadata",
     "binary_namespace_decision",
     "macos_signing_identity",
     "windows_signing_key",
@@ -294,6 +295,8 @@ def main():
         return fail("notes must document parameterized zkCoin release metadata publication targets")
     if "ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" not in notes_text:
         return fail("notes must document parameterized zkCoin release announcement targets")
+    if "ZKCOIN_RELEASE_GITHUB_TAG" not in notes_text:
+        return fail("notes must document parameterized zkCoin GitHub release metadata")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
@@ -391,6 +394,10 @@ def main():
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS", "parameterized announcement channels"),
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER", "parameterized announcement owner"),
         ("Resolve the zkCoin release announcement channels", "release announcement boundary"),
+        ("ZKCOIN_RELEASE_GITHUB_TAG", "parameterized GitHub release tag"),
+        ("ZKCOIN_RELEASE_GITHUB_TITLE", "parameterized GitHub release title"),
+        ("ZKCOIN_RELEASE_GITHUB_OWNER", "parameterized GitHub release owner"),
+        ("Resolve the zkCoin GitHub release metadata", "GitHub release metadata boundary"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
         ("ZKCOIN_MACOS_BUNDLE_ID", "parameterized macOS bundle identifier"),
@@ -480,6 +487,7 @@ def main():
         (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
         (RELEASE_DOC, "sha256sum * > SHA256SUMS", "wildcard release checksum command"),
         (RELEASE_DOC, "blocked until the announcement channels and owners are explicitly documented", "prose-only announcement channel gate"),
+        (RELEASE_DOC, "Create a release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` with a link", "ambiguous GitHub release creation"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)
