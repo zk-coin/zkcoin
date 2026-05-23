@@ -79,6 +79,7 @@
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
     "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL, ZKCOIN_DETACHED_SIGS_RELEASE_REF, and ZKCOIN_DETACHED_SIGS_RELEASE_TAG so inherited Litecoin detached signatures or ambiguous release refs cannot be used by default.",
     "Release checksum signing docs require ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT and ZKCOIN_RELEASE_SIGNING_KEY_ID before creating SHA256SUMS.asc so a default local GPG key cannot sign zkCoin releases by accident.",
+    "Release checksum docs enumerate ZKCOIN_RELEASE_ARTIFACTS and compare the release directory to the expected non-debug artifact set before writing SHA256SUMS.",
     "Release artifact publication docs require ZKCOIN_RELEASE_ARTIFACT_BASE_URL, ZKCOIN_RELEASE_CHECKSUMS_URL, and ZKCOIN_RELEASE_GITHUB_REPO_URL so inherited Litecoin and Bitcoin publication targets cannot be used by default.",
     "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID and zkCoin Apple notarization variables so inherited Litecoin bundle identifiers cannot be used by default.",
     "Windows signing docs require ZKCOIN_WINDOWS_CODESIGN_KEY_PATH and ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY so placeholder signing key paths cannot be used by default.",
