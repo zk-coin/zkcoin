@@ -123,7 +123,10 @@ Both are intentionally present before behavior changes so tests and review can t
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
   starts, ports, Base58 prefixes, HRPs, duplicate prefixes, and matching Bech32
-  and MWEB HRPs.
+  and MWEB HRPs. Before a manifest can become ready, mainnet and testnet must
+  also use distinct AuxPoW chain ids, message starts, ports, DNS seed hostnames,
+  Base58 prefixes, and HRP namespaces so the emitted `chainparams` snippets
+  cannot accidentally collide across public networks.
   Before copying values into `chainparams`, remove the blockers, set status to
   `ready-for-chainparams`, run the validator without `--allow-blocked`, and use
   `contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams` to emit

@@ -313,6 +313,101 @@ def validate_identity(check, network, profile, allow_null):
         check.error(f"{network}.public_network_identity.mweb_hrp", "must differ from bech32_hrp")
 
 
+def byte_tuple(value, expected_len):
+    if (
+        not isinstance(value, list)
+        or len(value) != expected_len
+        or any(not isinstance(byte, int) or byte < 0 or byte > 255 for byte in value)
+    ):
+        return None
+    return tuple(value)
+
+
+def require_unique_manifest_value(check, seen, path, value):
+    if value in seen:
+        check.error(path, f"must differ from {seen[value]}")
+        return
+    seen[value] = path
+
+
+def validate_unique_launch_values(check, networks):
+    auxpow_chain_ids = {}
+    message_starts = {}
+    default_ports = {}
+    dns_seeds = {}
+    base58_prefixes = {}
+    hrps = {}
+
+    for network in NETWORKS:
+        profile = networks.get(network)
+        if not isinstance(profile, dict):
+            continue
+
+        auxpow = profile.get("auxpow")
+        if isinstance(auxpow, dict) and isinstance(auxpow.get("chain_id"), int):
+            require_unique_manifest_value(
+                check,
+                auxpow_chain_ids,
+                f"{network}.auxpow.chain_id",
+                auxpow["chain_id"],
+            )
+
+        identity = profile.get("public_network_identity")
+        if not isinstance(identity, dict):
+            continue
+
+        message_start = byte_tuple(identity.get("message_start"), 4)
+        if message_start is not None:
+            require_unique_manifest_value(
+                check,
+                message_starts,
+                f"{network}.public_network_identity.message_start",
+                message_start,
+            )
+
+        default_port = identity.get("default_port")
+        if isinstance(default_port, int):
+            require_unique_manifest_value(
+                check,
+                default_ports,
+                f"{network}.public_network_identity.default_port",
+                default_port,
+            )
+
+        seeds = identity.get("dns_seeds")
+        if isinstance(seeds, list):
+            for index, seed in enumerate(seeds):
+                if isinstance(seed, str):
+                    require_unique_manifest_value(
+                        check,
+                        dns_seeds,
+                        f"{network}.public_network_identity.dns_seeds[{index}]",
+                        seed,
+                    )
+
+        prefixes = identity.get("base58_prefixes")
+        if isinstance(prefixes, dict):
+            for field, expected_len in BASE58_FIELDS:
+                prefix = byte_tuple(prefixes.get(field), expected_len)
+                if prefix is not None:
+                    require_unique_manifest_value(
+                        check,
+                        base58_prefixes,
+                        f"{network}.public_network_identity.base58_prefixes.{field}",
+                        prefix,
+                    )
+
+        for field in ("bech32_hrp", "mweb_hrp"):
+            hrp = identity.get(field)
+            if isinstance(hrp, str) and hrp:
+                require_unique_manifest_value(
+                    check,
+                    hrps,
+                    f"{network}.public_network_identity.{field}",
+                    hrp,
+                )
+
+
 def validate_manifest(manifest, allow_blocked):
     check = Validation(allow_blocked)
     if manifest.get("version") != 1:
@@ -349,6 +444,7 @@ def validate_manifest(manifest, allow_blocked):
         validate_shielded_pool(check, network, profile)
         validate_chain_history(check, network, profile)
         validate_identity(check, network, profile, allow_null)
+    validate_unique_launch_values(check, networks)
 
     return check
 
