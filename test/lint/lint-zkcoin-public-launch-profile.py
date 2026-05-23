@@ -1860,6 +1860,8 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
+        ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
@@ -1874,6 +1876,18 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        (
+            "Reject a pre-existing audit summary output path before calling either CLI",
+            "snapshot script test rejects pre-existing audit output before RPC",
+        ),
+        (
+            "Reject an audit summary path matching the snapshot output path before calling either CLI",
+            "snapshot script test rejects audit path collisions before RPC",
+        ),
+        (
+            "Reject a missing audit summary output directory before calling either CLI",
+            "snapshot script test rejects missing audit directory before RPC",
+        ),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
@@ -2011,6 +2025,10 @@ def main():
         (
             "non-empty snapshot file before running zkCoin verification",
             "snapshot operator verifies dump artifact documentation",
+        ),
+        (
+            "validates the audit summary output path before running snapshot RPCs",
+            "snapshot operator preflights audit output documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",

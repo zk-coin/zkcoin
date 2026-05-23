@@ -150,10 +150,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         write_audit=False,
         precreate_snapshot=False,
         precreate_audit=False,
+        audit_path_same_as_snapshot=False,
+        audit_path_parent_missing=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
         audit_path = os.path.join(self.options.tmpdir, f"{name}.audit.json")
+        if audit_path_same_as_snapshot:
+            audit_path = snapshot_path
+        elif audit_path_parent_missing:
+            audit_path = os.path.join(self.options.tmpdir, "missing-audit-dir", f"{name}.audit.json")
         if precreate_snapshot:
             with open(snapshot_path, "wb") as snapshot_file:
                 snapshot_file.write(b"existing")
@@ -164,7 +170,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         env = os.environ.copy()
         env["ZKCOIN_SNAPSHOT_FAKE_LOG"] = log_path
         env["ZKCOIN_SNAPSHOT_FAKE_SCENARIO"] = json.dumps(scenario)
-        if write_audit or precreate_audit:
+        if write_audit or precreate_audit or audit_path_same_as_snapshot or audit_path_parent_missing:
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
             env.pop("ZKCOIN_SNAPSHOT_AUDIT_JSON", None)
@@ -245,14 +251,35 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         self.assert_command(calls, "litecoin", "dumptxoutset", [snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 
-        self.log.info("Reject a pre-existing audit summary output path")
-        self.assert_snapshot(
+        self.log.info("Reject a pre-existing audit summary output path before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
             "preexisting-audit",
             self.scenario(),
             1,
             "snapshot audit summary already exists",
             precreate_audit=True,
         )
+        assert_equal(calls, [])
+
+        self.log.info("Reject an audit summary path matching the snapshot output path before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "audit-path-matches-snapshot",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must differ from snapshot output path",
+            audit_path_same_as_snapshot=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject a missing audit summary output directory before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "missing-audit-dir",
+            self.scenario(),
+            1,
+            "snapshot audit summary directory does not exist",
+            audit_path_parent_missing=True,
+        )
+        assert_equal(calls, [])
 
         self.log.info("Reject a pre-existing output path before calling either CLI")
         _, calls, _ = self.assert_snapshot(
