@@ -557,6 +557,21 @@ release index*.
 ```
 : "${ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT:?set the independently verified zkCoin release signing key fingerprint}"
 : "${ZKCOIN_RELEASE_SIGNING_KEY_ID:?set the local GPG key id for the zkCoin release signing key}"
+: "${ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD:?set the published zkCoin release signing key custody record}"
+: "${ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_OWNER:?set the accountable zkCoin release signing key custody owner}"
+: "${ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN:?set the zkCoin release signing key revocation and rotation plan}"
+
+for ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_FIELD in \
+  "$ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_RECORD" \
+  "$ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_OWNER" \
+  "$ZKCOIN_RELEASE_SIGNING_KEY_REVOCATION_PLAN"; do
+  case "$ZKCOIN_RELEASE_SIGNING_KEY_CUSTODY_FIELD" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE_SIGNING_KEY custody fields must not be placeholders" >&2
+      exit 1
+      ;;
+  esac
+done
 
 ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT_NORMALIZED="$(
   printf '%s' "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
