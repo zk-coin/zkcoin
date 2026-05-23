@@ -384,6 +384,48 @@ def parse_chain_id(value):
     return chain_id
 
 
+def parse_byte_token(value, label):
+    token = value.strip()
+    if not token:
+        raise ValueError(f"{label} contains an empty byte")
+    try:
+        if token.lower().startswith("0x"):
+            byte = int(token, 16)
+        elif re.search(r"[a-fA-F]", token):
+            byte = int(token, 16)
+        else:
+            byte = int(token, 10)
+    except ValueError:
+        raise ValueError(f"{label} contains an invalid byte: {token}")
+    if byte < 0 or byte > 255:
+        raise ValueError(f"{label} byte is outside 0..255: {token}")
+    return byte
+
+
+def parse_byte_sequence(value, expected_len, label):
+    if "," in value:
+        parsed = [parse_byte_token(token, label) for token in value.split(",")]
+    elif expected_len > 1 and re.fullmatch(r"[0-9a-fA-F]{" + str(expected_len * 2) + r"}", value):
+        parsed = [int(value[index:index + 2], 16) for index in range(0, len(value), 2)]
+    else:
+        parsed = [parse_byte_token(value, label)]
+    if len(parsed) != expected_len:
+        raise ValueError(f"{label} must contain {expected_len} byte value(s)")
+    return parsed
+
+
+def parse_default_port(value):
+    try:
+        port = int(value, 0)
+    except ValueError:
+        raise ValueError("default_port must be an integer")
+    if port <= 1024 or port > 65535:
+        raise ValueError("default_port must be in the public TCP port range 1025-65535")
+    if port in LITECOIN_DEFAULT_PORTS:
+        raise ValueError("default_port must not reuse a Litecoin default port")
+    return port
+
+
 def remove_blocker(manifest, blocker_id):
     blockers = manifest.get("blockers", [])
     manifest["blockers"] = [
@@ -445,6 +487,55 @@ def set_dns_seeds(manifest, network, dns_seeds):
     identity = profile.setdefault("public_network_identity", {})
     identity["dns_seeds"] = parse_dns_seeds(dns_seeds)
     remove_blocker(manifest, f"{network}.dns_seeds")
+
+
+def set_identity(
+    manifest,
+    network,
+    message_start,
+    default_port,
+    pubkey_address,
+    script_address,
+    script_address2,
+    secret_key,
+    ext_public_key,
+    ext_secret_key,
+    bech32_hrp,
+    mweb_hrp,
+):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    parsed_identity = {
+        "message_start": parse_byte_sequence(message_start, 4, "message_start"),
+        "default_port": parse_default_port(default_port),
+        "base58_prefixes": {
+            "pubkey_address": parse_byte_sequence(pubkey_address, 1, "pubkey_address"),
+            "script_address": parse_byte_sequence(script_address, 1, "script_address"),
+            "script_address2": parse_byte_sequence(script_address2, 1, "script_address2"),
+            "secret_key": parse_byte_sequence(secret_key, 1, "secret_key"),
+            "ext_public_key": parse_byte_sequence(ext_public_key, 4, "ext_public_key"),
+            "ext_secret_key": parse_byte_sequence(ext_secret_key, 4, "ext_secret_key"),
+        },
+        "bech32_hrp": bech32_hrp,
+        "mweb_hrp": mweb_hrp,
+    }
+
+    if not message_start_valid(parsed_identity["message_start"]):
+        raise ValueError("message_start must be 4 non-Litecoin non-printable magic bytes")
+    if not hrp_valid(bech32_hrp):
+        raise ValueError("bech32_hrp must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+    if not hrp_valid(mweb_hrp):
+        raise ValueError("mweb_hrp must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+    if bech32_hrp == mweb_hrp:
+        raise ValueError("mweb_hrp must differ from bech32_hrp")
+
+    networks = manifest.setdefault("networks", {})
+    profile = networks.setdefault(network, {})
+    identity = profile.setdefault("public_network_identity", {})
+    identity.update(parsed_identity)
+    identity.setdefault("dns_seeds", [])
+    identity.setdefault("fixed_seeds", [])
+    remove_blocker(manifest, f"{network}.public_network_identity")
 
 
 def write_manifest(path, manifest):
@@ -568,6 +659,24 @@ def main():
         metavar=("NETWORK", "SEED1,SEED2"),
         help="update one network's DNS seed hostnames and remove its DNS seed blocker",
     )
+    parser.add_argument(
+        "--set-identity",
+        nargs=11,
+        metavar=(
+            "NETWORK",
+            "MESSAGE_START",
+            "DEFAULT_PORT",
+            "PUBKEY",
+            "SCRIPT",
+            "SCRIPT2",
+            "SECRET",
+            "XPUB",
+            "XPRV",
+            "BECH32_HRP",
+            "MWEB_HRP",
+        ),
+        help="update one network's public identity values and remove its public identity blocker",
+    )
     parser.add_argument("--in-place", action="store_true", help="write update changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
@@ -602,7 +711,19 @@ def main():
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
-    updated_manifest = args.set_snapshot is not None or args.set_auxpow is not None or args.set_dns_seeds is not None
+    if args.set_identity is not None:
+        try:
+            set_identity(manifest, *args.set_identity)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    updated_manifest = (
+        args.set_snapshot is not None
+        or args.set_auxpow is not None
+        or args.set_dns_seeds is not None
+        or args.set_identity is not None
+    )
     allow_blocked = args.allow_blocked or updated_manifest
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
@@ -624,7 +745,7 @@ def main():
         return 0
 
     if args.in_place:
-        print("error: --in-place requires --set-snapshot, --set-auxpow, or --set-dns-seeds", file=sys.stderr)
+        print("error: --in-place requires --set-snapshot, --set-auxpow, --set-dns-seeds, or --set-identity", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:
