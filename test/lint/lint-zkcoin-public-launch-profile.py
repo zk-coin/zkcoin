@@ -499,6 +499,11 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
+        ("--emit-chainparams", "manifest chainparams emitter flag"),
+        ("hashUTXORoot", "manifest emits snapshot import hash assignment"),
+        ("nStartHeight = 0", "manifest emits always-active Taproot height reset"),
+        ("vSeeds.emplace_back", "manifest emits DNS seed assignments"),
+        ("base58Prefixes[EXT_PUBLIC_KEY]", "manifest emits extended key prefixes"),
     )
     for needle, description in manifest_tool_checks:
         error = require_text(PUBLIC_LAUNCH_MANIFEST_TOOL, needle, description)
@@ -690,6 +695,10 @@ def main():
         (
             "ready-for-chainparams",
             "public launch manifest ready status documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --emit-chainparams",
+            "public launch manifest chainparams emitter documentation",
         ),
     )
     for needle, description in doc_checks:
