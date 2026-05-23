@@ -57,7 +57,7 @@
     },
     {
       "id": "windows_signing_key",
-      "description": "Choose and publish ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY and the authorized Windows code-signing key workflow."
+      "description": "Choose and publish ZKCOIN_WINDOWS_CODESIGN_KEY_PATH, ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY, ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER, ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL, and the authorized Windows code-signing key workflow."
     }
   ],
   "current_inherited_release_surfaces": [
@@ -105,7 +105,7 @@
     "Release notes archival docs require ZKCOIN_RELEASE_NOTES_PATH, ZKCOIN_RELEASE_NOTES_BRANCH, and ZKCOIN_RELEASE_NOTES_OWNER, require the path to match doc/release-notes/release-notes-${VERSION}.md, and verify matching archived notes with git cat-file -e and git diff --quiet before creating the zkCoin GitHub release.",
     "GitHub release docs require ZKCOIN_RELEASE_GITHUB_TAG, ZKCOIN_RELEASE_GITHUB_TITLE, and ZKCOIN_RELEASE_GITHUB_OWNER before creating a zkCoin GitHub release.",
     "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID, zkCoin Apple notarization variables, ZKCOIN_MACOS_CODESIGN_IDENTITY, ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY, ZKCOIN_MACOS_CODESIGN_CERT_OWNER, and ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL so inherited Litecoin bundle identifiers or undocumented macOS signing certificate custody cannot be used by default.",
-    "Windows signing docs require ZKCOIN_WINDOWS_CODESIGN_KEY_PATH and ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY so placeholder signing key paths cannot be used by default.",
+    "Windows signing docs require ZKCOIN_WINDOWS_CODESIGN_KEY_PATH, ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY, ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER, and ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL so placeholder signing key paths or undocumented Windows signing payload custody cannot be used by default.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }

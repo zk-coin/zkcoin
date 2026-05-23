@@ -384,6 +384,20 @@ Codesigner only: Sign the windows binaries:
     tar xf litecoin-win-unsigned.tar.gz
     : "${ZKCOIN_WINDOWS_CODESIGN_KEY_PATH:?set the authorized zkCoin Windows code-signing key path}"
     : "${ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY:?set the approved zkCoin Windows signing key custody record}"
+    : "${ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER:?set the accountable zkCoin Windows signing key custody owner}"
+    : "${ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL:?set the approved zkCoin Windows signing payload approval record}"
+    for ZKCOIN_WINDOWS_CODESIGN_CUSTODY_FIELD in \
+      "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" \
+      "$ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY" \
+      "$ZKCOIN_WINDOWS_CODESIGN_KEY_OWNER" \
+      "$ZKCOIN_WINDOWS_CODESIGN_PAYLOAD_APPROVAL"; do
+        case "$ZKCOIN_WINDOWS_CODESIGN_CUSTODY_FIELD" in
+          ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+            echo "ZKCOIN_WINDOWS_CODESIGN custody fields must not be placeholders" >&2
+            exit 1
+            ;;
+        esac
+    done
     ./detached-sig-create.sh -key "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH"
     Enter the passphrase according to the approved custody record when prompted
     signature-win.tar.gz will be created
