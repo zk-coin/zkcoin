@@ -202,6 +202,13 @@ def main():
     if missing_blockers:
         return fail("production_blockers missing ids: {}".format(", ".join(missing_blockers)))
 
+    notes = manifest.get("notes")
+    if not isinstance(notes, list):
+        return fail("notes must be an array")
+    notes_text = "\n".join(note for note in notes if isinstance(note, str))
+    if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
+        return fail("notes must keep source release-candidate validation separate from binary release readiness")
+
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
         return fail("temporary_binary_namespace must be an object")
@@ -240,6 +247,9 @@ def main():
         ("zkcoin_release_infrastructure_manifest.json", "release infrastructure manifest reference"),
         ("Do not publish zkCoin artifacts from this process", "publish blocker warning"),
         ("temporary compatibility namespace", "temporary binary namespace explanation"),
+        ("zkcoin_release_candidate_validation.sh", "source release-candidate validation gate"),
+        ("It is not binary release readiness", "source-vs-binary readiness boundary"),
+        ("does not authorize publishing binaries", "binary publication blocker"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)

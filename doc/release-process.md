@@ -18,6 +18,31 @@ config-file, and artifact migration is handled as an explicit release step.
 Any release candidate must either document that namespace as intentional for
 that release or migrate it in a dedicated PR before signing artifacts.
 
+## Source release-candidate validation
+
+Before tagging a source release candidate, run the zkCoin release-candidate
+validation gate:
+
+```bash
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
+  TEST_RUNNER_PORT_MIN=28000 \
+  contrib/devtools/zkcoin_release_candidate_validation.sh
+```
+
+This gate runs the canonical launch validation loop, then builds the source
+tarball, unpacks it into a temporary build root, configures the real Orchard
+verifier backend, rebuilds `litecoind`, `litecoin-cli`, and `test_litecoin`,
+and reruns the real Orchard AuxPoW regression from the unpacked release source.
+
+Passing `zkcoin_release_candidate_validation.sh` only proves source
+release-candidate readiness for the current compatibility namespace.
+It is not binary release readiness.
+It does not authorize publishing binaries, checksums, signatures, installers,
+notarized applications, or detached signing payloads. Keep Gitian, binary
+verification, signing, notarization, upload, and artifact naming blocked until
+`zkcoin_release_infrastructure_manifest.json` is updated with resolved zkCoin
+release infrastructure.
+
 ## Branch updates
 
 ### Before every release candidate
