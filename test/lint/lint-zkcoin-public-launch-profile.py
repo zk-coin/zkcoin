@@ -739,6 +739,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        extra_field_audit_path = Path(temp_dir) / "extra-field-audit.json"
+        extra_field_audit = dict(audit)
+        extra_field_audit["unexpected_launch_value"] = "ignored-before"
+        extra_field_audit_path.write_text(json.dumps(extra_field_audit), encoding="utf8")
+        extra_field_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(extra_field_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if extra_field_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an audit summary with an extra field".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary has unexpected field(s): unexpected_launch_value" not in extra_field_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain extra audit field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         relative_file_audit_path = Path(temp_dir) / "relative-file-audit.json"
         relative_file_audit = dict(audit)
         relative_file_audit["snapshot_file"] = "snapshots/ltc-block-x.dat"
@@ -1965,10 +1992,12 @@ def main():
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("snapshot audit summary must be a regular file", "manifest rejects non-file snapshot audit summaries"),
+        ("SNAPSHOT_AUDIT_SUMMARY_FIELDS", "manifest requires exact snapshot audit summary fields"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
         ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
+        ("snapshot audit summary has unexpected field", "manifest rejects extra snapshot audit summary fields"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),

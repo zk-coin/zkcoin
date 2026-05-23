@@ -77,6 +77,7 @@ SNAPSHOT_AUDIT_FIELDS = (
     "snapshot_file",
     "total_amount",
 )
+SNAPSHOT_AUDIT_SUMMARY_FIELDS = SNAPSHOT_FIELDS + SNAPSHOT_AUDIT_FIELDS
 BLOCKER_ORDER = (
     "main.litecoin_snapshot",
     "main.auxpow_chain_id",
@@ -737,6 +738,12 @@ def parse_snapshot_audit(audit_path):
 
     if not isinstance(audit, dict):
         raise ValueError("snapshot audit summary must be a JSON object")
+    unexpected_fields = sorted(set(audit) - set(SNAPSHOT_AUDIT_SUMMARY_FIELDS))
+    if unexpected_fields:
+        raise ValueError(
+            "snapshot audit summary has unexpected field(s): "
+            + ", ".join(unexpected_fields)
+        )
 
     parsed = {
         "height": require_snapshot_audit_int(audit, "height"),
