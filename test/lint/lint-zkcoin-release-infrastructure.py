@@ -40,6 +40,7 @@ UPSTREAM_LITECOIN_SOURCE_REPO = "https://github.com/litecoin-project/litecoin.gi
 DETACHED_SIGS_NOT_CONFIGURED_REPO = "https://example.invalid/zkcoin-detached-sigs-not-configured.git"
 UPSTREAM_LITECOIN_DETACHED_SIGS_REPO = "https://github.com/litecoin-project/litecoin-detached-sigs.git"
 UPSTREAM_LITECOIN_GITIAN_SIGS_REPO = "https://github.com/litecoin-project/gitian.sigs.ltc.git"
+UPSTREAM_LITECOIN_GITHUB_RELEASE_URL = "https://github.com/litecoin-project/litecoin/releases/new"
 REQUIRED_BLOCKERS = {
     "zkcoin_release_signing_key",
     "gitian_sigs_repo",
@@ -273,6 +274,8 @@ def main():
         return fail("notes must document parameterized zkCoin binary artifact verification")
     if "example.invalid detached-signatures URL" not in notes_text:
         return fail("notes must document fail-closed detached-signatures signer descriptors")
+    if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
+        return fail("notes must document parameterized zkCoin artifact publication targets")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -330,6 +333,11 @@ def main():
         ("ZKCOIN_DETACHED_SIGS_REPO_URL", "parameterized detached-signatures repository"),
         ('--url "signature=../${ZKCOIN_DETACHED_SIGS_DIR}"', "explicit detached-signatures Gitian override"),
         ("zkcoin-detached-sigs", "zkCoin detached-signatures local directory"),
+        ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
+        ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
+        ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
+        ("verify-zkcoin-release.py", "post-publication artifact verification"),
+        ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
@@ -387,8 +395,15 @@ def main():
         (GITIAN_SIGNER_DESCRIPTORS[1], UPSTREAM_LITECOIN_DETACHED_SIGS_REPO, "Litecoin detached-signatures repository"),
         (RELEASE_DOC, UPSTREAM_LITECOIN_DETACHED_SIGS_REPO, "Litecoin detached-signatures repository"),
         (RELEASE_DOC, UPSTREAM_LITECOIN_GITIAN_SIGS_REPO, "Litecoin Gitian signatures repository"),
+        (RELEASE_DOC, UPSTREAM_LITECOIN_GITHUB_RELEASE_URL, "Litecoin GitHub release URL"),
         (RELEASE_DOC, "gitian.sigs.ltc", "Litecoin Gitian signatures directory"),
         (RELEASE_DOC, "litecoin-detached-sigs", "Litecoin detached-signatures directory"),
+        (RELEASE_DOC, "litecoin.org server", "Litecoin artifact publication host"),
+        (RELEASE_DOC, "Update litecoin.org version", "Litecoin website update"),
+        (RELEASE_DOC, "blog.litecoin.org", "Litecoin blog target"),
+        (RELEASE_DOC, "bitcoincore.org", "Bitcoin Core website target"),
+        (RELEASE_DOC, "org.bitcoincore.bitcoin-qt", "Bitcoin Core Flatpak target"),
+        (RELEASE_DOC, "bitcoin-core-snap", "Bitcoin Core snap target"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)
