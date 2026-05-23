@@ -24,8 +24,9 @@ Example:
     -- \
     ./src/litecoin-cli -datadir=/srv/zkcoin-data
 
-The Litecoin node must be exactly at <height>. If it is beyond <height>, this
-script refuses to rewind it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
+The Litecoin snapshot height must be a positive integer. The Litecoin node must
+be exactly at <height>. If it is beyond <height>, this script refuses to rewind
+it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
 Only use rewind mode on a dedicated disposable snapshot node.
 
 The script prints snapshot-related launch-node arguments, including
@@ -56,8 +57,8 @@ SNAPSHOT_PATH="$3"
 NULL_UINT256="0000000000000000000000000000000000000000000000000000000000000000"
 shift 3
 
-if [[ ! "$HEIGHT" =~ ^[0-9]+$ ]]; then
-  die "height must be a non-negative integer"
+if [[ ! "$HEIGHT" =~ ^[1-9][0-9]*$ ]]; then
+  die "height must be a positive integer"
 fi
 
 if [[ ! "$EXPECTED_BLOCK_HASH" =~ ^[0-9a-f]{64}$ ]]; then
