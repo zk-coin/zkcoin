@@ -457,6 +457,16 @@ rm SHA256SUMS
 (the digest algorithm is forced to sha256 to avoid confusion of the `Hash:` header that GPG adds with the SHA256 used for the files)
 Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spurious/nonsensical entry.
 
+- Verify the local signed checksum manifest and artifacts before uploading
+  anything:
+
+```bash
+contrib/verifybinaries/verify-zkcoin-release.py \
+  --checksums ./SHA256SUMS.asc \
+  --trusted-fingerprint "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
+  --artifacts-dir .
+```
+
 - Resolve the zkCoin artifact publication targets before uploading anything:
 
 ```bash
