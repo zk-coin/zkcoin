@@ -836,8 +836,35 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        testnet_snippet_marker = "// testnet public launch profile generated"
+        testnet_snippet_start = emit_result.stdout.find(testnet_snippet_marker)
+        if testnet_snippet_start == -1:
+            return "{} did not emit a testnet chainparams snippet marker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        main_snippet = emit_result.stdout[:testnet_snippet_start].strip()
+        testnet_snippet = emit_result.stdout[testnet_snippet_start:].strip()
+
+        def chainparams_text_with(main_block, testnet_block):
+            return "\n".join(
+                (
+                    "class CMainParams : public CChainParams {",
+                    main_block,
+                    "};",
+                    "class CTestNetParams : public CChainParams {",
+                    testnet_block,
+                    "};",
+                    "class CRegTestParams : public CChainParams {",
+                    "};",
+                    "",
+                )
+            )
+
         synced_chainparams_path = Path(temp_dir) / "synced-chainparams.cpp"
-        synced_chainparams_path.write_text(emit_result.stdout, encoding="utf8")
+        synced_chainparams_path.write_text(
+            chainparams_text_with(main_snippet, testnet_snippet),
+            encoding="utf8",
+        )
         sync_result = subprocess.run(
             [
                 sys.executable,
@@ -857,9 +884,36 @@ def require_public_launch_manifest_current():
                 sync_result.stderr.strip() or sync_result.stdout.strip() or "no output",
             )
 
+        swapped_chainparams_path = Path(temp_dir) / "swapped-chainparams.cpp"
+        swapped_chainparams_path.write_text(
+            chainparams_text_with(testnet_snippet, main_snippet),
+            encoding="utf8",
+        )
+        swapped_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(swapped_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if swapped_result.returncode == 0:
+            return "{} --check-chainparams accepted snippets in the wrong chainparams classes".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main: generated snippet is present outside the CMainParams block" not in swapped_result.stderr:
+            return "{} --check-chainparams did not report the misplaced main snippet".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         drifted_chainparams_path = Path(temp_dir) / "drifted-chainparams.cpp"
         drifted_chainparams_path.write_text(
-            emit_result.stdout.replace(
+            chainparams_text_with(main_snippet, testnet_snippet).replace(
                 "        consensus.auxpow.nChainId = 20482;",
                 "        consensus.auxpow.nChainId = 20483;",
             ),
@@ -1097,6 +1151,7 @@ def main():
         ("LITECOIN_MESSAGE_STARTS", "manifest rejects inherited Litecoin message starts"),
         ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
+        ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--next-action", "manifest next-action guidance flag"),
@@ -1129,6 +1184,7 @@ def main():
         ("nStartHeight = 0", "manifest emits always-active Taproot height reset"),
         ("vSeeds.emplace_back", "manifest emits DNS seed assignments"),
         ("base58Prefixes[EXT_PUBLIC_KEY]", "manifest emits extended key prefixes"),
+        ("chainparams_class_block", "manifest extracts chainparams class blocks"),
         ("chainparams_sync_errors", "manifest checks emitted chainparams snippets against source"),
     )
     for needle, description in manifest_tool_checks:

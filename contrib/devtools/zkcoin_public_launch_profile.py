@@ -16,6 +16,10 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = ROOT_DIR / "contrib" / "devtools" / "zkcoin_public_launch_profile_manifest.json"
 NETWORKS = ("main", "testnet")
+CHAINPARAMS_CLASS_BOUNDS = {
+    "main": ("CMainParams", "CTestNetParams"),
+    "testnet": ("CTestNetParams", "CRegTestParams"),
+}
 SCRIPT_RULES = ("BIP16", "BIP34", "BIP65", "BIP66", "CSV", "Segwit", "Taproot")
 BASE58_FIELDS = (
     ("pubkey_address", 1),
@@ -763,25 +767,44 @@ def emit_chainparams(manifest):
     )
 
 
+def chainparams_class_block(chainparams_text, class_name, next_class_name):
+    start_marker = f"class {class_name} : public CChainParams"
+    start = chainparams_text.find(start_marker)
+    if start == -1:
+        return None
+    next_marker = f"class {next_class_name} : public CChainParams"
+    end = chainparams_text.find(next_marker, start + len(start_marker))
+    if end == -1:
+        return None
+    return chainparams_text[start:end]
+
+
 def chainparams_sync_errors(manifest, chainparams_text):
     errors = []
     for network in NETWORKS:
         expected = emit_network_chainparams(network, manifest["networks"][network])
-        if expected in chainparams_text:
+        class_name, next_class_name = CHAINPARAMS_CLASS_BOUNDS[network]
+        block = chainparams_class_block(chainparams_text, class_name, next_class_name)
+        if block is None:
+            errors.append(f"{network}: cannot find {class_name} block before {next_class_name}")
             continue
+        if expected in block:
+            continue
+        if expected in chainparams_text:
+            errors.append(f"{network}: generated snippet is present outside the {class_name} block")
         missing_lines = [
             line
             for line in expected.splitlines()
-            if line not in chainparams_text
+            if line not in block
         ]
         if missing_lines:
-            errors.append(f"{network}: missing generated chainparams snippet lines")
+            errors.append(f"{network}: missing generated chainparams snippet lines in {class_name}")
             for line in missing_lines[:8]:
                 errors.append(f"{network}: missing line: {line.strip()}")
             if len(missing_lines) > 8:
                 errors.append(f"{network}: {len(missing_lines) - 8} more generated line(s) are missing")
         else:
-            errors.append(f"{network}: generated chainparams lines are present but not as one contiguous snippet")
+            errors.append(f"{network}: generated chainparams lines are present in {class_name} but not as one contiguous snippet")
     return errors
 
 
