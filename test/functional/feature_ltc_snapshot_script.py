@@ -80,6 +80,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             print(scenario["restore_hash"])
                         else:
                             print("00" * 32)
+                    elif command == "getblockcount":
+                        print(scenario.get("post_rewind_tip", scenario["height"]))
                     elif command == "invalidateblock":
                         if scenario.get("fail_invalidate", False):
                             fail("invalidate failed")
@@ -362,7 +364,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             allow_rewind=True,
         )
         self.assert_command(calls, "litecoin", "invalidateblock", [RESTORE_HASH])
+        self.assert_command(calls, "litecoin", "getblockcount")
         self.assert_command(calls, "litecoin", "reconsiderblock", [RESTORE_HASH])
+
+        self.log.info("Reject rewind that does not leave the source at the snapshot height")
+        _, calls, _ = self.assert_snapshot(
+            "rewind-tip-mismatch",
+            self.scenario(source_tip=HEIGHT + 1, post_rewind_tip=HEIGHT + 1),
+            1,
+            f"Litecoin source tip after rewind is {HEIGHT + 1}; expected {HEIGHT}",
+            allow_rewind=True,
+        )
+        self.assert_command(calls, "litecoin", "invalidateblock", [RESTORE_HASH])
+        self.assert_command(calls, "litecoin", "getblockcount")
+        self.assert_command(calls, "litecoin", "reconsiderblock", [RESTORE_HASH])
+        assert not any(call["cmd"] == "dumptxoutset" for call in calls)
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Fail closed when rewind cleanup cannot restore the source chain")
         self.assert_snapshot(

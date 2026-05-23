@@ -221,8 +221,9 @@ inconsistent. The operator error is explicit: `Litecoin source node is still in 
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then
-reconsiders it on exit. A failed restore makes the script fail even when the
-snapshot dump itself succeeded.
+confirms the source tip is exactly height X after invalidation before dumping
+the snapshot. It reconsiders block `X + 1` on exit. A failed restore makes the
+script fail even when the snapshot dump itself succeeded.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the script validates the audit summary output path before running snapshot RPCs: the audit path must not already
 exist, must not equal the snapshot output path, and must have an existing parent
 directory.
