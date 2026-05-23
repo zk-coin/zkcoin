@@ -37,7 +37,7 @@
     },
     {
       "id": "release_notes_archive",
-      "description": "Choose and publish ZKCOIN_RELEASE_NOTES_PATH, ZKCOIN_RELEASE_NOTES_BRANCH, and ZKCOIN_RELEASE_NOTES_OWNER before archiving release notes."
+      "description": "Choose and publish ZKCOIN_RELEASE_NOTES_PATH, ZKCOIN_RELEASE_NOTES_BRANCH, and ZKCOIN_RELEASE_NOTES_OWNER, then verify matching archived notes exist on master and the release branch before creating the GitHub release."
     },
     {
       "id": "github_release_metadata",
@@ -97,7 +97,7 @@
     "Release artifact publication docs require ZKCOIN_RELEASE_ARTIFACT_BASE_URL, ZKCOIN_RELEASE_CHECKSUMS_URL, and ZKCOIN_RELEASE_GITHUB_REPO_URL so inherited Litecoin and Bitcoin publication targets cannot be used by default.",
     "Release metadata publication docs require ZKCOIN_RELEASE_WEBSITE_REPO_URL, ZKCOIN_RELEASE_WEBSITE_OWNER, ZKCOIN_RELEASE_INDEX_REPO_URL, and ZKCOIN_RELEASE_INDEX_OWNER before updating public zkCoin release indexes or websites.",
     "Release announcement docs require ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS and ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER before announcing a zkCoin release.",
-    "Release notes archival docs require ZKCOIN_RELEASE_NOTES_PATH, ZKCOIN_RELEASE_NOTES_BRANCH, and ZKCOIN_RELEASE_NOTES_OWNER before creating the zkCoin GitHub release.",
+    "Release notes archival docs require ZKCOIN_RELEASE_NOTES_PATH, ZKCOIN_RELEASE_NOTES_BRANCH, and ZKCOIN_RELEASE_NOTES_OWNER, require the path to match doc/release-notes/release-notes-${VERSION}.md, and verify matching archived notes with git cat-file -e and git diff --quiet before creating the zkCoin GitHub release.",
     "GitHub release docs require ZKCOIN_RELEASE_GITHUB_TAG, ZKCOIN_RELEASE_GITHUB_TITLE, and ZKCOIN_RELEASE_GITHUB_OWNER before creating a zkCoin GitHub release.",
     "macOS notarization docs require ZKCOIN_MACOS_BUNDLE_ID and zkCoin Apple notarization variables so inherited Litecoin bundle identifiers cannot be used by default.",
     "Windows signing docs require ZKCOIN_WINDOWS_CODESIGN_KEY_PATH and ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY so placeholder signing key paths cannot be used by default.",

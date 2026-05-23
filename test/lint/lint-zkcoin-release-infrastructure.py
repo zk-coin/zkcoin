@@ -128,6 +128,17 @@ def require_absent_text(path, needle, description):
     return None
 
 
+def require_ordered_text(path, needles, description):
+    text = path.read_text(encoding="utf8")
+    offset = 0
+    for needle in needles:
+        found = text.find(needle, offset)
+        if found == -1:
+            return "{} missing or misordered {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+        offset = found + len(needle)
+    return None
+
+
 def require_src_dist_entries():
     text = SRC_MAKEFILE_AM.read_text(encoding="utf8")
     missing = [entry for entry in REQUIRED_RUST_SHIELDED_VERIFIER_DIST if entry not in text]
@@ -298,6 +309,12 @@ def main():
         return fail("notes must document parameterized zkCoin release announcement targets")
     if "ZKCOIN_RELEASE_NOTES_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin release notes archival targets")
+    if "ZKCOIN_RELEASE_NOTES_BRANCH" not in notes_text:
+        return fail("notes must document parameterized zkCoin release notes archival branch")
+    if "ZKCOIN_RELEASE_NOTES_OWNER" not in notes_text:
+        return fail("notes must document parameterized zkCoin release notes archival owner")
+    if "git cat-file -e" not in notes_text or "git diff --quiet" not in notes_text:
+        return fail("notes must document zkCoin release notes archive existence and content verification")
     if "ZKCOIN_RELEASE_GITHUB_TAG" not in notes_text:
         return fail("notes must document parameterized zkCoin GitHub release metadata")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
@@ -400,7 +417,14 @@ def main():
         ("ZKCOIN_RELEASE_NOTES_PATH", "parameterized release notes path"),
         ("ZKCOIN_RELEASE_NOTES_BRANCH", "parameterized release notes branch"),
         ("ZKCOIN_RELEASE_NOTES_OWNER", "parameterized release notes owner"),
-        ("ZKCOIN_RELEASE_NOTES_PATH must be under doc/release-notes/ and end in .md", "release notes archive path validation"),
+        ('ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${VERSION}.md"', "version-aligned release notes path"),
+        ("ZKCOIN_RELEASE_NOTES_PATH must match $ZKCOIN_EXPECTED_RELEASE_NOTES_PATH", "release notes archive path validation"),
+        ('git check-ref-format --branch "$ZKCOIN_RELEASE_NOTES_BRANCH"', "release notes branch validation"),
+        ('rev-parse --verify --quiet "$ZKCOIN_RELEASE_NOTES_BRANCH^{commit}"', "release notes branch commit validation"),
+        ('git cat-file -e "master:$ZKCOIN_RELEASE_NOTES_PATH"', "master release notes archive existence"),
+        ('git cat-file -e "$ZKCOIN_RELEASE_NOTES_BRANCH:$ZKCOIN_RELEASE_NOTES_PATH"', "release branch notes archive existence"),
+        ("git diff --quiet --no-ext-diff", "release notes archive content comparison"),
+        ("Archived zkCoin release notes differ between master and $ZKCOIN_RELEASE_NOTES_BRANCH", "release notes archive divergence failure"),
         ("Resolve the zkCoin release-notes archival targets", "release notes archival boundary"),
         ("ZKCOIN_RELEASE_GITHUB_TAG", "parameterized GitHub release tag"),
         ("ZKCOIN_RELEASE_GITHUB_TITLE", "parameterized GitHub release title"),
@@ -421,6 +445,20 @@ def main():
         error = require_text(RELEASE_DOC, needle, description)
         if error:
             return fail(error)
+
+    error = require_ordered_text(
+        RELEASE_DOC,
+        (
+            "Resolve the zkCoin release-notes archival targets",
+            "git cat-file -e \"master:$ZKCOIN_RELEASE_NOTES_PATH\"",
+            "git diff --quiet --no-ext-diff",
+            "Resolve the zkCoin GitHub release metadata",
+            "Create the GitHub release",
+        ),
+        "release notes archive verification before GitHub release creation",
+    )
+    if error:
+        return fail(error)
 
     verify_checks = (
         (VERIFY_SCRIPT, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in env"),
