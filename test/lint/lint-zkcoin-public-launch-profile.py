@@ -687,6 +687,31 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        directory_audit_path = Path(temp_dir) / "snapshot-audit-dir"
+        directory_audit_path.mkdir()
+        directory_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(directory_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if directory_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a directory audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must be a regular file" not in directory_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain directory audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         incomplete_audit_path = Path(temp_dir) / "incomplete-audit.json"
         incomplete_audit = dict(audit)
         incomplete_audit.pop("snapshot_hash")
@@ -738,6 +763,35 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in relative_file_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain relative snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        directory_artifact_path = Path(temp_dir) / "ltc-block-x-dir.dat"
+        directory_artifact_path.mkdir()
+        directory_artifact_audit_path = Path(temp_dir) / "directory-artifact-audit.json"
+        directory_artifact_audit = dict(audit)
+        directory_artifact_audit["snapshot_file"] = str(directory_artifact_path)
+        directory_artifact_audit_path.write_text(json.dumps(directory_artifact_audit), encoding="utf8")
+        directory_artifact_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(directory_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if directory_artifact_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a directory snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must be a regular file" not in directory_artifact_result.stderr:
+            return "{} --set-snapshot-audit did not explain directory snapshot artifact rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1909,6 +1963,8 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
+        ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
+        ("snapshot audit summary must be a regular file", "manifest rejects non-file snapshot audit summaries"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
         ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
@@ -1919,6 +1975,7 @@ def main():
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
         ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
         ("snapshot audit file artifact must not be a symlink", "manifest rejects symlinked snapshot audit artifacts"),
+        ("snapshot audit file artifact must be a regular file", "manifest rejects non-file snapshot audit artifacts"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
