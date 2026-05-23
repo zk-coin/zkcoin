@@ -2150,7 +2150,9 @@ def main():
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
+        ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
+        ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
         ("snapshot block hash at height", "snapshot script validates source snapshot block hashes"),
@@ -2203,6 +2205,14 @@ def main():
         (
             "Reject a missing audit summary output directory before calling either CLI",
             "snapshot script test rejects missing audit directory before RPC",
+        ),
+        (
+            "Reject a symlinked audit summary output path before calling either CLI",
+            "snapshot script test rejects symlink audit output before RPC",
+        ),
+        (
+            "Reject a symlinked snapshot output path before calling either CLI",
+            "snapshot script test rejects symlink snapshot output before RPC",
         ),
         (
             "Reject a missing snapshot output directory before calling either CLI",
@@ -2351,6 +2361,10 @@ def main():
         (
             "snapshot output directory must also exist",
             "public launch snapshot output directory preflight documentation",
+        ),
+        (
+            "snapshot and audit output paths must be direct files",
+            "public launch snapshot output symlink rejection documentation",
         ),
         (
             "well-formed non-null block hash for height X",

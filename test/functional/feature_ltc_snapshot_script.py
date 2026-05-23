@@ -166,6 +166,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         write_audit=False,
         precreate_snapshot=False,
         precreate_audit=False,
+        snapshot_path_symlink=False,
+        audit_path_symlink=False,
         audit_path_same_as_snapshot=False,
         audit_path_parent_missing=False,
         snapshot_path_parent_missing=False,
@@ -179,6 +181,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             audit_path = snapshot_path
         elif audit_path_parent_missing:
             audit_path = os.path.join(self.options.tmpdir, "missing-audit-dir", f"{name}.audit.json")
+        if snapshot_path_symlink:
+            os.symlink(os.path.join(self.options.tmpdir, f"{name}.target"), snapshot_path)
+        if audit_path_symlink:
+            os.symlink(os.path.join(self.options.tmpdir, f"{name}.audit.target"), audit_path)
         if precreate_snapshot:
             with open(snapshot_path, "wb") as snapshot_file:
                 snapshot_file.write(b"existing")
@@ -189,7 +195,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         env = os.environ.copy()
         env["ZKCOIN_SNAPSHOT_FAKE_LOG"] = log_path
         env["ZKCOIN_SNAPSHOT_FAKE_SCENARIO"] = json.dumps(scenario)
-        if write_audit or precreate_audit or audit_path_same_as_snapshot or audit_path_parent_missing:
+        if write_audit or precreate_audit or audit_path_same_as_snapshot or audit_path_parent_missing or audit_path_symlink:
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
             env.pop("ZKCOIN_SNAPSHOT_AUDIT_JSON", None)
@@ -357,6 +363,26 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot output already exists",
             precreate_snapshot=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject a symlinked snapshot output path before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "symlink-snapshot-output",
+            self.scenario(),
+            1,
+            "snapshot output path must not be a symlink",
+            snapshot_path_symlink=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject a symlinked audit summary output path before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "symlink-audit-output",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must not be a symlink",
+            audit_path_symlink=True,
         )
         assert_equal(calls, [])
 
