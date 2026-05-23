@@ -21,7 +21,7 @@
     },
     {
       "id": "gitian_sigs_repo",
-      "description": "Choose and publish ZKCOIN_GITIAN_SIGS_REPO_URL and the zkCoin Gitian signer quorum."
+      "description": "Choose and publish ZKCOIN_GITIAN_SIGS_REPO_URL and ZKCOIN_GITIAN_SIGNER_QUORUM for the zkCoin Gitian signer quorum."
     },
     {
       "id": "detached_sigs_repo",
@@ -75,6 +75,7 @@
     "Do not treat Gitian, signing, notarization, upload, or binary verification instructions as production zkCoin release instructions while status is release_infrastructure_not_ready.",
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
+    "Release checksum docs require ZKCOIN_GITIAN_SIGNER_QUORUM and count Gitian signer directories before creating SHA256SUMS.asc so inherited fixed quorum assumptions cannot authorize zkCoin artifacts.",
     "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
     "Gitian signer descriptors intentionally use an example.invalid detached-signatures URL and release docs require ZKCOIN_DETACHED_SIGS_REPO_URL so inherited Litecoin detached signatures cannot be used by default.",
     "Release checksum signing docs require ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT and ZKCOIN_RELEASE_SIGNING_KEY_ID before creating SHA256SUMS.asc so a default local GPG key cannot sign zkCoin releases by accident.",
