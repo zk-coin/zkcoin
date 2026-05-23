@@ -333,8 +333,24 @@ Codesigner only: Sign the macOS binary:
     : "${ZKCOIN_MACOS_APPLE_ID:?set the Apple ID used for zkCoin notarization}"
     : "${ZKCOIN_MACOS_NOTARIZATION_KEYCHAIN_ITEM:?set the zkCoin notarization keychain item name}"
     : "${ZKCOIN_MACOS_ASC_PROVIDER:?set the zkCoin Apple provider shortcode}"
-    ./detached-sig-create.sh -s "Key ID"
-    Enter the keychain password and authorize the signature
+    : "${ZKCOIN_MACOS_CODESIGN_IDENTITY:?set the authorized zkCoin macOS code-signing identity}"
+    : "${ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY:?set the approved zkCoin macOS signing certificate custody record}"
+    : "${ZKCOIN_MACOS_CODESIGN_CERT_OWNER:?set the accountable zkCoin macOS signing certificate custody owner}"
+    : "${ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL:?set the approved zkCoin macOS signing payload approval record}"
+    for ZKCOIN_MACOS_CODESIGN_CUSTODY_FIELD in \
+      "$ZKCOIN_MACOS_CODESIGN_IDENTITY" \
+      "$ZKCOIN_MACOS_CODESIGN_CERT_CUSTODY" \
+      "$ZKCOIN_MACOS_CODESIGN_CERT_OWNER" \
+      "$ZKCOIN_MACOS_CODESIGN_PAYLOAD_APPROVAL"; do
+        case "$ZKCOIN_MACOS_CODESIGN_CUSTODY_FIELD" in
+          ''|TODO|TBD|todo|tbd|'Key ID'|*'<'*|*'>'*)
+            echo "ZKCOIN_MACOS_CODESIGN custody fields must not be placeholders" >&2
+            exit 1
+            ;;
+        esac
+    done
+    ./detached-sig-create.sh -s "$ZKCOIN_MACOS_CODESIGN_IDENTITY"
+    Enter the signing credential passphrase according to the approved custody record and authorize the signature
     
     Now a manual deterministic disk image (dmg) creation is required.
 
