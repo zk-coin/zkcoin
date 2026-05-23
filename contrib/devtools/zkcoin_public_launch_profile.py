@@ -757,10 +757,38 @@ def emit_chainparams(manifest):
     )
 
 
+def chainparams_sync_errors(manifest, chainparams_text):
+    errors = []
+    for network in NETWORKS:
+        expected = emit_network_chainparams(network, manifest["networks"][network])
+        if expected in chainparams_text:
+            continue
+        missing_lines = [
+            line
+            for line in expected.splitlines()
+            if line not in chainparams_text
+        ]
+        if missing_lines:
+            errors.append(f"{network}: missing generated chainparams snippet lines")
+            for line in missing_lines[:8]:
+                errors.append(f"{network}: missing line: {line.strip()}")
+            if len(missing_lines) > 8:
+                errors.append(f"{network}: {len(missing_lines) - 8} more generated line(s) are missing")
+        else:
+            errors.append(f"{network}: generated chainparams lines are present but not as one contiguous snippet")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
+    parser.add_argument(
+        "--check-chainparams",
+        metavar="CHAINPARAMS",
+        type=Path,
+        help="verify a ready manifest's emitted snippets are present in chainparams.cpp",
+    )
     parser.add_argument(
         "--set-snapshot",
         nargs=4,
@@ -888,6 +916,26 @@ def main():
                 print(f"  - {blocker}", file=sys.stderr)
             return 1
         print(emit_chainparams(manifest))
+        return 0
+
+    if args.check_chainparams is not None:
+        if check.blockers:
+            print("error: cannot check chainparams while launch-profile fields are blocked", file=sys.stderr)
+            for blocker in check.blockers:
+                print(f"  - {blocker}", file=sys.stderr)
+            return 1
+        try:
+            chainparams_text = args.check_chainparams.read_text(encoding="utf8")
+        except OSError as exc:
+            print(f"error: cannot read {args.check_chainparams}: {exc}", file=sys.stderr)
+            return 1
+        errors = chainparams_sync_errors(manifest, chainparams_text)
+        if errors:
+            print("zkCoin public launch chainparams sync check failed:", file=sys.stderr)
+            for error in errors:
+                print(f"  - {error}", file=sys.stderr)
+            return 1
+        print("zkCoin public launch chainparams snippets match the ready manifest.")
         return 0
 
     if check.blockers:

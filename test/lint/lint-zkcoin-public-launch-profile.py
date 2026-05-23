@@ -769,6 +769,57 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        synced_chainparams_path = Path(temp_dir) / "synced-chainparams.cpp"
+        synced_chainparams_path.write_text(emit_result.stdout, encoding="utf8")
+        sync_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(synced_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if sync_result.returncode != 0:
+            return "{} --check-chainparams rejected emitted chainparams snippets: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                sync_result.stderr.strip() or sync_result.stdout.strip() or "no output",
+            )
+
+        drifted_chainparams_path = Path(temp_dir) / "drifted-chainparams.cpp"
+        drifted_chainparams_path.write_text(
+            emit_result.stdout.replace(
+                "        consensus.auxpow.nChainId = 20482;",
+                "        consensus.auxpow.nChainId = 20483;",
+            ),
+            encoding="utf8",
+        )
+        drift_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(drifted_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if drift_result.returncode == 0:
+            return "{} --check-chainparams accepted drifted chainparams".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "testnet: missing line: consensus.auxpow.nChainId = 20482;" not in drift_result.stderr:
+            return "{} --check-chainparams did not report the drifted testnet chain id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         collision_manifest = json.loads(json.dumps(ready_manifest))
         testnet = collision_manifest["networks"]["testnet"]
         testnet["auxpow"]["chain_id"] = ready_profiles["main"]["chain_id"]
@@ -982,6 +1033,7 @@ def main():
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
+        ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("--set-snapshot", "manifest snapshot update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
@@ -1007,6 +1059,7 @@ def main():
         ("nStartHeight = 0", "manifest emits always-active Taproot height reset"),
         ("vSeeds.emplace_back", "manifest emits DNS seed assignments"),
         ("base58Prefixes[EXT_PUBLIC_KEY]", "manifest emits extended key prefixes"),
+        ("chainparams_sync_errors", "manifest checks emitted chainparams snippets against source"),
     )
     for needle, description in manifest_tool_checks:
         error = require_text(PUBLIC_LAUNCH_MANIFEST_TOOL, needle, description)
@@ -1254,6 +1307,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --emit-chainparams",
             "public launch manifest chainparams emitter documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
+            "public launch manifest chainparams sync-check documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot NETWORK",
