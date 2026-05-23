@@ -49,6 +49,7 @@ LITECOIN_BASE58_PREFIXES = {
     (0x04, 0x35, 0x83, 0x94),
 }
 LITECOIN_HRPS = {"ltc", "tltc", "ltcmweb", "tmweb"}
+RESERVED_DNS_SEED_SUFFIXES = {"example", "invalid", "local", "localhost", "test"}
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
 BLOCKER_ORDER = (
@@ -169,6 +170,8 @@ def dns_seed_valid(seed):
     if len(labels) < 2:
         return False
     if re.search(r"[a-z]", labels[-1]) is None:
+        return False
+    if labels[-1] in RESERVED_DNS_SEED_SUFFIXES:
         return False
     return all(
         label
@@ -870,7 +873,7 @@ def next_blocker_command(blocker_id, manifest_path):
     if blocker == "dns_seeds":
         return (
             "provision zkCoin DNS seed infrastructure and run "
-            f"{tool_path} --set-dns-seeds {network} seed1.example,seed2.example --in-place {manifest_path}"
+            f"{tool_path} --set-dns-seeds {network} <seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
         )
     raise ValueError(f"unknown blocker id: {blocker_id}")
 

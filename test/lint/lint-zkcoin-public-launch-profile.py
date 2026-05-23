@@ -574,7 +574,7 @@ def require_public_launch_manifest_current():
             str(PUBLIC_LAUNCH_MANIFEST_TOOL),
             "--set-dns-seeds",
             "main",
-            "seed1.zkcoin.example,seed2.zkcoin.example",
+            "seed1.zkcoin.net,seed2.zkcoin.net",
             str(PUBLIC_LAUNCH_MANIFEST),
         ],
         check=False,
@@ -595,7 +595,7 @@ def require_public_launch_manifest_current():
             exc,
         )
     dns_seeds = dns_manifest["networks"]["main"]["public_network_identity"]["dns_seeds"]
-    if dns_seeds != ["seed1.zkcoin.example", "seed2.zkcoin.example"]:
+    if dns_seeds != ["seed1.zkcoin.net", "seed2.zkcoin.net"]:
         return "{} --set-dns-seeds did not update main DNS seeds".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
@@ -619,7 +619,7 @@ def require_public_launch_manifest_current():
             str(PUBLIC_LAUNCH_MANIFEST_TOOL),
             "--set-dns-seeds",
             "main",
-            "seed-a.litecoin.example",
+            "seed-a.litecoin.net",
             str(PUBLIC_LAUNCH_MANIFEST),
         ],
         check=False,
@@ -638,8 +638,13 @@ def require_public_launch_manifest_current():
 
     for rejected_seed, description in (
         ("zkcoinseed", "single-label DNS seed hostname"),
-        ("a" * 64 + ".zkcoin.example", "overlong DNS seed label"),
+        ("a" * 64 + ".zkcoin.net", "overlong DNS seed label"),
         ("seed.zkcoin.123", "numeric final-label DNS seed hostname"),
+        ("seed.zkcoin.example", "reserved DNS seed suffix"),
+        ("seed.zkcoin.invalid", "reserved DNS seed suffix"),
+        ("seed.zkcoin.local", "local-use DNS seed suffix"),
+        ("seed.zkcoin.localhost", "reserved DNS seed suffix"),
+        ("seed.zkcoin.test", "reserved DNS seed suffix"),
     ):
         invalid_dns_shape_result = subprocess.run(
             [
@@ -768,7 +773,7 @@ def require_public_launch_manifest_current():
             "identity": {
                 "message_start": [250, 191, 181, 217],
                 "default_port": 19445,
-                "dns_seeds": ["seed1.zkcoin.example"],
+                "dns_seeds": ["seed1.zkcoin.net"],
                 "base58_prefixes": {
                     "pubkey_address": [75],
                     "script_address": [76],
@@ -791,7 +796,7 @@ def require_public_launch_manifest_current():
             "identity": {
                 "message_start": [250, 191, 181, 218],
                 "default_port": 29445,
-                "dns_seeds": ["seed1.test.zkcoin.example"],
+                "dns_seeds": ["seed1.test.zkcoin.net"],
                 "base58_prefixes": {
                     "pubkey_address": [85],
                     "script_address": [86],
@@ -1365,6 +1370,7 @@ def main():
         ("FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)", "manifest rejects Litecoin parent-version chain-id range"),
         ("LITECOIN_MESSAGE_STARTS", "manifest rejects inherited Litecoin message starts"),
         ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
+        ("RESERVED_DNS_SEED_SUFFIXES", "manifest rejects reserved DNS seed suffixes"),
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
@@ -1628,11 +1634,11 @@ def main():
             "public launch manifest AuxPoW forbidden range documentation",
         ),
         (
-            "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK seed1.example,seed2.example",
+            "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
             "public launch manifest DNS seed update documentation",
         ),
         (
-            "rejects empty, duplicate, single-label, numeric final-label,",
+            "reserved or local-use suffixes",
             "public launch manifest DNS seed rejection documentation",
         ),
         (
