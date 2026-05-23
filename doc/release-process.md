@@ -292,8 +292,10 @@ Codesigner only: Sign the macOS binary:
 Codesigner only: Sign the windows binaries:
 
     tar xf litecoin-win-unsigned.tar.gz
-    ./detached-sig-create.sh -key /path/to/codesign.key
-    Enter the passphrase for the key when prompted
+    : "${ZKCOIN_WINDOWS_CODESIGN_KEY_PATH:?set the authorized zkCoin Windows code-signing key path}"
+    : "${ZKCOIN_WINDOWS_CODESIGN_KEY_CUSTODY:?set the approved zkCoin Windows signing key custody record}"
+    ./detached-sig-create.sh -key "$ZKCOIN_WINDOWS_CODESIGN_KEY_PATH"
+    Enter the passphrase according to the approved custody record when prompted
     signature-win.tar.gz will be created
 
 Codesigner only: Commit the detached codesign payloads:
