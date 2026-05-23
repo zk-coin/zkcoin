@@ -1860,6 +1860,9 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
+        ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
+        ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
@@ -1876,6 +1879,12 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
+        (
+            "Reject a Litecoin source still in initial block download",
+            "snapshot script test rejects IBD source nodes",
+        ),
+        ("Reject a pruned Litecoin snapshot source", "snapshot script test rejects pruned source nodes"),
         (
             "Reject a pre-existing audit summary output path before calling either CLI",
             "snapshot script test rejects pre-existing audit output before RPC",
@@ -2029,6 +2038,14 @@ def main():
         (
             "validates the audit summary output path before running snapshot RPCs",
             "snapshot operator preflights audit output documentation",
+        ),
+        (
+            "Litecoin source node is still in initial block download",
+            "snapshot operator IBD source rejection documentation",
+        ),
+        (
+            "Litecoin source node must not be pruned for snapshot generation",
+            "snapshot operator pruned source rejection documentation",
         ),
         (
             "Manual public snapshot constants are not accepted",

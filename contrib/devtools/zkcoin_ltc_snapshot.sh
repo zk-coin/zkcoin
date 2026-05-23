@@ -134,10 +134,53 @@ cleanup() {
 }
 trap cleanup EXIT
 
-SOURCE_TIP="$(ltc_cli getblockcount)"
-if [[ ! "$SOURCE_TIP" =~ ^[0-9]+$ ]]; then
-  die "litecoin-cli getblockcount returned unexpected value: $SOURCE_TIP"
-fi
+SOURCE_CHAININFO_JSON="$(ltc_cli getblockchaininfo)"
+SOURCE_TIP="$(python3 - "$SOURCE_CHAININFO_JSON" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1]
+
+def fail(message):
+    print(f"error: {message}", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    chaininfo = json.loads(raw)
+except json.JSONDecodeError as exc:
+    fail(f"litecoin-cli getblockchaininfo did not return JSON: {exc}")
+
+if not isinstance(chaininfo, dict):
+    fail("litecoin-cli getblockchaininfo response must be a JSON object")
+
+def require_bool(field):
+    if field not in chaininfo or type(chaininfo[field]) is not bool:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a boolean")
+    return chaininfo[field]
+
+def require_nonnegative_int(field):
+    if field not in chaininfo or isinstance(chaininfo[field], bool):
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
+    try:
+        value = int(chaininfo[field])
+    except (TypeError, ValueError):
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
+    if value < 0:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
+    return value
+
+blocks = require_nonnegative_int("blocks")
+headers = require_nonnegative_int("headers")
+if headers < blocks:
+    fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
+if require_bool("initialblockdownload"):
+    fail("Litecoin source node is still in initial block download")
+if require_bool("pruned"):
+    fail("Litecoin source node must not be pruned for snapshot generation")
+
+print(blocks)
+PY
+)"
 
 if (( SOURCE_TIP < HEIGHT )); then
   die "Litecoin source tip $SOURCE_TIP is below requested snapshot height $HEIGHT"

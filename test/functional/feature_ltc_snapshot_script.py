@@ -58,8 +58,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                     }, sort_keys=True) + "\\n")
 
                 if role == "litecoin":
-                    if command == "getblockcount":
-                        print(scenario.get("source_tip", scenario["height"]))
+                    if command == "getblockchaininfo":
+                        source_tip = scenario.get("source_tip", scenario["height"])
+                        chaininfo = {
+                            "blocks": source_tip,
+                            "headers": scenario.get("source_headers", source_tip),
+                            "initialblockdownload": scenario.get("initialblockdownload", False),
+                            "pruned": scenario.get("pruned", False),
+                        }
+                        chaininfo.update(scenario.get("chaininfo_overrides", {}))
+                        print(scenario.get("chaininfo_raw", json.dumps(chaininfo)))
                     elif command == "getblockhash":
                         requested_height = int(command_args[0])
                         block_hashes = scenario.get("block_hashes", {})
@@ -290,6 +298,33 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             precreate_snapshot=True,
         )
         assert_equal(calls, [])
+
+        self.log.info("Reject malformed Litecoin source chain info")
+        _, calls, _ = self.assert_snapshot(
+            "malformed-chaininfo-json",
+            self.scenario(chaininfo_raw="{not json"),
+            1,
+            "litecoin-cli getblockchaininfo did not return JSON",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject a Litecoin source still in initial block download")
+        _, calls, _ = self.assert_snapshot(
+            "source-ibd",
+            self.scenario(initialblockdownload=True),
+            1,
+            "Litecoin source node is still in initial block download",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject a pruned Litecoin snapshot source")
+        _, calls, _ = self.assert_snapshot(
+            "source-pruned",
+            self.scenario(pruned=True),
+            1,
+            "Litecoin source node must not be pruned for snapshot generation",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
         self.log.info("Reject a Litecoin source below the requested snapshot height")
         self.assert_snapshot(
