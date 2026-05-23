@@ -324,12 +324,20 @@ def main():
         return fail("notes must document local pre-upload zkCoin artifact verification")
     if "ZKCOIN_RELEASE_ARTIFACT_BASE_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin artifact publication targets")
+    if "non-HTTPS publication URLs" not in notes_text:
+        return fail("notes must document HTTPS validation for zkCoin artifact publication targets")
+    if "ZKCOIN_RELEASE_CHECKSUMS_URL to publish SHA256SUMS.asc" not in notes_text:
+        return fail("notes must document checksum publication URL shape validation")
     if "ZKCOIN_PUBLIC_VERIFY_DIR" not in notes_text:
         return fail("notes must document public zkCoin post-upload checksum verification")
     if "ZKCOIN_RELEASE_WEBSITE_REPO_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin release metadata publication targets")
+    if "non-HTTPS metadata URLs" not in notes_text:
+        return fail("notes must document HTTPS validation for zkCoin metadata publication targets")
     if "ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" not in notes_text:
         return fail("notes must document parameterized zkCoin release announcement targets")
+    if "placeholder announcement fields" not in notes_text:
+        return fail("notes must document placeholder rejection for zkCoin release announcement targets")
     if "ZKCOIN_RELEASE_NOTES_PATH" not in notes_text:
         return fail("notes must document parameterized zkCoin release notes archival targets")
     if "ZKCOIN_RELEASE_NOTES_BRANCH" not in notes_text:
@@ -483,6 +491,12 @@ def main():
         ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "parameterized artifact host"),
         ("ZKCOIN_RELEASE_CHECKSUMS_URL", "parameterized checksum publication URL"),
         ("ZKCOIN_RELEASE_GITHUB_REPO_URL", "parameterized GitHub release repository"),
+        ("ZKCOIN_RELEASE_PUBLICATION_URL", "release publication URL validation loop"),
+        ("ZKCOIN_RELEASE publication URLs must not be placeholders", "release publication URL placeholder rejection"),
+        ("ZKCOIN_RELEASE publication URLs must use HTTPS", "release publication URL HTTPS validation"),
+        ("ZKCOIN_RELEASE_ARTIFACT_BASE_URL must end with /", "artifact base URL directory validation"),
+        ("ZKCOIN_RELEASE_CHECKSUMS_URL must publish SHA256SUMS.asc", "checksum publication URL filename validation"),
+        ("ZKCOIN_RELEASE_GITHUB_REPO_URL must point at the zk-coin GitHub org", "GitHub release repository organization validation"),
         ("ZKCOIN_PUBLIC_VERIFY_DIR", "clean public artifact verification directory"),
         ("Keep this in a clean directory so local build outputs cannot satisfy the", "public post-publication isolation"),
         ("curl --fail --location --show-error --silent", "public checksum fetch"),
@@ -496,9 +510,17 @@ def main():
         ("ZKCOIN_RELEASE_WEBSITE_OWNER", "parameterized website publication owner"),
         ("ZKCOIN_RELEASE_INDEX_REPO_URL", "parameterized release index repository URL"),
         ("ZKCOIN_RELEASE_INDEX_OWNER", "parameterized release index publication owner"),
+        ("ZKCOIN_RELEASE_METADATA_URL", "release metadata URL validation loop"),
+        ("ZKCOIN_RELEASE metadata URLs must not be placeholders", "release metadata URL placeholder rejection"),
+        ("ZKCOIN_RELEASE metadata URLs must use HTTPS", "release metadata URL HTTPS validation"),
+        ("ZKCOIN_RELEASE metadata URLs must point at the zk-coin GitHub org", "release metadata URL organization validation"),
+        ("ZKCOIN_RELEASE_METADATA_OWNER", "release metadata owner validation loop"),
+        ("ZKCOIN_RELEASE metadata owners must not be placeholders", "release metadata owner placeholder rejection"),
         ("Resolve the zkCoin release-index and website publication targets", "release metadata publication boundary"),
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS", "parameterized announcement channels"),
         ("ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER", "parameterized announcement owner"),
+        ("ZKCOIN_RELEASE_ANNOUNCEMENT_FIELD", "release announcement field validation loop"),
+        ("ZKCOIN_RELEASE announcement fields must not be placeholders", "release announcement placeholder rejection"),
         ("Resolve the zkCoin release announcement channels", "release announcement boundary"),
         ("ZKCOIN_RELEASE_NOTES_PATH", "parameterized release notes path"),
         ("ZKCOIN_RELEASE_NOTES_BRANCH", "parameterized release notes branch"),
@@ -666,12 +688,21 @@ def main():
         RELEASE_DOC,
         (
             "Resolve the zkCoin artifact publication targets before uploading anything",
+            "ZKCOIN_RELEASE_PUBLICATION_URL",
+            "ZKCOIN_RELEASE publication URLs must use HTTPS",
+            "ZKCOIN_RELEASE_CHECKSUMS_URL must publish SHA256SUMS.asc",
             "Upload zips and installers",
             "Verify the published checksums and artifacts from the resolved public URLs",
             "curl --fail --location --show-error --silent",
             'cmp -s ./SHA256SUMS.asc "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"',
             '--checksums "$ZKCOIN_PUBLIC_VERIFY_DIR/SHA256SUMS.asc"',
             "Resolve the zkCoin release-index and website publication targets",
+            "ZKCOIN_RELEASE_METADATA_URL",
+            "ZKCOIN_RELEASE metadata URLs must use HTTPS",
+            "ZKCOIN_RELEASE_METADATA_OWNER",
+            "Update the resolved zkCoin website and release index",
+            "Resolve the zkCoin release announcement channels",
+            "ZKCOIN_RELEASE_ANNOUNCEMENT_FIELD",
         ),
         "public checksum fetch and verification before metadata publication",
     )

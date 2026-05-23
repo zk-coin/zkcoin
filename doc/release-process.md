@@ -664,6 +664,37 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 : "${ZKCOIN_RELEASE_ARTIFACT_BASE_URL:?set the resolved zkCoin artifact download base URL}"
 : "${ZKCOIN_RELEASE_CHECKSUMS_URL:?set the resolved zkCoin SHA256SUMS.asc publication URL}"
 : "${ZKCOIN_RELEASE_GITHUB_REPO_URL:?set the resolved zkCoin GitHub release repository URL}"
+
+for ZKCOIN_RELEASE_PUBLICATION_URL in \
+  "$ZKCOIN_RELEASE_ARTIFACT_BASE_URL" \
+  "$ZKCOIN_RELEASE_CHECKSUMS_URL" \
+  "$ZKCOIN_RELEASE_GITHUB_REPO_URL"; do
+  case "$ZKCOIN_RELEASE_PUBLICATION_URL" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE publication URLs must not be placeholders" >&2
+      exit 1
+      ;;
+    https://*)
+      ;;
+    *)
+      echo "ZKCOIN_RELEASE publication URLs must use HTTPS" >&2
+      exit 1
+      ;;
+  esac
+done
+
+case "$ZKCOIN_RELEASE_ARTIFACT_BASE_URL" in
+  */) ;;
+  *) echo "ZKCOIN_RELEASE_ARTIFACT_BASE_URL must end with /" >&2; exit 1 ;;
+esac
+case "$ZKCOIN_RELEASE_CHECKSUMS_URL" in
+  */SHA256SUMS.asc) ;;
+  *) echo "ZKCOIN_RELEASE_CHECKSUMS_URL must publish SHA256SUMS.asc" >&2; exit 1 ;;
+esac
+case "$ZKCOIN_RELEASE_GITHUB_REPO_URL" in
+  https://github.com/zk-coin/?*) ;;
+  *) echo "ZKCOIN_RELEASE_GITHUB_REPO_URL must point at the zk-coin GitHub org" >&2; exit 1 ;;
+esac
 ```
 
 - Upload zips and installers, as well as `SHA256SUMS.asc` from the last step, to
@@ -702,6 +733,38 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 : "${ZKCOIN_RELEASE_WEBSITE_OWNER:?set the accountable zkCoin website publication owner}"
 : "${ZKCOIN_RELEASE_INDEX_REPO_URL:?set the resolved zkCoin release index repository URL}"
 : "${ZKCOIN_RELEASE_INDEX_OWNER:?set the accountable zkCoin release index publication owner}"
+
+for ZKCOIN_RELEASE_METADATA_URL in \
+  "$ZKCOIN_RELEASE_WEBSITE_REPO_URL" \
+  "$ZKCOIN_RELEASE_INDEX_REPO_URL"; do
+  case "$ZKCOIN_RELEASE_METADATA_URL" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE metadata URLs must not be placeholders" >&2
+      exit 1
+      ;;
+    https://*)
+      ;;
+    *)
+      echo "ZKCOIN_RELEASE metadata URLs must use HTTPS" >&2
+      exit 1
+      ;;
+  esac
+  case "$ZKCOIN_RELEASE_METADATA_URL" in
+    https://github.com/zk-coin/?*) ;;
+    *) echo "ZKCOIN_RELEASE metadata URLs must point at the zk-coin GitHub org" >&2; exit 1 ;;
+  esac
+done
+
+for ZKCOIN_RELEASE_METADATA_OWNER in \
+  "$ZKCOIN_RELEASE_WEBSITE_OWNER" \
+  "$ZKCOIN_RELEASE_INDEX_OWNER"; do
+  case "$ZKCOIN_RELEASE_METADATA_OWNER" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE metadata owners must not be placeholders" >&2
+      exit 1
+      ;;
+  esac
+done
 ```
 
 - Update the resolved zkCoin website and release index with the new version,
@@ -716,6 +779,17 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 ```bash
 : "${ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS:?set the resolved zkCoin release announcement channels}"
 : "${ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER:?set the accountable zkCoin announcement owner}"
+
+for ZKCOIN_RELEASE_ANNOUNCEMENT_FIELD in \
+  "$ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" \
+  "$ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER"; do
+  case "$ZKCOIN_RELEASE_ANNOUNCEMENT_FIELD" in
+    ''|TODO|TBD|todo|tbd|*'<'*|*'>'*)
+      echo "ZKCOIN_RELEASE announcement fields must not be placeholders" >&2
+      exit 1
+      ;;
+  esac
+done
 ```
 
 - Announce the release through the resolved zkCoin release channels.
