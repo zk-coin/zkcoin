@@ -254,6 +254,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "AuxPoW chain id overlaps Litecoin parent versionbits chain-id range",
         )
 
+        self.log.info("Reject placeholder AuxPoW chain id in launch preflight")
+        placeholder_chain_id = self.valid_info()
+        placeholder_chain_id["auxpow"]["chain_id"] = 0x5A4B
+        self.assert_preflight(
+            fake_cli,
+            placeholder_chain_id,
+            1,
+            "AuxPoW chain id is still the local launch placeholder 0x5a4b",
+        )
+
         self.log.info("Reject inconsistent AuxPoW parent version safety detail")
         inconsistent_parent_version_detail = self.valid_info()
         inconsistent_parent_version_detail["auxpow"]["parent_version_safe"] = False
