@@ -45,4 +45,4 @@ Test and Verify Tools
 Utilities to generate test vectors for the data-driven Litecoin tests.
 
 ### [Verify Binaries](/contrib/verifybinaries) ###
-This script attempts to download and verify the signature file SHA256SUMS.asc from litecoin.org.
+Tools for verifying signed zkCoin release checksums and artifact hashes.

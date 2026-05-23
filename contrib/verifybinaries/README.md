@@ -1,11 +1,39 @@
 ### Verify Binaries
 
-#### zkCoin status
+#### zkCoin verifier
 
-This directory is Bitcoin Core-only inherited tooling. It is not zkCoin release
+Use `verify-zkcoin-release.py` for zkCoin release artifacts. It verifies that a
+clearsigned `SHA256SUMS.asc` was signed by an explicitly supplied zkCoin release
+signing key fingerprint, then verifies every selected artifact hash from the
+signed manifest.
+
+```sh
+./verify-zkcoin-release.py \
+  --checksums ./SHA256SUMS.asc \
+  --trusted-fingerprint "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
+  --artifacts-dir ./release-artifacts
+```
+
+If artifacts are not already present locally, pass the resolved release artifact
+base URL:
+
+```sh
+./verify-zkcoin-release.py \
+  --checksums ./SHA256SUMS.asc \
+  --trusted-fingerprint "$ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT" \
+  --artifacts-dir ./release-artifacts \
+  --download-base "$ZKCOIN_RELEASE_ARTIFACT_BASE_URL"
+```
+
+The verifier intentionally has no embedded production signing key, checksum URL,
+artifact prefix, or download host. Those values must come from the resolved
+zkCoin release infrastructure for the release being verified.
+
+#### Inherited Bitcoin Core verifier
+
+`verify.sh` is Bitcoin Core-only inherited tooling. It is not zkCoin release
 verification and is disabled by default. Do not use it to verify zkCoin release
-artifacts until zkCoin has configured release signing keys, checksum URLs,
-artifact prefixes, and distribution hosts.
+artifacts.
 
 To run the legacy Bitcoin Core verifier intentionally for upstream reference,
 set `ZKCOIN_ALLOW_BITCOIN_VERIFYBINARIES=1`.
