@@ -165,10 +165,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         precreate_audit=False,
         audit_path_same_as_snapshot=False,
         audit_path_parent_missing=False,
+        snapshot_path_parent_missing=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
         audit_path = os.path.join(self.options.tmpdir, f"{name}.audit.json")
+        if snapshot_path_parent_missing:
+            snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
         if audit_path_same_as_snapshot:
             audit_path = snapshot_path
         elif audit_path_parent_missing:
@@ -331,6 +334,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary directory does not exist",
             audit_path_parent_missing=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject a missing snapshot output directory before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "missing-snapshot-dir",
+            self.scenario(),
+            1,
+            "snapshot output directory does not exist",
+            snapshot_path_parent_missing=True,
         )
         assert_equal(calls, [])
 
