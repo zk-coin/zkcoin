@@ -348,6 +348,10 @@ def main():
         return fail("notes must document zkCoin release notes archive existence and content verification")
     if "ZKCOIN_RELEASE_GITHUB_TAG" not in notes_text:
         return fail("notes must document parameterized zkCoin GitHub release metadata")
+    if "placeholder GitHub release metadata fields" not in notes_text:
+        return fail("notes must document placeholder rejection for zkCoin GitHub release metadata")
+    if "GitHub release title to include ZKCOIN_RELEASE_VERSION" not in notes_text:
+        return fail("notes must document GitHub release title version binding")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
     if "ZKCOIN_MACOS_CODESIGN_IDENTITY" not in notes_text:
@@ -537,7 +541,12 @@ def main():
         ("ZKCOIN_RELEASE_GITHUB_TAG", "parameterized GitHub release tag"),
         ("ZKCOIN_RELEASE_GITHUB_TITLE", "parameterized GitHub release title"),
         ("ZKCOIN_RELEASE_GITHUB_OWNER", "parameterized GitHub release owner"),
+        ("ZKCOIN_RELEASE_GITHUB_METADATA_FIELD", "GitHub release metadata validation loop"),
+        ("ZKCOIN_RELEASE_GITHUB metadata fields must not be placeholders", "GitHub release metadata placeholder rejection"),
+        ("ZKCOIN_RELEASE_GITHUB_REPO_URL must point at the zk-coin GitHub org", "GitHub release repository organization validation"),
         ("ZKCOIN_RELEASE_GITHUB_TAG must match ZKCOIN_RELEASE_TAG", "GitHub release tag binding"),
+        ("ZKCOIN_RELEASE_VERSION:?set the zkCoin release version for the GitHub release title", "GitHub release title version input"),
+        ("ZKCOIN_RELEASE_GITHUB_TITLE must include ZKCOIN_RELEASE_VERSION", "GitHub release title version binding"),
         ("Resolve the zkCoin GitHub release metadata", "GitHub release metadata boundary"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
@@ -716,6 +725,9 @@ def main():
             "git cat-file -e \"master:$ZKCOIN_RELEASE_NOTES_PATH\"",
             "git diff --quiet --no-ext-diff",
             "Resolve the zkCoin GitHub release metadata",
+            "ZKCOIN_RELEASE_GITHUB_METADATA_FIELD",
+            "ZKCOIN_RELEASE_GITHUB_TAG must match ZKCOIN_RELEASE_TAG",
+            "ZKCOIN_RELEASE_GITHUB_TITLE must include ZKCOIN_RELEASE_VERSION",
             "Create the GitHub release",
         ),
         "release notes archive verification before GitHub release creation",
