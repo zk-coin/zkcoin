@@ -47,6 +47,7 @@ REQUIRED_BLOCKERS = {
     "gitian_sigs_repo",
     "detached_sigs_repo",
     "artifact_download_host",
+    "release_announcement_channels",
     "binary_namespace_decision",
     "macos_signing_identity",
     "windows_signing_key",
@@ -289,6 +290,8 @@ def main():
         return fail("notes must document parameterized zkCoin artifact publication targets")
     if "ZKCOIN_RELEASE_WEBSITE_REPO_URL" not in notes_text:
         return fail("notes must document parameterized zkCoin release metadata publication targets")
+    if "ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS" not in notes_text:
+        return fail("notes must document parameterized zkCoin release announcement targets")
     if "ZKCOIN_MACOS_BUNDLE_ID" not in notes_text:
         return fail("notes must document parameterized zkCoin macOS notarization identity")
     if "ZKCOIN_WINDOWS_CODESIGN_KEY_PATH" not in notes_text:
@@ -380,6 +383,9 @@ def main():
         ("ZKCOIN_RELEASE_INDEX_REPO_URL", "parameterized release index repository URL"),
         ("ZKCOIN_RELEASE_INDEX_OWNER", "parameterized release index publication owner"),
         ("Resolve the zkCoin release-index and website publication targets", "release metadata publication boundary"),
+        ("ZKCOIN_RELEASE_ANNOUNCEMENT_CHANNELS", "parameterized announcement channels"),
+        ("ZKCOIN_RELEASE_ANNOUNCEMENT_OWNER", "parameterized announcement owner"),
+        ("Resolve the zkCoin release announcement channels", "release announcement boundary"),
         ("verify-zkcoin-release.py", "post-publication artifact verification"),
         ("resolved zkCoin artifact host", "zkCoin artifact upload target"),
         ("ZKCOIN_MACOS_BUNDLE_ID", "parameterized macOS bundle identifier"),
@@ -468,6 +474,7 @@ def main():
         (RELEASE_DOC, "git tag -s v${VERSION} HEAD", "implicit detached-signatures release tag"),
         (RELEASE_DOC, "--commit signature=v${VERSION}", "implicit detached-signatures signer input tag"),
         (RELEASE_DOC, "sha256sum * > SHA256SUMS", "wildcard release checksum command"),
+        (RELEASE_DOC, "blocked until the announcement channels and owners are explicitly documented", "prose-only announcement channel gate"),
     )
     for path, needle, description in absent_checks:
         error = require_absent_text(path, needle, description)
