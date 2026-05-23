@@ -123,6 +123,22 @@ LAUNCH_PROFILE_MARKERS = (
         "readiness includes public network identity",
     ),
     (
+        "std::vector<std::string> GetPublicNetworkIdentityFailures",
+        "public identity failure reasons are centralized",
+    ),
+    (
+        "std::vector<std::string> GetPublicLaunchProfileFailures",
+        "public launch failure reasons are centralized",
+    ),
+    (
+        "snapshot consensus parameters are not configured",
+        "public launch missing snapshot failure reason",
+    ),
+    (
+        "public network identity is inherited from Litecoin or malformed",
+        "public launch identity failure reason",
+    ),
+    (
         "status.message_start_shape_valid = MessageStartShapeValid(message_start);",
         "identity readiness validates P2P message-start shape",
     ),
@@ -394,7 +410,9 @@ def main():
             "signet reserved until supported",
             "signet base-port help marked reserved",
         ),
-        ("if (!HasConfiguredPublicLaunchProfile(chainparams)) {", "public launch readiness gate"),
+        ("const PublicLaunchProfileStatus public_launch = GetPublicLaunchProfileStatus(chainparams);", "public launch status captured for diagnostics"),
+        ("if (!public_launch.configured) {", "public launch readiness gate"),
+        ("Missing hardcoded launch checks", "public launch startup diagnostic failures"),
         (PUBLIC_LAUNCH_FAILURE, "public launch fail-closed error"),
     )
     for needle, description in init_checks:
@@ -418,6 +436,22 @@ def main():
         (
             "ChainParams_PUBLIC_launch_profile_fails_closed_until_constants",
             "runtime public launch fail-closed unit test",
+        ),
+        (
+            "ChainParams_PUBLIC_launch_profile_failure_reasons_are_actionable",
+            "runtime public launch failure reason unit test",
+        ),
+        (
+            "ChainParams_PUBLIC_identity_failure_reasons_are_actionable",
+            "runtime public identity failure reason unit test",
+        ),
+        (
+            "GetPublicLaunchProfileFailures(",
+            "runtime public launch failure helper coverage",
+        ),
+        (
+            "GetPublicNetworkIdentityFailures(",
+            "runtime public identity failure helper coverage",
         ),
         (
             "ChainParams_REGTEST_launch_profile_accepts_complete_rehearsal_args",
@@ -532,6 +566,10 @@ def main():
             "shielded launch posture documentation",
         ),
         ("inherited Litecoin public network identity", "identity readiness documentation"),
+        (
+            "startup error lists the exact hardcoded launch checks that still fail",
+            "public launch startup diagnostics documentation",
+        ),
     )
     for needle, description in doc_checks:
         error = require_text(LAUNCH_DOC, needle, description)

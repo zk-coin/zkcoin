@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 
+#include <string>
+#include <vector>
+
 class CChainParams;
 
 struct PublicNetworkIdentityStatus {
@@ -34,6 +37,7 @@ struct PublicLaunchProfileStatus {
     bool auxpow_active_at_launch{false};
     bool chain_id_encodable{false};
     bool chain_id_parent_version_safe{false};
+    bool chain_id_strict{false};
     bool chain_id_configured{false};
     bool script_rules_active_at_launch{false};
     bool shielded_inactive_at_launch{false};
@@ -48,8 +52,13 @@ bool AuxPowChainIdAvoidsLitecoinParentVersionRange(uint32_t chain_id);
 bool HasLaunchNeutralChainHistory(const CChainParams& chainparams);
 bool HasLaunchActiveScriptRules(const CChainParams& chainparams);
 PublicNetworkIdentityStatus GetPublicNetworkIdentityStatus(const CChainParams& chainparams);
+std::vector<std::string> GetPublicNetworkIdentityFailures(const PublicNetworkIdentityStatus& status);
 bool IsInheritedLitecoinPublicNetworkIdentity(const CChainParams& chainparams);
 PublicLaunchProfileStatus GetPublicLaunchProfileStatus(const CChainParams& chainparams);
+std::vector<std::string> GetPublicLaunchProfileFailures(
+    const PublicLaunchProfileStatus& status,
+    bool snapshot_imported,
+    bool at_launch_tip);
 bool HasConfiguredPublicLaunchProfile(const CChainParams& chainparams);
 
 #endif // BITCOIN_LAUNCHPROFILE_H
