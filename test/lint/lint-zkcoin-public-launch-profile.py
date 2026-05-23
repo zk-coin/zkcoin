@@ -176,6 +176,7 @@ LAUNCH_PROFILE_MARKERS = (
         "status.bech32_hrp_shape_valid = HrpShapeValid(chainparams.Bech32HRP());",
         "identity readiness validates Bech32 HRP shape",
     ),
+    ("MAX_BECH32_HRP_LENGTH", "identity readiness caps Bech32 HRP length"),
     (
         "status.mweb_hrp_shape_valid = HrpShapeValid(chainparams.MWEB_HRP());",
         "identity readiness validates MWEB HRP shape",
@@ -764,6 +765,44 @@ def require_public_launch_manifest_current():
         return "{} --set-identity did not explain inherited message-start rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    for bech32_hrp, mweb_hrp, description in (
+        ("z" * 84, "zkmweb", "overlong Bech32 HRP"),
+        ("zk", "m" * 84, "overlong MWEB HRP"),
+    ):
+        overlong_hrp_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                bech32_hrp,
+                mweb_hrp,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if overlong_hrp_result.returncode == 0:
+            return "{} --set-identity accepted an {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if "at most 83 characters" not in overlong_hrp_result.stderr:
+            return "{} --set-identity did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
 
     complete_manifest = json.loads(json.dumps(manifest))
     ready_profiles = {
@@ -1375,6 +1414,7 @@ def main():
         ("LITECOIN_MESSAGE_STARTS", "manifest rejects inherited Litecoin message starts"),
         ("LITECOIN_BASE58_PREFIXES", "manifest rejects inherited Litecoin Base58 prefixes"),
         ("RESERVED_DNS_SEED_SUFFIXES", "manifest rejects reserved DNS seed suffixes"),
+        ("MAX_BECH32_HRP_LENGTH = 83", "manifest caps Bech32 HRP length"),
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
@@ -1504,6 +1544,8 @@ def main():
             "ChainParams_PUBLIC_identity_rejects_non_mockable_inherited_or_malformed_values",
             "runtime negative non-mockable public identity unit test",
         ),
+        ("std::string(84, 'z')", "runtime overlong Bech32 HRP rejection coverage"),
+        ("std::string(84, 'm')", "runtime overlong MWEB HRP rejection coverage"),
         ("seed.zkcoin.localhost", "runtime reserved DNS seed suffix rejection coverage"),
         ("std::string(64, 'a') + \".zkcoin.net\"", "runtime overlong DNS seed label rejection coverage"),
         ("seed.zkcoin.123", "runtime numeric final-label DNS seed rejection coverage"),
@@ -1655,6 +1697,10 @@ def main():
         (
             "rejects inherited Litecoin message",
             "public launch manifest identity rejection documentation",
+        ),
+        (
+            "overlong HRPs",
+            "public launch manifest HRP length documentation",
         ),
         (
             "distinct AuxPoW chain ids, message starts, ports, DNS seed hostnames",

@@ -50,6 +50,7 @@ LITECOIN_BASE58_PREFIXES = {
 }
 LITECOIN_HRPS = {"ltc", "tltc", "ltcmweb", "tmweb"}
 RESERVED_DNS_SEED_SUFFIXES = {"example", "invalid", "local", "localhost", "test"}
+MAX_BECH32_HRP_LENGTH = 83
 FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 ZERO_UINT256 = "0" * 64
 BLOCKER_ORDER = (
@@ -187,6 +188,7 @@ def hrp_valid(hrp):
     return (
         isinstance(hrp, str)
         and len(hrp) > 0
+        and len(hrp) <= MAX_BECH32_HRP_LENGTH
         and hrp == hrp.lower()
         and all(0x21 <= ord(c) <= 0x7e for c in hrp)
         and hrp not in LITECOIN_HRPS
@@ -322,11 +324,11 @@ def validate_identity(check, network, profile, allow_null):
     if bech32 is None and allow_null:
         check.blockers.append(f"{network}.public_network_identity.bech32_hrp")
     elif not hrp_valid(bech32):
-        check.error(f"{network}.public_network_identity.bech32_hrp", "must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+        check.error(f"{network}.public_network_identity.bech32_hrp", "must be lowercase printable ASCII at most 83 characters and must not reuse Litecoin HRPs")
     if mweb is None and allow_null:
         check.blockers.append(f"{network}.public_network_identity.mweb_hrp")
     elif not hrp_valid(mweb):
-        check.error(f"{network}.public_network_identity.mweb_hrp", "must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+        check.error(f"{network}.public_network_identity.mweb_hrp", "must be lowercase printable ASCII at most 83 characters and must not reuse Litecoin HRPs")
     if bech32 is not None and mweb is not None and bech32 == mweb:
         check.error(f"{network}.public_network_identity.mweb_hrp", "must differ from bech32_hrp")
 
@@ -644,9 +646,9 @@ def set_identity(
     if not message_start_valid(parsed_identity["message_start"]):
         raise ValueError("message_start must be 4 non-Litecoin non-printable magic bytes")
     if not hrp_valid(bech32_hrp):
-        raise ValueError("bech32_hrp must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+        raise ValueError("bech32_hrp must be lowercase printable ASCII at most 83 characters and must not reuse Litecoin HRPs")
     if not hrp_valid(mweb_hrp):
-        raise ValueError("mweb_hrp must be lowercase printable ASCII and must not reuse Litecoin HRPs")
+        raise ValueError("mweb_hrp must be lowercase printable ASCII at most 83 characters and must not reuse Litecoin HRPs")
     if bech32_hrp == mweb_hrp:
         raise ValueError("mweb_hrp must differ from bech32_hrp")
 
