@@ -42,10 +42,6 @@
     {
       "id": "windows_signing_key",
       "description": "Choose Windows signing key custody and detached-signature workflow."
-    },
-    {
-      "id": "verifybinaries_replacement",
-      "description": "Replace or parameterize contrib/verifybinaries with zkCoin release hosts, prefixes, and signing keys."
     }
   ],
   "current_inherited_release_surfaces": [
@@ -77,7 +73,7 @@
     {
       "path": "contrib/verifybinaries/verify.sh",
       "contains": "VERSIONPREFIX=\"bitcoin-core-\"",
-      "reason": "Binary verification helper is inherited from Bitcoin Core and is not zkCoin verification."
+      "reason": "Legacy Bitcoin Core verification helper remains guarded for upstream-reference use only; zkCoin verification uses verify-zkcoin-release.py."
     },
     {
       "path": "configure.ac",
@@ -94,6 +90,7 @@
     "Do not treat Gitian, signing, notarization, upload, or binary verification instructions as production zkCoin release instructions while status is release_infrastructure_not_ready.",
     "The source release-candidate validation gate proves source tarball real-proof readiness only; it is not binary release readiness and does not authorize publishing artifacts.",
     "Gitian source descriptors fetch zk-coin/zkcoin while retaining the litecoin input directory name until binary and artifact namespace migration is decided.",
+    "zkCoin binary artifact verification is parameterized through contrib/verifybinaries/verify-zkcoin-release.py; production signing keys and artifact hosts remain separate release blockers.",
     "When a blocker is resolved, update this manifest and the release lint in the same PR."
   ]
 }

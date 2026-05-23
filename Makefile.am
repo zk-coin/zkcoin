@@ -57,6 +57,9 @@ DIST_CONTRIB = \
 	       $(top_srcdir)/contrib/devtools/zkcoin_release_candidate_validation.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_source_dist_realproof_smoke.sh \
 	       $(top_srcdir)/contrib/devtools/zkcoin_source_dist_smoke.sh \
+	       $(top_srcdir)/contrib/verifybinaries/README.md \
+	       $(top_srcdir)/contrib/verifybinaries/verify-zkcoin-release.py \
+	       $(top_srcdir)/contrib/verifybinaries/verify.sh \
 	       $(top_srcdir)/contrib/linearize/linearize-data.py \
 	       $(top_srcdir)/contrib/linearize/linearize-hashes.py
 

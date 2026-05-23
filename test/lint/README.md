@@ -79,8 +79,9 @@ lint-zkcoin-release-infrastructure.py
 Checks that inherited Gitian, signing, packaging, and binary-verification
 release infrastructure is tracked in
 `contrib/devtools/zkcoin_release_infrastructure_manifest.json`, and that
-release docs plus `contrib/verifybinaries` stay fail-closed until zkCoin release
-keys, repositories, artifact hosts, and namespace decisions are configured.
+release docs keep legacy binary verification guarded while zkCoin binary
+verification remains parameterized until release keys, repositories, artifact
+hosts, and namespace decisions are configured.
 
 lint-zkcoin-product-identity.sh
 ===============================

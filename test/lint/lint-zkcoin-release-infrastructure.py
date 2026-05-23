@@ -17,7 +17,9 @@ SOURCE_DIST_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_smok
 SOURCE_DIST_REALPROOF_SMOKE = ROOT_DIR / "contrib" / "devtools" / "zkcoin_source_dist_realproof_smoke.sh"
 RELEASE_DOC = ROOT_DIR / "doc" / "release-process.md"
 VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify.sh"
+ZKCOIN_VERIFY_SCRIPT = ROOT_DIR / "contrib" / "verifybinaries" / "verify-zkcoin-release.py"
 VERIFY_README = ROOT_DIR / "contrib" / "verifybinaries" / "README.md"
+CONTRIB_README = ROOT_DIR / "contrib" / "README.md"
 GITIAN_BUILD = ROOT_DIR / "contrib" / "gitian-build.py"
 GITIAN_SOURCE_DESCRIPTORS = (
     ROOT_DIR / "contrib" / "gitian-descriptors" / "gitian-linux.yml",
@@ -39,7 +41,6 @@ REQUIRED_BLOCKERS = {
     "binary_namespace_decision",
     "macos_signing_identity",
     "windows_signing_key",
-    "verifybinaries_replacement",
 }
 REQUIRED_BLAKE3_DIST = (
     "BLAKE3_DIST",
@@ -89,6 +90,11 @@ REQUIRED_WALLET_INTERFACE_DIST = (
     "wallet/txlist.h",
     "wallet/txrecord.h",
 )
+REQUIRED_VERIFYBINARIES_DIST = (
+    "contrib/verifybinaries/README.md",
+    "contrib/verifybinaries/verify-zkcoin-release.py",
+    "contrib/verifybinaries/verify.sh",
+)
 
 
 def fail(message):
@@ -100,6 +106,13 @@ def require_text(path, needle, description):
     text = path.read_text(encoding="utf8")
     if needle not in text:
         return "{} missing {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
+    return None
+
+
+def require_absent_text(path, needle, description):
+    text = path.read_text(encoding="utf8")
+    if needle in text:
+        return "{} must not contain {}: {}".format(path.relative_to(ROOT_DIR), description, needle)
     return None
 
 
@@ -178,6 +191,7 @@ def require_source_dist_smoke_entries():
         if entry.startswith("libmw/")
     )
     required_entries.extend(REQUIRED_WALLET_INTERFACE_DIST)
+    required_entries.extend(REQUIRED_VERIFYBINARIES_DIST)
     missing = [entry for entry in required_entries if entry not in text]
     if missing:
         return "{} missing release-critical tarball checks: {}".format(
@@ -231,6 +245,8 @@ def main():
     notes_text = "\n".join(note for note in notes if isinstance(note, str))
     if "source release-candidate validation gate proves source tarball real-proof readiness only" not in notes_text:
         return fail("notes must keep source release-candidate validation separate from binary release readiness")
+    if "verify-zkcoin-release.py" not in notes_text:
+        return fail("notes must document parameterized zkCoin binary artifact verification")
 
     namespace = manifest.get("temporary_binary_namespace")
     if not isinstance(namespace, dict):
@@ -278,6 +294,8 @@ def main():
         ("It is not binary release readiness", "source-vs-binary readiness boundary"),
         ("does not authorize publishing binaries", "binary publication blocker"),
         ("git clone https://github.com/zk-coin/zkcoin.git litecoin", "zkCoin source clone"),
+        ("verify-zkcoin-release.py", "zkCoin binary artifact verification"),
+        ("not embed production signing keys", "parameterized binary verification boundary"),
     )
     for needle, description in release_doc_checks:
         error = require_text(RELEASE_DOC, needle, description)
@@ -287,11 +305,21 @@ def main():
     verify_checks = (
         (VERIFY_SCRIPT, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in env"),
         (VERIFY_SCRIPT, "verifies Bitcoin Core artifacts, not zkCoin", "Bitcoin-only verifier warning"),
+        (ZKCOIN_VERIFY_SCRIPT, "--trusted-fingerprint", "zkCoin trusted fingerprint argument"),
+        (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
+        (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
+        (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
         (VERIFY_README, "Bitcoin Core-only", "Bitcoin-only README warning"),
         (VERIFY_README, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in docs"),
+        (VERIFY_README, "verify-zkcoin-release.py", "zkCoin verifier documentation"),
+        (VERIFY_README, "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "zkCoin verifier fingerprint documentation"),
+        (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
+        (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_infrastructure_manifest.json", "release manifest dist packaging"),
+        (MAKEFILE_AM, "contrib/verifybinaries/verify-zkcoin-release.py", "zkCoin verifier dist packaging"),
+        (MAKEFILE_AM, "contrib/verifybinaries/verify.sh", "legacy verifier dist packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_release_candidate_validation.sh", "release-candidate validation packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_realproof_smoke.sh", "source dist real-proof smoke packaging"),
         (MAKEFILE_AM, "contrib/devtools/zkcoin_source_dist_smoke.sh", "source dist smoke packaging"),
@@ -312,6 +340,16 @@ def main():
     )
     for path, needle, description in verify_checks:
         error = require_text(path, needle, description)
+        if error:
+            return fail(error)
+
+    absent_checks = (
+        (ZKCOIN_VERIFY_SCRIPT, "bitcoin-core-", "Bitcoin Core artifact prefix"),
+        (ZKCOIN_VERIFY_SCRIPT, "bitcoincore.org", "Bitcoin Core download host"),
+        (ZKCOIN_VERIFY_SCRIPT, "bitcoin.org", "Bitcoin download host"),
+    )
+    for path, needle, description in absent_checks:
+        error = require_absent_text(path, needle, description)
         if error:
             return fail(error)
 

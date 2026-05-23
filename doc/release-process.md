@@ -43,6 +43,15 @@ verification, signing, notarization, upload, and artifact naming blocked until
 `zkcoin_release_infrastructure_manifest.json` is updated with resolved zkCoin
 release infrastructure.
 
+## Binary verification tooling
+
+Use `contrib/verifybinaries/verify-zkcoin-release.py` to verify zkCoin binary
+release artifacts from a clearsigned `SHA256SUMS.asc` and an explicitly supplied
+zkCoin release signing key fingerprint. The verifier is parameterized; it does
+not embed production signing keys, checksum URLs, artifact prefixes, or download
+hosts. Keep release publication blocked until those values are resolved in
+`zkcoin_release_infrastructure_manifest.json`.
+
 ## Branch updates
 
 ### Before every release candidate
