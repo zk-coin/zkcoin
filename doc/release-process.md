@@ -538,19 +538,50 @@ contrib/verifybinaries/verify-zkcoin-release.py \
 : "${ZKCOIN_RELEASE_NOTES_BRANCH:?set the zkCoin release branch that receives archived notes}"
 : "${ZKCOIN_RELEASE_NOTES_OWNER:?set the accountable zkCoin release-notes owner}"
 
-case "$ZKCOIN_RELEASE_NOTES_PATH" in
-  doc/release-notes/*.md)
-    ;;
-  *)
-    echo "ZKCOIN_RELEASE_NOTES_PATH must be under doc/release-notes/ and end in .md" >&2
+ZKCOIN_EXPECTED_RELEASE_NOTES_PATH="doc/release-notes/release-notes-${VERSION}.md"
+if [ "$ZKCOIN_RELEASE_NOTES_PATH" != "$ZKCOIN_EXPECTED_RELEASE_NOTES_PATH" ]; then
+  echo "ZKCOIN_RELEASE_NOTES_PATH must match $ZKCOIN_EXPECTED_RELEASE_NOTES_PATH" >&2
+  exit 1
+fi
+
+git check-ref-format --branch "$ZKCOIN_RELEASE_NOTES_BRANCH" >/dev/null || {
+  echo "ZKCOIN_RELEASE_NOTES_BRANCH is not a valid branch name" >&2
+  exit 1
+}
+
+if [ "$ZKCOIN_RELEASE_NOTES_BRANCH" = "master" ]; then
+  echo "ZKCOIN_RELEASE_NOTES_BRANCH must name the release branch, not master" >&2
+  exit 1
+fi
+
+git rev-parse --verify --quiet "master^{commit}" >/dev/null || {
+  echo "master must resolve before verifying archived zkCoin release notes" >&2
+  exit 1
+}
+git rev-parse --verify --quiet "$ZKCOIN_RELEASE_NOTES_BRANCH^{commit}" >/dev/null || {
+  echo "ZKCOIN_RELEASE_NOTES_BRANCH must resolve before verifying archived zkCoin release notes" >&2
+  exit 1
+}
+git cat-file -e "master:$ZKCOIN_RELEASE_NOTES_PATH" || {
+  echo "Archived zkCoin release notes are missing on master" >&2
+  exit 1
+}
+git cat-file -e "$ZKCOIN_RELEASE_NOTES_BRANCH:$ZKCOIN_RELEASE_NOTES_PATH" || {
+  echo "Archived zkCoin release notes are missing on $ZKCOIN_RELEASE_NOTES_BRANCH" >&2
+  exit 1
+}
+git diff --quiet --no-ext-diff \
+  "master:$ZKCOIN_RELEASE_NOTES_PATH" \
+  "$ZKCOIN_RELEASE_NOTES_BRANCH:$ZKCOIN_RELEASE_NOTES_PATH" || {
+    echo "Archived zkCoin release notes differ between master and $ZKCOIN_RELEASE_NOTES_BRANCH" >&2
     exit 1
-    ;;
-esac
+}
 ```
 
 - Archive release notes to `$ZKCOIN_RELEASE_NOTES_PATH` on `master` and
   `$ZKCOIN_RELEASE_NOTES_BRANCH`. Keep this blocked until
-  `$ZKCOIN_RELEASE_NOTES_OWNER` has verified both archival commits.
+  `$ZKCOIN_RELEASE_NOTES_OWNER` has verified both archival commits and the
+  archive verification check above succeeds.
 
 - Resolve the zkCoin GitHub release metadata before creating the GitHub release:
 
@@ -563,7 +594,7 @@ esac
 
 - Create the GitHub release in `$ZKCOIN_RELEASE_GITHUB_REPO_URL` using
   `$ZKCOIN_RELEASE_GITHUB_TAG` and `$ZKCOIN_RELEASE_GITHUB_TITLE`, with a link
-  to the archived release notes and published `SHA256SUMS.asc`.
+  to `$ZKCOIN_RELEASE_NOTES_PATH` and published `SHA256SUMS.asc`.
 
 ### Additional information
 
