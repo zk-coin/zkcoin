@@ -265,6 +265,8 @@ The manifest validator reads the verified `height`, `block_hash`, and `import_ha
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
 an absolute snapshot file path, and positive decimal total amount with 8 fractional digits.
+Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
+against the audit summary.
 The manifest update rejects a snapshot audit whose source chain does not match
 the target profile: `main` requires Litecoin `main`, and `testnet` requires
 Litecoin `test`.

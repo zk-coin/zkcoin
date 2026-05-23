@@ -7,6 +7,7 @@
 """Validate the zkCoin public launch-profile decision manifest."""
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -614,6 +615,38 @@ def require_snapshot_audit_source_chain(audit, field):
     return value
 
 
+def snapshot_file_sha256(path):
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as snapshot_file:
+            for chunk in iter(lambda: snapshot_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise ValueError(f"cannot read snapshot audit file artifact: {exc}")
+    return digest.hexdigest()
+
+
+def verify_snapshot_audit_artifact(audit):
+    snapshot_path = Path(audit["snapshot_file"])
+    if not snapshot_path.is_file():
+        raise ValueError(f"snapshot audit file artifact does not exist: {snapshot_path}")
+    try:
+        actual_size = snapshot_path.stat().st_size
+    except OSError as exc:
+        raise ValueError(f"cannot stat snapshot audit file artifact: {exc}")
+    if actual_size != audit["snapshot_file_size"]:
+        raise ValueError(
+            "snapshot audit file size mismatch: "
+            f"expected={audit['snapshot_file_size']} actual={actual_size}"
+        )
+    actual_sha256 = snapshot_file_sha256(snapshot_path)
+    if actual_sha256 != audit["snapshot_file_sha256"]:
+        raise ValueError(
+            "snapshot audit file SHA-256 mismatch: "
+            f"expected={audit['snapshot_file_sha256']} actual={actual_sha256}"
+        )
+
+
 def parse_snapshot_audit(audit_path):
     try:
         audit = json.loads(Path(audit_path).read_text(encoding="utf8"))
@@ -734,6 +767,7 @@ def set_snapshot_from_audit(manifest, network, audit_path):
             f"snapshot audit source_chain {audit['audit']['source_chain']} does not match {network}; "
             f"expected {expected_source_chain}"
         )
+    verify_snapshot_audit_artifact(audit["audit"])
     set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
 
 
