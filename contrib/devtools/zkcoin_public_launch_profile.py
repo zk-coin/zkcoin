@@ -423,6 +423,30 @@ def set_auxpow(manifest, network, chain_id):
     remove_blocker(manifest, f"{network}.auxpow_chain_id")
 
 
+def parse_dns_seeds(value):
+    seeds = [seed.strip() for seed in value.split(",")]
+    if not seeds or any(not seed for seed in seeds):
+        raise ValueError("dns_seeds must be a comma-separated list of non-empty hostnames")
+    seen = set()
+    for seed in seeds:
+        if seed in seen:
+            raise ValueError(f"duplicate DNS seed hostname: {seed}")
+        if not dns_seed_valid(seed):
+            raise ValueError(f"invalid DNS seed hostname: {seed}")
+        seen.add(seed)
+    return seeds
+
+
+def set_dns_seeds(manifest, network, dns_seeds):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    networks = manifest.setdefault("networks", {})
+    profile = networks.setdefault(network, {})
+    identity = profile.setdefault("public_network_identity", {})
+    identity["dns_seeds"] = parse_dns_seeds(dns_seeds)
+    remove_blocker(manifest, f"{network}.dns_seeds")
+
+
 def write_manifest(path, manifest):
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     tmp_path = path.with_name(path.name + ".tmp")
@@ -538,6 +562,12 @@ def main():
         metavar=("NETWORK", "CHAIN_ID"),
         help="update one network's AuxPoW chain id and remove its AuxPoW blocker",
     )
+    parser.add_argument(
+        "--set-dns-seeds",
+        nargs=2,
+        metavar=("NETWORK", "SEED1,SEED2"),
+        help="update one network's DNS seed hostnames and remove its DNS seed blocker",
+    )
     parser.add_argument("--in-place", action="store_true", help="write update changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
@@ -565,7 +595,14 @@ def main():
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
-    updated_manifest = args.set_snapshot is not None or args.set_auxpow is not None
+    if args.set_dns_seeds is not None:
+        try:
+            set_dns_seeds(manifest, *args.set_dns_seeds)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    updated_manifest = args.set_snapshot is not None or args.set_auxpow is not None or args.set_dns_seeds is not None
     allow_blocked = args.allow_blocked or updated_manifest
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
@@ -587,7 +624,7 @@ def main():
         return 0
 
     if args.in_place:
-        print("error: --in-place requires --set-snapshot or --set-auxpow", file=sys.stderr)
+        print("error: --in-place requires --set-snapshot, --set-auxpow, or --set-dns-seeds", file=sys.stderr)
         return 1
 
     if args.emit_chainparams:

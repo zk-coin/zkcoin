@@ -453,6 +453,74 @@ def require_public_launch_manifest_current():
         return "{} --set-auxpow did not explain the parent-versionbits chain-id rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    dns_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-dns-seeds",
+            "main",
+            "seed1.zkcoin.example,seed2.zkcoin.example",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if dns_result.returncode != 0:
+        return "{} --set-dns-seeds failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            dns_result.stderr.strip() or dns_result.stdout.strip() or "no output",
+        )
+    try:
+        dns_manifest = json.loads(dns_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --set-dns-seeds did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    dns_seeds = dns_manifest["networks"]["main"]["public_network_identity"]["dns_seeds"]
+    if dns_seeds != ["seed1.zkcoin.example", "seed2.zkcoin.example"]:
+        return "{} --set-dns-seeds did not update main DNS seeds".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    dns_blockers = {
+        blocker.get("id")
+        for blocker in dns_manifest.get("blockers", [])
+        if isinstance(blocker, dict)
+    }
+    if "main.dns_seeds" in dns_blockers:
+        return "{} --set-dns-seeds did not remove the resolved main DNS blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "main.public_network_identity" not in dns_blockers:
+        return "{} --set-dns-seeds removed unrelated identity blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_dns_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-dns-seeds",
+            "main",
+            "seed-a.litecoin.example",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_dns_result.returncode == 0:
+        return "{} --set-dns-seeds accepted an inherited Litecoin seed hostname".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "invalid DNS seed hostname" not in unsafe_dns_result.stderr:
+        return "{} --set-dns-seeds did not explain inherited seed hostname rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     return None
 
 
@@ -628,8 +696,12 @@ def main():
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--set-snapshot", "manifest snapshot update flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
+        ("--set-dns-seeds", "manifest DNS seed update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
+        ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
+        ("set_dns_seeds", "manifest updates DNS seeds"),
+        ("remove_blocker(manifest, f\"{network}.dns_seeds\")", "manifest removes resolved DNS seed blocker"),
         ("remove_blocker(manifest, f\"{network}.auxpow_chain_id\")", "manifest removes resolved AuxPoW blocker"),
         ("remove_blocker(manifest, f\"{network}.litecoin_snapshot\")", "manifest removes resolved snapshot blocker"),
         ("unresolved_blocker_ids", "manifest derives blockers from unresolved fields"),
@@ -852,6 +924,14 @@ def main():
         (
             "0x2000..0x3fff",
             "public launch manifest AuxPoW forbidden range documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK seed1.example,seed2.example",
+            "public launch manifest DNS seed update documentation",
+        ),
+        (
+            "rejects empty, duplicate, malformed, uppercase, and inherited",
+            "public launch manifest DNS seed rejection documentation",
         ),
         (
             "ready-for-chainparams",
