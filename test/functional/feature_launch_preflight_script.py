@@ -87,6 +87,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "blocks": 0,
             "headers": 0,
             "initialblockdownload": False,
+            "pruned": False,
             "launch_readiness": readiness,
             "ltc_snapshot": {
                 "enabled": True,
@@ -205,6 +206,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             initial_block_download,
             1,
             "node is still in initial block download",
+        )
+
+        self.log.info("Reject pruned mode in launch preflight")
+        malformed_pruned = self.valid_info()
+        malformed_pruned["pruned"] = "false"
+        self.assert_preflight(
+            fake_cli,
+            malformed_pruned,
+            1,
+            "getblockchaininfo.pruned must be a boolean",
+        )
+        pruned_node = self.valid_info()
+        pruned_node["pruned"] = True
+        self.assert_preflight(
+            fake_cli,
+            pruned_node,
+            1,
+            "launch node is running in pruned mode",
         )
 
         self.log.info("Reject launch-tip readiness away from genesis height")
