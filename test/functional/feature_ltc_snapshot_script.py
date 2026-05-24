@@ -120,6 +120,9 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                     elif scenario.get("mutate_snapshot_during_verify", False):
                         with open(command_args[0], "ab") as snapshot_file:
                             snapshot_file.write(b"mutated")
+                    if scenario.get("create_audit_symlink_during_verify", False):
+                        audit_path = os.environ["ZKCOIN_SNAPSHOT_AUDIT_JSON"]
+                        os.symlink(audit_path + ".target", audit_path)
                     print(scenario.get("verify_raw", json.dumps(scenario["verify_json"])))
                 else:
                     fail(f"unexpected role: {role}")
@@ -680,6 +683,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(replace_snapshot_with_symlink_during_verify=True),
             1,
             "snapshot output became a symlink during verification",
+        )
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject audit summary symlink replacement during verification")
+        _, calls, snapshot_path = self.assert_snapshot(
+            "audit-symlink-during-verify",
+            self.scenario(create_audit_symlink_during_verify=True),
+            1,
+            "snapshot audit summary path must not be a symlink",
+            write_audit=True,
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 
