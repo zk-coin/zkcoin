@@ -358,7 +358,9 @@ def verify_artifacts(args, entries):
     for expected_digest, filename in entries:
         target = artifact_path(artifacts_dir, filename)
         downloaded = False
-        if not target.exists():
+        if target.exists():
+            require_artifact_parent_directory(target, filename, artifacts_dir)
+        else:
             download_artifact(args.download_base, filename, target, args.download_timeout, artifacts_dir)
             downloaded = True
         require_regular_artifact(target, filename)
