@@ -3239,6 +3239,11 @@ def main():
             "preflight validates initial block download shape",
         ),
         ("node is still in initial block download", "preflight rejects initial block download"),
+        (
+            "getblockchaininfo.pruned must be a boolean",
+            "preflight validates pruned mode shape",
+        ),
+        ("launch node is running in pruned mode", "preflight rejects pruned mode"),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
@@ -3298,6 +3303,10 @@ def main():
         (
             "Reject initial block download in launch preflight",
             "preflight fake-CLI initial block download coverage",
+        ),
+        (
+            "Reject pruned mode in launch preflight",
+            "preflight fake-CLI pruned mode coverage",
         ),
         (
             "Reject malformed configured snapshot detail shape",
@@ -3468,6 +3477,7 @@ def main():
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
         ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
+        ("getblockchaininfo.pruned=false", "preflight pruned mode documentation"),
         ("auxpow.start_height=1", "preflight AuxPoW start-height documentation"),
         (
             "positive snapshot height plus non-null lowercase snapshot block/import hashes",
