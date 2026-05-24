@@ -555,6 +555,31 @@ def require_zkcoin_verifier_rejects_insecure_download_base():
     return None
 
 
+def require_zkcoin_verifier_rejects_malformed_trusted_fingerprints():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    for fingerprint in ("1234", "TODO", "g" * 40):
+        try:
+            verifier.validate_trusted_fingerprints([fingerprint])
+        except verifier.VerifyError as exc:
+            if "trusted fingerprint must be a full 40-character hex fingerprint" not in str(exc):
+                return "zkCoin verifier reported the wrong trusted fingerprint error"
+        else:
+            return "zkCoin verifier accepted malformed trusted fingerprint: {}".format(fingerprint)
+
+    try:
+        verifier.validate_trusted_fingerprints(["0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567"])
+    except verifier.VerifyError as exc:
+        return "zkCoin verifier rejected a well-formed trusted fingerprint: {}".format(exc)
+
+    return None
+
+
 def main():
     loader_error = check_manifest_json_loader()
     if loader_error:
@@ -579,6 +604,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_insecure_download_base()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_malformed_trusted_fingerprints()
     if error:
         return fail(error)
 
@@ -1223,6 +1251,7 @@ def main():
         (VERIFY_SCRIPT, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in env"),
         (VERIFY_SCRIPT, "verifies Bitcoin Core artifacts, not zkCoin", "Bitcoin-only verifier warning"),
         (ZKCOIN_VERIFY_SCRIPT, "--trusted-fingerprint", "zkCoin trusted fingerprint argument"),
+        (ZKCOIN_VERIFY_SCRIPT, "trusted fingerprint must be a full 40-character hex fingerprint", "zkCoin verifier trusted fingerprint shape guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
@@ -1234,6 +1263,7 @@ def main():
         (VERIFY_README, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in docs"),
         (VERIFY_README, "verify-zkcoin-release.py", "zkCoin verifier documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "zkCoin verifier fingerprint documentation"),
+        (VERIFY_README, "full 40-character hex fingerprints", "zkCoin verifier fingerprint shape documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),

@@ -18,6 +18,7 @@ from urllib.request import urlopen
 
 
 CHECKSUM_RE = re.compile(r"^([0-9a-fA-F]{64})\s+[* ]?(.+)$")
+FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 
 
 class VerifyError(Exception):
@@ -26,6 +27,16 @@ class VerifyError(Exception):
 
 def normalize_fingerprint(value):
     return "".join(ch for ch in value.upper() if ch.isalnum())
+
+
+def validate_trusted_fingerprints(fingerprints):
+    trusted = set()
+    for fingerprint in fingerprints:
+        normalized = normalize_fingerprint(fingerprint)
+        if not FINGERPRINT_RE.fullmatch(normalized):
+            raise VerifyError("trusted fingerprint must be a full 40-character hex fingerprint")
+        trusted.add(normalized)
+    return trusted
 
 
 def parse_args():
@@ -107,7 +118,7 @@ def run_gpg_decrypt(args, output_path):
     if not valid_fingerprints:
         raise VerifyError("GPG did not report a valid signature fingerprint")
 
-    trusted = {normalize_fingerprint(fp) for fp in args.trusted_fingerprint}
+    trusted = validate_trusted_fingerprints(args.trusted_fingerprint)
     if not trusted.intersection(valid_fingerprints):
         raise VerifyError(
             "signed checksums were not produced by a trusted zkCoin release key"
@@ -228,6 +239,7 @@ def main():
 
     try:
         validate_download_base(args.download_base)
+        validate_trusted_fingerprints(args.trusted_fingerprint)
         with tempfile.TemporaryDirectory(prefix="zkcoin-verify-") as tempdir:
             decrypted = Path(tempdir) / "SHA256SUMS"
             run_gpg_decrypt(args, decrypted)
