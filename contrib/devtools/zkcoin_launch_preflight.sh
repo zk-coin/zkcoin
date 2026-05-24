@@ -146,8 +146,9 @@ if (
     type(verificationprogress) not in (int, float)
     or not math.isfinite(verificationprogress)
     or verificationprogress < 0
+    or verificationprogress > 1
 ):
-    schema_errors.append("getblockchaininfo.verificationprogress must be a non-negative number")
+    schema_errors.append("getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1")
 difficulty = info.get("difficulty")
 if (
     type(difficulty) not in (int, float)

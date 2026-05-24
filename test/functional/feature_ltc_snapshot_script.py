@@ -718,6 +718,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+        _, calls, _ = self.assert_snapshot(
+            "source-over-one-verificationprogress",
+            self.scenario(source_verificationprogress=1.1),
+            1,
+            "litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
         self.log.info("Reject malformed Litecoin source difficulty")
         _, calls, _ = self.assert_snapshot(
