@@ -219,7 +219,8 @@ The script fails closed if the source node does not report usable
 `getblockchaininfo`, if the source is still in initial block download, if the
 source has headers ahead of downloaded blocks or reports headers below downloaded blocks,
 if the source reports malformed source sync booleans or malformed source chain names,
-if the source is pruned, if the source node reports non-empty warnings, if the
+if it reports malformed source block or header heights, if the source is pruned,
+if the source node reports non-empty warnings, if the
 requested snapshot height is zero or malformed, if the source node does not
 report a well-formed non-null block hash for height X, if that hash does not
 match the expected block hash, if the active source tip hash does not match the expected block hash

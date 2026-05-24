@@ -560,6 +560,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject malformed Litecoin source header height")
+        _, calls, _ = self.assert_snapshot(
+            "fractional-chaininfo-headers",
+            self.scenario(chaininfo_overrides={"headers": str(HEIGHT) + ".0"}),
+            1,
+            "litecoin-cli getblockchaininfo.headers must be a non-negative integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject malformed Litecoin source best block hash")
         _, calls, _ = self.assert_snapshot(
             "source-malformed-bestblockhash",
