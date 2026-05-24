@@ -1548,6 +1548,61 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        def reject_changed_artifact_case(name, mutate_path):
+            changed_artifact_path = Path(temp_dir) / f"{name}.dat"
+            changed_artifact_path.write_bytes(b"original artifact bytes")
+            changed_artifact_fd, changed_artifact_stat = manifest_tool.open_regular_file_no_symlink(
+                changed_artifact_path,
+                symlink_error="snapshot audit file artifact must not be a symlink",
+                missing_error="snapshot audit file artifact does not exist",
+                not_regular_error="snapshot audit file artifact must be a regular file",
+                open_error="cannot read snapshot audit file artifact",
+            )
+            try:
+                with os.fdopen(changed_artifact_fd, "rb") as changed_artifact_file:
+                    changed_artifact_fd = None
+                    mutate_path(changed_artifact_path)
+                    try:
+                        manifest_tool.require_snapshot_audit_artifact_stable(
+                            changed_artifact_path,
+                            changed_artifact_stat,
+                            changed_artifact_file,
+                        )
+                    except ValueError as exc:
+                        if "snapshot audit file artifact changed during verification" not in str(exc):
+                            return "{} reported the wrong changed-artifact error for {}".format(
+                                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                                name,
+                            )
+                    else:
+                        return "{} accepted a changed snapshot artifact path in {}".format(
+                            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                            name,
+                        )
+            finally:
+                if changed_artifact_fd is not None:
+                    os.close(changed_artifact_fd)
+            return None
+
+        def replace_changed_artifact(artifact_path):
+            replacement_path = Path(temp_dir) / "replacement-snapshot-artifact.dat"
+            replacement_path.write_bytes(b"replacement artifact bytes")
+            os.replace(replacement_path, artifact_path)
+
+        replaced_artifact_error = reject_changed_artifact_case(
+            "replaced-snapshot-artifact",
+            replace_changed_artifact,
+        )
+        if replaced_artifact_error:
+            return replaced_artifact_error
+
+        truncated_artifact_error = reject_changed_artifact_case(
+            "truncated-snapshot-artifact",
+            lambda artifact_path: artifact_path.write_bytes(b"truncated"),
+        )
+        if truncated_artifact_error:
+            return truncated_artifact_error
+
         malformed_amount_audit_path = Path(temp_dir) / "malformed-amount-audit.json"
         malformed_amount_audit = dict(audit)
         malformed_amount_audit["total_amount"] = "50"
@@ -2718,6 +2773,7 @@ def main():
         ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
         ("snapshot audit file artifact must not be a symlink", "manifest rejects symlinked snapshot audit artifacts"),
         ("snapshot audit file artifact must be a regular file", "manifest rejects non-file snapshot audit artifacts"),
+        ("require_snapshot_audit_artifact_stable", "manifest rechecks snapshot audit artifacts after hashing"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
@@ -3295,6 +3351,10 @@ def main():
         (
             "rejects symlinked snapshot artifacts",
             "public launch manifest snapshot artifact symlink rejection documentation",
+        ),
+        (
+            "rechecks the snapshot artifact path after hashing",
+            "public launch manifest snapshot artifact stability documentation",
         ),
         (
             "changes during zkCoin verification",
