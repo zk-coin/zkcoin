@@ -237,8 +237,8 @@ It also fails if the snapshot artifact becomes a symlink after dump or verificat
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then
-confirms the source tip is exactly height X after invalidation before dumping
-the snapshot. It validates the block `X + 1` restore hash before invalidating
+requires `getblockcount` to return an integer source tip exactly equal to height X
+after invalidation before dumping the snapshot. It validates the block `X + 1` restore hash before invalidating
 anything, then reconsiders block `X + 1` on exit. A failed restore makes the
 script fail even when the snapshot dump itself succeeded.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the script validates the audit summary output path before running snapshot RPCs: the audit path must not already
