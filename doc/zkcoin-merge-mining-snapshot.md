@@ -179,6 +179,9 @@ This makes local block-X launch tests repeatable without requiring a full datadi
 `contrib/devtools/zkcoin_launch_validation.sh` is the canonical production-profile validation command for zkCoin launch-path work. It delegates to `zkcoin_orchard_auxpow.sh`, which configures the real Orchard verifier backend, rebuilds the node, and runs the combined AuxPoW, local Litecoin-fork, snapshot import, shielded unit, Rust verifier, source distribution packaging, and real-proof functional regressions.
 
 The validation loop also runs the public launch/seed quarantine lint, release-infrastructure and previous-release fail-closed lints, launch argument guards, the launch preflight guard, explicit unsupported-signet startup policy, and a fake-CLI test for the Litecoin snapshot operator script so malformed snapshot RPC output, unsafe rewind cleanup behavior, or missing release gates cannot silently pass a launch rehearsal.
+The expected validation entries are tracked in a checked manifest, and the lint
+rejects duplicate JSON fields in that manifest so hand-edited validation tasks
+cannot be shadowed by later duplicate keys.
 
 Run it before treating changes to AuxPoW, snapshot import, shielded validation, or launch configuration as release-candidate work:
 
