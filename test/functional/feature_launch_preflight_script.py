@@ -85,6 +85,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             readiness.pop(field)
         return {
             "blocks": 0,
+            "headers": 0,
             "launch_readiness": readiness,
             "ltc_snapshot": {
                 "enabled": True,
@@ -167,6 +168,26 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "getblockchaininfo.blocks must be a non-negative integer",
         )
 
+        self.log.info("Reject malformed header height in launch preflight")
+        malformed_headers = self.valid_info()
+        malformed_headers["headers"] = "0"
+        self.assert_preflight(
+            fake_cli,
+            malformed_headers,
+            1,
+            "getblockchaininfo.headers must be a non-negative integer",
+        )
+        headers_below_blocks = self.valid_info()
+        headers_below_blocks["blocks"] = 1
+        headers_below_blocks["headers"] = 0
+        headers_below_blocks["launch_readiness"]["at_launch_tip"] = False
+        self.assert_preflight(
+            fake_cli,
+            headers_below_blocks,
+            1,
+            "getblockchaininfo.headers must be greater than or equal to blocks",
+        )
+
         self.log.info("Reject launch-tip readiness away from genesis height")
         non_genesis_launch_tip = self.valid_info()
         non_genesis_launch_tip["blocks"] = 1
@@ -175,6 +196,14 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             non_genesis_launch_tip,
             1,
             "getblockchaininfo.blocks must be 0 when launch_readiness.at_launch_tip is true",
+        )
+        headers_ahead_launch_tip = self.valid_info()
+        headers_ahead_launch_tip["headers"] = 1
+        self.assert_preflight(
+            fake_cli,
+            headers_ahead_launch_tip,
+            1,
+            "getblockchaininfo.headers must be 0 when launch_readiness.at_launch_tip is true",
         )
 
         self.log.info("Reject inconsistent ready response with false invariants")
