@@ -90,6 +90,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "bestblockhash": "33" * 32,
             "chainwork": "00" * 31 + "01",
             "verificationprogress": 1.0,
+            "size_on_disk": 1024,
             "initialblockdownload": False,
             "pruned": False,
             "warnings": "",
@@ -233,6 +234,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             malformed_verification_progress,
             1,
             "getblockchaininfo.verificationprogress must be a non-negative number",
+        )
+
+        self.log.info("Reject malformed size on disk in launch preflight")
+        malformed_size_on_disk = self.valid_info()
+        malformed_size_on_disk["size_on_disk"] = 0
+        self.assert_preflight(
+            fake_cli,
+            malformed_size_on_disk,
+            1,
+            "getblockchaininfo.size_on_disk must be a positive integer",
         )
 
         self.log.info("Reject initial block download in launch preflight")

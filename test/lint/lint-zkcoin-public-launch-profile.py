@@ -3251,6 +3251,10 @@ def main():
             "preflight validates verification progress shape",
         ),
         (
+            "getblockchaininfo.size_on_disk must be a positive integer",
+            "preflight validates disk footprint shape",
+        ),
+        (
             "getblockchaininfo.initialblockdownload must be a boolean",
             "preflight validates initial block download shape",
         ),
@@ -3336,6 +3340,10 @@ def main():
         (
             "Reject malformed verification progress in launch preflight",
             "preflight fake-CLI verification progress coverage",
+        ),
+        (
+            "Reject malformed size on disk in launch preflight",
+            "preflight fake-CLI disk footprint coverage",
         ),
         (
             "Reject initial block download in launch preflight",
@@ -3521,6 +3529,7 @@ def main():
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
         ("getblockchaininfo.chainwork", "preflight chainwork documentation"),
         ("getblockchaininfo.verificationprogress", "preflight verification progress documentation"),
+        ("getblockchaininfo.size_on_disk", "preflight disk footprint documentation"),
         ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
         ("getblockchaininfo.pruned=false", "preflight pruned mode documentation"),
         ('getblockchaininfo.warnings=""', "preflight node warning documentation"),

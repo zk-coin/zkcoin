@@ -127,6 +127,9 @@ if (
     or verificationprogress < 0
 ):
     schema_errors.append("getblockchaininfo.verificationprogress must be a non-negative number")
+size_on_disk = info.get("size_on_disk")
+if type(size_on_disk) is not int or size_on_disk <= 0:
+    schema_errors.append("getblockchaininfo.size_on_disk must be a positive integer")
 initialblockdownload = info.get("initialblockdownload")
 if type(initialblockdownload) is not bool:
     schema_errors.append("getblockchaininfo.initialblockdownload must be a boolean")
@@ -356,6 +359,7 @@ print(f"  header height: {headers}")
 print(f"  best block hash: {bestblockhash}")
 print(f"  chainwork: {chainwork}")
 print(f"  verification progress: {verificationprogress}")
+print(f"  size on disk: {size_on_disk}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
 print(f"  warnings: {warnings if warnings else '<none>'}")
