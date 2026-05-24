@@ -118,33 +118,38 @@ fi
 if [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
   die "snapshot incomplete output already exists: $SNAPSHOT_INCOMPLETE_PATH"
 fi
-SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
-
-snapshot_output_directory_fingerprint() {
-  python3 - "$SNAPSHOT_DIR" <<'PY'
+direct_directory_fingerprint() {
+  python3 - "$1" "$2" <<'PY'
 import os
 import stat
 import sys
 
-path = sys.argv[1]
+label = sys.argv[1]
+path = sys.argv[2]
 try:
     directory_stat = os.lstat(path)
 except FileNotFoundError:
-    print(f"error: snapshot output directory does not exist: {path}", file=sys.stderr)
+    print(f"error: {label} directory does not exist: {path}", file=sys.stderr)
     sys.exit(1)
 except OSError as exc:
-    print(f"error: cannot stat snapshot output directory: {exc}", file=sys.stderr)
+    print(f"error: cannot stat {label} directory: {exc}", file=sys.stderr)
     sys.exit(1)
 
 if stat.S_ISLNK(directory_stat.st_mode):
-    print(f"error: snapshot output directory must not be a symlink: {path}", file=sys.stderr)
+    print(f"error: {label} directory must not be a symlink: {path}", file=sys.stderr)
     sys.exit(1)
 if not stat.S_ISDIR(directory_stat.st_mode):
-    print(f"error: snapshot output directory does not exist: {path}", file=sys.stderr)
+    print(f"error: {label} directory does not exist: {path}", file=sys.stderr)
     sys.exit(1)
 
 print(f"{directory_stat.st_dev}:{directory_stat.st_ino}:{directory_stat.st_mode}")
 PY
+}
+
+SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
+
+snapshot_output_directory_fingerprint() {
+  direct_directory_fingerprint "snapshot output" "$SNAPSHOT_DIR"
 }
 
 require_snapshot_output_directory_direct() {
@@ -198,9 +203,13 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   if [[ "$AUDIT_CANONICAL_PATH" == "$SNAPSHOT_INCOMPLETE_CANONICAL_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot incomplete output path: $AUDIT_JSON_PATH"
   fi
-  if [[ -L "$AUDIT_JSON_DIR" ]]; then
-    die "snapshot audit summary directory must not be a symlink: $AUDIT_JSON_DIR"
-  fi
+
+  audit_output_directory_fingerprint() {
+    direct_directory_fingerprint "snapshot audit summary" "$AUDIT_JSON_DIR"
+  }
+
+  AUDIT_JSON_DIR_FINGERPRINT="$(audit_output_directory_fingerprint)"
+  export ZKCOIN_SNAPSHOT_AUDIT_DIR_FINGERPRINT="$AUDIT_JSON_DIR_FINGERPRINT"
   export ZKCOIN_SNAPSHOT_AUDIT_JSON="$AUDIT_JSON_PATH"
 fi
 
@@ -697,6 +706,10 @@ def open_direct_audit_parent_directory(path):
 def fsync_parent_directory(parent_fd):
     os.fsync(parent_fd)
 
+def audit_parent_fingerprint(parent_fd):
+    parent_stat = os.fstat(parent_fd)
+    return f"{parent_stat.st_dev}:{parent_stat.st_ino}:{parent_stat.st_mode}"
+
 def write_audit_summary(audit_json_path, summary):
     if os.path.islink(audit_json_path):
         fail(f"snapshot audit summary path must not be a symlink: {audit_json_path}")
@@ -710,7 +723,13 @@ def write_audit_summary(audit_json_path, summary):
     fd = None
     created = False
     try:
-        _, parent_fd = open_direct_audit_parent_directory(audit_json_path)
+        parent, parent_fd = open_direct_audit_parent_directory(audit_json_path)
+        expected_parent_fingerprint = os.environ.get("ZKCOIN_SNAPSHOT_AUDIT_DIR_FINGERPRINT")
+        if (
+            expected_parent_fingerprint
+            and audit_parent_fingerprint(parent_fd) != expected_parent_fingerprint
+        ):
+            fail(f"snapshot audit summary directory changed during snapshot verification: {parent}")
         fd = os.open(audit_basename, flags, 0o644, dir_fd=parent_fd)
         created = True
         audit_file = os.fdopen(fd, "w", encoding="utf8")

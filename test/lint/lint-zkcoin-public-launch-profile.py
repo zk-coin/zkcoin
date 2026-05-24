@@ -3745,10 +3745,12 @@ def main():
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot audit summary directory is not writable", "snapshot script rejects unwritable audit output directories"),
         ("snapshot audit summary directory must not be a symlink", "snapshot script rejects symlink audit output directories"),
+        ("ZKCOIN_SNAPSHOT_AUDIT_DIR_FINGERPRINT", "snapshot script fingerprints audit output directories before RPC calls"),
+        ("snapshot audit summary directory changed during snapshot verification", "snapshot script rejects audit output directory replacement"),
         ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
-        ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
+        ("directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
-        ("snapshot output directory must not be a symlink", "snapshot script rejects symlink snapshot output directories"),
+        ("directory must not be a symlink", "snapshot script rejects symlink snapshot output directories"),
         ("SNAPSHOT_DIR_FINGERPRINT", "snapshot script fingerprints snapshot output directories before RPC calls"),
         ("require_snapshot_output_directory_direct", "snapshot script rechecks snapshot output parents after RPC calls"),
         ("snapshot output directory changed during snapshot generation", "snapshot script rejects snapshot output directory replacement"),
@@ -3947,6 +3949,10 @@ def main():
         (
             "Reject audit summary directory symlink replacement during verification",
             "snapshot script test rejects verifier-time audit directory symlink replacement",
+        ),
+        (
+            "Reject audit summary directory replacement during verification",
+            "snapshot script test rejects verifier-time audit directory replacement",
         ),
         ("Reject non-object verifier manifest JSON", "snapshot script test rejects non-object verifier JSON"),
         ("Reject duplicate snapshot dump fields", "snapshot script test rejects duplicate dump JSON fields"),
@@ -4148,8 +4154,8 @@ def main():
             "public launch snapshot audit durable write documentation",
         ),
         (
-            "parent-directory symlink replacement before writing",
-            "public launch snapshot audit parent replacement documentation",
+            "audit summary directories are also rechecked",
+            "public launch snapshot audit parent stability documentation",
         ),
         (
             "audit summary path itself must also be a direct file",
@@ -4336,7 +4342,7 @@ def main():
             "snapshot operator verifier-time artifact mutation documentation",
         ),
         (
-            "become a symlink or be replaced after dump or verification",
+            "replaced after dump or verification",
             "snapshot operator post-write directory replacement documentation",
         ),
         (
