@@ -748,6 +748,103 @@ def require_public_launch_manifest_current():
             if malformed_update_error:
                 return malformed_update_error
 
+        def reject_unsafe_in_place_case(name, manifest_path, update_args, expected_error):
+            unsafe_in_place_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    *update_args,
+                    "--in-place",
+                    str(manifest_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if unsafe_in_place_result.returncode == 0:
+                return "{} --in-place accepted unsafe manifest path in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if "Traceback" in unsafe_in_place_result.stderr:
+                return "{} --in-place emitted a traceback for unsafe manifest path in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if expected_error not in unsafe_in_place_result.stderr:
+                return "{} --in-place did not explain unsafe manifest path rejection for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            return None
+
+        symlink_target_path = Path(temp_dir) / "symlink-target-manifest.json"
+        symlink_target_text = json.dumps(manifest)
+        symlink_target_path.write_text(symlink_target_text, encoding="utf8")
+        symlink_manifest_path = Path(temp_dir) / "symlink-manifest.json"
+        symlink_manifest_path.symlink_to(symlink_target_path)
+        symlink_manifest_error = reject_unsafe_in_place_case(
+            "symlink-manifest",
+            symlink_manifest_path,
+            ("--set-auxpow", "main", "0x5001"),
+            "manifest path must not be a symlink",
+        )
+        if symlink_manifest_error:
+            return symlink_manifest_error
+        if symlink_target_path.read_text(encoding="utf8") != symlink_target_text:
+            return "{} --in-place modified a symlinked manifest target".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        tmp_symlink_manifest_path = Path(temp_dir) / "tmp-symlink-manifest.json"
+        tmp_symlink_manifest_text = json.dumps(manifest)
+        tmp_symlink_manifest_path.write_text(tmp_symlink_manifest_text, encoding="utf8")
+        tmp_symlink_target_path = Path(temp_dir) / "tmp-symlink-target.json"
+        tmp_symlink_target_text = "do-not-write"
+        tmp_symlink_target_path.write_text(tmp_symlink_target_text, encoding="utf8")
+        tmp_symlink_path = tmp_symlink_manifest_path.with_name(tmp_symlink_manifest_path.name + ".tmp")
+        tmp_symlink_path.symlink_to(tmp_symlink_target_path)
+        tmp_symlink_error = reject_unsafe_in_place_case(
+            "preexisting-temp-symlink",
+            tmp_symlink_manifest_path,
+            ("--set-auxpow", "main", "0x5001"),
+            "manifest temp path already exists",
+        )
+        if tmp_symlink_error:
+            return tmp_symlink_error
+        if tmp_symlink_target_path.read_text(encoding="utf8") != tmp_symlink_target_text:
+            return "{} --in-place wrote through a pre-existing temp symlink".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if tmp_symlink_manifest_path.read_text(encoding="utf8") != tmp_symlink_manifest_text:
+            return "{} --in-place modified a manifest after temp-symlink rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        tmp_file_manifest_path = Path(temp_dir) / "tmp-file-manifest.json"
+        tmp_file_manifest_text = json.dumps(manifest)
+        tmp_file_manifest_path.write_text(tmp_file_manifest_text, encoding="utf8")
+        tmp_file_path = tmp_file_manifest_path.with_name(tmp_file_manifest_path.name + ".tmp")
+        tmp_file_text = "stale"
+        tmp_file_path.write_text(tmp_file_text, encoding="utf8")
+        tmp_file_error = reject_unsafe_in_place_case(
+            "preexisting-temp-file",
+            tmp_file_manifest_path,
+            ("--set-auxpow", "main", "0x5001"),
+            "manifest temp path already exists",
+        )
+        if tmp_file_error:
+            return tmp_file_error
+        if tmp_file_path.read_text(encoding="utf8") != tmp_file_text:
+            return "{} --in-place modified a pre-existing manifest temp file".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if tmp_file_manifest_path.read_text(encoding="utf8") != tmp_file_manifest_text:
+            return "{} --in-place modified a manifest after temp-file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -2386,6 +2483,9 @@ def main():
         ("blockers must be an array", "manifest update commands reject malformed blocker lists"),
         ("require_known_fields", "manifest rejects unexpected schema fields"),
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
+        ("manifest path must not be a symlink", "manifest in-place updates reject symlinked manifest paths"),
+        ("manifest temp path already exists", "manifest in-place updates reject pre-existing temp paths"),
+        ("os.O_EXCL", "manifest in-place updates create temp files exclusively"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--next-action", "manifest next-action guidance flag"),
@@ -2805,6 +2905,10 @@ def main():
         (
             "Manifest update commands reject malformed sections before mutation",
             "public launch manifest update malformed schema documentation",
+        ),
+        (
+            "In-place manifest writes reject symlinked manifest paths and pre-existing temp files",
+            "public launch manifest safe in-place write documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",

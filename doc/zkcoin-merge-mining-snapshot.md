@@ -296,6 +296,8 @@ The validator ensures malformed manifest sections are reported as validation err
 instead of operator-facing tool tracebacks.
 Manifest update commands reject malformed sections before mutation, so operator
 handoff commands do not partially rewrite a bad launch manifest.
+In-place manifest writes reject symlinked manifest paths and pre-existing temp files
+before writing the updated launch handoff.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary and rejects symlinked snapshot artifacts and other non-file artifacts.
 The manifest update rejects a snapshot audit whose source chain does not match
