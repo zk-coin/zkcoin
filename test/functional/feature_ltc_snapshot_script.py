@@ -76,6 +76,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             "bestblockhash": source_bestblockhash,
                             "chainwork": scenario.get("source_chainwork", "00" * 31 + "01"),
                             "verificationprogress": scenario.get("source_verificationprogress", 1.0),
+                            "difficulty": scenario.get("source_difficulty", 1.0),
                             "initialblockdownload": scenario.get("initialblockdownload", False),
                             "pruned": scenario.get("pruned", False),
                             "warnings": scenario.get("warnings", ""),
@@ -578,6 +579,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(source_verificationprogress=-0.1),
             1,
             "litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source difficulty")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-difficulty",
+            self.scenario(source_difficulty=-1.0),
+            1,
+            "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
