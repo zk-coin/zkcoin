@@ -3475,6 +3475,7 @@ def main():
         ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
         ("snapshot output became a symlink during verification", "snapshot script rejects verifier-time symlink replacement"),
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
+        ("dumptxoutset base_height mismatch", "snapshot script rejects dump metadata before verifier handoff"),
         ("INT_RE", "snapshot script rejects fractional audit heights and counts"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
         ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
@@ -3594,6 +3595,10 @@ def main():
         ),
         ("Reject non-object snapshot dump JSON", "snapshot script test rejects non-object dump JSON"),
         ("Reject non-lowercase snapshot dump hashes", "snapshot script test rejects non-lowercase dump hashes"),
+        (
+            "Reject snapshot dump height and hash mismatches before verification",
+            "snapshot script test rejects dump metadata mismatches before verifier handoff",
+        ),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
@@ -3972,6 +3977,10 @@ def main():
         (
             "non-empty snapshot file before running zkCoin verification",
             "snapshot operator verifies dump artifact documentation",
+        ),
+        (
+            "before invoking `verifysnapshotmanifest`",
+            "snapshot operator rejects bad dump metadata before verifier documentation",
         ),
         (
             "duplicate-field JSON",

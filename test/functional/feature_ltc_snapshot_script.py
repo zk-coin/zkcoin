@@ -880,23 +880,25 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject malformed dumptxoutset JSON")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "malformed-dump-json",
             self.scenario(dump_raw="{not json"),
             1,
             "dumptxoutset did not return JSON",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject non-object snapshot dump JSON")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "non-object-dump-json",
             self.scenario(dump_raw="[]"),
             1,
             "dumptxoutset response must be a JSON object",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject duplicate snapshot dump fields")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "duplicate-dump-field",
             self.scenario(
                 dump_raw=(
@@ -907,14 +909,32 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "dumptxoutset contains duplicate field: base_height",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject non-lowercase snapshot dump hashes")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "uppercase-dump-hash",
             self.scenario(dump_json=self.dump_json(base_hash=BLOCK_HASH.upper())),
             1,
             "dumptxoutset.base_hash must be a lowercase 64-character hex string",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject snapshot dump height and hash mismatches before verification")
+        _, calls, _ = self.assert_snapshot(
+            "dump-height-mismatch",
+            self.scenario(dump_json=self.dump_json(base_height=HEIGHT + 1)),
+            1,
+            f"dumptxoutset base_height mismatch: expected={HEIGHT} actual={HEIGHT + 1}",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+        _, calls, _ = self.assert_snapshot(
+            "dump-hash-mismatch",
+            self.scenario(dump_json=self.dump_json(base_hash="11" * 32)),
+            1,
+            f"dumptxoutset base_hash mismatch: expected={BLOCK_HASH} actual={'11' * 32}",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject missing snapshot dump file before verification")
         _, calls, _ = self.assert_snapshot(
@@ -1044,12 +1064,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject fractional snapshot dump heights")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "fractional-dump-height",
             self.scenario(dump_json=self.dump_json(base_height=HEIGHT + 0.5)),
             1,
             "dumptxoutset.base_height must be an integer",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject fractional verifier coin counts")
         self.assert_snapshot(
@@ -1060,12 +1081,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject zero snapshot dump coin count")
-        self.assert_snapshot(
+        _, calls, _ = self.assert_snapshot(
             "zero-dump-coins",
             self.scenario(dump_json=self.dump_json(coins_written=0)),
             1,
             "dumptxoutset.coins_written must be positive",
         )
+        assert not any(call["role"] == "zkcoin" for call in calls)
 
         self.log.info("Reject zero verifier base transaction count")
         self.assert_snapshot(
