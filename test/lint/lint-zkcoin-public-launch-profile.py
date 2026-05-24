@@ -3408,6 +3408,7 @@ def main():
         ("response must be a JSON object", "snapshot script rejects non-object RPC JSON"),
         ("reject_duplicate_json_fields", "snapshot script rejects duplicate RPC JSON fields"),
         ("object_pairs_hook=reject_duplicate_json_fields", "snapshot script parses RPC JSON without duplicate shadowing"),
+        ("must be a lowercase 64-character hex string", "snapshot script rejects non-lowercase RPC snapshot hashes"),
         ('require_string("chain")', "snapshot script validates source chain name shape"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         (
@@ -3571,6 +3572,7 @@ def main():
         ),
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         ("Reject non-object snapshot dump JSON", "snapshot script test rejects non-object dump JSON"),
+        ("Reject non-lowercase snapshot dump hashes", "snapshot script test rejects non-lowercase dump hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
@@ -3580,6 +3582,7 @@ def main():
         ("Reject non-object verifier manifest JSON", "snapshot script test rejects non-object verifier JSON"),
         ("Reject duplicate snapshot dump fields", "snapshot script test rejects duplicate dump JSON fields"),
         ("Reject duplicate verifier manifest fields", "snapshot script test rejects duplicate verifier JSON fields"),
+        ("Reject non-lowercase verifier hashes", "snapshot script test rejects non-lowercase verifier hashes"),
         ("Reject null verifier snapshot and import hashes", "snapshot script test rejects null verifier hashes"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
@@ -3896,6 +3899,10 @@ def main():
         (
             "positive coin and transaction counts",
             "public launch snapshot positive audit count documentation",
+        ),
+        (
+            "non-lowercase or null hash fields",
+            "snapshot operator non-lowercase hash rejection documentation",
         ),
         (
             "source_chain",

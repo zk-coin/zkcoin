@@ -231,7 +231,7 @@ non-negative source tip times with median time not after block time, if the
 expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed, non-object, or duplicate-field JSON, or if required snapshot/manifest fields are missing or
-inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
+inconsistent, including non-lowercase or null hash fields and non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
 It also fails if the snapshot artifact becomes a symlink after dump or verification, or if its size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a

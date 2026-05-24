@@ -482,10 +482,9 @@ def require_positive_int(obj, source, field):
 def require_hash(obj, source, field):
     value = require_field(obj, source, field)
     if not isinstance(value, str):
-        fail(f"{source}.{field} must be a 64-character hex string")
-    value = value.lower()
+        fail(f"{source}.{field} must be a lowercase 64-character hex string")
     if not HEX64_RE.fullmatch(value):
-        fail(f"{source}.{field} must be a 64-character hex string")
+        fail(f"{source}.{field} must be a lowercase 64-character hex string")
     if value == NULL_UINT256:
         fail(f"{source}.{field} must not be the null uint256")
     return value
