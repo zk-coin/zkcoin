@@ -189,6 +189,7 @@ trap cleanup EXIT
 SOURCE_CHAININFO_JSON="$(ltc_cli getblockchaininfo)"
 read -r SOURCE_CHAIN SOURCE_TIP <<< "$(python3 - "$SOURCE_CHAININFO_JSON" "$HEIGHT" "$EXPECTED_BLOCK_HASH" <<'PY'
 import json
+import math
 import re
 import sys
 
@@ -249,6 +250,14 @@ def require_chainwork():
         fail("litecoin-cli getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string")
     return value
 
+def require_verificationprogress():
+    if "verificationprogress" not in chaininfo:
+        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number")
+    value = chaininfo["verificationprogress"]
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number")
+    return value
+
 chain = require_string("chain")
 if chain not in ("main", "test"):
     fail("Litecoin source node chain must be main or test for public snapshot generation")
@@ -256,6 +265,7 @@ blocks = require_nonnegative_int("blocks")
 headers = require_nonnegative_int("headers")
 bestblockhash = require_bestblockhash()
 require_chainwork()
+require_verificationprogress()
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
 if headers > blocks:
