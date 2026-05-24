@@ -248,6 +248,32 @@ def require_https_download_response(response, filename):
         raise VerifyError("artifact download redirected to a credentialed URL: {}".format(filename))
 
 
+def response_content_length(response, filename):
+    getheader = getattr(response, "getheader", None)
+    if callable(getheader):
+        value = getheader("Content-Length")
+    else:
+        headers = getattr(response, "headers", None)
+        value = headers.get("Content-Length") if headers is not None else None
+    if value is None:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]+", value):
+        raise VerifyError("artifact download reported invalid Content-Length: {}".format(filename))
+    return int(value)
+
+
+def require_downloaded_size(response, actual_size, filename):
+    expected_size = response_content_length(response, filename)
+    if expected_size is not None and actual_size != expected_size:
+        raise VerifyError(
+            "artifact download Content-Length mismatch: {} expected {} actual {}".format(
+                filename,
+                expected_size,
+                actual_size,
+            )
+        )
+
+
 def install_downloaded_artifact(temp_path, target, filename):
     try:
         os.link(temp_path, target)
@@ -282,6 +308,7 @@ def download_artifact(base_url, filename, target, timeout):
             with urlopen(url, timeout=timeout) as response:
                 require_https_download_response(response, filename)
                 shutil.copyfileobj(response, output)
+                require_downloaded_size(response, output.tell(), filename)
         install_downloaded_artifact(temp_path, target, filename)
     except VerifyError:
         if temp_path is not None:
