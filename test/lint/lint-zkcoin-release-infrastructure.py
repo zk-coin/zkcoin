@@ -4,9 +4,11 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Check that inherited release infrastructure stays explicit and fail-closed."""
 
+import importlib.util
 import json
 from pathlib import Path
 import sys
+import tempfile
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -467,6 +469,31 @@ def require_gitian_signer_descriptors():
     return None
 
 
+def require_zkcoin_verifier_rejects_duplicate_artifacts():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        manifest = Path(tempdir) / "SHA256SUMS"
+        manifest.write_text(
+            "{}  litecoin-1.0.tar.gz\n{}  litecoin-1.0.tar.gz\n".format("00" * 32, "11" * 32),
+            encoding="utf8",
+        )
+        try:
+            verifier.parse_checksum_manifest(manifest)
+        except verifier.VerifyError as exc:
+            if "duplicate artifact path in checksum manifest: litecoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong duplicate artifact error"
+        else:
+            return "zkCoin verifier accepted a duplicate checksum artifact path"
+
+    return None
+
+
 def main():
     loader_error = check_manifest_json_loader()
     if loader_error:
@@ -483,6 +510,10 @@ def main():
         return fail("schema_version must be 1")
     if manifest.get("status") != "release_infrastructure_not_ready":
         return fail("status must stay release_infrastructure_not_ready until release keys, repos, and hosts are configured")
+
+    error = require_zkcoin_verifier_rejects_duplicate_artifacts()
+    if error:
+        return fail(error)
 
     blockers = manifest.get("production_blockers")
     if not isinstance(blockers, list):
@@ -1127,12 +1158,14 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--trusted-fingerprint", "zkCoin trusted fingerprint argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
+        (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
         (VERIFY_README, "Bitcoin Core-only", "Bitcoin-only README warning"),
         (VERIFY_README, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in docs"),
         (VERIFY_README, "verify-zkcoin-release.py", "zkCoin verifier documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "zkCoin verifier fingerprint documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
+        (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
