@@ -892,6 +892,48 @@ def require_zkcoin_verifier_rejects_https_downgrade_redirects():
         if leftovers:
             return "zkCoin verifier left temporary download files after an HTTP redirect"
 
+        class CredentialedResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _exc_type, _exc, _traceback):
+                return False
+
+            def geturl(self):
+                return "https://operator:secret@downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
+
+            def read(self, _size=-1):
+                return b"unexpected payload"
+
+        def credentialed_urlopen(_url, timeout):
+            if timeout != 1:
+                raise AssertionError("unexpected timeout")
+            return CredentialedResponse()
+
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = credentialed_urlopen
+        try:
+            try:
+                verifier.download_artifact(
+                    "https://downloads.example.invalid/zkcoin",
+                    "zkcoin-1.0.tar.gz",
+                    target,
+                    1,
+                )
+            except verifier.VerifyError as exc:
+                if "artifact download redirected to a credentialed URL: zkcoin-1.0.tar.gz" not in str(exc):
+                    return "zkCoin verifier reported the wrong credentialed redirect error"
+            else:
+                return "zkCoin verifier accepted a credentialed artifact redirect"
+        finally:
+            verifier.urlopen = original_urlopen
+
+        if target.exists():
+            return "zkCoin verifier left an artifact after a credentialed redirect"
+        leftovers = list(artifacts_dir.iterdir()) if artifacts_dir.exists() else []
+        if leftovers:
+            return "zkCoin verifier left temporary download files after a credentialed redirect"
+
     return None
 
 
@@ -1847,6 +1889,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must not contain credentials", "zkCoin verifier download base credential guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected away from HTTPS", "zkCoin verifier HTTPS redirect guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected to a credentialed URL", "zkCoin verifier credentialed redirect guard"),
         (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path appeared during download", "zkCoin verifier raced artifact target guard"),
         (ZKCOIN_VERIFY_SCRIPT, "os.link", "zkCoin verifier exclusive artifact install"),
@@ -1877,6 +1920,7 @@ def main():
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
         (VERIFY_README, "without embedded credentials", "zkCoin verifier download base credential documentation"),
         (VERIFY_README, "redirect away from HTTPS", "zkCoin verifier HTTPS redirect documentation"),
+        (VERIFY_README, "redirect to credentialed URLs", "zkCoin verifier credentialed redirect documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
         (VERIFY_README, "without overwriting a final artifact path that appears during the download", "zkCoin verifier raced artifact target documentation"),

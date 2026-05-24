@@ -241,8 +241,11 @@ def validate_download_timeout(timeout):
 
 def require_https_download_response(response, filename):
     final_url = response.geturl()
-    if urlparse(final_url).scheme != "https":
+    parsed = urlparse(final_url)
+    if parsed.scheme != "https":
         raise VerifyError("artifact download redirected away from HTTPS: {}".format(filename))
+    if parsed.username is not None or parsed.password is not None:
+        raise VerifyError("artifact download redirected to a credentialed URL: {}".format(filename))
 
 
 def install_downloaded_artifact(temp_path, target, filename):
