@@ -745,6 +745,18 @@ def require_zkcoin_verifier_rejects_insecure_download_base():
         else:
             return "zkCoin verifier accepted insecure or malformed download base: {}".format(url)
 
+    for url in (
+        "https://operator@downloads.example.invalid/zkcoin",
+        "https://operator:secret@downloads.example.invalid/zkcoin",
+    ):
+        try:
+            verifier.validate_download_base(url)
+        except verifier.VerifyError as exc:
+            if "--download-base must not contain credentials" not in str(exc):
+                return "zkCoin verifier reported the wrong credentialed download-base error"
+        else:
+            return "zkCoin verifier accepted credentialed download base: {}".format(url)
+
     try:
         verifier.validate_download_base("https://downloads.example.invalid/zkcoin")
     except verifier.VerifyError as exc:
@@ -1780,6 +1792,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "trusted fingerprint must be a full 40-character hex fingerprint", "zkCoin verifier trusted fingerprint shape guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "--download-base must not contain credentials", "zkCoin verifier download base credential guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected away from HTTPS", "zkCoin verifier HTTPS redirect guard"),
         (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
@@ -1808,6 +1821,7 @@ def main():
         (VERIFY_README, "full 40-character hex fingerprints", "zkCoin verifier fingerprint shape documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
+        (VERIFY_README, "without embedded credentials", "zkCoin verifier download base credential documentation"),
         (VERIFY_README, "redirect away from HTTPS", "zkCoin verifier HTTPS redirect documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
