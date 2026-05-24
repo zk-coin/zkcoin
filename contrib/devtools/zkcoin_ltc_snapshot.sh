@@ -334,6 +334,7 @@ AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 COIN = 100000000
 MAX_MONEY = 84000000 * COIN
 MAX_MONEY_TEXT = "84000000.00000000"
+NULL_UINT256 = "0" * 64
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -380,6 +381,8 @@ def require_hash(obj, source, field):
     value = value.lower()
     if not HEX64_RE.fullmatch(value):
         fail(f"{source}.{field} must be a 64-character hex string")
+    if value == NULL_UINT256:
+        fail(f"{source}.{field} must not be the null uint256")
     return value
 
 def require_amount(obj, source, field):
