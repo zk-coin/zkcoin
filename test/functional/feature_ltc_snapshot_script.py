@@ -211,8 +211,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_symlink=False,
         audit_path_same_as_snapshot=False,
         audit_path_aliases_snapshot=False,
+        audit_path_symlink_parent_aliases_snapshot=False,
         audit_path_same_as_snapshot_incomplete=False,
         audit_path_aliases_snapshot_incomplete=False,
+        audit_path_symlink_parent_aliases_snapshot_incomplete=False,
         audit_path_parent_missing=False,
         snapshot_path_parent_missing=False,
         audit_path_parent_unwritable=False,
@@ -252,10 +254,18 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             alias_dir = os.path.join(self.options.tmpdir, "snapshot-path-alias")
             os.makedirs(alias_dir, exist_ok=True)
             audit_path = os.path.join(alias_dir, "..", os.path.basename(snapshot_path))
+        elif audit_path_symlink_parent_aliases_snapshot:
+            alias_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-path-symlink-alias")
+            os.symlink(self.options.tmpdir, alias_dir)
+            audit_path = os.path.join(alias_dir, os.path.basename(snapshot_path))
         elif audit_path_aliases_snapshot_incomplete:
             alias_dir = os.path.join(self.options.tmpdir, "snapshot-incomplete-path-alias")
             os.makedirs(alias_dir, exist_ok=True)
             audit_path = os.path.join(alias_dir, "..", os.path.basename(snapshot_path) + ".incomplete")
+        elif audit_path_symlink_parent_aliases_snapshot_incomplete:
+            alias_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-incomplete-symlink-alias")
+            os.symlink(self.options.tmpdir, alias_dir)
+            audit_path = os.path.join(alias_dir, os.path.basename(snapshot_path) + ".incomplete")
         elif audit_path_parent_missing:
             audit_path = os.path.join(self.options.tmpdir, "missing-audit-dir", f"{name}.audit.json")
         elif audit_path_parent_unwritable:
@@ -288,8 +298,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or precreate_audit
             or audit_path_same_as_snapshot
             or audit_path_aliases_snapshot
+            or audit_path_symlink_parent_aliases_snapshot
             or audit_path_same_as_snapshot_incomplete
             or audit_path_aliases_snapshot_incomplete
+            or audit_path_symlink_parent_aliases_snapshot_incomplete
             or audit_path_parent_missing
             or audit_path_parent_unwritable
             or audit_path_symlink
@@ -476,6 +488,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             audit_path_aliases_snapshot=True,
         )
         assert_equal(calls, [])
+        _, calls, _ = self.assert_snapshot(
+            "audit-path-symlink-parent-aliases-snapshot",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must differ from snapshot output path",
+            audit_path_symlink_parent_aliases_snapshot=True,
+        )
+        assert_equal(calls, [])
 
         self.log.info("Reject audit summary paths colliding with snapshot incomplete output before calling either CLI")
         _, calls, _ = self.assert_snapshot(
@@ -492,6 +512,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary path must differ from snapshot incomplete output path",
             audit_path_aliases_snapshot_incomplete=True,
+        )
+        assert_equal(calls, [])
+        _, calls, _ = self.assert_snapshot(
+            "audit-path-symlink-parent-aliases-incomplete",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must differ from snapshot incomplete output path",
+            audit_path_symlink_parent_aliases_snapshot_incomplete=True,
         )
         assert_equal(calls, [])
 
