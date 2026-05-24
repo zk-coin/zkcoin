@@ -46,6 +46,18 @@ die() {
   exit 1
 }
 
+reject_control_path() {
+  python3 - "$1" "$2" <<'PY'
+import sys
+
+path = sys.argv[1]
+label = sys.argv[2]
+if any(ord(char) < 0x20 or ord(char) == 0x7f for char in path):
+    print(f"error: {label} path must not contain control characters: {path!r}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
 if (( $# < 6 )); then
   usage
   exit 1
@@ -92,6 +104,7 @@ case "$SNAPSHOT_PATH" in
   *) SNAPSHOT_PATH="$(pwd -P)/$SNAPSHOT_PATH" ;;
 esac
 
+reject_control_path "$SNAPSHOT_PATH" "snapshot output"
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output path must not be a symlink: $SNAPSHOT_PATH"
 fi
@@ -114,6 +127,7 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
     /*) ;;
     *) AUDIT_JSON_PATH="$(pwd -P)/$AUDIT_JSON_PATH" ;;
   esac
+  reject_control_path "$AUDIT_JSON_PATH" "snapshot audit summary"
   if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
   fi
