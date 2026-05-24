@@ -39,6 +39,7 @@ INFO_JSON="$(zk_cli getblockchaininfo)"
 
 python3 - "$INFO_JSON" <<'PY'
 import json
+import math
 import re
 import sys
 
@@ -119,6 +120,13 @@ if not isinstance(bestblockhash, str) or not HEX64_RE.fullmatch(bestblockhash) o
 chainwork = info.get("chainwork")
 if not isinstance(chainwork, str) or not HEX64_RE.fullmatch(chainwork) or chainwork == NULL_UINT256:
     schema_errors.append("getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string")
+verificationprogress = info.get("verificationprogress")
+if (
+    type(verificationprogress) not in (int, float)
+    or not math.isfinite(verificationprogress)
+    or verificationprogress < 0
+):
+    schema_errors.append("getblockchaininfo.verificationprogress must be a non-negative number")
 initialblockdownload = info.get("initialblockdownload")
 if type(initialblockdownload) is not bool:
     schema_errors.append("getblockchaininfo.initialblockdownload must be a boolean")
@@ -347,6 +355,7 @@ print(f"  chain height: {blocks}")
 print(f"  header height: {headers}")
 print(f"  best block hash: {bestblockhash}")
 print(f"  chainwork: {chainwork}")
+print(f"  verification progress: {verificationprogress}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
 print(f"  warnings: {warnings if warnings else '<none>'}")

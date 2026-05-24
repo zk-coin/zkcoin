@@ -3247,6 +3247,10 @@ def main():
             "preflight validates chainwork shape",
         ),
         (
+            "getblockchaininfo.verificationprogress must be a non-negative number",
+            "preflight validates verification progress shape",
+        ),
+        (
             "getblockchaininfo.initialblockdownload must be a boolean",
             "preflight validates initial block download shape",
         ),
@@ -3328,6 +3332,10 @@ def main():
         (
             "Reject malformed chainwork in launch preflight",
             "preflight fake-CLI chainwork coverage",
+        ),
+        (
+            "Reject malformed verification progress in launch preflight",
+            "preflight fake-CLI verification progress coverage",
         ),
         (
             "Reject initial block download in launch preflight",
@@ -3512,6 +3520,7 @@ def main():
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
         ("getblockchaininfo.chainwork", "preflight chainwork documentation"),
+        ("getblockchaininfo.verificationprogress", "preflight verification progress documentation"),
         ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
         ("getblockchaininfo.pruned=false", "preflight pruned mode documentation"),
         ('getblockchaininfo.warnings=""', "preflight node warning documentation"),
