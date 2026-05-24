@@ -258,6 +258,14 @@ def require_verificationprogress():
         fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number")
     return value
 
+def require_difficulty():
+    if "difficulty" not in chaininfo:
+        fail("litecoin-cli getblockchaininfo.difficulty must be a non-negative number")
+    value = chaininfo["difficulty"]
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        fail("litecoin-cli getblockchaininfo.difficulty must be a non-negative number")
+    return value
+
 chain = require_string("chain")
 if chain not in ("main", "test"):
     fail("Litecoin source node chain must be main or test for public snapshot generation")
@@ -266,6 +274,7 @@ headers = require_nonnegative_int("headers")
 bestblockhash = require_bestblockhash()
 require_chainwork()
 require_verificationprogress()
+require_difficulty()
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
 if headers > blocks:
