@@ -3405,6 +3405,7 @@ def main():
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
+        ('require_string("chain")', "snapshot script validates source chain name shape"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         (
             "litecoin-cli getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string",
@@ -3488,6 +3489,7 @@ def main():
         ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
         ("Reject control characters in snapshot and audit output paths", "snapshot script test rejects control-character output paths"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
+        ("Reject malformed Litecoin source chain name", "snapshot script test validates source chain name shape"),
         ("Reject fractional Litecoin source chain heights", "snapshot script test rejects fractional source heights"),
         (
             "Reject malformed Litecoin source best block hash",
@@ -3787,6 +3789,10 @@ def main():
         (
             "malformed source sync booleans",
             "public launch snapshot source sync boolean documentation",
+        ),
+        (
+            "malformed source chain names",
+            "public launch snapshot source chain-name documentation",
         ),
         (
             "validates the block `X + 1` restore hash before invalidating",
