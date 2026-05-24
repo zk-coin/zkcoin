@@ -136,6 +136,8 @@ def parse_checksum_manifest(path):
             raise VerifyError("invalid checksum line {}: {}".format(line_number, line))
         digest, filename = match.groups()
         filename = filename.strip()
+        if "\\" in filename or any(ord(char) < 0x20 or ord(char) == 0x7f for char in filename):
+            raise VerifyError("artifact path contains backslashes or control characters in checksum manifest")
         pure_path = PurePosixPath(filename)
         if pure_path.is_absolute() or ".." in pure_path.parts:
             raise VerifyError("unsafe artifact path in checksum manifest: {}".format(filename))
