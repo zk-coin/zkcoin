@@ -91,6 +91,8 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "chainwork": "00" * 31 + "01",
             "verificationprogress": 1.0,
             "size_on_disk": 1024,
+            "time": 1600000000,
+            "mediantime": 1600000000,
             "initialblockdownload": False,
             "pruned": False,
             "warnings": "",
@@ -244,6 +246,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             malformed_size_on_disk,
             1,
             "getblockchaininfo.size_on_disk must be a positive integer",
+        )
+
+        self.log.info("Reject malformed launch-tip times in launch preflight")
+        malformed_tip_time = self.valid_info()
+        malformed_tip_time["time"] = "1600000000"
+        self.assert_preflight(
+            fake_cli,
+            malformed_tip_time,
+            1,
+            "getblockchaininfo.time must be a non-negative integer",
+        )
+        malformed_median_time = self.valid_info()
+        malformed_median_time["mediantime"] = malformed_median_time["time"] + 1
+        self.assert_preflight(
+            fake_cli,
+            malformed_median_time,
+            1,
+            "getblockchaininfo.mediantime must be less than or equal to time",
         )
 
         self.log.info("Reject initial block download in launch preflight")

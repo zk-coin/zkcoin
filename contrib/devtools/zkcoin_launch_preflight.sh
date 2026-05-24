@@ -130,6 +130,14 @@ if (
 size_on_disk = info.get("size_on_disk")
 if type(size_on_disk) is not int or size_on_disk <= 0:
     schema_errors.append("getblockchaininfo.size_on_disk must be a positive integer")
+tip_time = info.get("time")
+if type(tip_time) is not int or tip_time < 0:
+    schema_errors.append("getblockchaininfo.time must be a non-negative integer")
+mediantime = info.get("mediantime")
+if type(mediantime) is not int or mediantime < 0:
+    schema_errors.append("getblockchaininfo.mediantime must be a non-negative integer")
+if type(tip_time) is int and type(mediantime) is int and mediantime > tip_time:
+    schema_errors.append("getblockchaininfo.mediantime must be less than or equal to time")
 initialblockdownload = info.get("initialblockdownload")
 if type(initialblockdownload) is not bool:
     schema_errors.append("getblockchaininfo.initialblockdownload must be a boolean")
@@ -360,6 +368,8 @@ print(f"  best block hash: {bestblockhash}")
 print(f"  chainwork: {chainwork}")
 print(f"  verification progress: {verificationprogress}")
 print(f"  size on disk: {size_on_disk}")
+print(f"  block time: {tip_time}")
+print(f"  median time: {mediantime}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
 print(f"  warnings: {warnings if warnings else '<none>'}")
