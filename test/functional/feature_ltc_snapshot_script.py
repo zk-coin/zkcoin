@@ -854,6 +854,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "dumptxoutset contains duplicate field: base_height",
         )
 
+        self.log.info("Reject non-lowercase snapshot dump hashes")
+        self.assert_snapshot(
+            "uppercase-dump-hash",
+            self.scenario(dump_json=self.dump_json(base_hash=BLOCK_HASH.upper())),
+            1,
+            "dumptxoutset.base_hash must be a lowercase 64-character hex string",
+        )
+
         self.log.info("Reject missing snapshot dump file before verification")
         _, calls, _ = self.assert_snapshot(
             "missing-dump-file",
@@ -931,6 +939,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             ),
             1,
             "verifysnapshotmanifest contains duplicate field: import_hash",
+        )
+
+        self.log.info("Reject non-lowercase verifier hashes")
+        self.assert_snapshot(
+            "uppercase-verify-hash",
+            self.scenario(verify_json=self.verify_json(import_hash=IMPORT_HASH.upper())),
+            1,
+            "verifysnapshotmanifest.import_hash must be a lowercase 64-character hex string",
         )
 
         self.log.info("Reject missing verifier manifest fields")
