@@ -12,7 +12,7 @@ and must not contain duplicate artifact paths, so a release cannot publish ambig
 Artifact checksums must be lowercase 64-character hex digests and use coreutils SHA256SUMS separators.
 Artifact paths must be normalized POSIX paths, must not have leading or trailing whitespace,
 and must not contain backslashes or control characters. Local artifacts must be
-regular files, not symlinks.
+regular files, not symlinks. Artifacts directories must be direct directories, not symlinks.
 
 ```sh
 ./verify-zkcoin-release.py \

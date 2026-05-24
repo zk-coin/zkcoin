@@ -100,6 +100,21 @@ def require_regular_checksums_file(path):
         raise VerifyError("checksums file does not exist or is not a regular file: {}".format(path))
 
 
+def prepare_artifacts_dir(path):
+    if path.is_symlink():
+        raise VerifyError("artifacts directory must not be a symlink: {}".format(path))
+    if path.exists() and not path.is_dir():
+        raise VerifyError("artifacts path must be a directory: {}".format(path))
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise VerifyError("cannot create artifacts directory: {}".format(exc)) from exc
+    if path.is_symlink():
+        raise VerifyError("artifacts directory must not be a symlink: {}".format(path))
+    if not path.is_dir():
+        raise VerifyError("artifacts path must be a directory: {}".format(path))
+
+
 def read_checksum_manifest_text(path):
     try:
         if path.stat().st_size > CHECKSUM_MANIFEST_MAX_BYTES:
@@ -291,7 +306,7 @@ def sha256_file(path):
 
 def verify_artifacts(args, entries):
     artifacts_dir = args.artifacts_dir
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    prepare_artifacts_dir(artifacts_dir)
 
     failures = []
     for expected_digest, filename in entries:
