@@ -121,6 +121,9 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                                 with open(command_args[0], "wb") as snapshot_file:
                                     if not scenario.get("empty_snapshot_write", False):
                                         snapshot_file.write(b"snapshot")
+                        if scenario.get("leave_incomplete_snapshot_write", False):
+                            with open(command_args[0] + ".incomplete", "wb") as incomplete_file:
+                                incomplete_file.write(b"leftover")
                         dump_json = dict(scenario["dump_json"])
                         dump_json.setdefault("path", command_args[0])
                         print(scenario.get("dump_raw", json.dumps(dump_json)))
@@ -216,6 +219,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_has_space=False,
         snapshot_path_has_control=False,
         audit_path_has_control=False,
+        precreate_snapshot_incomplete=False,
+        snapshot_incomplete_symlink=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
@@ -258,6 +263,11 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         if precreate_snapshot:
             with open(snapshot_path, "wb") as snapshot_file:
                 snapshot_file.write(b"existing")
+        if snapshot_incomplete_symlink:
+            os.symlink(os.path.join(self.options.tmpdir, f"{name}.incomplete.target"), snapshot_path + ".incomplete")
+        if precreate_snapshot_incomplete:
+            with open(snapshot_path + ".incomplete", "wb") as incomplete_file:
+                incomplete_file.write(b"existing")
         if precreate_audit:
             with open(audit_path, "w", encoding="utf8") as audit_file:
                 audit_file.write("{}\n")
@@ -522,6 +532,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot output already exists",
             precreate_snapshot=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject pre-existing snapshot incomplete output paths before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "preexisting-incomplete",
+            self.scenario(),
+            1,
+            "snapshot incomplete output already exists",
+            precreate_snapshot_incomplete=True,
+        )
+        assert_equal(calls, [])
+        _, calls, _ = self.assert_snapshot(
+            "symlink-incomplete",
+            self.scenario(),
+            1,
+            "snapshot incomplete output path must not be a symlink",
+            snapshot_incomplete_symlink=True,
         )
         assert_equal(calls, [])
 
@@ -978,6 +1006,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(symlink_snapshot_write=True),
             1,
             "snapshot output must not be a symlink after dumptxoutset",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject leftover snapshot incomplete output after dump before verification")
+        _, calls, _ = self.assert_snapshot(
+            "leftover-incomplete-file",
+            self.scenario(leave_incomplete_snapshot_write=True),
+            1,
+            "snapshot incomplete output remained after dumptxoutset",
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
 
