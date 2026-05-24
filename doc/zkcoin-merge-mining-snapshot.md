@@ -343,7 +343,7 @@ The validator ensures malformed manifest sections are reported as validation err
 instead of operator-facing tool tracebacks.
 Manifest update commands reject malformed sections before mutation, so operator
 handoff commands do not partially rewrite a bad launch manifest.
-In-place manifest writes reject symlinked manifest paths and pre-existing temp files
+In-place manifest writes reject symlinked manifest paths, symlinked parent directories, and pre-existing temp files
 before writing the updated launch handoff.
 Successful in-place manifest writes also fsync their parent directory after replacement,
 so the atomic rename is durable before the command exits.

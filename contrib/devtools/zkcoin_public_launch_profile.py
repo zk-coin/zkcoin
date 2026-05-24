@@ -1274,7 +1274,15 @@ def demote_ready_for_review(manifest):
         manifest["status"] = "blocked"
 
 
+def require_manifest_parent_directory(path):
+    if path.parent.is_symlink():
+        raise ValueError(f"manifest parent directory must not be a symlink for in-place updates: {path.parent}")
+    if not path.parent.is_dir():
+        raise ValueError(f"manifest parent path must be a directory for in-place updates: {path.parent}")
+
+
 def fsync_manifest_parent_directory(path):
+    require_manifest_parent_directory(path)
     parent_fd = os.open(path.parent, os.O_RDONLY)
     try:
         os.fsync(parent_fd)
@@ -1285,6 +1293,7 @@ def fsync_manifest_parent_directory(path):
 def write_manifest(path, manifest):
     if path.is_symlink():
         raise ValueError(f"manifest path must not be a symlink for in-place updates: {path}")
+    require_manifest_parent_directory(path)
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     tmp_path = path.with_name(path.name + ".tmp")
     if tmp_path.exists() or tmp_path.is_symlink():
