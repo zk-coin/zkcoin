@@ -121,7 +121,9 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                                 with open(command_args[0], "wb") as snapshot_file:
                                     if not scenario.get("empty_snapshot_write", False):
                                         snapshot_file.write(b"snapshot")
-                        print(scenario.get("dump_raw", json.dumps(scenario["dump_json"])))
+                        dump_json = dict(scenario["dump_json"])
+                        dump_json.setdefault("path", command_args[0])
+                        print(scenario.get("dump_raw", json.dumps(dump_json)))
                     else:
                         fail(f"unexpected litecoin command: {command}")
                 elif role == "zkcoin":
@@ -933,6 +935,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(dump_json=self.dump_json(base_hash="11" * 32)),
             1,
             f"dumptxoutset base_hash mismatch: expected={BLOCK_HASH} actual={'11' * 32}",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject malformed snapshot dump output paths before verification")
+        _, calls, _ = self.assert_snapshot(
+            "missing-dump-path",
+            self.scenario(dump_json=self.dump_json(path=None)),
+            1,
+            "dumptxoutset.path must be a non-empty string",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+        _, calls, _ = self.assert_snapshot(
+            "mismatched-dump-path",
+            self.scenario(dump_json=self.dump_json(path="/tmp/wrong-snapshot.dat")),
+            1,
+            "dumptxoutset.path must match requested snapshot output path",
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
 

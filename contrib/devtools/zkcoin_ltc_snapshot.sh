@@ -388,14 +388,15 @@ if [[ ! "$SNAPSHOT_FILE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   die "snapshot output SHA-256 fingerprint is malformed: $SNAPSHOT_FILE_SHA256"
 fi
 
-python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$DUMP_JSON" <<'PY'
+python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$DUMP_JSON" <<'PY'
 import json
 import re
 import sys
 
 height = int(sys.argv[1])
 expected_hash = sys.argv[2].lower()
-dump_json = sys.argv[3]
+snapshot_path = sys.argv[3]
+dump_json = sys.argv[4]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 INT_RE = re.compile(r"^[0-9]+$")
 NULL_UINT256 = "0" * 64
@@ -461,9 +462,16 @@ def require_hash(obj, source, field):
         fail(f"{source}.{field} must not be the null uint256")
     return value
 
+def require_path(obj, source, field):
+    value = require_field(obj, source, field)
+    if not isinstance(value, str) or not value:
+        fail(f"{source}.{field} must be a non-empty string")
+    return value
+
 dump = load_json("dumptxoutset", dump_json)
 dump_height = require_int(dump, "dumptxoutset", "base_height")
 dump_hash = require_hash(dump, "dumptxoutset", "base_hash")
+dump_path = require_path(dump, "dumptxoutset", "path")
 require_positive_int(dump, "dumptxoutset", "coins_written")
 
 if dump_height != height:
@@ -471,6 +479,9 @@ if dump_height != height:
 
 if dump_hash != expected_hash:
     fail(f"dumptxoutset base_hash mismatch: expected={expected_hash} actual={dump_hash}")
+
+if dump_path != snapshot_path:
+    fail(f"dumptxoutset.path must match requested snapshot output path: expected={snapshot_path} actual={dump_path}")
 PY
 
 echo "Verifying normalized zkCoin import hash" >&2
@@ -572,6 +583,12 @@ def require_hash(obj, source, field):
         fail(f"{source}.{field} must not be the null uint256")
     return value
 
+def require_path(obj, source, field):
+    value = require_field(obj, source, field)
+    if not isinstance(value, str) or not value:
+        fail(f"{source}.{field} must be a non-empty string")
+    return value
+
 def require_amount(obj, source, field):
     value = require_field(obj, source, field)
     if not isinstance(value, str) or not AMOUNT_RE.fullmatch(value) or value == "0.00000000":
@@ -587,6 +604,7 @@ verify = load_json("verifysnapshotmanifest", verify_json)
 
 dump_height = require_int(dump, "dumptxoutset", "base_height")
 dump_hash = require_hash(dump, "dumptxoutset", "base_hash")
+dump_path = require_path(dump, "dumptxoutset", "path")
 dump_coins = require_positive_int(dump, "dumptxoutset", "coins_written")
 verify_height = require_int(verify, "verifysnapshotmanifest", "base_height")
 verify_hash = require_hash(verify, "verifysnapshotmanifest", "base_hash")
@@ -647,6 +665,9 @@ if dump_height != height:
 
 if dump_hash != expected_hash:
     fail(f"dumptxoutset base_hash mismatch: expected={expected_hash} actual={dump_hash}")
+
+if dump_path != snapshot_path:
+    fail(f"dumptxoutset.path must match requested snapshot output path: expected={snapshot_path} actual={dump_path}")
 
 if verify_hash != expected_hash:
     fail(f"verifysnapshotmanifest base_hash mismatch: expected={expected_hash} actual={verify_hash}")

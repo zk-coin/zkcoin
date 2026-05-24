@@ -236,7 +236,9 @@ returns malformed, non-object, or duplicate-field JSON, or if required snapshot/
 inconsistent, including non-lowercase or null hash fields and non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
 It parses and cross-checks the `dumptxoutset` height, block hash, and positive
 coin count before invoking `verifysnapshotmanifest`, so malformed or inconsistent
-Litecoin dump metadata cannot advance to zkCoin verifier handoff.
+Litecoin dump metadata cannot advance to zkCoin verifier handoff. It also
+requires `dumptxoutset.path` to match the requested snapshot output path before
+trusting the dump handoff.
 It also fails if the snapshot artifact becomes a symlink after dump or verification, or if its size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a

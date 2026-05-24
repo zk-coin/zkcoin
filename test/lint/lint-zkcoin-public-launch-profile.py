@@ -3506,6 +3506,7 @@ def main():
         ("snapshot output became a symlink during verification", "snapshot script rejects verifier-time symlink replacement"),
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("dumptxoutset base_height mismatch", "snapshot script rejects dump metadata before verifier handoff"),
+        ("dumptxoutset.path must match requested snapshot output path", "snapshot script rejects dump output path mismatches"),
         ("INT_RE", "snapshot script rejects fractional audit heights and counts"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
         ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
@@ -3628,6 +3629,10 @@ def main():
         (
             "Reject snapshot dump height and hash mismatches before verification",
             "snapshot script test rejects dump metadata mismatches before verifier handoff",
+        ),
+        (
+            "Reject malformed snapshot dump output paths before verification",
+            "snapshot script test rejects dump output path mismatches before verifier handoff",
         ),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
@@ -4015,6 +4020,10 @@ def main():
         (
             "before invoking `verifysnapshotmanifest`",
             "snapshot operator rejects bad dump metadata before verifier documentation",
+        ),
+        (
+            "requires `dumptxoutset.path` to match",
+            "snapshot operator dump output path validation documentation",
         ),
         (
             "duplicate-field JSON",
