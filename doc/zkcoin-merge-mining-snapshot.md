@@ -292,6 +292,8 @@ The launch manifest validator also rejects JSON booleans in integer and byte
 fields, because booleans are not valid production constants. It rejects
 unexpected manifest keys so stale or hand-edited fields cannot silently shadow
 the launch profile that will be emitted into `chainparams`.
+The validator ensures malformed manifest sections are reported as validation errors
+instead of operator-facing tool tracebacks.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary and rejects symlinked snapshot artifacts and other non-file artifacts.
 The manifest update rejects a snapshot audit whose source chain does not match

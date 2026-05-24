@@ -514,6 +514,110 @@ def require_public_launch_manifest_current():
             if extra_manifest_error:
                 return extra_manifest_error
 
+        def copied_manifest_with(mutate):
+            copied_manifest = json.loads(json.dumps(manifest))
+            mutate(copied_manifest)
+            return copied_manifest
+
+        def reject_malformed_manifest_case(name, malformed_manifest, expected_error):
+            malformed_manifest_path = Path(temp_dir) / f"{name}.json"
+            malformed_manifest_path.write_text(json.dumps(malformed_manifest), encoding="utf8")
+            malformed_manifest_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--allow-blocked",
+                    str(malformed_manifest_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if malformed_manifest_result.returncode == 0:
+                return "{} accepted malformed manifest section in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if "Traceback" in malformed_manifest_result.stderr:
+                return "{} emitted a traceback for malformed manifest section in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if expected_error not in malformed_manifest_result.stderr:
+                return "{} did not explain malformed manifest section rejection for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            return None
+
+        malformed_manifest_cases = (
+            (
+                "root-array",
+                [],
+                "manifest: must be an object",
+            ),
+            (
+                "networks-array",
+                copied_manifest_with(lambda value: value.update({"networks": []})),
+                "networks: must be an object",
+            ),
+            (
+                "profile-array",
+                copied_manifest_with(lambda value: value["networks"].update({"main": []})),
+                "networks.main: must be an object",
+            ),
+            (
+                "snapshot-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"].update(
+                        {"litecoin_snapshot": []},
+                    ),
+                ),
+                "main.litecoin_snapshot: must be an object",
+            ),
+            (
+                "snapshot-audit-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"]["litecoin_snapshot"].update(
+                        {"audit": []},
+                    ),
+                ),
+                "main.litecoin_snapshot.audit: must be an object",
+            ),
+            (
+                "auxpow-array",
+                copied_manifest_with(lambda value: value["networks"]["main"].update({"auxpow": []})),
+                "main.auxpow: must be an object",
+            ),
+            (
+                "identity-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"].update(
+                        {"public_network_identity": []},
+                    ),
+                ),
+                "main.public_network_identity: must be an object",
+            ),
+            (
+                "base58-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"]["public_network_identity"].update(
+                        {"base58_prefixes": []},
+                    ),
+                ),
+                "main.public_network_identity.base58_prefixes: must be an object",
+            ),
+        )
+        for name, malformed_manifest, expected_error in malformed_manifest_cases:
+            malformed_manifest_error = reject_malformed_manifest_case(
+                name,
+                malformed_manifest,
+                expected_error,
+            )
+            if malformed_manifest_error:
+                return malformed_manifest_error
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -2147,6 +2251,7 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
+        ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
         ("require_known_fields", "manifest rejects unexpected schema fields"),
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("ready-for-chainparams", "manifest ready status"),
@@ -2560,6 +2665,10 @@ def main():
         (
             "blocker list must match the unresolved fields exactly",
             "public launch manifest blocker consistency documentation",
+        ),
+        (
+            "malformed manifest sections are reported as validation errors",
+            "public launch manifest malformed schema documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
