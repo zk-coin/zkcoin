@@ -1104,6 +1104,14 @@ def demote_ready_for_review(manifest):
         manifest["status"] = "blocked"
 
 
+def fsync_manifest_parent_directory(path):
+    parent_fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
+
+
 def write_manifest(path, manifest):
     if path.is_symlink():
         raise ValueError(f"manifest path must not be a symlink for in-place updates: {path}")
@@ -1121,6 +1129,7 @@ def write_manifest(path, manifest):
             tmp_file.flush()
             os.fsync(tmp_file.fileno())
         tmp_path.replace(path)
+        fsync_manifest_parent_directory(path)
     except OSError as exc:
         if fd is not None:
             os.close(fd)
