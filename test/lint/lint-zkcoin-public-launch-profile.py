@@ -992,6 +992,31 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        parent_symlink_target = Path(temp_dir) / "parent-symlink-target"
+        parent_symlink_target.mkdir()
+        parent_symlink_manifest_text = json.dumps(manifest)
+        parent_symlink_target_manifest = parent_symlink_target / "parent-symlink-manifest.json"
+        parent_symlink_target_manifest.write_text(parent_symlink_manifest_text, encoding="utf8")
+        parent_symlink_path = Path(temp_dir) / "manifest-parent-link"
+        parent_symlink_path.symlink_to(parent_symlink_target, target_is_directory=True)
+        parent_symlink_error = reject_unsafe_in_place_case(
+            "symlink-parent",
+            parent_symlink_path / parent_symlink_target_manifest.name,
+            ("--set-auxpow", "main", "0x5001"),
+            "manifest parent directory must not be a symlink",
+        )
+        if parent_symlink_error:
+            return parent_symlink_error
+        if parent_symlink_target_manifest.read_text(encoding="utf8") != parent_symlink_manifest_text:
+            return "{} --in-place modified a manifest through a symlinked parent directory".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        parent_symlink_temp = parent_symlink_target_manifest.with_name(parent_symlink_target_manifest.name + ".tmp")
+        if parent_symlink_temp.exists() or parent_symlink_temp.is_symlink():
+            return "{} --in-place left a temp file through a symlinked parent directory".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         tmp_symlink_manifest_path = Path(temp_dir) / "tmp-symlink-manifest.json"
         tmp_symlink_manifest_text = json.dumps(manifest)
         tmp_symlink_manifest_path.write_text(tmp_symlink_manifest_text, encoding="utf8")
@@ -3056,6 +3081,7 @@ def main():
         ("require_known_fields", "manifest rejects unexpected schema fields"),
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("manifest path must not be a symlink", "manifest in-place updates reject symlinked manifest paths"),
+        ("manifest parent directory must not be a symlink", "manifest in-place updates reject symlinked manifest parent directories"),
         ("manifest temp path already exists", "manifest in-place updates reject pre-existing temp paths"),
         ("os.O_EXCL", "manifest in-place updates create temp files exclusively"),
         ("fsync_manifest_parent_directory", "manifest in-place updates sync the parent directory after replace"),
@@ -3818,7 +3844,7 @@ def main():
             "public launch manifest update malformed schema documentation",
         ),
         (
-            "In-place manifest writes reject symlinked manifest paths and pre-existing temp files",
+            "In-place manifest writes reject symlinked manifest paths, symlinked parent directories, and pre-existing temp files",
             "public launch manifest safe in-place write documentation",
         ),
         (
