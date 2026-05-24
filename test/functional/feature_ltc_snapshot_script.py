@@ -542,6 +542,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject non-object Litecoin source chain info")
+        _, calls, _ = self.assert_snapshot(
+            "non-object-chaininfo-json",
+            self.scenario(chaininfo_raw="[]"),
+            1,
+            "litecoin-cli getblockchaininfo response must be a JSON object",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject duplicate Litecoin source chain info fields")
         _, calls, _ = self.assert_snapshot(
             "duplicate-chaininfo-field",
@@ -824,6 +833,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "dumptxoutset did not return JSON",
         )
 
+        self.log.info("Reject non-object snapshot dump JSON")
+        self.assert_snapshot(
+            "non-object-dump-json",
+            self.scenario(dump_raw="[]"),
+            1,
+            "dumptxoutset response must be a JSON object",
+        )
+
         self.log.info("Reject duplicate snapshot dump fields")
         self.assert_snapshot(
             "duplicate-dump-field",
@@ -891,6 +908,14 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             write_audit=True,
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject non-object verifier manifest JSON")
+        self.assert_snapshot(
+            "non-object-verify-json",
+            self.scenario(verify_raw="[]"),
+            1,
+            "verifysnapshotmanifest response must be a JSON object",
+        )
 
         self.log.info("Reject duplicate verifier manifest fields")
         self.assert_snapshot(
