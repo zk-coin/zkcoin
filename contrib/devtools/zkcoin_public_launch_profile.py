@@ -808,6 +808,17 @@ def require_snapshot_audit_summary_stable(audit_summary_path, original_stat, fd)
     )
 
 
+def require_snapshot_audit_artifact_not_summary(audit_summary_path, snapshot_path):
+    try:
+        same_file = audit_summary_path.samefile(snapshot_path)
+    except FileNotFoundError:
+        return
+    except OSError:
+        return
+    if same_file:
+        raise ValueError("snapshot audit file artifact must differ from audit summary")
+
+
 def snapshot_file_sha256(snapshot_file):
     digest = hashlib.sha256()
     for chunk in iter(lambda: snapshot_file.read(1024 * 1024), b""):
@@ -1017,6 +1028,10 @@ def parse_snapshot_audit(audit_path):
         "snapshot_file": require_snapshot_audit_file(audit, "snapshot_file"),
         "total_amount": require_snapshot_audit_total_amount(audit, "total_amount"),
     }
+    require_snapshot_audit_artifact_not_summary(
+        audit_summary_path,
+        Path(parsed["audit"]["snapshot_file"]),
+    )
     return parsed
 
 
