@@ -305,7 +305,8 @@ and rejects final-path or parent-directory symlink replacement before writing
 the handoff artifact.
 The audit summary path itself must also be a direct file, not a symlink, when
 it is applied to the launch profile. The manifest update opens the audit summary
-and referenced snapshot artifact as regular files without following symlinks.
+and referenced snapshot artifact as regular files without following symlinks,
+and rejects symlinked direct parent directories for both handoff inputs.
 It also rejects audit summaries larger than 65536 bytes before parsing.
 That size cap is enforced again while reading the already-open audit summary, so
 a concurrently changed summary cannot grow past the limit after the initial file check.

@@ -741,19 +741,66 @@ def require_snapshot_audit_source_chain(audit, field):
     return value
 
 
-def open_regular_file_no_symlink(path, *, symlink_error, missing_error, not_regular_error, open_error):
+def open_direct_parent_directory_for_read(path, *, parent_symlink_error, missing_error, open_error):
     nofollow = getattr(os, "O_NOFOLLOW", 0)
-    if nofollow == 0 and path.is_symlink():
+    if nofollow == 0 and path.parent.is_symlink():
+        raise ValueError(f"{parent_symlink_error}: {path.parent}")
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow
+    try:
+        parent_fd = os.open(path.parent, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP or (exc.errno == errno.ENOTDIR and path.parent.is_symlink()):
+            raise ValueError(f"{parent_symlink_error}: {path.parent}")
+        if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+            raise ValueError(f"{missing_error}: {path}")
+        raise ValueError(f"{open_error}: {exc}")
+    try:
+        parent_stat = os.fstat(parent_fd)
+    except OSError as exc:
+        os.close(parent_fd)
+        raise ValueError(f"{open_error}: {exc}")
+    if not stat.S_ISDIR(parent_stat.st_mode):
+        os.close(parent_fd)
+        raise ValueError(f"{missing_error}: {path}")
+    return parent_fd
+
+
+def open_regular_file_no_symlink(
+    path,
+    *,
+    symlink_error,
+    missing_error,
+    not_regular_error,
+    open_error,
+    parent_symlink_error=None,
+):
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    parent_fd = None
+    if parent_symlink_error is not None:
+        parent_fd = open_direct_parent_directory_for_read(
+            path,
+            parent_symlink_error=parent_symlink_error,
+            missing_error=missing_error,
+            open_error=open_error,
+        )
+    elif nofollow == 0 and path.is_symlink():
         raise ValueError(f"{symlink_error}: {path}")
     flags = os.O_RDONLY | nofollow
     try:
-        fd = os.open(path, flags)
+        if parent_fd is None:
+            fd = os.open(path, flags)
+        else:
+            fd = os.open(path.name, flags, dir_fd=parent_fd)
     except OSError as exc:
+        if parent_fd is not None:
+            os.close(parent_fd)
         if exc.errno == errno.ELOOP:
             raise ValueError(f"{symlink_error}: {path}")
         if exc.errno in (errno.ENOENT, errno.ENOTDIR):
             raise ValueError(f"{missing_error}: {path}")
         raise ValueError(f"{open_error}: {exc}")
+    if parent_fd is not None:
+        os.close(parent_fd)
     try:
         file_stat = os.fstat(fd)
     except OSError as exc:
@@ -775,12 +822,14 @@ def file_stat_fingerprint(file_stat):
     )
 
 
-def require_regular_file_stable(path, original_stat, fd, changed_error):
+def require_regular_file_stable(path, original_stat, fd, changed_error, parent_symlink_error=None):
     try:
         final_fd_stat = os.fstat(fd)
         final_path_stat = os.stat(path, follow_symlinks=False)
     except OSError as exc:
         raise ValueError(f"{changed_error}: {exc}") from None
+    if parent_symlink_error is not None and path.parent.is_symlink():
+        raise ValueError(f"{parent_symlink_error}: {path.parent}")
     original_fingerprint = file_stat_fingerprint(original_stat)
     if (
         not stat.S_ISREG(final_path_stat.st_mode)
@@ -796,6 +845,7 @@ def require_snapshot_audit_artifact_stable(snapshot_path, original_stat, snapsho
         original_stat,
         snapshot_file.fileno(),
         "snapshot audit file artifact changed during verification",
+        parent_symlink_error="snapshot audit file artifact parent directory must not be a symlink",
     )
 
 
@@ -805,6 +855,7 @@ def require_snapshot_audit_summary_stable(audit_summary_path, original_stat, fd)
         original_stat,
         fd,
         "snapshot audit summary changed during read",
+        parent_symlink_error="snapshot audit summary parent directory must not be a symlink",
     )
 
 
@@ -834,6 +885,7 @@ def verify_snapshot_audit_artifact(audit):
         missing_error="snapshot audit file artifact does not exist",
         not_regular_error="snapshot audit file artifact must be a regular file",
         open_error="cannot read snapshot audit file artifact",
+        parent_symlink_error="snapshot audit file artifact parent directory must not be a symlink",
     )
     snapshot_file = None
     actual_size = initial_stat.st_size
@@ -985,6 +1037,7 @@ def parse_snapshot_audit(audit_path):
         missing_error="cannot read snapshot audit summary",
         not_regular_error="snapshot audit summary must be a regular file",
         open_error="cannot read snapshot audit summary",
+        parent_symlink_error="snapshot audit summary parent directory must not be a symlink",
     )
     audit_summary_size = audit_summary_stat.st_size
     if audit_summary_size > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
