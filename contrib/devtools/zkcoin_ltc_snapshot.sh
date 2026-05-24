@@ -243,12 +243,19 @@ def require_bestblockhash():
         fail("litecoin-cli getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string")
     return value
 
+def require_chainwork():
+    value = require_string("chainwork")
+    if not HEX64_RE.fullmatch(value) or value == NULL_UINT256:
+        fail("litecoin-cli getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string")
+    return value
+
 chain = require_string("chain")
 if chain not in ("main", "test"):
     fail("Litecoin source node chain must be main or test for public snapshot generation")
 blocks = require_nonnegative_int("blocks")
 headers = require_nonnegative_int("headers")
 bestblockhash = require_bestblockhash()
+require_chainwork()
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
 if headers > blocks:
