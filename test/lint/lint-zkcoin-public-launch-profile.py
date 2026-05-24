@@ -1429,6 +1429,35 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        parent_symlink_audit_target = Path(temp_dir) / "snapshot-audit-parent-target"
+        parent_symlink_audit_target.mkdir()
+        parent_symlink_audit_file = parent_symlink_audit_target / "snapshot-audit.json"
+        parent_symlink_audit_file.write_text(json.dumps(audit), encoding="utf8")
+        parent_symlink_audit_parent = Path(temp_dir) / "snapshot-audit-parent-link"
+        parent_symlink_audit_parent.symlink_to(parent_symlink_audit_target, target_is_directory=True)
+        parent_symlink_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(parent_symlink_audit_parent / parent_symlink_audit_file.name),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an audit summary through a symlinked parent".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary parent directory must not be a symlink" not in parent_symlink_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain symlink audit summary parent rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         directory_audit_path = Path(temp_dir) / "snapshot-audit-dir"
         directory_audit_path.mkdir()
         directory_audit_result = subprocess.run(
@@ -1827,6 +1856,41 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit file artifact must not be a symlink" not in symlink_artifact_result.stderr:
             return "{} --set-snapshot-audit did not explain symlink snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        parent_symlink_artifact_target = Path(temp_dir) / "artifact-parent-target"
+        parent_symlink_artifact_target.mkdir()
+        parent_symlink_artifact_file = parent_symlink_artifact_target / "ltc-block-x.dat"
+        parent_symlink_artifact_file.write_bytes(snapshot_artifact)
+        parent_symlink_artifact_parent = Path(temp_dir) / "artifact-parent-link"
+        parent_symlink_artifact_parent.symlink_to(parent_symlink_artifact_target, target_is_directory=True)
+        parent_symlink_artifact_audit_path = Path(temp_dir) / "parent-symlink-artifact-audit.json"
+        parent_symlink_artifact_audit = dict(audit)
+        parent_symlink_artifact_audit["snapshot_file"] = str(
+            parent_symlink_artifact_parent / parent_symlink_artifact_file.name
+        )
+        parent_symlink_artifact_audit_path.write_text(json.dumps(parent_symlink_artifact_audit), encoding="utf8")
+        parent_symlink_artifact_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(parent_symlink_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_artifact_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a snapshot artifact through a symlinked parent".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact parent directory must not be a symlink" not in parent_symlink_artifact_result.stderr:
+            return "{} --set-snapshot-audit did not explain symlink snapshot artifact parent rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3151,7 +3215,9 @@ def main():
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
+        ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
         ("snapshot audit summary must be a regular file", "manifest rejects non-file snapshot audit summaries"),
+        ("snapshot audit summary parent directory must not be a symlink", "manifest rejects symlinked snapshot audit summary parents"),
         ("SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES", "manifest caps snapshot audit summary input size"),
         ("snapshot audit summary must not exceed", "manifest rejects oversized snapshot audit summaries"),
         ("read_snapshot_audit_summary_text", "manifest enforces snapshot audit summary cap while reading"),
@@ -3171,6 +3237,7 @@ def main():
         ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
         ("snapshot audit file artifact must differ from audit summary", "manifest rejects self-referential snapshot audit artifacts"),
         ("snapshot audit file artifact must not be a symlink", "manifest rejects symlinked snapshot audit artifacts"),
+        ("snapshot audit file artifact parent directory must not be a symlink", "manifest rejects symlinked snapshot audit artifact parents"),
         ("snapshot audit file artifact must be a regular file", "manifest rejects non-file snapshot audit artifacts"),
         ("require_snapshot_audit_artifact_stable", "manifest rechecks snapshot audit artifacts after hashing"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
@@ -4008,6 +4075,10 @@ def main():
         (
             "audit summary path itself must also be a direct file",
             "public launch snapshot audit summary symlink rejection documentation",
+        ),
+        (
+            "rejects symlinked direct parent directories for both handoff inputs",
+            "public launch snapshot audit parent directory rejection documentation",
         ),
         (
             "size cap is enforced again while reading",
