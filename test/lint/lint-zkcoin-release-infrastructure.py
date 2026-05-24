@@ -725,6 +725,75 @@ def require_zkcoin_verifier_downloads_atomically():
     return None
 
 
+def require_zkcoin_verifier_rejects_raced_download_targets():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    class RacingResponse:
+        def __init__(self, target):
+            self.target = target
+            self.sent = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+        def geturl(self):
+            return "https://downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
+
+        def read(self, _size=-1):
+            if self.sent:
+                return b""
+            self.sent = True
+            self.target.write_bytes(b"operator-provided artifact")
+            return b"downloaded artifact payload"
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        artifacts_dir = Path(tempdir) / "artifacts"
+        target = artifacts_dir / "zkcoin-1.0.tar.gz"
+
+        def racing_urlopen(_url, timeout):
+            if timeout != 1:
+                raise AssertionError("unexpected timeout")
+            return RacingResponse(target)
+
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = racing_urlopen
+        try:
+            try:
+                verifier.download_artifact(
+                    "https://downloads.example.invalid/zkcoin",
+                    "zkcoin-1.0.tar.gz",
+                    target,
+                    1,
+                )
+            except verifier.VerifyError as exc:
+                if "artifact path appeared during download: zkcoin-1.0.tar.gz" not in str(exc):
+                    return "zkCoin verifier reported the wrong raced-download target error"
+            else:
+                return "zkCoin verifier overwrote an artifact path that appeared during download"
+        finally:
+            verifier.urlopen = original_urlopen
+
+        if target.read_bytes() != b"operator-provided artifact":
+            return "zkCoin verifier modified an artifact path that appeared during download"
+        leftovers = [
+            entry
+            for entry in artifacts_dir.iterdir()
+            if entry.name != "zkcoin-1.0.tar.gz"
+        ]
+        if leftovers:
+            return "zkCoin verifier left temporary download files after a raced final artifact path"
+
+    return None
+
+
 def require_zkcoin_verifier_removes_hash_mismatched_downloads():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -866,6 +935,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_downloads_atomically()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_raced_download_targets()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_removes_hash_mismatched_downloads()
@@ -1522,7 +1594,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected away from HTTPS", "zkCoin verifier HTTPS redirect guard"),
         (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
-        (ZKCOIN_VERIFY_SCRIPT, "replace(target)", "zkCoin verifier atomic artifact install"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact path appeared during download", "zkCoin verifier raced artifact target guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "os.link", "zkCoin verifier exclusive artifact install"),
         (ZKCOIN_VERIFY_SCRIPT, "target.unlink()", "zkCoin verifier downloaded mismatch cleanup"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
@@ -1540,6 +1613,7 @@ def main():
         (VERIFY_README, "redirect away from HTTPS", "zkCoin verifier HTTPS redirect documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
+        (VERIFY_README, "without overwriting a final artifact path that appears during the download", "zkCoin verifier raced artifact target documentation"),
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
