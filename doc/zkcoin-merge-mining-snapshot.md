@@ -117,7 +117,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --next-action` to print
   the next unresolved blocker group and the matching handoff command template;
   when checking a staged copy, pass that manifest path so the printed command
-  targets the same file.
+  targets the same file. The printed command shell-quotes the manifest path
+  when needed, so staged copies in directories with spaces are safe to use.
   After selecting a final AuxPoW child chain id, update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
