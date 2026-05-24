@@ -16,8 +16,8 @@ Local artifacts must be regular files, not symlinks.
   --artifacts-dir ./release-artifacts
 ```
 
-If artifacts are not already present locally, pass the resolved release artifact
-base URL:
+If artifacts are not already present locally, pass the resolved HTTPS base URL
+for release artifacts:
 
 ```sh
 ./verify-zkcoin-release.py \

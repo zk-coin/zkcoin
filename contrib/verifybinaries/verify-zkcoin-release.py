@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib.request import urlopen
 
 
@@ -171,6 +171,14 @@ def require_regular_artifact(target, filename):
         raise VerifyError("artifact path must be a regular file: {}".format(filename))
 
 
+def validate_download_base(base_url):
+    if not base_url:
+        return
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.params or parsed.query or parsed.fragment:
+        raise VerifyError("--download-base must be an HTTPS base URL without parameters, query, or fragment")
+
+
 def download_artifact(base_url, filename, target, timeout):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
@@ -219,6 +227,7 @@ def main():
         return 2
 
     try:
+        validate_download_base(args.download_base)
         with tempfile.TemporaryDirectory(prefix="zkcoin-verify-") as tempdir:
             decrypted = Path(tempdir) / "SHA256SUMS"
             run_gpg_decrypt(args, decrypted)

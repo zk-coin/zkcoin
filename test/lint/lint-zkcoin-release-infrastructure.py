@@ -526,6 +526,35 @@ def require_zkcoin_verifier_rejects_symlink_artifacts():
     return None
 
 
+def require_zkcoin_verifier_rejects_insecure_download_base():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    invalid_urls = (
+        "http://downloads.example.invalid/zkcoin/",
+        "https://downloads.example.invalid/zkcoin/?mirror=1",
+    )
+    for url in invalid_urls:
+        try:
+            verifier.validate_download_base(url)
+        except verifier.VerifyError as exc:
+            if "--download-base must be an HTTPS base URL without parameters, query, or fragment" not in str(exc):
+                return "zkCoin verifier reported the wrong download-base error"
+        else:
+            return "zkCoin verifier accepted insecure or malformed download base: {}".format(url)
+
+    try:
+        verifier.validate_download_base("https://downloads.example.invalid/zkcoin")
+    except verifier.VerifyError as exc:
+        return "zkCoin verifier rejected a well-formed HTTPS download base: {}".format(exc)
+
+    return None
+
+
 def main():
     loader_error = check_manifest_json_loader()
     if loader_error:
@@ -547,6 +576,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_symlink_artifacts()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_insecure_download_base()
     if error:
         return fail(error)
 
@@ -1192,6 +1224,7 @@ def main():
         (VERIFY_SCRIPT, "verifies Bitcoin Core artifacts, not zkCoin", "Bitcoin-only verifier warning"),
         (ZKCOIN_VERIFY_SCRIPT, "--trusted-fingerprint", "zkCoin trusted fingerprint argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
+        (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
@@ -1202,6 +1235,7 @@ def main():
         (VERIFY_README, "verify-zkcoin-release.py", "zkCoin verifier documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "zkCoin verifier fingerprint documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
+        (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
