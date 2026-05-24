@@ -127,6 +127,13 @@ if (
     or verificationprogress < 0
 ):
     schema_errors.append("getblockchaininfo.verificationprogress must be a non-negative number")
+difficulty = info.get("difficulty")
+if (
+    type(difficulty) not in (int, float)
+    or not math.isfinite(difficulty)
+    or difficulty < 0
+):
+    schema_errors.append("getblockchaininfo.difficulty must be a non-negative number")
 size_on_disk = info.get("size_on_disk")
 if type(size_on_disk) is not int or size_on_disk <= 0:
     schema_errors.append("getblockchaininfo.size_on_disk must be a positive integer")
@@ -367,6 +374,7 @@ print(f"  header height: {headers}")
 print(f"  best block hash: {bestblockhash}")
 print(f"  chainwork: {chainwork}")
 print(f"  verification progress: {verificationprogress}")
+print(f"  difficulty: {difficulty}")
 print(f"  size on disk: {size_on_disk}")
 print(f"  block time: {tip_time}")
 print(f"  median time: {mediantime}")

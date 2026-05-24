@@ -90,6 +90,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "bestblockhash": "33" * 32,
             "chainwork": "00" * 31 + "01",
             "verificationprogress": 1.0,
+            "difficulty": 1.0,
             "size_on_disk": 1024,
             "time": 1600000000,
             "mediantime": 1600000000,
@@ -236,6 +237,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             malformed_verification_progress,
             1,
             "getblockchaininfo.verificationprogress must be a non-negative number",
+        )
+
+        self.log.info("Reject malformed difficulty in launch preflight")
+        malformed_difficulty = self.valid_info()
+        malformed_difficulty["difficulty"] = -1
+        self.assert_preflight(
+            fake_cli,
+            malformed_difficulty,
+            1,
+            "getblockchaininfo.difficulty must be a non-negative number",
         )
 
         self.log.info("Reject malformed size on disk in launch preflight")
