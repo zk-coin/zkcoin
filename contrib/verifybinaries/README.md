@@ -7,6 +7,7 @@ clearsigned `SHA256SUMS.asc` was signed by an explicitly supplied zkCoin release
 signing key fingerprint, then verifies every selected artifact hash from the
 signed manifest. The signed manifest must not contain duplicate artifact paths,
 so a release cannot publish ambiguous checksums for the same artifact name.
+Local artifacts must be regular files, not symlinks.
 
 ```sh
 ./verify-zkcoin-release.py \
