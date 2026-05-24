@@ -1408,6 +1408,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        control_file_audit_path = Path(temp_dir) / "control-file-audit.json"
+        control_file_audit = dict(audit)
+        control_file_audit["snapshot_file"] = str(snapshot_artifact_path) + "\ntruncated"
+        control_file_audit_path.write_text(json.dumps(control_file_audit), encoding="utf8")
+        control_file_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(control_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if control_file_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a snapshot file path with control characters".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "without control characters" not in control_file_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain control-character snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         directory_artifact_path = Path(temp_dir) / "ltc-block-x-dir.dat"
         directory_artifact_path.mkdir()
         directory_artifact_audit_path = Path(temp_dir) / "directory-artifact-audit.json"
@@ -2636,6 +2663,7 @@ def main():
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
+        ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
         ("must not exceed {SNAPSHOT_MAX_MONEY_TEXT}", "manifest rejects over-maximum snapshot audit amounts"),
@@ -3161,6 +3189,10 @@ def main():
         (
             "absolute snapshot file path",
             "public launch manifest snapshot audit file-path documentation",
+        ),
+        (
+            "must not contain control characters",
+            "public launch manifest snapshot audit control-character documentation",
         ),
         (
             "positive decimal total amount with 8 fractional digits",

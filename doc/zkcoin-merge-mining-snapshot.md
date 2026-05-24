@@ -288,6 +288,9 @@ that does not exceed `84000000.00000000`. Hash fields must be exact
 operator-edited uppercase hashes. The manifest update rejects audit
 summaries with unexpected extra fields, so hand-edited or stale summaries do not
 silently carry ignored launch values.
+The stored snapshot file path must not contain control characters, preventing
+operator-edited summaries from carrying multi-line or terminal-control paths into
+the launch profile.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts
 and integral source heights, and reject fractional values instead of rounding or truncating them.
 The launch manifest validator also rejects JSON booleans in integer and byte
