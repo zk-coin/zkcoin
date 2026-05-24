@@ -116,6 +116,9 @@ if type(blocks) is int and type(headers) is int and headers < blocks:
 bestblockhash = info.get("bestblockhash")
 if not isinstance(bestblockhash, str) or not HEX64_RE.fullmatch(bestblockhash) or bestblockhash == NULL_UINT256:
     schema_errors.append("getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string")
+chainwork = info.get("chainwork")
+if not isinstance(chainwork, str) or not HEX64_RE.fullmatch(chainwork) or chainwork == NULL_UINT256:
+    schema_errors.append("getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string")
 initialblockdownload = info.get("initialblockdownload")
 if type(initialblockdownload) is not bool:
     schema_errors.append("getblockchaininfo.initialblockdownload must be a boolean")
@@ -343,6 +346,7 @@ print(f"  chain: {chain}")
 print(f"  chain height: {blocks}")
 print(f"  header height: {headers}")
 print(f"  best block hash: {bestblockhash}")
+print(f"  chainwork: {chainwork}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
 print(f"  warnings: {warnings if warnings else '<none>'}")
