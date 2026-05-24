@@ -16,10 +16,11 @@ together.
 
 The launch preflight guard also cross-checks the detailed snapshot, AuxPoW, and
 shielded pool sections reported by `getblockchaininfo` against
-`launch_readiness`, rejects the local launch placeholder `0x5a4b` AuxPoW chain
-id, and rejects in-progress snapshot imports. It also checks the shielded proof
-posture: scaffold proofs must be disabled, the real proof backend must be
-`orchard-v1`, and real proof verification must be available.
+`launch_readiness`, requires a duplicate-free JSON object, rejects the local
+launch placeholder `0x5a4b` AuxPoW chain id, and rejects in-progress snapshot
+imports. It also checks the shielded proof posture: scaffold proofs must be
+disabled, the real proof backend must be `orchard-v1`, and real proof
+verification must be available.
 
 The real-proof functional regression is run with
 `ZKCOIN_REQUIRE_ORCHARD_VERIFIER=1`, so a missing Orchard verifier backend is a

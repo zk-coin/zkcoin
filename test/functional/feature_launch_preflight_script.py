@@ -123,8 +123,11 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         }
 
     def run_preflight(self, fake_cli, info):
+        return self.run_preflight_raw(fake_cli, json.dumps(info))
+
+    def run_preflight_raw(self, fake_cli, info_json):
         env = os.environ.copy()
-        env["ZKCOIN_FAKE_INFO_JSON"] = json.dumps(info)
+        env["ZKCOIN_FAKE_INFO_JSON"] = info_json
         return subprocess.run(
             [self.launch_preflight_script(), fake_cli],
             stdout=subprocess.PIPE,
@@ -144,6 +147,23 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
 
         self.log.info("Accept a complete launch readiness response")
         self.assert_preflight(fake_cli, self.valid_info(), 0, "Launch preflight passed.")
+
+        self.log.info("Reject duplicate getblockchaininfo fields in launch preflight")
+        duplicate_field_result = self.run_preflight_raw(
+            fake_cli,
+            '{"chain": "regtest", "chain": "main", "launch_readiness": {}}',
+        )
+        assert_equal(duplicate_field_result.returncode, 1)
+        assert "getblockchaininfo contains duplicate field: chain" in (
+            duplicate_field_result.stdout + duplicate_field_result.stderr
+        )
+
+        self.log.info("Reject non-object getblockchaininfo JSON in launch preflight")
+        non_object_result = self.run_preflight_raw(fake_cli, "[]")
+        assert_equal(non_object_result.returncode, 1)
+        assert "getblockchaininfo response must be a JSON object" in (
+            non_object_result.stdout + non_object_result.stderr
+        )
 
         self.log.info("Reject missing launch_readiness failures array")
         self.assert_preflight(

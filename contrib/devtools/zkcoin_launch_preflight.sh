@@ -52,10 +52,31 @@ SNAPSHOT_HASH_FIELD_ERRORS = {
     "import_hash": "getblockchaininfo.ltc_snapshot.import_hash must be a non-null lowercase 64-character hex string when launch_readiness.snapshot_configured is true",
 }
 
+
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+
 try:
-    info = json.loads(sys.argv[1])
+    info = json.loads(sys.argv[1], object_pairs_hook=reject_duplicate_json_fields)
+except DuplicateJSONFieldError as exc:
+    print(f"error: getblockchaininfo contains duplicate field: {exc}", file=sys.stderr)
+    sys.exit(1)
 except json.JSONDecodeError as exc:
     print(f"error: getblockchaininfo did not return JSON: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+if not isinstance(info, dict):
+    print("error: getblockchaininfo response must be a JSON object", file=sys.stderr)
     sys.exit(1)
 
 readiness = info.get("launch_readiness")
