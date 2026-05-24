@@ -116,6 +116,7 @@ def run_gpg_decrypt(args, output_path):
 
 def parse_checksum_manifest(path):
     entries = []
+    seen_artifacts = set()
     for line_number, line in enumerate(path.read_text(encoding="utf8").splitlines(), 1):
         if not line.strip():
             continue
@@ -129,6 +130,10 @@ def parse_checksum_manifest(path):
             raise VerifyError("unsafe artifact path in checksum manifest: {}".format(filename))
         if not pure_path.parts:
             raise VerifyError("empty artifact path in checksum manifest")
+        artifact_key = pure_path.as_posix()
+        if artifact_key in seen_artifacts:
+            raise VerifyError("duplicate artifact path in checksum manifest: {}".format(artifact_key))
+        seen_artifacts.add(artifact_key)
         entries.append((digest.lower(), filename))
     if not entries:
         raise VerifyError("checksum manifest did not contain any artifacts")
