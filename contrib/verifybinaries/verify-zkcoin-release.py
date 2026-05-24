@@ -215,6 +215,8 @@ def validate_download_base(base_url):
     parsed = urlparse(base_url)
     if parsed.scheme != "https" or not parsed.netloc or parsed.params or parsed.query or parsed.fragment:
         raise VerifyError("--download-base must be an HTTPS base URL without parameters, query, or fragment")
+    if parsed.username is not None or parsed.password is not None:
+        raise VerifyError("--download-base must not contain credentials")
 
 
 def validate_download_timeout(timeout):
