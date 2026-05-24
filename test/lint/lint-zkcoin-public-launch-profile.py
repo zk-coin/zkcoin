@@ -3215,6 +3215,10 @@ def main():
 
     preflight_checks = (
         (
+            "getblockchaininfo.chain must be a recognized chain name",
+            "preflight validates chain name shape",
+        ),
+        (
             "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
             "preflight cross-checks snapshot import detail",
         ),
@@ -3304,6 +3308,10 @@ def main():
         (
             "Reject launch-tip readiness away from genesis height",
             "preflight fake-CLI launch-tip height coverage",
+        ),
+        (
+            "Reject malformed chain name in launch preflight",
+            "preflight fake-CLI chain name coverage",
         ),
         (
             "Reject malformed header height in launch preflight",
@@ -3491,6 +3499,7 @@ def main():
             "rejects the local launch placeholder `0x5a4b` chain id",
             "preflight placeholder AuxPoW chain-id documentation",
         ),
+        ("getblockchaininfo.chain", "preflight chain name documentation"),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),

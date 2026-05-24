@@ -84,6 +84,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         for field in omit_readiness_fields:
             readiness.pop(field)
         return {
+            "chain": "regtest",
             "blocks": 0,
             "headers": 0,
             "bestblockhash": "33" * 32,
@@ -160,6 +161,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             self.valid_info(readiness_overrides={"ready": "true"}),
             1,
             "launch_readiness.ready must be a boolean",
+        )
+
+        self.log.info("Reject malformed chain name in launch preflight")
+        malformed_chain = self.valid_info()
+        malformed_chain["chain"] = "unknown"
+        self.assert_preflight(
+            fake_cli,
+            malformed_chain,
+            1,
+            "getblockchaininfo.chain must be a recognized chain name",
         )
 
         self.log.info("Reject malformed chain height in launch preflight")
