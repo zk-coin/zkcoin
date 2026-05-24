@@ -7,6 +7,7 @@
 import argparse
 import fnmatch
 import hashlib
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -203,6 +204,21 @@ def require_https_download_response(response, filename):
         raise VerifyError("artifact download redirected away from HTTPS: {}".format(filename))
 
 
+def install_downloaded_artifact(temp_path, target, filename):
+    try:
+        os.link(temp_path, target)
+    except FileExistsError as exc:
+        raise VerifyError("artifact path appeared during download: {}".format(filename)) from exc
+    except OSError as exc:
+        raise VerifyError("failed to install downloaded artifact {}: {}".format(filename, exc)) from exc
+    try:
+        temp_path.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        pass
+
+
 def download_artifact(base_url, filename, target, timeout):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
@@ -222,7 +238,7 @@ def download_artifact(base_url, filename, target, timeout):
             with urlopen(url, timeout=timeout) as response:
                 require_https_download_response(response, filename)
                 shutil.copyfileobj(response, output)
-        temp_path.replace(target)
+        install_downloaded_artifact(temp_path, target, filename)
     except VerifyError:
         if temp_path is not None:
             try:
