@@ -217,6 +217,21 @@ def artifact_path(artifacts_dir, filename):
     return target
 
 
+def require_artifact_parent_directory(target, filename, artifacts_dir=None):
+    if target.parent.is_symlink():
+        raise VerifyError("artifact parent directory must not be a symlink: {}".format(filename))
+    if not target.parent.is_dir():
+        raise VerifyError("artifact parent path must be a directory: {}".format(filename))
+    if artifacts_dir is None:
+        return
+    artifacts_root = artifacts_dir.resolve()
+    resolved_parent = target.parent.resolve()
+    try:
+        resolved_parent.relative_to(artifacts_root)
+    except ValueError as exc:
+        raise VerifyError("artifact path escapes artifacts directory: {}".format(filename)) from exc
+
+
 def require_regular_artifact(target, filename):
     if target.is_symlink():
         raise VerifyError("artifact path must not be a symlink: {}".format(filename))
@@ -289,12 +304,13 @@ def install_downloaded_artifact(temp_path, target, filename):
         pass
 
 
-def download_artifact(base_url, filename, target, timeout):
+def download_artifact(base_url, filename, target, timeout, artifacts_dir=None):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
     if target.is_symlink():
         raise VerifyError("artifact path must not be a symlink: {}".format(filename))
     target.parent.mkdir(parents=True, exist_ok=True)
+    require_artifact_parent_directory(target, filename, artifacts_dir)
     url = base_url.rstrip("/") + "/" + quote(filename, safe="/._-+~")
     temp_path = None
     try:
@@ -343,7 +359,7 @@ def verify_artifacts(args, entries):
         target = artifact_path(artifacts_dir, filename)
         downloaded = False
         if not target.exists():
-            download_artifact(args.download_base, filename, target, args.download_timeout)
+            download_artifact(args.download_base, filename, target, args.download_timeout, artifacts_dir)
             downloaded = True
         require_regular_artifact(target, filename)
         actual_digest = sha256_file(target)

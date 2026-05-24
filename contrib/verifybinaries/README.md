@@ -25,7 +25,8 @@ If artifacts are not already present locally, pass the resolved HTTPS base URL
 for release artifacts without embedded credentials. Artifact downloads must not
 redirect away from HTTPS or redirect to credentialed URLs, must use a positive download timeout,
 and, when a server reports `Content-Length`, must write exactly that many bytes.
-Downloads are written through a temporary file before being installed atomically without overwriting a final artifact path that appears during the download.
+Downloads are written through a temporary file in a direct artifact parent
+directory, not a symlink, before being installed atomically without overwriting a final artifact path that appears during the download.
 Downloaded artifacts that fail hash verification are removed, while pre-existing
 local artifacts are left in place for operator inspection:
 

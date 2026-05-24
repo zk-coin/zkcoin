@@ -773,6 +773,78 @@ def require_zkcoin_verifier_rejects_unsafe_artifacts_dir():
     return None
 
 
+def require_zkcoin_verifier_rejects_unsafe_artifact_parents():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    class StaticResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+        def geturl(self):
+            return "https://downloads.example.invalid/zkcoin/nested/zkcoin-1.0.tar.gz"
+
+        def read(self, _size=-1):
+            return b"unexpected payload"
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        tempdir = Path(tempdir)
+        artifacts_dir = tempdir / "artifacts"
+        artifacts_dir.mkdir()
+        external_dir = tempdir / "external-artifacts"
+        external_dir.mkdir()
+        symlink_parent = artifacts_dir / "nested"
+        symlink_parent.symlink_to(external_dir)
+        target = symlink_parent / "zkcoin-1.0.tar.gz"
+
+        def static_urlopen(_url, _timeout):
+            return StaticResponse()
+
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = static_urlopen
+        try:
+            try:
+                verifier.download_artifact(
+                    "https://downloads.example.invalid/zkcoin",
+                    "nested/zkcoin-1.0.tar.gz",
+                    target,
+                    1,
+                    artifacts_dir,
+                )
+            except verifier.VerifyError as exc:
+                if "artifact parent directory must not be a symlink: nested/zkcoin-1.0.tar.gz" not in str(exc):
+                    return "zkCoin verifier reported the wrong symlink artifact-parent error"
+            else:
+                return "zkCoin verifier accepted a symlinked artifact parent directory"
+        finally:
+            verifier.urlopen = original_urlopen
+
+        if list(external_dir.iterdir()):
+            return "zkCoin verifier wrote through a symlinked artifact parent directory"
+
+        escaped_target = external_dir / "escaped-zkcoin-1.0.tar.gz"
+        try:
+            verifier.require_artifact_parent_directory(
+                escaped_target,
+                "nested/zkcoin-1.0.tar.gz",
+                artifacts_dir,
+            )
+        except verifier.VerifyError as exc:
+            if "artifact path escapes artifacts directory: nested/zkcoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong escaped artifact-parent error"
+        else:
+            return "zkCoin verifier accepted an artifact parent outside the artifacts directory"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_insecure_download_base():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -1310,6 +1382,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_unsafe_artifacts_dir()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_unsafe_artifact_parents()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_insecure_download_base()
@@ -2005,6 +2080,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifacts directory must not be a symlink", "zkCoin verifier artifacts directory symlink rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifacts path must be a directory", "zkCoin verifier artifacts directory type rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact parent directory must not be a symlink", "zkCoin verifier artifact parent symlink rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact parent path must be a directory", "zkCoin verifier artifact parent type rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a regular file", "zkCoin verifier regular artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
@@ -2034,6 +2111,7 @@ def main():
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
         (VERIFY_README, "Artifacts directories must be direct directories, not symlinks", "zkCoin verifier artifacts directory documentation"),
+        (VERIFY_README, "direct artifact parent", "zkCoin verifier artifact parent documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
