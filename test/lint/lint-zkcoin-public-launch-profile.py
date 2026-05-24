@@ -3483,7 +3483,9 @@ def main():
         ("Litecoin source node reports warnings", "snapshot script rejects warned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("SNAPSHOT_CANONICAL_PATH", "snapshot script canonicalizes output paths before collision checks"),
+        ("SNAPSHOT_INCOMPLETE_CANONICAL_PATH", "snapshot script canonicalizes incomplete output paths before collision checks"),
         ("AUDIT_CANONICAL_PATH", "snapshot script canonicalizes audit output paths before collision checks"),
+        ("snapshot audit summary path must differ from snapshot incomplete output path", "snapshot script rejects audit path collisions with dump work files"),
         ("path must not contain control characters", "snapshot script rejects control-character output paths"),
         ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
@@ -3597,6 +3599,10 @@ def main():
         (
             "Reject an audit summary path aliasing the snapshot output path before calling either CLI",
             "snapshot script test rejects canonical audit path collisions before RPC",
+        ),
+        (
+            "Reject audit summary paths colliding with snapshot incomplete output before calling either CLI",
+            "snapshot script test rejects audit path collisions with dump work files before RPC",
         ),
         (
             "Reject a missing audit summary output directory before calling either CLI",
@@ -4051,6 +4057,10 @@ def main():
         (
             "snapshot `.incomplete` work file",
             "snapshot operator preflights and rechecks dump work-file documentation",
+        ),
+        (
+            "must also differ from the reserved `.incomplete` work-file path",
+            "snapshot operator audit path dump work-file collision documentation",
         ),
         (
             "Litecoin source node is still in initial block download",
