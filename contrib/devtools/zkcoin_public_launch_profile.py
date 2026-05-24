@@ -1316,6 +1316,29 @@ def next_action_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
+def selected_primary_actions(args):
+    actions = []
+    if args.set_snapshot is not None:
+        actions.append("--set-snapshot")
+    if args.set_snapshot_audit is not None:
+        actions.append("--set-snapshot-audit")
+    if args.set_auxpow is not None:
+        actions.append("--set-auxpow")
+    if args.set_dns_seeds is not None:
+        actions.append("--set-dns-seeds")
+    if args.set_identity is not None:
+        actions.append("--set-identity")
+    if args.mark_ready:
+        actions.append("--mark-ready")
+    if args.next_action:
+        actions.append("--next-action")
+    if args.emit_chainparams:
+        actions.append("--emit-chainparams")
+    if args.check_chainparams is not None:
+        actions.append("--check-chainparams")
+    return actions
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
@@ -1377,6 +1400,14 @@ def main():
     parser.add_argument("--in-place", action="store_true", help="write update changes back to the manifest file")
     parser.add_argument("manifest", nargs="?", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
+
+    primary_actions = selected_primary_actions(args)
+    if len(primary_actions) > 1:
+        print(
+            "error: use only one primary action at a time: " + ", ".join(primary_actions),
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf8"))
