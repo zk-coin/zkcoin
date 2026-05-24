@@ -1675,6 +1675,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        self_reference_audit_path = Path(temp_dir) / "self-reference-audit.json"
+        self_reference_audit = dict(audit)
+        self_reference_audit["snapshot_file"] = str(self_reference_audit_path)
+        self_reference_audit_path.write_text(json.dumps(self_reference_audit), encoding="utf8")
+        self_reference_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(self_reference_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if self_reference_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an audit summary as the snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must differ from audit summary" not in self_reference_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain self-referential snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         directory_artifact_path = Path(temp_dir) / "ltc-block-x-dir.dat"
         directory_artifact_path.mkdir()
         directory_artifact_audit_path = Path(temp_dir) / "directory-artifact-audit.json"
@@ -3069,6 +3096,7 @@ def main():
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
         ("snapshot audit file artifact does not exist", "manifest rejects missing snapshot audit artifacts"),
+        ("snapshot audit file artifact must differ from audit summary", "manifest rejects self-referential snapshot audit artifacts"),
         ("snapshot audit file artifact must not be a symlink", "manifest rejects symlinked snapshot audit artifacts"),
         ("snapshot audit file artifact must be a regular file", "manifest rejects non-file snapshot audit artifacts"),
         ("require_snapshot_audit_artifact_stable", "manifest rechecks snapshot audit artifacts after hashing"),
@@ -4035,6 +4063,10 @@ def main():
         (
             "rejects symlinked snapshot artifacts",
             "public launch manifest snapshot artifact symlink rejection documentation",
+        ),
+        (
+            "names itself as the snapshot artifact",
+            "public launch manifest snapshot self-reference rejection documentation",
         ),
         (
             "rechecks the snapshot artifact path after hashing",
