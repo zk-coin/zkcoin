@@ -109,6 +109,9 @@ if type(headers) is not int or headers < 0:
     schema_errors.append("getblockchaininfo.headers must be a non-negative integer")
 if type(blocks) is int and type(headers) is int and headers < blocks:
     schema_errors.append("getblockchaininfo.headers must be greater than or equal to blocks")
+bestblockhash = info.get("bestblockhash")
+if not isinstance(bestblockhash, str) or not HEX64_RE.fullmatch(bestblockhash) or bestblockhash == NULL_UINT256:
+    schema_errors.append("getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string")
 initialblockdownload = info.get("initialblockdownload")
 if type(initialblockdownload) is not bool:
     schema_errors.append("getblockchaininfo.initialblockdownload must be a boolean")
@@ -334,6 +337,7 @@ print("zkCoin launch readiness preflight")
 print(f"  ready: {str(readiness['ready']).lower()}")
 print(f"  chain height: {blocks}")
 print(f"  header height: {headers}")
+print(f"  best block hash: {bestblockhash}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
 print(f"  warnings: {warnings if warnings else '<none>'}")
