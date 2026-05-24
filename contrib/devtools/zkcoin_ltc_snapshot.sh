@@ -527,6 +527,7 @@ import json
 import os
 import re
 import shlex
+import stat
 import sys
 
 height = int(sys.argv[1])
@@ -641,13 +642,26 @@ total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")
 def shell_quote(value):
     return shlex.quote(value)
 
-def fsync_parent_directory(path):
+def open_direct_audit_parent_directory(path):
     parent = os.path.dirname(path) or "."
-    parent_fd = os.open(parent, os.O_RDONLY)
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        os.fsync(parent_fd)
-    finally:
+        parent_fd = os.open(parent, flags)
+    except OSError as exc:
+        if exc.errno == errno.ENOENT:
+            fail(f"snapshot audit summary directory does not exist: {parent}")
+        if exc.errno == errno.ELOOP or (exc.errno == errno.ENOTDIR and os.path.islink(parent)):
+            fail(f"snapshot audit summary directory must not be a symlink: {parent}")
+        if exc.errno == errno.ENOTDIR:
+            fail(f"snapshot audit summary directory does not exist: {parent}")
+        fail(f"cannot open snapshot audit summary directory securely: {exc}")
+    if not stat.S_ISDIR(os.fstat(parent_fd).st_mode):
         os.close(parent_fd)
+        fail(f"snapshot audit summary directory does not exist: {parent}")
+    return parent, parent_fd
+
+def fsync_parent_directory(parent_fd):
+    os.fsync(parent_fd)
 
 def write_audit_summary(audit_json_path, summary):
     if os.path.islink(audit_json_path):
@@ -657,10 +671,13 @@ def write_audit_summary(audit_json_path, summary):
 
     audit_text = json.dumps(summary, indent=2, sort_keys=True) + "\n"
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    audit_basename = os.path.basename(audit_json_path)
+    parent_fd = None
     fd = None
     created = False
     try:
-        fd = os.open(audit_json_path, flags, 0o644)
+        _, parent_fd = open_direct_audit_parent_directory(audit_json_path)
+        fd = os.open(audit_basename, flags, 0o644, dir_fd=parent_fd)
         created = True
         audit_file = os.fdopen(fd, "w", encoding="utf8")
         fd = None
@@ -668,7 +685,7 @@ def write_audit_summary(audit_json_path, summary):
             audit_file.write(audit_text)
             audit_file.flush()
             os.fsync(audit_file.fileno())
-        fsync_parent_directory(audit_json_path)
+        fsync_parent_directory(parent_fd)
     except FileExistsError:
         fail(f"snapshot audit summary already exists: {audit_json_path}")
     except OSError as exc:
@@ -676,12 +693,15 @@ def write_audit_summary(audit_json_path, summary):
             os.close(fd)
         if created:
             try:
-                os.unlink(audit_json_path)
+                os.unlink(audit_basename, dir_fd=parent_fd)
             except OSError:
                 pass
         if exc.errno == errno.ELOOP:
             fail(f"snapshot audit summary path must not be a symlink: {audit_json_path}")
         fail(f"cannot write snapshot audit summary durably: {exc}")
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
 
 if dump_height != height:
     fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")

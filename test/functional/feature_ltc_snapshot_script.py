@@ -146,6 +146,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                     if scenario.get("create_audit_symlink_during_verify", False):
                         audit_path = os.environ["ZKCOIN_SNAPSHOT_AUDIT_JSON"]
                         os.symlink(audit_path + ".target", audit_path)
+                    if scenario.get("replace_audit_parent_with_symlink_during_verify", False):
+                        audit_path = os.environ["ZKCOIN_SNAPSHOT_AUDIT_JSON"]
+                        audit_parent = os.path.dirname(audit_path)
+                        audit_target_parent = audit_parent + ".target"
+                        os.rmdir(audit_parent)
+                        os.makedirs(audit_target_parent, exist_ok=True)
+                        os.symlink(audit_target_parent, audit_parent)
                     print(scenario.get("verify_raw", json.dumps(scenario["verify_json"])))
                 else:
                     fail(f"unexpected role: {role}")
@@ -220,6 +227,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_parent_unwritable=False,
         snapshot_path_parent_unwritable=False,
         audit_path_parent_symlink=False,
+        audit_path_parent_swapped_during_verify=False,
         snapshot_path_parent_symlink=False,
         snapshot_path_has_space=False,
         audit_path_has_space=False,
@@ -288,6 +296,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             audit_link_dir = os.path.join(self.options.tmpdir, f"{name}-audit-link-dir")
             os.symlink(audit_target_dir, audit_link_dir)
             audit_path = os.path.join(audit_link_dir, f"{name}.audit.json")
+        elif audit_path_parent_swapped_during_verify:
+            audit_dir = os.path.join(self.options.tmpdir, f"{name}-audit-dir")
+            os.makedirs(audit_dir, exist_ok=True)
+            audit_path = os.path.join(audit_dir, f"{name}.audit.json")
         if snapshot_path_symlink:
             os.symlink(os.path.join(self.options.tmpdir, f"{name}.target"), snapshot_path)
         if audit_path_symlink:
@@ -319,6 +331,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or audit_path_parent_missing
             or audit_path_parent_unwritable
             or audit_path_parent_symlink
+            or audit_path_parent_swapped_during_verify
             or audit_path_symlink
             or audit_path_has_space
             or audit_path_has_control
@@ -1141,6 +1154,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary path must not be a symlink",
             write_audit=True,
+        )
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject audit summary directory symlink replacement during verification")
+        _, calls, snapshot_path = self.assert_snapshot(
+            "audit-dir-symlink-during-verify",
+            self.scenario(replace_audit_parent_with_symlink_during_verify=True),
+            1,
+            "snapshot audit summary directory must not be a symlink",
+            audit_path_parent_swapped_during_verify=True,
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 

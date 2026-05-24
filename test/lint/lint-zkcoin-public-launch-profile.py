@@ -3508,6 +3508,7 @@ def main():
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
         ("write_audit_summary", "snapshot script writes audit summaries through a hardened path"),
+        ("open_direct_audit_parent_directory", "snapshot script rechecks audit output parents before writes"),
         ("os.O_EXCL", "snapshot script creates audit summaries exclusively"),
         ("os.fsync", "snapshot script fsyncs audit summary writes"),
         ("height must be a positive integer", "snapshot script rejects zero or malformed snapshot heights"),
@@ -3750,6 +3751,10 @@ def main():
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
         ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
+        (
+            "Reject audit summary directory symlink replacement during verification",
+            "snapshot script test rejects verifier-time audit directory symlink replacement",
+        ),
         ("Reject non-object verifier manifest JSON", "snapshot script test rejects non-object verifier JSON"),
         ("Reject duplicate snapshot dump fields", "snapshot script test rejects duplicate dump JSON fields"),
         ("Reject duplicate verifier manifest fields", "snapshot script test rejects duplicate verifier JSON fields"),
@@ -3944,6 +3949,10 @@ def main():
         (
             "exclusive final-path write, fsyncs the file and parent directory",
             "public launch snapshot audit durable write documentation",
+        ),
+        (
+            "parent-directory symlink replacement before writing",
+            "public launch snapshot audit parent replacement documentation",
         ),
         (
             "audit summary path itself must also be a direct file",
