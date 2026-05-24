@@ -200,12 +200,25 @@ HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 INT_RE = re.compile(r"^[0-9]+$")
 NULL_UINT256 = "0" * 64
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
     sys.exit(1)
 
 try:
-    chaininfo = json.loads(raw)
+    chaininfo = json.loads(raw, object_pairs_hook=reject_duplicate_json_fields)
+except DuplicateJSONFieldError as exc:
+    fail(f"litecoin-cli getblockchaininfo contains duplicate field: {exc}")
 except json.JSONDecodeError as exc:
     fail(f"litecoin-cli getblockchaininfo did not return JSON: {exc}")
 
@@ -415,13 +428,26 @@ MAX_MONEY = 84000000 * COIN
 MAX_MONEY_TEXT = "84000000.00000000"
 NULL_UINT256 = "0" * 64
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
     sys.exit(1)
 
 def load_json(source, raw):
     try:
-        value = json.loads(raw)
+        value = json.loads(raw, object_pairs_hook=reject_duplicate_json_fields)
+    except DuplicateJSONFieldError as exc:
+        fail(f"{source} contains duplicate field: {exc}")
     except json.JSONDecodeError as exc:
         fail(f"{source} did not return JSON: {exc}")
     if not isinstance(value, dict):

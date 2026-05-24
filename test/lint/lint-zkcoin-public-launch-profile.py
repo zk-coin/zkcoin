@@ -3405,6 +3405,8 @@ def main():
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
+        ("reject_duplicate_json_fields", "snapshot script rejects duplicate RPC JSON fields"),
+        ("object_pairs_hook=reject_duplicate_json_fields", "snapshot script parses RPC JSON without duplicate shadowing"),
         ('require_string("chain")', "snapshot script validates source chain name shape"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         (
@@ -3490,6 +3492,7 @@ def main():
         ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
         ("Reject control characters in snapshot and audit output paths", "snapshot script test rejects control-character output paths"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
+        ("Reject duplicate Litecoin source chain info fields", "snapshot script test rejects duplicate source chain info fields"),
         ("Reject malformed Litecoin source chain name", "snapshot script test validates source chain name shape"),
         ("Reject fractional Litecoin source chain heights", "snapshot script test rejects fractional source heights"),
         ("Reject malformed Litecoin source header height", "snapshot script test validates source header height shape"),
@@ -3571,6 +3574,8 @@ def main():
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
         ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
+        ("Reject duplicate snapshot dump fields", "snapshot script test rejects duplicate dump JSON fields"),
+        ("Reject duplicate verifier manifest fields", "snapshot script test rejects duplicate verifier JSON fields"),
         ("Reject null verifier snapshot and import hashes", "snapshot script test rejects null verifier hashes"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
@@ -3927,6 +3932,10 @@ def main():
         (
             "non-empty snapshot file before running zkCoin verification",
             "snapshot operator verifies dump artifact documentation",
+        ),
+        (
+            "duplicate-field JSON",
+            "snapshot operator duplicate RPC JSON documentation",
         ),
         (
             "validates the audit summary output path before running snapshot RPCs",
