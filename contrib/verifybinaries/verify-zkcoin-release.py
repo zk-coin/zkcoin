@@ -92,6 +92,13 @@ def parse_args():
     return parser.parse_args()
 
 
+def require_regular_checksums_file(path):
+    if path.is_symlink():
+        raise VerifyError("checksums file must not be a symlink: {}".format(path))
+    if not path.is_file():
+        raise VerifyError("checksums file does not exist or is not a regular file: {}".format(path))
+
+
 def run_gpg_decrypt(args, output_path):
     gpg = shutil.which(args.gpg)
     if gpg is None:
@@ -299,11 +306,9 @@ def verify_artifacts(args, entries):
 
 def main():
     args = parse_args()
-    if not args.checksums.is_file():
-        print("error: checksums file does not exist: {}".format(args.checksums), file=sys.stderr)
-        return 2
 
     try:
+        require_regular_checksums_file(args.checksums)
         validate_download_base(args.download_base)
         validate_download_timeout(args.download_timeout)
         validate_trusted_fingerprints(args.trusted_fingerprint)
