@@ -64,6 +64,7 @@ SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
 SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
 SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES = 64 * 1024
 LAUNCH_MANIFEST_MAX_BYTES = 256 * 1024
+CHAINPARAMS_INPUT_MAX_BYTES = 1024 * 1024
 SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
     "testnet": "test",
@@ -920,6 +921,50 @@ def read_launch_manifest_text(manifest_path):
         raise ValueError(f"{manifest_path} is not valid UTF-8") from None
 
 
+def chainparams_input_too_large_error(chainparams_path):
+    return f"chainparams input must not exceed {CHAINPARAMS_INPUT_MAX_BYTES} bytes: {chainparams_path}"
+
+
+def read_chainparams_text(chainparams_path):
+    fd, chainparams_stat = open_regular_file_no_symlink(
+        chainparams_path,
+        symlink_error="chainparams path must not be a symlink",
+        missing_error="cannot read chainparams",
+        not_regular_error="chainparams path must be a regular file",
+        open_error="cannot read chainparams",
+    )
+    if chainparams_stat.st_size > CHAINPARAMS_INPUT_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(chainparams_input_too_large_error(chainparams_path))
+
+    chunks = []
+    total_bytes = 0
+    try:
+        while total_bytes <= CHAINPARAMS_INPUT_MAX_BYTES:
+            chunk = os.read(fd, min(65536, CHAINPARAMS_INPUT_MAX_BYTES + 1 - total_bytes))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+        if total_bytes > CHAINPARAMS_INPUT_MAX_BYTES:
+            raise ValueError(chainparams_input_too_large_error(chainparams_path))
+        require_regular_file_stable(
+            chainparams_path,
+            chainparams_stat,
+            fd,
+            "chainparams input changed during read",
+        )
+    except OSError as exc:
+        raise ValueError(f"cannot read chainparams: {exc}") from None
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError(f"{chainparams_path} is not valid UTF-8") from None
+
+
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
     fd, audit_summary_stat = open_regular_file_no_symlink(
@@ -1678,9 +1723,9 @@ def main():
                 print(f"  - {blocker}", file=sys.stderr)
             return 1
         try:
-            chainparams_text = args.check_chainparams.read_text(encoding="utf8")
-        except OSError as exc:
-            print(f"error: cannot read {args.check_chainparams}: {exc}", file=sys.stderr)
+            chainparams_text = read_chainparams_text(args.check_chainparams)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
             return 1
         errors = chainparams_sync_errors(manifest, chainparams_text)
         if errors:

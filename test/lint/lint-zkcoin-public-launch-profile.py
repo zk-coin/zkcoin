@@ -2557,6 +2557,111 @@ def require_public_launch_manifest_current():
                 sync_result.stderr.strip() or sync_result.stdout.strip() or "no output",
             )
 
+        symlink_chainparams_path = Path(temp_dir) / "symlink-chainparams.cpp"
+        symlink_chainparams_path.symlink_to(synced_chainparams_path)
+        symlink_chainparams_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(symlink_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_chainparams_result.returncode == 0:
+            return "{} --check-chainparams accepted a symlinked chainparams input".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "chainparams path must not be a symlink" not in symlink_chainparams_result.stderr:
+            return "{} --check-chainparams did not explain symlinked chainparams rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        oversized_chainparams_path = Path(temp_dir) / "oversized-chainparams.cpp"
+        oversized_chainparams_path.write_bytes(b" " * (manifest_tool.CHAINPARAMS_INPUT_MAX_BYTES + 1))
+        oversized_chainparams_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(oversized_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if oversized_chainparams_result.returncode == 0:
+            return "{} --check-chainparams accepted oversized chainparams input".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "chainparams input must not exceed 1048576 bytes" not in oversized_chainparams_result.stderr:
+            return "{} --check-chainparams did not explain oversized chainparams rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        invalid_utf8_chainparams_path = Path(temp_dir) / "invalid-utf8-chainparams.cpp"
+        invalid_utf8_chainparams_path.write_bytes(b"class CMainParams " + bytes([0xff]))
+        invalid_utf8_chainparams_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(invalid_utf8_chainparams_path),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if invalid_utf8_chainparams_result.returncode == 0:
+            return "{} --check-chainparams accepted invalid UTF-8 chainparams input".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "is not valid UTF-8" not in invalid_utf8_chainparams_result.stderr:
+            return "{} --check-chainparams did not explain invalid UTF-8 chainparams rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        changed_chainparams_path = Path(temp_dir) / "changed-chainparams.cpp"
+        changed_chainparams_path.write_text(
+            chainparams_text_with(main_snippet, testnet_snippet),
+            encoding="utf8",
+        )
+        changed_chainparams_fd, changed_chainparams_stat = manifest_tool.open_regular_file_no_symlink(
+            changed_chainparams_path,
+            symlink_error="chainparams path must not be a symlink",
+            missing_error="cannot read chainparams",
+            not_regular_error="chainparams path must be a regular file",
+            open_error="cannot read chainparams",
+        )
+        try:
+            changed_chainparams_path.write_text("class CMainParams {}", encoding="utf8")
+            try:
+                manifest_tool.require_regular_file_stable(
+                    changed_chainparams_path,
+                    changed_chainparams_stat,
+                    changed_chainparams_fd,
+                    "chainparams input changed during read",
+                )
+            except ValueError as exc:
+                if "chainparams input changed during read" not in str(exc):
+                    return "{} reported the wrong changed-chainparams read error".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                    )
+            else:
+                return "{} accepted a changed chainparams path after opening".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                )
+        finally:
+            os.close(changed_chainparams_fd)
+
         swapped_chainparams_path = Path(temp_dir) / "swapped-chainparams.cpp"
         swapped_chainparams_path.write_text(
             chainparams_text_with(testnet_snippet, main_snippet),
@@ -2904,6 +3009,9 @@ def main():
         ("--next-action", "manifest next-action guidance flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
+        ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
+        ("read_chainparams_text", "manifest reads chainparams sync-check input through hardened path"),
+        ("chainparams input changed during read", "manifest rechecks chainparams sync-check input after reading"),
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
@@ -3412,6 +3520,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
             "public launch manifest chainparams sync-check documentation",
+        ),
+        (
+            "read as a direct regular file capped at 1048576 bytes",
+            "public launch manifest chainparams hardened read documentation",
         ),
         (
             "reserved-suffix DNS seed",

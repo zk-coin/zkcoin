@@ -150,7 +150,10 @@ Both are intentionally present before behavior changes so tests and review can t
   against the ready manifest so the committed `chainparams.cpp` stays
   synchronized with the reviewed launch manifest and the main/testnet snippets
   are present only once in their matching chainparams classes without foreign
-  generated snippets.
+  generated snippets. The checked `chainparams.cpp` input is
+  read as a direct regular file capped at 1048576 bytes, decoded as UTF-8, and
+  rechecked before sync comparison so symlinked or concurrently changed files
+  cannot mask drift.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
