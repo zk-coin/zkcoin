@@ -580,6 +580,62 @@ def require_zkcoin_verifier_rejects_invalid_download_timeout():
     return None
 
 
+def require_zkcoin_verifier_rejects_https_downgrade_redirects():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    class DowngradedResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+        def geturl(self):
+            return "http://downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
+
+        def read(self, _size=-1):
+            return b"unexpected payload"
+
+    def downgraded_urlopen(_url, timeout):
+        if timeout != 1:
+            raise AssertionError("unexpected timeout")
+        return DowngradedResponse()
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        artifacts_dir = Path(tempdir) / "artifacts"
+        target = artifacts_dir / "zkcoin-1.0.tar.gz"
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = downgraded_urlopen
+        try:
+            try:
+                verifier.download_artifact(
+                    "https://downloads.example.invalid/zkcoin",
+                    "zkcoin-1.0.tar.gz",
+                    target,
+                    1,
+                )
+            except verifier.VerifyError as exc:
+                if "artifact download redirected away from HTTPS: zkcoin-1.0.tar.gz" not in str(exc):
+                    return "zkCoin verifier reported the wrong HTTPS redirect error"
+            else:
+                return "zkCoin verifier accepted an HTTP artifact redirect"
+        finally:
+            verifier.urlopen = original_urlopen
+
+        if target.exists():
+            return "zkCoin verifier left an artifact after an HTTP redirect"
+        leftovers = list(artifacts_dir.iterdir()) if artifacts_dir.exists() else []
+        if leftovers:
+            return "zkCoin verifier left temporary download files after an HTTP redirect"
+
+    return None
+
+
 def require_zkcoin_verifier_downloads_atomically():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -597,6 +653,9 @@ def require_zkcoin_verifier_downloads_atomically():
 
         def __exit__(self, _exc_type, _exc, _traceback):
             return False
+
+        def geturl(self):
+            return "https://downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
 
         def read(self, _size=-1):
             if not self._read_once:
@@ -657,6 +716,9 @@ def require_zkcoin_verifier_removes_hash_mismatched_downloads():
 
         def __exit__(self, _exc_type, _exc, _traceback):
             return False
+
+        def geturl(self):
+            return "https://downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
 
         def read(self, _size=-1):
             if self.sent:
@@ -768,6 +830,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_invalid_download_timeout()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_https_downgrade_redirects()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_downloads_atomically()
@@ -1425,6 +1490,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected away from HTTPS", "zkCoin verifier HTTPS redirect guard"),
         (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
         (ZKCOIN_VERIFY_SCRIPT, "replace(target)", "zkCoin verifier atomic artifact install"),
         (ZKCOIN_VERIFY_SCRIPT, "target.unlink()", "zkCoin verifier downloaded mismatch cleanup"),
@@ -1440,6 +1506,7 @@ def main():
         (VERIFY_README, "full 40-character hex fingerprints", "zkCoin verifier fingerprint shape documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
+        (VERIFY_README, "redirect away from HTTPS", "zkCoin verifier HTTPS redirect documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
