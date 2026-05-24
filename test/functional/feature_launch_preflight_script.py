@@ -86,6 +86,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         return {
             "blocks": 0,
             "headers": 0,
+            "initialblockdownload": False,
             "launch_readiness": readiness,
             "ltc_snapshot": {
                 "enabled": True,
@@ -186,6 +187,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             headers_below_blocks,
             1,
             "getblockchaininfo.headers must be greater than or equal to blocks",
+        )
+
+        self.log.info("Reject initial block download in launch preflight")
+        malformed_ibd = self.valid_info()
+        malformed_ibd["initialblockdownload"] = "false"
+        self.assert_preflight(
+            fake_cli,
+            malformed_ibd,
+            1,
+            "getblockchaininfo.initialblockdownload must be a boolean",
+        )
+        initial_block_download = self.valid_info()
+        initial_block_download["initialblockdownload"] = True
+        self.assert_preflight(
+            fake_cli,
+            initial_block_download,
+            1,
+            "node is still in initial block download",
         )
 
         self.log.info("Reject launch-tip readiness away from genesis height")

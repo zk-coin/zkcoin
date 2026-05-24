@@ -3234,6 +3234,11 @@ def main():
             "getblockchaininfo.headers must be 0 when launch_readiness.at_launch_tip is true",
             "preflight cross-checks launch-tip header height",
         ),
+        (
+            "getblockchaininfo.initialblockdownload must be a boolean",
+            "preflight validates initial block download shape",
+        ),
+        ("node is still in initial block download", "preflight rejects initial block download"),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
@@ -3289,6 +3294,10 @@ def main():
         (
             "Reject malformed header height in launch preflight",
             "preflight fake-CLI header height coverage",
+        ),
+        (
+            "Reject initial block download in launch preflight",
+            "preflight fake-CLI initial block download coverage",
         ),
         (
             "Reject malformed configured snapshot detail shape",
@@ -3458,6 +3467,7 @@ def main():
         ),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
+        ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
         ("auxpow.start_height=1", "preflight AuxPoW start-height documentation"),
         (
             "positive snapshot height plus non-null lowercase snapshot block/import hashes",
