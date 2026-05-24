@@ -441,6 +441,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip",
         )
 
+        self.log.info("Reject malformed or launch-height shielded start height")
+        malformed_shielded_start = self.valid_info()
+        malformed_shielded_start["shielded_pool"]["start_height"] = "2"
+        self.assert_preflight(
+            fake_cli,
+            malformed_shielded_start,
+            1,
+            "getblockchaininfo.shielded_pool.start_height must be an integer",
+        )
+        launch_height_shielded_start = self.valid_info()
+        launch_height_shielded_start["shielded_pool"]["start_height"] = 1
+        self.assert_preflight(
+            fake_cli,
+            launch_height_shielded_start,
+            1,
+            "getblockchaininfo.shielded_pool.start_height must not be 1 when launch_readiness.shielded_inactive_at_launch is true",
+        )
+
         self.log.info("Reject scaffold proof acceptance in the launch preflight")
         scaffold_enabled = self.valid_info()
         scaffold_enabled["shielded_pool"]["scaffold_proofs"] = True
