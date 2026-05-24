@@ -1294,6 +1294,35 @@ def require_public_launch_manifest_current():
         finally:
             os.close(oversized_read_fd)
 
+        invalid_utf8_audit_path = Path(temp_dir) / "invalid-utf8-audit.json"
+        invalid_utf8_audit_path.write_bytes(b'{"height": 1, "block_hash": "' + bytes([0xff]) + b'"}')
+        invalid_utf8_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(invalid_utf8_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if invalid_utf8_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an invalid UTF-8 audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary is not valid UTF-8" not in invalid_utf8_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain invalid UTF-8 audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "codec can't decode" in invalid_utf8_audit_result.stderr:
+            return "{} --set-snapshot-audit leaked a codec-specific UTF-8 decode error".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         incomplete_audit_path = Path(temp_dir) / "incomplete-audit.json"
         incomplete_audit = dict(audit)
         incomplete_audit.pop("snapshot_hash")
@@ -2674,6 +2703,7 @@ def main():
         ("SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES", "manifest caps snapshot audit summary input size"),
         ("snapshot audit summary must not exceed", "manifest rejects oversized snapshot audit summaries"),
         ("read_snapshot_audit_summary_text", "manifest enforces snapshot audit summary cap while reading"),
+        ("snapshot audit summary is not valid UTF-8", "manifest rejects invalid UTF-8 snapshot audit summaries"),
         ("SNAPSHOT_AUDIT_SUMMARY_FIELDS", "manifest requires exact snapshot audit summary fields"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
         ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
@@ -3169,6 +3199,10 @@ def main():
         (
             "size cap is enforced again while reading",
             "public launch snapshot audit summary bounded-read documentation",
+        ),
+        (
+            "valid UTF-8 JSON",
+            "public launch snapshot audit summary UTF-8 documentation",
         ),
         (
             "positive Litecoin snapshot height",

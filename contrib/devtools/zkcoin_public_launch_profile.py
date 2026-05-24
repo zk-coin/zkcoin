@@ -826,8 +826,8 @@ def read_snapshot_audit_summary_text(fd, audit_summary_path):
         raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
     try:
         return b"".join(chunks).decode("utf8")
-    except UnicodeDecodeError as exc:
-        raise ValueError(f"snapshot audit summary is not valid UTF-8: {exc}")
+    except UnicodeDecodeError:
+        raise ValueError("snapshot audit summary is not valid UTF-8") from None
 
 
 def parse_snapshot_audit(audit_path):
