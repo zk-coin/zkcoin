@@ -221,8 +221,9 @@ source has headers ahead of downloaded blocks or reports headers below downloade
 if the source reports malformed source sync booleans or malformed source chain names,
 if it reports malformed source block or header heights, if the source is pruned,
 if the source node reports non-empty warnings, if the
-requested snapshot height is zero or malformed, if the source node does not
-report a well-formed non-null block hash for height X, if that hash does not
+requested snapshot height is zero or malformed, if the expected block hash is
+not lowercase 64-character hex, if the source node does not report a
+well-formed lowercase non-null block hash for height X, if that hash does not
 match the expected block hash, if the active source tip hash does not match the expected block hash
 when the source is already at height X, if the source node does not report
 non-null source chainwork, non-negative source verification progress,
