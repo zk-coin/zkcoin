@@ -1083,10 +1083,31 @@ def demote_ready_for_review(manifest):
 
 
 def write_manifest(path, manifest):
+    if path.is_symlink():
+        raise ValueError(f"manifest path must not be a symlink for in-place updates: {path}")
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(text, encoding="utf8")
-    tmp_path.replace(path)
+    if tmp_path.exists() or tmp_path.is_symlink():
+        raise ValueError(f"manifest temp path already exists: {tmp_path}")
+
+    fd = None
+    try:
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        with os.fdopen(fd, "w", encoding="utf8") as tmp_file:
+            fd = None
+            tmp_file.write(text)
+            tmp_file.flush()
+            os.fsync(tmp_file.fileno())
+        tmp_path.replace(path)
+    except OSError as exc:
+        if fd is not None:
+            os.close(fd)
+        if tmp_path.exists() and not tmp_path.is_symlink():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise ValueError(f"cannot write manifest atomically: {exc}")
 
 
 def cpp_string(value):
@@ -1440,7 +1461,11 @@ def main():
 
     if updated_manifest:
         if args.in_place:
-            write_manifest(args.manifest, manifest)
+            try:
+                write_manifest(args.manifest, manifest)
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 1
             print(f"Updated {args.manifest}")
         else:
             print(json.dumps(manifest, indent=2, sort_keys=False))
