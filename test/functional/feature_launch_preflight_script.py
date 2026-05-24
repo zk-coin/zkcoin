@@ -157,6 +157,26 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "launch_readiness.ready must be a boolean",
         )
 
+        self.log.info("Reject malformed chain height in launch preflight")
+        malformed_blocks = self.valid_info()
+        malformed_blocks["blocks"] = "0"
+        self.assert_preflight(
+            fake_cli,
+            malformed_blocks,
+            1,
+            "getblockchaininfo.blocks must be a non-negative integer",
+        )
+
+        self.log.info("Reject launch-tip readiness away from genesis height")
+        non_genesis_launch_tip = self.valid_info()
+        non_genesis_launch_tip["blocks"] = 1
+        self.assert_preflight(
+            fake_cli,
+            non_genesis_launch_tip,
+            1,
+            "getblockchaininfo.blocks must be 0 when launch_readiness.at_launch_tip is true",
+        )
+
         self.log.info("Reject inconsistent ready response with false invariants")
         self.assert_preflight(
             fake_cli,

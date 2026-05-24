@@ -94,6 +94,10 @@ REQUIRED_DETAIL_FIELDS = {
 }
 
 schema_errors = []
+blocks = info.get("blocks")
+if type(blocks) is not int or blocks < 0:
+    schema_errors.append("getblockchaininfo.blocks must be a non-negative integer")
+
 missing_readiness = [field for field in REQUIRED_READINESS_FIELDS if field not in readiness]
 if missing_readiness:
     schema_errors.append("missing launch_readiness fields: " + ", ".join(missing_readiness))
@@ -143,6 +147,15 @@ else:
         and public_identity["configured"] != readiness["public_network_identity_configured"]
     ):
         schema_errors.append("launch_readiness.public_network_identity.configured must match public_network_identity_configured")
+
+if (
+    type(blocks) is int
+    and "at_launch_tip" in readiness
+    and type(readiness.get("at_launch_tip")) is bool
+    and readiness["at_launch_tip"] is True
+    and blocks != 0
+):
+    schema_errors.append("getblockchaininfo.blocks must be 0 when launch_readiness.at_launch_tip is true")
 
 detail_sections = {}
 for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
@@ -257,7 +270,7 @@ shielded = detail_sections["shielded_pool"]
 
 print("zkCoin launch readiness preflight")
 print(f"  ready: {str(readiness['ready']).lower()}")
-print(f"  chain height: {info.get('blocks')}")
+print(f"  chain height: {blocks}")
 print(f"  at launch tip: {str(readiness['at_launch_tip']).lower()}")
 print(f"  snapshot configured: {str(readiness['snapshot_configured']).lower()}")
 print(f"  snapshot imported: {str(readiness['snapshot_imported']).lower()}")
