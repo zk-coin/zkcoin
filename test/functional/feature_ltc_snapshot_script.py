@@ -61,10 +61,19 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                 if role == "litecoin":
                     if command == "getblockchaininfo":
                         source_tip = scenario.get("source_tip", scenario["height"])
+                        source_bestblockhash = scenario.get("source_bestblockhash")
+                        if source_bestblockhash is None:
+                            if source_tip == scenario["height"]:
+                                source_bestblockhash = scenario["expected_hash"]
+                            elif source_tip == scenario["height"] + 1:
+                                source_bestblockhash = scenario["restore_hash"]
+                            else:
+                                source_bestblockhash = "11" * 32
                         chaininfo = {
                             "chain": scenario.get("source_chain", "main"),
                             "blocks": source_tip,
                             "headers": scenario.get("source_headers", source_tip),
+                            "bestblockhash": source_bestblockhash,
                             "initialblockdownload": scenario.get("initialblockdownload", False),
                             "pruned": scenario.get("pruned", False),
                             "warnings": scenario.get("warnings", ""),
@@ -531,6 +540,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(chaininfo_overrides={"blocks": HEIGHT + 0.5}),
             1,
             "litecoin-cli getblockchaininfo.blocks must be a non-negative integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source best block hash")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-bestblockhash",
+            self.scenario(chaininfo_overrides={"bestblockhash": "not-a-uint256"}),
+            1,
+            "litecoin-cli getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject a Litecoin source whose active tip hash differs from the selected snapshot hash")
+        _, calls, _ = self.assert_snapshot(
+            "source-bestblockhash-mismatch",
+            self.scenario(source_bestblockhash="11" * 32),
+            1,
+            "litecoin-cli getblockchaininfo.bestblockhash must match expected block hash when source tip is at snapshot height",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
