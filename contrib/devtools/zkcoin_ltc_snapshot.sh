@@ -233,6 +233,22 @@ def require_nonnegative_int(field):
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
     return parsed
 
+def require_positive_int(field):
+    if field not in chaininfo:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
+    value = chaininfo[field]
+    if isinstance(value, bool):
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and INT_RE.fullmatch(value):
+        parsed = int(value)
+    else:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
+    if parsed <= 0:
+        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
+    return parsed
+
 def require_string(field):
     if field not in chaininfo or not isinstance(chaininfo[field], str) or not chaininfo[field]:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-empty string")
@@ -275,6 +291,7 @@ bestblockhash = require_bestblockhash()
 require_chainwork()
 require_verificationprogress()
 require_difficulty()
+require_positive_int("size_on_disk")
 source_time = require_nonnegative_int("time")
 source_mediantime = require_nonnegative_int("mediantime")
 if source_mediantime > source_time:

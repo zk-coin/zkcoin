@@ -224,8 +224,9 @@ report a well-formed non-null block hash for height X, if that hash does not
 match the expected block hash, if the active source tip hash does not match the expected block hash
 when the source is already at height X, if the source node does not report
 non-null source chainwork, non-negative source verification progress,
-non-negative source difficulty, or non-negative source tip times with median
-time not after block time, if the expected block hash is the null uint256 placeholder, if
+non-negative source difficulty, positive source disk footprint, or
+non-negative source tip times with median time not after block time, if the
+expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed JSON, or if required snapshot/manifest fields are missing or
 inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
