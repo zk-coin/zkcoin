@@ -209,6 +209,32 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
         )
 
+        self.log.info("Reject malformed configured snapshot detail shape")
+        malformed_snapshot_height = self.valid_info()
+        malformed_snapshot_height["ltc_snapshot"]["height"] = "2250000"
+        self.assert_preflight(
+            fake_cli,
+            malformed_snapshot_height,
+            1,
+            "getblockchaininfo.ltc_snapshot.height must be a positive integer",
+        )
+        null_snapshot_block_hash = self.valid_info()
+        null_snapshot_block_hash["ltc_snapshot"]["block_hash"] = "00" * 32
+        self.assert_preflight(
+            fake_cli,
+            null_snapshot_block_hash,
+            1,
+            "getblockchaininfo.ltc_snapshot.block_hash must be a non-null lowercase 64-character hex string",
+        )
+        uppercase_snapshot_import_hash = self.valid_info()
+        uppercase_snapshot_import_hash["ltc_snapshot"]["import_hash"] = ("aa" * 32).upper()
+        self.assert_preflight(
+            fake_cli,
+            uppercase_snapshot_import_hash,
+            1,
+            "getblockchaininfo.ltc_snapshot.import_hash must be a non-null lowercase 64-character hex string",
+        )
+
         self.log.info("Reject in-progress snapshot imports")
         snapshot_import_in_progress = self.valid_info()
         snapshot_import_in_progress["ltc_snapshot"]["import_in_progress"] = True
