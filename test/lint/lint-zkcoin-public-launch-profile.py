@@ -368,6 +368,87 @@ def require_public_launch_manifest_current():
         )
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        def reject_bool_manifest_case(name, mutate, expected_error):
+            bool_manifest = json.loads(json.dumps(manifest))
+            mutate(bool_manifest)
+            bool_manifest_path = Path(temp_dir) / f"{name}.json"
+            bool_manifest_path.write_text(json.dumps(bool_manifest), encoding="utf8")
+            bool_manifest_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--allow-blocked",
+                    str(bool_manifest_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if bool_manifest_result.returncode == 0:
+                return "{} accepted boolean-backed integer field in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if expected_error not in bool_manifest_result.stderr:
+                return "{} did not explain boolean integer rejection for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            return None
+
+        def remove_blocker(manifest_value, blocker_id):
+            manifest_value["blockers"] = [
+                blocker
+                for blocker in manifest_value.get("blockers", [])
+                if not (isinstance(blocker, dict) and blocker.get("id") == blocker_id)
+            ]
+
+        bool_manifest_cases = (
+            (
+                "boolean-manifest-version",
+                lambda value: value.update({"version": True}),
+                "version: must be 1",
+            ),
+            (
+                "boolean-snapshot-height",
+                lambda value: value["networks"]["main"]["litecoin_snapshot"].update({"height": True}),
+                "main.litecoin_snapshot.height: must be a positive integer",
+            ),
+            (
+                "boolean-auxpow-start-height",
+                lambda value: value["networks"]["main"]["auxpow"].update({"start_height": True}),
+                "main.auxpow.start_height: must be 1 for first post-genesis launch block",
+            ),
+            (
+                "boolean-auxpow-chain-id",
+                lambda value: (
+                    value["networks"]["main"]["auxpow"].update({"chain_id": True}),
+                    remove_blocker(value, "main.auxpow_chain_id"),
+                ),
+                "main.auxpow.chain_id: must be a non-zero AuxPoW-version encodable integer below 0x8000",
+            ),
+            (
+                "boolean-default-port",
+                lambda value: value["networks"]["main"]["public_network_identity"].update({"default_port": True}),
+                "main.public_network_identity.default_port: must be in the public TCP port range 1025-65535",
+            ),
+            (
+                "boolean-message-start-byte",
+                lambda value: value["networks"]["main"]["public_network_identity"].update({"message_start": [True, 191, 181, 217]}),
+                "main.public_network_identity.message_start: must be 4 non-Litecoin non-printable magic bytes",
+            ),
+            (
+                "boolean-base58-prefix-byte",
+                lambda value: value["networks"]["main"]["public_network_identity"]["base58_prefixes"].update({"pubkey_address": [True]}),
+                "main.public_network_identity.base58_prefixes.pubkey_address: must be an array of 1 byte value(s)",
+            ),
+        )
+        for name, mutate, expected_error in bool_manifest_cases:
+            bool_manifest_error = reject_bool_manifest_case(name, mutate, expected_error)
+            if bool_manifest_error:
+                return bool_manifest_error
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -1976,6 +2057,7 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
+        ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("--next-action", "manifest next-action guidance flag"),

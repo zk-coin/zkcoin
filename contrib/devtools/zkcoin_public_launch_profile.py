@@ -129,6 +129,10 @@ def ordered_unresolved_blocker_ids(manifest):
     return [blocker for blocker in BLOCKER_ORDER if blocker in blockers]
 
 
+def is_plain_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 class Validation:
     def __init__(self, allow_blocked):
         self.allow_blocked = allow_blocked
@@ -181,7 +185,7 @@ class Validation:
         if value is None and allow_null:
             self.blockers.append(path)
             return
-        if not isinstance(value, int) or value <= 0:
+        if not is_plain_int(value) or value <= 0:
             self.error(path, "must be a positive integer")
 
     def require_nonempty_string(self, value, path, *, allow_null):
@@ -260,7 +264,7 @@ def hrp_valid(hrp):
 def message_start_valid(value):
     if not isinstance(value, list) or len(value) != 4:
         return False
-    if any(not isinstance(byte, int) or byte < 0 or byte > 255 for byte in value):
+    if any(not is_plain_int(byte) or byte < 0 or byte > 255 for byte in value):
         return False
     start = tuple(value)
     if start in LITECOIN_MESSAGE_STARTS:
@@ -316,12 +320,12 @@ def validate_snapshot(check, network, profile, allow_null):
 
 def validate_auxpow(check, network, profile, allow_null):
     auxpow = check.require_object(profile.get("auxpow"), f"{network}.auxpow")
-    if auxpow.get("start_height") != 1:
+    if not is_plain_int(auxpow.get("start_height")) or auxpow.get("start_height") != 1:
         check.error(f"{network}.auxpow.start_height", "must be 1 for first post-genesis launch block")
     chain_id = auxpow.get("chain_id")
     if chain_id is None and allow_null:
         check.blockers.append(f"{network}.auxpow.chain_id")
-    elif not isinstance(chain_id, int) or not (0 < chain_id < 0x8000):
+    elif not is_plain_int(chain_id) or not (0 < chain_id < 0x8000):
         check.error(f"{network}.auxpow.chain_id", "must be a non-zero AuxPoW-version encodable integer below 0x8000")
     elif chain_id == PLACEHOLDER_AUXPOW_CHAIN_ID:
         check.error(f"{network}.auxpow.chain_id", "must not use launch placeholder chain id 0x5a4b")
@@ -375,7 +379,7 @@ def validate_base58_prefixes(check, network, identity, allow_null):
         if (
             not isinstance(value, list)
             or len(value) != expected_len
-            or any(not isinstance(byte, int) or byte < 0 or byte > 255 for byte in value)
+            or any(not is_plain_int(byte) or byte < 0 or byte > 255 for byte in value)
         ):
             check.error(path, f"must be an array of {expected_len} byte value(s)")
             continue
@@ -398,7 +402,7 @@ def validate_identity(check, network, profile, allow_null):
     default_port = identity.get("default_port")
     if default_port is None and allow_null:
         check.blockers.append(f"{network}.public_network_identity.default_port")
-    elif not isinstance(default_port, int) or default_port <= 1024 or default_port > 65535:
+    elif not is_plain_int(default_port) or default_port <= 1024 or default_port > 65535:
         check.error(f"{network}.public_network_identity.default_port", "must be in the public TCP port range 1025-65535")
     elif default_port in LITECOIN_DEFAULT_PORTS:
         check.error(f"{network}.public_network_identity.default_port", "must not reuse a Litecoin default port")
@@ -436,7 +440,7 @@ def byte_tuple(value, expected_len):
     if (
         not isinstance(value, list)
         or len(value) != expected_len
-        or any(not isinstance(byte, int) or byte < 0 or byte > 255 for byte in value)
+        or any(not is_plain_int(byte) or byte < 0 or byte > 255 for byte in value)
     ):
         return None
     return tuple(value)
@@ -463,7 +467,7 @@ def validate_unique_launch_values(check, networks):
             continue
 
         auxpow = profile.get("auxpow")
-        if isinstance(auxpow, dict) and isinstance(auxpow.get("chain_id"), int):
+        if isinstance(auxpow, dict) and is_plain_int(auxpow.get("chain_id")):
             require_unique_manifest_value(
                 check,
                 auxpow_chain_ids,
@@ -485,7 +489,7 @@ def validate_unique_launch_values(check, networks):
             )
 
         default_port = identity.get("default_port")
-        if isinstance(default_port, int):
+        if is_plain_int(default_port):
             require_unique_manifest_value(
                 check,
                 default_ports,
@@ -529,7 +533,7 @@ def validate_unique_launch_values(check, networks):
 
 def validate_manifest(manifest, allow_blocked):
     check = Validation(allow_blocked)
-    if manifest.get("version") != 1:
+    if not is_plain_int(manifest.get("version")) or manifest.get("version") != 1:
         check.error("version", "must be 1")
     status = manifest.get("status")
     if status not in ("blocked", "ready-for-chainparams"):
