@@ -1265,6 +1265,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        uppercase_hash_audit_path = Path(temp_dir) / "uppercase-hash-audit.json"
+        uppercase_hash_audit = dict(audit)
+        uppercase_hash_audit["block_hash"] = ("aa" * 32).upper()
+        uppercase_hash_audit_path.write_text(json.dumps(uppercase_hash_audit), encoding="utf8")
+        uppercase_hash_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(uppercase_hash_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if uppercase_hash_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an uppercase audit hash".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit block_hash must be a 64-character lowercase hex string" not in uppercase_hash_result.stderr:
+            return "{} --set-snapshot-audit did not explain uppercase audit hash rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         extra_field_audit_path = Path(temp_dir) / "extra-field-audit.json"
         extra_field_audit = dict(audit)
         extra_field_audit["unexpected_launch_value"] = "ignored-before"
@@ -2536,6 +2563,7 @@ def main():
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("snapshot audit summary has unexpected field", "manifest rejects extra snapshot audit summary fields"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
+        ("64-character lowercase hex string", "manifest rejects non-lowercase snapshot audit hashes"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
@@ -3058,6 +3086,10 @@ def main():
         (
             "stores those audit fields with the snapshot constants",
             "public launch manifest snapshot audit retention documentation",
+        ),
+        (
+            "64-character lowercase hex strings",
+            "public launch manifest snapshot audit lowercase hash documentation",
         ),
         (
             "absolute snapshot file path",

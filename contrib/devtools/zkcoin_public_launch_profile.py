@@ -660,9 +660,10 @@ def parse_height(value):
 
 
 def parse_hex256(value, label):
-    value = value.lower()
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a 64-character lowercase hex string")
     if re.fullmatch(r"[0-9a-f]{64}", value) is None:
-        raise ValueError(f"{label} must be a 64-character hex string")
+        raise ValueError(f"{label} must be a 64-character lowercase hex string")
     if value == ZERO_UINT256:
         raise ValueError(f"{label} must not be the null uint256")
     return value
@@ -684,7 +685,7 @@ def require_snapshot_audit_hash(audit, field):
         raise ValueError(f"snapshot audit missing field: {field}")
     value = audit[field]
     if not isinstance(value, str):
-        raise ValueError(f"snapshot audit {field} must be a 64-character hex string")
+        raise ValueError(f"snapshot audit {field} must be a 64-character lowercase hex string")
     return parse_hex256(value, f"snapshot audit {field}")
 
 
