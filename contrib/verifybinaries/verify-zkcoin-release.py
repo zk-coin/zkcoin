@@ -18,7 +18,7 @@ from urllib.parse import quote, urlparse
 from urllib.request import urlopen
 
 
-CHECKSUM_RE = re.compile(r"^([0-9a-fA-F]{64})\s+[* ]?(.+)$")
+CHECKSUM_RE = re.compile(r"^([0-9a-fA-F]{64})( [ *])(.+)$")
 FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 
 
@@ -135,10 +135,11 @@ def parse_checksum_manifest(path):
         match = CHECKSUM_RE.match(line)
         if match is None:
             raise VerifyError("invalid checksum line {}: {}".format(line_number, line))
-        digest, filename = match.groups()
+        digest, _separator, filename = match.groups()
         if digest != digest.lower():
             raise VerifyError("checksum digest must be lowercase hex in checksum manifest")
-        filename = filename.strip()
+        if filename != filename.strip():
+            raise VerifyError("artifact path must not have leading or trailing whitespace in checksum manifest")
         if "\\" in filename or any(ord(char) < 0x20 or ord(char) == 0x7f for char in filename):
             raise VerifyError("artifact path contains backslashes or control characters in checksum manifest")
         pure_path = PurePosixPath(filename)

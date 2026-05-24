@@ -517,6 +517,48 @@ def require_zkcoin_verifier_rejects_uppercase_checksum_digests():
     return None
 
 
+def require_zkcoin_verifier_rejects_noncanonical_checksum_lines():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    digest = "00" * 32
+    invalid_manifests = (
+        ("{} zkcoin-linux.tar.gz\n".format(digest), "invalid checksum line"),
+        ("{}\tzkcoin-linux.tar.gz\n".format(digest), "invalid checksum line"),
+        ("{}   zkcoin-linux.tar.gz\n".format(digest), "artifact path must not have leading or trailing whitespace in checksum manifest"),
+        ("{}  zkcoin-linux.tar.gz \n".format(digest), "artifact path must not have leading or trailing whitespace in checksum manifest"),
+    )
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        manifest = Path(tempdir) / "SHA256SUMS"
+        for manifest_text, expected_error in invalid_manifests:
+            manifest.write_text(manifest_text, encoding="utf8")
+            try:
+                verifier.parse_checksum_manifest(manifest)
+            except verifier.VerifyError as exc:
+                if expected_error not in str(exc):
+                    return "zkCoin verifier reported the wrong non-canonical checksum line error"
+            else:
+                return "zkCoin verifier accepted a non-canonical checksum line"
+
+        for manifest_text in (
+            "{}  zkcoin-linux.tar.gz\n".format(digest),
+            "{} *zkcoin-linux.tar.gz\n".format(digest),
+        ):
+            manifest.write_text(manifest_text, encoding="utf8")
+            try:
+                entries = verifier.parse_checksum_manifest(manifest)
+            except verifier.VerifyError as exc:
+                return "zkCoin verifier rejected a canonical checksum line: {}".format(exc)
+            if entries != [(digest, "zkcoin-linux.tar.gz")]:
+                return "zkCoin verifier parsed the wrong canonical checksum line entry"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_nonportable_artifact_paths():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -969,6 +1011,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_uppercase_checksum_digests()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_noncanonical_checksum_lines()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_nonportable_artifact_paths()
@@ -1654,6 +1699,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "target.unlink()", "zkCoin verifier downloaded mismatch cleanup"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "checksum digest must be lowercase hex", "zkCoin verifier lowercase checksum digest rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "( [ *])", "zkCoin verifier canonical checksum line separator"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact path must not have leading or trailing whitespace", "zkCoin verifier artifact path whitespace rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
@@ -1673,6 +1720,8 @@ def main():
         (VERIFY_README, "without overwriting a final artifact path that appears during the download", "zkCoin verifier raced artifact target documentation"),
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
         (VERIFY_README, "lowercase 64-character hex digests", "zkCoin verifier lowercase checksum digest documentation"),
+        (VERIFY_README, "coreutils SHA256SUMS separators", "zkCoin verifier canonical checksum line documentation"),
+        (VERIFY_README, "leading or trailing whitespace", "zkCoin verifier artifact path whitespace documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
