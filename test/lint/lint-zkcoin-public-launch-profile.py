@@ -3749,6 +3749,7 @@ def main():
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
         ("snapshot output directory must not be a symlink", "snapshot script rejects symlink snapshot output directories"),
+        ("require_snapshot_output_directory_direct", "snapshot script rechecks snapshot output parents after RPC calls"),
         ("snapshot incomplete output path must not be a symlink", "snapshot script rejects symlink dump work files"),
         ("snapshot incomplete output already exists", "snapshot script rejects pre-existing dump work files"),
         ("snapshot incomplete output remained after dumptxoutset", "snapshot script rejects leftover dump work files"),
@@ -3919,11 +3920,19 @@ def main():
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
         (
+            "Reject snapshot output directory symlink replacement during dump",
+            "snapshot script test rejects dump-time snapshot directory symlink replacement",
+        ),
+        (
             "Reject leftover snapshot incomplete output after dump before verification",
             "snapshot script test rejects leftover dump work files before verifier handoff",
         ),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
+        (
+            "Reject snapshot output directory symlink replacement during verification",
+            "snapshot script test rejects verifier-time snapshot directory symlink replacement",
+        ),
         ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
         (
             "Reject audit summary directory symlink replacement during verification",

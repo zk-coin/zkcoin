@@ -110,6 +110,12 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             fail("reconsider failed")
                         print("{}")
                     elif command == "dumptxoutset":
+                        if scenario.get("replace_snapshot_parent_with_symlink_during_dump", False):
+                            snapshot_parent = os.path.dirname(command_args[0])
+                            snapshot_target_parent = snapshot_parent + ".target"
+                            os.rmdir(snapshot_parent)
+                            os.makedirs(snapshot_target_parent, exist_ok=True)
+                            os.symlink(snapshot_target_parent, snapshot_parent)
                         if not scenario.get("skip_snapshot_write", False):
                             if scenario.get("symlink_snapshot_write", False):
                                 snapshot_target_path = command_args[0] + ".target"
@@ -140,6 +146,11 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                         with open(snapshot_target_path, "wb") as snapshot_file:
                             snapshot_file.write(snapshot_bytes)
                         os.symlink(snapshot_target_path, command_args[0])
+                    elif scenario.get("replace_snapshot_parent_with_symlink_during_verify", False):
+                        snapshot_parent = os.path.dirname(command_args[0])
+                        snapshot_original_parent = snapshot_parent + ".original"
+                        os.rename(snapshot_parent, snapshot_original_parent)
+                        os.symlink(snapshot_original_parent, snapshot_parent)
                     elif scenario.get("mutate_snapshot_during_verify", False):
                         with open(command_args[0], "ab") as snapshot_file:
                             snapshot_file.write(b"mutated")
@@ -229,6 +240,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_parent_symlink=False,
         audit_path_parent_swapped_during_verify=False,
         snapshot_path_parent_symlink=False,
+        snapshot_path_parent_swapped_during_dump=False,
+        snapshot_path_parent_swapped_during_verify=False,
         snapshot_path_has_space=False,
         audit_path_has_space=False,
         snapshot_path_has_control=False,
@@ -262,6 +275,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             snapshot_link_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-link-dir")
             os.symlink(snapshot_target_dir, snapshot_link_dir)
             snapshot_path = os.path.join(snapshot_link_dir, f"{name}.dat")
+        elif snapshot_path_parent_swapped_during_dump or snapshot_path_parent_swapped_during_verify:
+            snapshot_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-dir")
+            os.makedirs(snapshot_dir, exist_ok=True)
+            snapshot_path = os.path.join(snapshot_dir, f"{name}.dat")
         if audit_path_same_as_snapshot:
             audit_path = snapshot_path
         elif audit_path_same_as_snapshot_incomplete:
@@ -1120,6 +1137,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
 
+        self.log.info("Reject snapshot output directory symlink replacement during dump")
+        _, calls, _ = self.assert_snapshot(
+            "snapshot-dir-symlink-during-dump",
+            self.scenario(replace_snapshot_parent_with_symlink_during_dump=True),
+            1,
+            "snapshot output directory must not be a symlink",
+            snapshot_path_parent_swapped_during_dump=True,
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
         self.log.info("Reject leftover snapshot incomplete output after dump before verification")
         _, calls, _ = self.assert_snapshot(
             "leftover-incomplete-file",
@@ -1144,6 +1171,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(replace_snapshot_with_symlink_during_verify=True),
             1,
             "snapshot output became a symlink during verification",
+        )
+        self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject snapshot output directory symlink replacement during verification")
+        _, calls, snapshot_path = self.assert_snapshot(
+            "snapshot-dir-symlink-during-verify",
+            self.scenario(replace_snapshot_parent_with_symlink_during_verify=True),
+            1,
+            "snapshot output directory must not be a symlink",
+            snapshot_path_parent_swapped_during_verify=True,
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
 

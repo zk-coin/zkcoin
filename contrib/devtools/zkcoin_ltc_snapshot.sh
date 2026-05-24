@@ -119,12 +119,17 @@ if [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
   die "snapshot incomplete output already exists: $SNAPSHOT_INCOMPLETE_PATH"
 fi
 SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
-if [[ -L "$SNAPSHOT_DIR" ]]; then
-  die "snapshot output directory must not be a symlink: $SNAPSHOT_DIR"
-fi
-if [[ ! -d "$SNAPSHOT_DIR" ]]; then
-  die "snapshot output directory does not exist: $SNAPSHOT_DIR"
-fi
+
+require_snapshot_output_directory_direct() {
+  if [[ -L "$SNAPSHOT_DIR" ]]; then
+    die "snapshot output directory must not be a symlink: $SNAPSHOT_DIR"
+  fi
+  if [[ ! -d "$SNAPSHOT_DIR" ]]; then
+    die "snapshot output directory does not exist: $SNAPSHOT_DIR"
+  fi
+}
+
+require_snapshot_output_directory_direct
 if [[ ! -w "$SNAPSHOT_DIR" ]]; then
   die "snapshot output directory is not writable: $SNAPSHOT_DIR"
 fi
@@ -390,6 +395,7 @@ fi
 
 echo "Dumping Litecoin UTXO snapshot at height $HEIGHT to $SNAPSHOT_PATH" >&2
 DUMP_JSON="$(ltc_cli dumptxoutset "$SNAPSHOT_PATH")"
+require_snapshot_output_directory_direct
 if [[ -L "$SNAPSHOT_INCOMPLETE_PATH" ]] || [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
   die "snapshot incomplete output remained after dumptxoutset: $SNAPSHOT_INCOMPLETE_PATH"
 fi
@@ -509,6 +515,7 @@ PY
 
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
+require_snapshot_output_directory_direct
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output became a symlink during verification: $SNAPSHOT_PATH"
 fi
