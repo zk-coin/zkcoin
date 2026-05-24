@@ -151,10 +151,10 @@ Both are intentionally present before behavior changes so tests and review can t
   against the ready manifest so the committed `chainparams.cpp` stays
   synchronized with the reviewed launch manifest and the main/testnet snippets
   are present only once in their matching chainparams classes without foreign
-  generated snippets. The checked `chainparams.cpp` input is
-  read as a direct regular file capped at 1048576 bytes, decoded as UTF-8, and
-  rechecked before sync comparison so symlinked or concurrently changed files
-  cannot mask drift.
+  generated snippets. The checked `chainparams.cpp` input is read from a direct
+  parent directory as a direct regular file capped at 1048576 bytes, decoded as
+  UTF-8, and rechecked before sync comparison so symlinked or concurrently
+  changed files cannot mask drift.
 - `generatetodescriptor` and related local generation RPCs can mine AuxPoW blocks after activation.
 - `getauxblock` exposes wallet-backed candidate creation and AuxPoW submission for merge-mining integration.
 - `createauxblock <address>` exposes explicit-address candidate creation for pool software and no-wallet nodes.
@@ -338,9 +338,9 @@ audit summaries, so hand-edited values cannot be shadowed by later duplicate
 keys.
 The launch manifest must be valid UTF-8 JSON; invalid byte sequences are
 reported as stable operator-facing errors instead of Python decode tracebacks.
-It must not exceed 262144 bytes and is read as a direct regular file, with the
-path rechecked before parsing so symlinked or concurrently changed manifests do
-not feed launch-profile decisions.
+It must not exceed 262144 bytes and is read from a direct parent directory as a
+direct regular file, with the path rechecked before parsing so symlinked or
+concurrently changed manifests do not feed launch-profile decisions.
 The validator ensures malformed manifest sections are reported as validation errors
 instead of operator-facing tool tracebacks.
 Manifest update commands reject malformed sections before mutation, so operator

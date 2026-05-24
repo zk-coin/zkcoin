@@ -952,6 +952,7 @@ def read_launch_manifest_text(manifest_path):
         missing_error="cannot read manifest",
         not_regular_error="manifest path must be a regular file",
         open_error="cannot read manifest",
+        parent_symlink_error="manifest parent directory must not be a symlink",
     )
     if manifest_stat.st_size > LAUNCH_MANIFEST_MAX_BYTES:
         os.close(fd)
@@ -973,6 +974,7 @@ def read_launch_manifest_text(manifest_path):
             manifest_stat,
             fd,
             "manifest changed during read",
+            parent_symlink_error="manifest parent directory must not be a symlink",
         )
     except OSError as exc:
         raise ValueError(f"cannot read manifest: {exc}") from None
@@ -996,6 +998,7 @@ def read_chainparams_text(chainparams_path):
         missing_error="cannot read chainparams",
         not_regular_error="chainparams path must be a regular file",
         open_error="cannot read chainparams",
+        parent_symlink_error="chainparams parent directory must not be a symlink",
     )
     if chainparams_stat.st_size > CHAINPARAMS_INPUT_MAX_BYTES:
         os.close(fd)
@@ -1017,6 +1020,7 @@ def read_chainparams_text(chainparams_path):
             chainparams_stat,
             fd,
             "chainparams input changed during read",
+            parent_symlink_error="chainparams parent directory must not be a symlink",
         )
     except OSError as exc:
         raise ValueError(f"cannot read chainparams: {exc}") from None
