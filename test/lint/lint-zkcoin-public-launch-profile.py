@@ -367,6 +367,30 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    mixed_action_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--set-auxpow",
+            "main",
+            "0x5001",
+            "--next-action",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if mixed_action_result.returncode == 0:
+        return "{} accepted mixed primary launch-profile actions".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "use only one primary action at a time: --set-auxpow, --next-action" not in mixed_action_result.stderr:
+        return "{} did not explain mixed primary launch-profile action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     with tempfile.TemporaryDirectory() as temp_dir:
         def reject_bool_manifest_case(name, mutate, expected_error):
             bool_manifest = json.loads(json.dumps(manifest))
@@ -2488,6 +2512,7 @@ def main():
         ("os.O_EXCL", "manifest in-place updates create temp files exclusively"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
+        ("selected_primary_actions", "manifest rejects mixed primary actions"),
         ("--next-action", "manifest next-action guidance flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
@@ -2909,6 +2934,10 @@ def main():
         (
             "In-place manifest writes reject symlinked manifest paths and pre-existing temp files",
             "public launch manifest safe in-place write documentation",
+        ),
+        (
+            "Use one primary launch-profile action per invocation",
+            "public launch manifest single primary action documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
