@@ -7,8 +7,8 @@ clearsigned `SHA256SUMS.asc` was signed by an explicitly supplied zkCoin release
 signing key fingerprint, then verifies every selected artifact hash from the
 signed manifest. The checksum input must be a regular file, not a symlink.
 Trusted signing key inputs must be full 40-character hex fingerprints.
-The signed manifest must be valid UTF-8 text and must not contain duplicate artifact paths,
-so a release cannot publish ambiguous checksums for the same artifact name.
+The signed manifest must be valid UTF-8 text, must not exceed 262144 bytes,
+and must not contain duplicate artifact paths, so a release cannot publish ambiguous checksums for the same artifact name.
 Artifact checksums must be lowercase 64-character hex digests and use coreutils SHA256SUMS separators.
 Artifact paths must be normalized POSIX paths, must not have leading or trailing whitespace,
 and must not contain backslashes or control characters. Local artifacts must be
