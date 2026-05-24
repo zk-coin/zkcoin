@@ -3235,6 +3235,10 @@ def main():
             "preflight cross-checks launch-tip header height",
         ),
         (
+            "getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string",
+            "preflight validates launch-tip hash shape",
+        ),
+        (
             "getblockchaininfo.initialblockdownload must be a boolean",
             "preflight validates initial block download shape",
         ),
@@ -3304,6 +3308,10 @@ def main():
         (
             "Reject malformed header height in launch preflight",
             "preflight fake-CLI header height coverage",
+        ),
+        (
+            "Reject malformed best block hash in launch preflight",
+            "preflight fake-CLI launch-tip hash coverage",
         ),
         (
             "Reject initial block download in launch preflight",
@@ -3485,6 +3493,7 @@ def main():
         ),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
+        ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
         ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
         ("getblockchaininfo.pruned=false", "preflight pruned mode documentation"),
         ('getblockchaininfo.warnings=""', "preflight node warning documentation"),

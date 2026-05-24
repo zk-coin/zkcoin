@@ -86,6 +86,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         return {
             "blocks": 0,
             "headers": 0,
+            "bestblockhash": "33" * 32,
             "initialblockdownload": False,
             "pruned": False,
             "warnings": "",
@@ -189,6 +190,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             headers_below_blocks,
             1,
             "getblockchaininfo.headers must be greater than or equal to blocks",
+        )
+
+        self.log.info("Reject malformed best block hash in launch preflight")
+        malformed_bestblockhash = self.valid_info()
+        malformed_bestblockhash["bestblockhash"] = "33" * 31
+        self.assert_preflight(
+            fake_cli,
+            malformed_bestblockhash,
+            1,
+            "getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string",
         )
 
         self.log.info("Reject initial block download in launch preflight")
