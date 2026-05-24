@@ -3255,6 +3255,14 @@ def main():
             "preflight validates disk footprint shape",
         ),
         (
+            "getblockchaininfo.time must be a non-negative integer",
+            "preflight validates launch-tip time shape",
+        ),
+        (
+            "getblockchaininfo.mediantime must be less than or equal to time",
+            "preflight validates launch-tip median time ordering",
+        ),
+        (
             "getblockchaininfo.initialblockdownload must be a boolean",
             "preflight validates initial block download shape",
         ),
@@ -3344,6 +3352,10 @@ def main():
         (
             "Reject malformed size on disk in launch preflight",
             "preflight fake-CLI disk footprint coverage",
+        ),
+        (
+            "Reject malformed launch-tip times in launch preflight",
+            "preflight fake-CLI launch-tip time coverage",
         ),
         (
             "Reject initial block download in launch preflight",
@@ -3530,6 +3542,8 @@ def main():
         ("getblockchaininfo.chainwork", "preflight chainwork documentation"),
         ("getblockchaininfo.verificationprogress", "preflight verification progress documentation"),
         ("getblockchaininfo.size_on_disk", "preflight disk footprint documentation"),
+        ("getblockchaininfo.time", "preflight launch-tip time documentation"),
+        ("getblockchaininfo.mediantime", "preflight launch-tip median time documentation"),
         ("getblockchaininfo.initialblockdownload=false", "preflight IBD documentation"),
         ("getblockchaininfo.pruned=false", "preflight pruned mode documentation"),
         ('getblockchaininfo.warnings=""', "preflight node warning documentation"),
