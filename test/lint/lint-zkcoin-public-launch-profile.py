@@ -3251,6 +3251,10 @@ def main():
             "preflight validates verification progress shape",
         ),
         (
+            "getblockchaininfo.difficulty must be a non-negative number",
+            "preflight validates difficulty shape",
+        ),
+        (
             "getblockchaininfo.size_on_disk must be a positive integer",
             "preflight validates disk footprint shape",
         ),
@@ -3348,6 +3352,10 @@ def main():
         (
             "Reject malformed verification progress in launch preflight",
             "preflight fake-CLI verification progress coverage",
+        ),
+        (
+            "Reject malformed difficulty in launch preflight",
+            "preflight fake-CLI difficulty coverage",
         ),
         (
             "Reject malformed size on disk in launch preflight",
@@ -3541,6 +3549,7 @@ def main():
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
         ("getblockchaininfo.chainwork", "preflight chainwork documentation"),
         ("getblockchaininfo.verificationprogress", "preflight verification progress documentation"),
+        ("getblockchaininfo.difficulty", "preflight difficulty documentation"),
         ("getblockchaininfo.size_on_disk", "preflight disk footprint documentation"),
         ("getblockchaininfo.time", "preflight launch-tip time documentation"),
         ("getblockchaininfo.mediantime", "preflight launch-tip median time documentation"),
