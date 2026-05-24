@@ -999,6 +999,98 @@ def require_zkcoin_verifier_downloads_atomically():
     return None
 
 
+def require_zkcoin_verifier_rejects_content_length_mismatches():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    class SizedResponse:
+        def __init__(self, payload, content_length):
+            self.payload = payload
+            self.content_length = content_length
+            self.sent = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+        def geturl(self):
+            return "https://downloads.example.invalid/zkcoin/zkcoin-1.0.tar.gz"
+
+        def getheader(self, name):
+            if name.lower() == "content-length":
+                return self.content_length
+            return None
+
+        def read(self, _size=-1):
+            if self.sent:
+                return b""
+            self.sent = True
+            return self.payload
+
+    def run_download_case(tempdir, name, payload, content_length):
+        artifacts_dir = Path(tempdir) / name
+        target = artifacts_dir / "zkcoin-1.0.tar.gz"
+
+        def sized_urlopen(_url, timeout):
+            if timeout != 1:
+                raise AssertionError("unexpected timeout")
+            return SizedResponse(payload, content_length)
+
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = sized_urlopen
+        try:
+            verifier.download_artifact(
+                "https://downloads.example.invalid/zkcoin",
+                "zkcoin-1.0.tar.gz",
+                target,
+                1,
+            )
+        finally:
+            verifier.urlopen = original_urlopen
+        return artifacts_dir, target
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        try:
+            run_download_case(tempdir, "invalid-length", b"artifact payload", "not-a-number")
+        except verifier.VerifyError as exc:
+            if "artifact download reported invalid Content-Length: zkcoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong invalid Content-Length error"
+        else:
+            return "zkCoin verifier accepted an invalid Content-Length header"
+
+        invalid_dir = Path(tempdir) / "invalid-length"
+        if invalid_dir.exists() and list(invalid_dir.iterdir()):
+            return "zkCoin verifier left files after an invalid Content-Length header"
+
+        try:
+            run_download_case(tempdir, "mismatched-length", b"artifact payload", "999")
+        except verifier.VerifyError as exc:
+            if "artifact download Content-Length mismatch: zkcoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong Content-Length mismatch error"
+        else:
+            return "zkCoin verifier accepted a Content-Length mismatched download"
+
+        mismatch_dir = Path(tempdir) / "mismatched-length"
+        if mismatch_dir.exists() and list(mismatch_dir.iterdir()):
+            return "zkCoin verifier left files after a Content-Length mismatch"
+
+        payload = b"artifact payload"
+        valid_dir, target = run_download_case(tempdir, "valid-length", payload, str(len(payload)))
+        if target.read_bytes() != payload:
+            return "zkCoin verifier corrupted a Content-Length checked download"
+        leftovers = [entry for entry in valid_dir.iterdir() if entry != target]
+        if leftovers:
+            return "zkCoin verifier left temporary files after a Content-Length checked download"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_raced_download_targets():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -1230,6 +1322,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_downloads_atomically()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_content_length_mismatches()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_raced_download_targets()
@@ -1890,6 +1985,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected away from HTTPS", "zkCoin verifier HTTPS redirect guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact download redirected to a credentialed URL", "zkCoin verifier credentialed redirect guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact download reported invalid Content-Length", "zkCoin verifier invalid Content-Length guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact download Content-Length mismatch", "zkCoin verifier Content-Length mismatch guard"),
         (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path appeared during download", "zkCoin verifier raced artifact target guard"),
         (ZKCOIN_VERIFY_SCRIPT, "os.link", "zkCoin verifier exclusive artifact install"),
@@ -1922,6 +2019,8 @@ def main():
         (VERIFY_README, "redirect away from HTTPS", "zkCoin verifier HTTPS redirect documentation"),
         (VERIFY_README, "redirect to credentialed URLs", "zkCoin verifier credentialed redirect documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
+        (VERIFY_README, "Content-Length", "zkCoin verifier Content-Length documentation"),
+        (VERIFY_README, "exactly that many bytes", "zkCoin verifier Content-Length byte-count documentation"),
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
         (VERIFY_README, "without overwriting a final artifact path that appears during the download", "zkCoin verifier raced artifact target documentation"),
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
