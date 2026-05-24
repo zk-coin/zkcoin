@@ -674,6 +674,13 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        manifest_tool_spec = importlib.util.spec_from_file_location(
+            "zkcoin_public_launch_profile_tool",
+            PUBLIC_LAUNCH_MANIFEST_TOOL,
+        )
+        manifest_tool = importlib.util.module_from_spec(manifest_tool_spec)
+        manifest_tool_spec.loader.exec_module(manifest_tool)
+
         invalid_utf8_manifest_path = Path(temp_dir) / "invalid-utf8-manifest.json"
         invalid_utf8_manifest_path.write_bytes(b'{"version": 1, "status": "' + bytes([0xff]) + b'"}')
         invalid_utf8_manifest_result = subprocess.run(
@@ -700,6 +707,82 @@ def require_public_launch_manifest_current():
             return "{} leaked a traceback for invalid UTF-8 manifest input".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+
+        symlink_read_manifest_path = Path(temp_dir) / "symlink-read-manifest.json"
+        symlink_read_manifest_path.symlink_to(PUBLIC_LAUNCH_MANIFEST)
+        symlink_read_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(symlink_read_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_read_manifest_result.returncode == 0:
+            return "{} accepted a symlinked launch manifest for reading".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "manifest path must not be a symlink" not in symlink_read_manifest_result.stderr:
+            return "{} did not explain symlinked manifest read rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        oversized_manifest_path = Path(temp_dir) / "oversized-manifest.json"
+        oversized_manifest_path.write_bytes(b" " * (manifest_tool.LAUNCH_MANIFEST_MAX_BYTES + 1))
+        oversized_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(oversized_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if oversized_manifest_result.returncode == 0:
+            return "{} accepted an oversized launch manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "launch manifest must not exceed 262144 bytes" not in oversized_manifest_result.stderr:
+            return "{} did not explain oversized manifest rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        changed_manifest_path = Path(temp_dir) / "changed-read-manifest.json"
+        changed_manifest_path.write_text(json.dumps(manifest), encoding="utf8")
+        changed_manifest_fd, changed_manifest_stat = manifest_tool.open_regular_file_no_symlink(
+            changed_manifest_path,
+            symlink_error="manifest path must not be a symlink",
+            missing_error="cannot read manifest",
+            not_regular_error="manifest path must be a regular file",
+            open_error="cannot read manifest",
+        )
+        try:
+            changed_manifest_path.write_text("{}", encoding="utf8")
+            try:
+                manifest_tool.require_regular_file_stable(
+                    changed_manifest_path,
+                    changed_manifest_stat,
+                    changed_manifest_fd,
+                    "manifest changed during read",
+                )
+            except ValueError as exc:
+                if "manifest changed during read" not in str(exc):
+                    return "{} reported the wrong changed-manifest read error".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                    )
+            else:
+                return "{} accepted a changed manifest path after opening".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                )
+        finally:
+            os.close(changed_manifest_fd)
 
         snapshot_artifact_path = Path(temp_dir) / "update-ltc-block-x.dat"
         snapshot_artifact = b"snapshot"
@@ -1297,12 +1380,6 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
-        manifest_tool_spec = importlib.util.spec_from_file_location(
-            "zkcoin_public_launch_profile_tool",
-            PUBLIC_LAUNCH_MANIFEST_TOOL,
-        )
-        manifest_tool = importlib.util.module_from_spec(manifest_tool_spec)
-        manifest_tool_spec.loader.exec_module(manifest_tool)
         oversized_read_path = Path(temp_dir) / "oversized-read-audit.json"
         oversized_read_path.write_bytes(b" " * (manifest_tool.SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES + 1))
         oversized_read_fd = os.open(oversized_read_path, os.O_RDONLY)
@@ -2809,6 +2886,9 @@ def main():
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
         ("DuplicateJSONFieldError", "manifest rejects duplicate JSON fields"),
         ("is not valid UTF-8", "manifest rejects invalid UTF-8 JSON"),
+        ("LAUNCH_MANIFEST_MAX_BYTES", "manifest caps launch manifest input size"),
+        ("read_launch_manifest_text", "manifest opens launch manifests through the hardened read path"),
+        ("manifest changed during read", "manifest rechecks launch manifests after reading"),
         ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
         ("update_network_profile", "manifest update commands reject malformed profile sections"),
         ("blockers must be an array", "manifest update commands reject malformed blocker lists"),
@@ -3244,6 +3324,14 @@ def main():
         (
             "manifest must be valid UTF-8 JSON",
             "public launch manifest UTF-8 JSON documentation",
+        ),
+        (
+            "must not exceed 262144 bytes",
+            "public launch manifest input size documentation",
+        ),
+        (
+            "read as a direct regular file",
+            "public launch manifest hardened read documentation",
         ),
         (
             "malformed manifest sections are reported as validation errors",

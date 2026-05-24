@@ -63,6 +63,7 @@ SNAPSHOT_COIN = 100000000
 SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
 SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
 SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES = 64 * 1024
+LAUNCH_MANIFEST_MAX_BYTES = 256 * 1024
 SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
     "testnet": "test",
@@ -875,6 +876,50 @@ def read_snapshot_audit_summary_text(fd, audit_summary_path):
         raise ValueError("snapshot audit summary is not valid UTF-8") from None
 
 
+def launch_manifest_too_large_error(manifest_path):
+    return f"launch manifest must not exceed {LAUNCH_MANIFEST_MAX_BYTES} bytes: {manifest_path}"
+
+
+def read_launch_manifest_text(manifest_path):
+    fd, manifest_stat = open_regular_file_no_symlink(
+        manifest_path,
+        symlink_error="manifest path must not be a symlink",
+        missing_error="cannot read manifest",
+        not_regular_error="manifest path must be a regular file",
+        open_error="cannot read manifest",
+    )
+    if manifest_stat.st_size > LAUNCH_MANIFEST_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(launch_manifest_too_large_error(manifest_path))
+
+    chunks = []
+    total_bytes = 0
+    try:
+        while total_bytes <= LAUNCH_MANIFEST_MAX_BYTES:
+            chunk = os.read(fd, min(65536, LAUNCH_MANIFEST_MAX_BYTES + 1 - total_bytes))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+        if total_bytes > LAUNCH_MANIFEST_MAX_BYTES:
+            raise ValueError(launch_manifest_too_large_error(manifest_path))
+        require_regular_file_stable(
+            manifest_path,
+            manifest_stat,
+            fd,
+            "manifest changed during read",
+        )
+    except OSError as exc:
+        raise ValueError(f"cannot read manifest: {exc}") from None
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError(f"{manifest_path} is not valid UTF-8") from None
+
+
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
     fd, audit_summary_stat = open_regular_file_no_symlink(
@@ -1505,16 +1550,16 @@ def main():
         return 1
 
     try:
+        manifest_text = read_launch_manifest_text(args.manifest)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    try:
         manifest = json.loads(
-            args.manifest.read_text(encoding="utf8"),
+            manifest_text,
             object_pairs_hook=reject_duplicate_json_fields,
         )
-    except OSError as exc:
-        print(f"error: cannot read {args.manifest}: {exc}", file=sys.stderr)
-        return 1
-    except UnicodeDecodeError:
-        print(f"error: {args.manifest} is not valid UTF-8", file=sys.stderr)
-        return 1
     except DuplicateJSONFieldError as exc:
         print(f"error: {args.manifest} contains duplicate field: {exc}", file=sys.stderr)
         return 1
