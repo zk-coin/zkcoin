@@ -115,6 +115,9 @@ if type(initialblockdownload) is not bool:
 pruned = info.get("pruned")
 if type(pruned) is not bool:
     schema_errors.append("getblockchaininfo.pruned must be a boolean")
+warnings = info.get("warnings")
+if type(warnings) is not str:
+    schema_errors.append("getblockchaininfo.warnings must be a string")
 
 missing_readiness = [field for field in REQUIRED_READINESS_FIELDS if field not in readiness]
 if missing_readiness:
@@ -333,6 +336,7 @@ print(f"  chain height: {blocks}")
 print(f"  header height: {headers}")
 print(f"  initial block download: {str(initialblockdownload).lower()}")
 print(f"  pruned: {str(pruned).lower()}")
+print(f"  warnings: {warnings if warnings else '<none>'}")
 print(f"  at launch tip: {str(readiness['at_launch_tip']).lower()}")
 print(f"  snapshot configured: {str(readiness['snapshot_configured']).lower()}")
 print(f"  snapshot imported: {str(readiness['snapshot_imported']).lower()}")
@@ -385,6 +389,8 @@ if initialblockdownload is not False:
     posture_failures.append("node is still in initial block download")
 if pruned is not False:
     posture_failures.append("launch node is running in pruned mode")
+if warnings:
+    posture_failures.append("launch node reports warnings")
 if snapshot["import_in_progress"] is not False:
     posture_failures.append("snapshot import is still in progress")
 if shielded["scaffold_proofs"] is not False:
