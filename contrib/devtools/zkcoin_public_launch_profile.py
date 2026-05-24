@@ -348,6 +348,7 @@ def snapshot_file_valid(value):
         and value not in ("", "TODO", "TBD", "CHANGE_ME")
         and not value.startswith("<")
         and "\0" not in value
+        and all(ord(char) >= 0x20 and ord(char) != 0x7f for char in value)
     )
 
 
@@ -714,7 +715,9 @@ def require_snapshot_audit_string(audit, field):
 def require_snapshot_audit_file(audit, field):
     value = require_snapshot_audit_string(audit, field)
     if not snapshot_file_valid(value):
-        raise ValueError(f"snapshot audit {field} must be an absolute non-placeholder path")
+        raise ValueError(
+            f"snapshot audit {field} must be an absolute non-placeholder path without control characters"
+        )
     return value
 
 
