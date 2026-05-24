@@ -120,15 +120,42 @@ if [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
 fi
 SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
 
+snapshot_output_directory_fingerprint() {
+  python3 - "$SNAPSHOT_DIR" <<'PY'
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+try:
+    directory_stat = os.lstat(path)
+except FileNotFoundError:
+    print(f"error: snapshot output directory does not exist: {path}", file=sys.stderr)
+    sys.exit(1)
+except OSError as exc:
+    print(f"error: cannot stat snapshot output directory: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+if stat.S_ISLNK(directory_stat.st_mode):
+    print(f"error: snapshot output directory must not be a symlink: {path}", file=sys.stderr)
+    sys.exit(1)
+if not stat.S_ISDIR(directory_stat.st_mode):
+    print(f"error: snapshot output directory does not exist: {path}", file=sys.stderr)
+    sys.exit(1)
+
+print(f"{directory_stat.st_dev}:{directory_stat.st_ino}:{directory_stat.st_mode}")
+PY
+}
+
 require_snapshot_output_directory_direct() {
-  if [[ -L "$SNAPSHOT_DIR" ]]; then
-    die "snapshot output directory must not be a symlink: $SNAPSHOT_DIR"
-  fi
-  if [[ ! -d "$SNAPSHOT_DIR" ]]; then
-    die "snapshot output directory does not exist: $SNAPSHOT_DIR"
+  local current_fingerprint
+  current_fingerprint="$(snapshot_output_directory_fingerprint)"
+  if [[ -n "${SNAPSHOT_DIR_FINGERPRINT:-}" && "$current_fingerprint" != "$SNAPSHOT_DIR_FINGERPRINT" ]]; then
+    die "snapshot output directory changed during snapshot generation: $SNAPSHOT_DIR"
   fi
 }
 
+SNAPSHOT_DIR_FINGERPRINT="$(snapshot_output_directory_fingerprint)"
 require_snapshot_output_directory_direct
 if [[ ! -w "$SNAPSHOT_DIR" ]]; then
   die "snapshot output directory is not writable: $SNAPSHOT_DIR"
