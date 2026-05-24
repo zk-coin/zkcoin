@@ -45,6 +45,7 @@ import sys
 PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 NULL_UINT256 = "0" * 64
+KNOWN_CHAIN_NAMES = {"main", "test", "signet", "regtest"}
 SNAPSHOT_HASH_FIELD_ERRORS = {
     "block_hash": "getblockchaininfo.ltc_snapshot.block_hash must be a non-null lowercase 64-character hex string when launch_readiness.snapshot_configured is true",
     "import_hash": "getblockchaininfo.ltc_snapshot.import_hash must be a non-null lowercase 64-character hex string when launch_readiness.snapshot_configured is true",
@@ -101,6 +102,9 @@ REQUIRED_DETAIL_FIELDS = {
 }
 
 schema_errors = []
+chain = info.get("chain")
+if not isinstance(chain, str) or chain not in KNOWN_CHAIN_NAMES:
+    schema_errors.append("getblockchaininfo.chain must be a recognized chain name")
 blocks = info.get("blocks")
 if type(blocks) is not int or blocks < 0:
     schema_errors.append("getblockchaininfo.blocks must be a non-negative integer")
@@ -335,6 +339,7 @@ shielded = detail_sections["shielded_pool"]
 
 print("zkCoin launch readiness preflight")
 print(f"  ready: {str(readiness['ready']).lower()}")
+print(f"  chain: {chain}")
 print(f"  chain height: {blocks}")
 print(f"  header height: {headers}")
 print(f"  best block hash: {bestblockhash}")
