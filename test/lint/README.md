@@ -64,7 +64,9 @@ lint-zkcoin-previous-releases.py
 ================================
 Checks that zkCoin previous-release artifact metadata remains explicit, and
 that inherited Litecoin compatibility downloads require the
-`--upstream-litecoin-compat` opt-in flag.
+`--upstream-litecoin-compat` opt-in flag. The manifest is read with duplicate
+JSON field rejection so hand-edited release artifact entries cannot be shadowed
+by later duplicate keys.
 
 lint-zkcoin-public-launch-profile.py
 ====================================
