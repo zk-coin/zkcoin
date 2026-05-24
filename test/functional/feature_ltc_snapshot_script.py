@@ -826,6 +826,20 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert not any(call["cmd"] == "dumptxoutset" for call in calls)
         assert not any(call["role"] == "zkcoin" for call in calls)
 
+        self.log.info("Reject malformed post-rewind source tip")
+        _, calls, _ = self.assert_snapshot(
+            "rewind-malformed-tip",
+            self.scenario(source_tip=HEIGHT + 1, post_rewind_tip="not-a-height"),
+            1,
+            "litecoin-cli getblockcount after rewind returned unexpected value: not-a-height",
+            allow_rewind=True,
+        )
+        self.assert_command(calls, "litecoin", "invalidateblock", [RESTORE_HASH])
+        self.assert_command(calls, "litecoin", "getblockcount")
+        self.assert_command(calls, "litecoin", "reconsiderblock", [RESTORE_HASH])
+        assert not any(call["cmd"] == "dumptxoutset" for call in calls)
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
         self.log.info("Fail closed when rewind cleanup cannot restore the source chain")
         self.assert_snapshot(
             "rewind-restore-fails",

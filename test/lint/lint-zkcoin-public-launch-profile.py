@@ -3462,6 +3462,10 @@ def main():
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
+        (
+            "litecoin-cli getblockcount after rewind returned unexpected value",
+            "snapshot script validates post-rewind tip shape",
+        ),
         ("snapshot block hash at height", "snapshot script validates source snapshot block hashes"),
         ("Litecoin source tip after rewind is", "snapshot script verifies post-rewind source tip"),
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
@@ -3542,6 +3546,10 @@ def main():
         (
             "Reject rewind that does not leave the source at the snapshot height",
             "snapshot script test rejects post-rewind tip mismatches",
+        ),
+        (
+            "Reject malformed post-rewind source tip",
+            "snapshot script test rejects malformed post-rewind tips",
         ),
         (
             "Reject a pre-existing audit summary output path before calling either CLI",
@@ -3990,7 +3998,7 @@ def main():
             "snapshot operator source warning rejection documentation",
         ),
         (
-            "confirms the source tip is exactly height X after invalidation",
+            "requires `getblockcount` to return an integer source tip exactly equal to height X",
             "snapshot operator post-rewind tip verification documentation",
         ),
         (
