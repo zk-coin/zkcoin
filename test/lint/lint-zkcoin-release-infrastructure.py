@@ -555,6 +555,31 @@ def require_zkcoin_verifier_rejects_insecure_download_base():
     return None
 
 
+def require_zkcoin_verifier_rejects_invalid_download_timeout():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    for timeout in (0, -1):
+        try:
+            verifier.validate_download_timeout(timeout)
+        except verifier.VerifyError as exc:
+            if "--download-timeout must be a positive number of seconds" not in str(exc):
+                return "zkCoin verifier reported the wrong download-timeout error"
+        else:
+            return "zkCoin verifier accepted invalid download timeout: {}".format(timeout)
+
+    try:
+        verifier.validate_download_timeout(1)
+    except verifier.VerifyError as exc:
+        return "zkCoin verifier rejected a valid download timeout: {}".format(exc)
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_malformed_trusted_fingerprints():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -604,6 +629,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_insecure_download_base()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_invalid_download_timeout()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_malformed_trusted_fingerprints()
@@ -1254,6 +1282,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "trusted fingerprint must be a full 40-character hex fingerprint", "zkCoin verifier trusted fingerprint shape guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
@@ -1266,6 +1295,7 @@ def main():
         (VERIFY_README, "full 40-character hex fingerprints", "zkCoin verifier fingerprint shape documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
+        (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),

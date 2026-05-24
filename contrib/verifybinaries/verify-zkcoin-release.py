@@ -190,6 +190,11 @@ def validate_download_base(base_url):
         raise VerifyError("--download-base must be an HTTPS base URL without parameters, query, or fragment")
 
 
+def validate_download_timeout(timeout):
+    if timeout <= 0:
+        raise VerifyError("--download-timeout must be a positive number of seconds")
+
+
 def download_artifact(base_url, filename, target, timeout):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
@@ -239,6 +244,7 @@ def main():
 
     try:
         validate_download_base(args.download_base)
+        validate_download_timeout(args.download_timeout)
         validate_trusted_fingerprints(args.trusted_fingerprint)
         with tempfile.TemporaryDirectory(prefix="zkcoin-verify-") as tempdir:
             decrypted = Path(tempdir) / "SHA256SUMS"
