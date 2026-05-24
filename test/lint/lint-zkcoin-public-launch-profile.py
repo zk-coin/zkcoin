@@ -3269,6 +3269,7 @@ def main():
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
         ("height must be a positive integer", "snapshot script rejects zero or malformed snapshot heights"),
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
+        ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
@@ -3371,6 +3372,7 @@ def main():
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
+        ("Reject null verifier snapshot and import hashes", "snapshot script test rejects null verifier hashes"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
         ("Reject fractional snapshot dump heights", "snapshot script test rejects fractional dump heights"),
@@ -3548,6 +3550,10 @@ def main():
         (
             "valid UTF-8 JSON",
             "public launch snapshot audit summary UTF-8 documentation",
+        ),
+        (
+            "snapshot_hash` and `import_hash` values that are the null uint256",
+            "public launch snapshot null verifier hash documentation",
         ),
         (
             "positive Litecoin snapshot height",

@@ -292,9 +292,10 @@ The manifest validator reads the verified `height`, `block_hash`, and `import_ha
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
 an absolute snapshot file path, and positive decimal total amount with 8 fractional digits
-that does not exceed `84000000.00000000`. Hash fields must be exact
-64-character lowercase hex strings; the handoff does not silently normalize
-operator-edited uppercase hashes. The manifest update rejects audit
+that does not exceed `84000000.00000000`. The snapshot operator rejects verifier
+`snapshot_hash` and `import_hash` values that are the null uint256 before writing
+an audit summary. Hash fields must be exact 64-character lowercase hex strings;
+the handoff does not silently normalize operator-edited uppercase hashes. The manifest update rejects audit
 summaries with unexpected extra fields, so hand-edited or stale summaries do not
 silently carry ignored launch values.
 The stored snapshot file path must not contain control characters, preventing

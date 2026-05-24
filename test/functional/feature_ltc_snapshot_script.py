@@ -693,6 +693,20 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "missing verifysnapshotmanifest field: import_hash",
         )
 
+        self.log.info("Reject null verifier snapshot and import hashes")
+        self.assert_snapshot(
+            "null-verifier-snapshot-hash",
+            self.scenario(verify_json=self.verify_json(snapshot_hash="00" * 32)),
+            1,
+            "verifysnapshotmanifest.snapshot_hash must not be the null uint256",
+        )
+        self.assert_snapshot(
+            "null-verifier-import-hash",
+            self.scenario(verify_json=self.verify_json(import_hash="00" * 32)),
+            1,
+            "verifysnapshotmanifest.import_hash must not be the null uint256",
+        )
+
         self.log.info("Reject malformed verifier total amount")
         self.assert_snapshot(
             "malformed-total-amount",
