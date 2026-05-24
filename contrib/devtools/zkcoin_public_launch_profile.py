@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import stat
 import sys
 from pathlib import Path
@@ -1450,6 +1451,10 @@ def display_path(path):
         return str(path)
 
 
+def shell_quote(value):
+    return shlex.quote(str(value))
+
+
 def next_blocker_command(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -1479,7 +1484,7 @@ def next_blocker_command(blocker_id, manifest_path):
 
 
 def next_action_text(manifest, manifest_path):
-    manifest_path = display_path(manifest_path)
+    manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(manifest)
     lines = ["zkCoin public launch profile next action:"]

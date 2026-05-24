@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -368,6 +369,34 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print the snapshot handoff command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin manifest path ") as spaced_manifest_dir:
+        spaced_manifest_path = Path(spaced_manifest_dir) / "public launch manifest.json"
+        spaced_manifest_path.write_text(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"), encoding="utf8")
+        spaced_next_action_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_next_action_result.returncode != 0:
+            return "{} --next-action failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_next_action_result.stderr.strip()
+                or spaced_next_action_result.stdout.strip()
+                or "no output",
+            )
+        quoted_manifest_path = shlex.quote(str(spaced_manifest_path))
+        if f"--in-place {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
     mixed_action_result = subprocess.run(
         [
@@ -3060,6 +3089,7 @@ def main():
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
         ("display_path", "manifest guidance preserves non-default manifest paths"),
+        ("shell_quote", "manifest guidance shell-quotes handoff paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("next_action_text", "manifest prints next action guidance"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
@@ -3765,6 +3795,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --next-action",
             "public launch manifest next-action documentation",
+        ),
+        (
+            "shell-quotes the manifest path",
+            "public launch manifest next-action path quoting documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --mark-ready",
