@@ -3236,6 +3236,10 @@ def main():
             "preflight cross-checks AuxPoW next-block activation detail",
         ),
         (
+            "getblockchaininfo.auxpow.start_height must be 1 when launch_readiness.auxpow_active_at_launch is true",
+            "preflight validates AuxPoW launch start height",
+        ),
+        (
             "getblockchaininfo.auxpow.strict_chain_id must be true when launch_readiness.chain_id_configured is true",
             "preflight cross-checks strict AuxPoW chain-id detail",
         ),
@@ -3277,6 +3281,10 @@ def main():
         (
             "Reject malformed configured snapshot detail shape",
             "preflight fake-CLI snapshot detail shape coverage",
+        ),
+        (
+            "Reject malformed or non-launch AuxPoW start height",
+            "preflight fake-CLI AuxPoW start-height coverage",
         ),
     )
     for needle, description in preflight_test_checks:
@@ -3431,6 +3439,7 @@ def main():
             "preflight placeholder AuxPoW chain-id documentation",
         ),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
+        ("auxpow.start_height=1", "preflight AuxPoW start-height documentation"),
         (
             "positive snapshot height plus non-null lowercase snapshot block/import hashes",
             "preflight configured snapshot detail shape documentation",
