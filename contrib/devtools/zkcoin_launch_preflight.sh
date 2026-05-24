@@ -268,6 +268,8 @@ shielded_detail = detail_sections.get("shielded_pool")
 if shielded_detail is not None:
     if "next_block_active" in shielded_detail and type(shielded_detail["next_block_active"]) is not bool:
         schema_errors.append("getblockchaininfo.shielded_pool.next_block_active must be a boolean")
+    if "start_height" in shielded_detail and type(shielded_detail["start_height"]) is not int:
+        schema_errors.append("getblockchaininfo.shielded_pool.start_height must be an integer")
     if "scaffold_proofs" in shielded_detail and type(shielded_detail["scaffold_proofs"]) is not bool:
         schema_errors.append("getblockchaininfo.shielded_pool.scaffold_proofs must be a boolean")
     if "real_proof_verification" in shielded_detail and type(shielded_detail["real_proof_verification"]) is not bool:
@@ -284,6 +286,17 @@ if shielded_detail is not None:
         and shielded_detail["next_block_active"] == readiness["shielded_inactive_at_launch"]
     ):
         schema_errors.append("getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip")
+    if (
+        "start_height" in shielded_detail
+        and "shielded_inactive_at_launch" in readiness
+        and "at_launch_tip" in readiness
+        and type(shielded_detail.get("start_height")) is int
+        and type(readiness.get("shielded_inactive_at_launch")) is bool
+        and readiness.get("at_launch_tip") is True
+        and readiness["shielded_inactive_at_launch"] is True
+        and shielded_detail["start_height"] == 1
+    ):
+        schema_errors.append("getblockchaininfo.shielded_pool.start_height must not be 1 when launch_readiness.shielded_inactive_at_launch is true")
 
 if schema_errors:
     print("error: malformed launch preflight response", file=sys.stderr)

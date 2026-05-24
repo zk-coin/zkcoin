@@ -3259,6 +3259,10 @@ def main():
             "getblockchaininfo.shielded_pool.next_block_active must agree with launch_readiness.shielded_inactive_at_launch at the launch tip",
             "preflight cross-checks shielded launch activation detail",
         ),
+        (
+            "getblockchaininfo.shielded_pool.start_height must not be 1 when launch_readiness.shielded_inactive_at_launch is true",
+            "preflight rejects shielded launch-height activation detail",
+        ),
     )
     for needle, description in preflight_checks:
         error = require_text(LAUNCH_PREFLIGHT, needle, description)
@@ -3285,6 +3289,10 @@ def main():
         (
             "Reject malformed or non-launch AuxPoW start height",
             "preflight fake-CLI AuxPoW start-height coverage",
+        ),
+        (
+            "Reject malformed or launch-height shielded start height",
+            "preflight fake-CLI shielded start-height coverage",
         ),
     )
     for needle, description in preflight_test_checks:
