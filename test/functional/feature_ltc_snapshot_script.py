@@ -194,6 +194,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         snapshot_path_parent_unwritable=False,
         snapshot_path_has_space=False,
         audit_path_has_space=False,
+        snapshot_path_has_control=False,
+        audit_path_has_control=False,
     ):
         log_path = os.path.join(self.options.tmpdir, f"{name}.jsonl")
         snapshot_path = os.path.join(self.options.tmpdir, f"{name}.dat")
@@ -203,6 +205,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             snapshot_path = os.path.join(self.options.tmpdir, f"{name} snapshot.dat")
         if audit_path_has_space:
             audit_path = os.path.join(self.options.tmpdir, f"{name} audit.json")
+        if snapshot_path_has_control:
+            snapshot_path = os.path.join(self.options.tmpdir, f"{name}\ncontrol.dat")
+        if audit_path_has_control:
+            audit_path = os.path.join(self.options.tmpdir, f"{name}\ncontrol.audit.json")
         if snapshot_path_parent_missing:
             snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
         elif snapshot_path_parent_unwritable:
@@ -248,6 +254,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or audit_path_parent_unwritable
             or audit_path_symlink
             or audit_path_has_space
+            or audit_path_has_control
         ):
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
@@ -427,6 +434,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary directory does not exist",
             audit_path_parent_missing=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject control characters in snapshot and audit output paths before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "control-snapshot-path",
+            self.scenario(),
+            1,
+            "snapshot output path must not contain control characters",
+            snapshot_path_has_control=True,
+        )
+        assert_equal(calls, [])
+        _, calls, _ = self.assert_snapshot(
+            "control-audit-path",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must not contain control characters",
+            audit_path_has_control=True,
         )
         assert_equal(calls, [])
 
