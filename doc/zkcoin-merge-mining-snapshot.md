@@ -294,6 +294,9 @@ The launch manifest validator also rejects JSON booleans in integer and byte
 fields, because booleans are not valid production constants. It rejects
 unexpected manifest keys so stale or hand-edited fields cannot silently shadow
 the launch profile that will be emitted into `chainparams`.
+Duplicate JSON fields are rejected in both the launch manifest and snapshot
+audit summaries, so hand-edited values cannot be shadowed by later duplicate
+keys.
 The validator ensures malformed manifest sections are reported as validation errors
 instead of operator-facing tool tracebacks.
 Manifest update commands reject malformed sections before mutation, so operator
