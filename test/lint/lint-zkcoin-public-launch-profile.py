@@ -3406,6 +3406,14 @@ def main():
         ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
         ("Litecoin source node chain must be main or test for public snapshot generation", "snapshot script rejects non-public source chains"),
+        (
+            "litecoin-cli getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string",
+            "snapshot script validates source best block hash shape",
+        ),
+        (
+            "litecoin-cli getblockchaininfo.bestblockhash must match expected block hash when source tip is at snapshot height",
+            "snapshot script validates source active tip hash",
+        ),
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
@@ -3456,6 +3464,14 @@ def main():
         ("Reject control characters in snapshot and audit output paths", "snapshot script test rejects control-character output paths"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
         ("Reject fractional Litecoin source chain heights", "snapshot script test rejects fractional source heights"),
+        (
+            "Reject malformed Litecoin source best block hash",
+            "snapshot script test validates source best block hash shape",
+        ),
+        (
+            "Reject a Litecoin source whose active tip hash differs from the selected snapshot hash",
+            "snapshot script test validates source active tip hash",
+        ),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
         (
@@ -3749,6 +3765,10 @@ def main():
         (
             "well-formed non-null block hash for height X",
             "public launch snapshot source block-hash validation documentation",
+        ),
+        (
+            "active source tip hash does not match the expected block hash",
+            "public launch snapshot source active-tip hash validation documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",

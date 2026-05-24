@@ -187,13 +187,17 @@ cleanup() {
 trap cleanup EXIT
 
 SOURCE_CHAININFO_JSON="$(ltc_cli getblockchaininfo)"
-read -r SOURCE_CHAIN SOURCE_TIP <<< "$(python3 - "$SOURCE_CHAININFO_JSON" <<'PY'
+read -r SOURCE_CHAIN SOURCE_TIP <<< "$(python3 - "$SOURCE_CHAININFO_JSON" "$HEIGHT" "$EXPECTED_BLOCK_HASH" <<'PY'
 import json
 import re
 import sys
 
 raw = sys.argv[1]
+expected_height = int(sys.argv[2])
+expected_hash = sys.argv[3]
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 INT_RE = re.compile(r"^[0-9]+$")
+NULL_UINT256 = "0" * 64
 
 def fail(message):
     print(f"error: {message}", file=sys.stderr)
@@ -233,15 +237,24 @@ def require_string(field):
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-empty string")
     return chaininfo[field]
 
+def require_bestblockhash():
+    value = require_string("bestblockhash")
+    if not HEX64_RE.fullmatch(value) or value == NULL_UINT256:
+        fail("litecoin-cli getblockchaininfo.bestblockhash must be a non-null lowercase 64-character hex string")
+    return value
+
 chain = require_string("chain")
 if chain not in ("main", "test"):
     fail("Litecoin source node chain must be main or test for public snapshot generation")
 blocks = require_nonnegative_int("blocks")
 headers = require_nonnegative_int("headers")
+bestblockhash = require_bestblockhash()
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
 if headers > blocks:
     fail("Litecoin source node headers are ahead of downloaded blocks; wait for the source to finish syncing")
+if blocks == expected_height and bestblockhash != expected_hash:
+    fail("litecoin-cli getblockchaininfo.bestblockhash must match expected block hash when source tip is at snapshot height")
 if require_bool("initialblockdownload"):
     fail("Litecoin source node is still in initial block download")
 if require_bool("pruned"):
