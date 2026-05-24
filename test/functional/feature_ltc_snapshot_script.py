@@ -542,6 +542,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject malformed Litecoin source chain name")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-chain-name",
+            self.scenario(chaininfo_overrides={"chain": ""}),
+            1,
+            "litecoin-cli getblockchaininfo.chain must be a non-empty string",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject fractional Litecoin source chain heights")
         _, calls, _ = self.assert_snapshot(
             "fractional-chaininfo-blocks",
