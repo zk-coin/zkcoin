@@ -295,10 +295,10 @@ def require_chainwork():
 
 def require_verificationprogress():
     if "verificationprogress" not in chaininfo:
-        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number")
+        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1")
     value = chaininfo["verificationprogress"]
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
-        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0 or value > 1:
+        fail("litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1")
     return value
 
 def require_difficulty():

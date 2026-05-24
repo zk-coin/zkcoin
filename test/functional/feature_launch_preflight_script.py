@@ -258,6 +258,14 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             1,
             "getblockchaininfo.verificationprogress must be a non-negative number",
         )
+        over_one_verification_progress = self.valid_info()
+        over_one_verification_progress["verificationprogress"] = 1.1
+        self.assert_preflight(
+            fake_cli,
+            over_one_verification_progress,
+            1,
+            "getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1",
+        )
 
         self.log.info("Reject malformed difficulty in launch preflight")
         malformed_difficulty = self.valid_info()

@@ -3318,8 +3318,8 @@ def main():
             "preflight validates chainwork shape",
         ),
         (
-            "getblockchaininfo.verificationprogress must be a non-negative number",
-            "preflight validates verification progress shape",
+            "getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1",
+            "preflight validates bounded verification progress shape",
         ),
         (
             "getblockchaininfo.difficulty must be a non-negative number",
@@ -3433,6 +3433,10 @@ def main():
             "preflight fake-CLI verification progress coverage",
         ),
         (
+            "over_one_verification_progress",
+            "preflight fake-CLI rejects over-one verification progress",
+        ),
+        (
             "Reject malformed difficulty in launch preflight",
             "preflight fake-CLI difficulty coverage",
         ),
@@ -3504,8 +3508,8 @@ def main():
             "snapshot script validates source chainwork shape",
         ),
         (
-            "litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number",
-            "snapshot script validates source verification progress shape",
+            "litecoin-cli getblockchaininfo.verificationprogress must be a non-negative number not exceeding 1",
+            "snapshot script validates bounded source verification progress shape",
         ),
         (
             "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
@@ -3606,6 +3610,10 @@ def main():
         (
             "Reject malformed Litecoin source verification progress",
             "snapshot script test validates source verification progress shape",
+        ),
+        (
+            "source-over-one-verificationprogress",
+            "snapshot script test rejects over-one source verification progress",
         ),
         ("Reject malformed Litecoin source difficulty", "snapshot script test validates source difficulty shape"),
         ("Reject malformed Litecoin source disk footprint", "snapshot script test validates source disk footprint shape"),
@@ -3751,6 +3759,7 @@ def main():
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
         ("getblockchaininfo.chainwork", "preflight chainwork documentation"),
         ("getblockchaininfo.verificationprogress", "preflight verification progress documentation"),
+        ("not exceeding 1", "bounded verification progress documentation"),
         ("getblockchaininfo.difficulty", "preflight difficulty documentation"),
         ("getblockchaininfo.size_on_disk", "preflight disk footprint documentation"),
         ("getblockchaininfo.time", "preflight launch-tip time documentation"),
@@ -3979,6 +3988,10 @@ def main():
         (
             "non-negative source verification progress",
             "public launch snapshot source verification progress documentation",
+        ),
+        (
+            "non-negative source verification progress not\nexceeding 1",
+            "public launch snapshot bounded source verification progress documentation",
         ),
         (
             "non-negative source difficulty",
