@@ -88,6 +88,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "headers": 0,
             "initialblockdownload": False,
             "pruned": False,
+            "warnings": "",
             "launch_readiness": readiness,
             "ltc_snapshot": {
                 "enabled": True,
@@ -224,6 +225,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             pruned_node,
             1,
             "launch node is running in pruned mode",
+        )
+
+        self.log.info("Reject node warnings in launch preflight")
+        malformed_warnings = self.valid_info()
+        malformed_warnings["warnings"] = []
+        self.assert_preflight(
+            fake_cli,
+            malformed_warnings,
+            1,
+            "getblockchaininfo.warnings must be a string",
+        )
+        warned_node = self.valid_info()
+        warned_node["warnings"] = "Unknown block versions being mined"
+        self.assert_preflight(
+            fake_cli,
+            warned_node,
+            1,
+            "launch node reports warnings",
         )
 
         self.log.info("Reject launch-tip readiness away from genesis height")
