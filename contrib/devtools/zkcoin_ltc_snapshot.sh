@@ -246,6 +246,10 @@ if require_bool("initialblockdownload"):
     fail("Litecoin source node is still in initial block download")
 if require_bool("pruned"):
     fail("Litecoin source node must not be pruned for snapshot generation")
+if "warnings" not in chaininfo or not isinstance(chaininfo["warnings"], str):
+    fail("litecoin-cli getblockchaininfo.warnings must be a string")
+if chaininfo["warnings"]:
+    fail(f"Litecoin source node reports warnings; resolve them before snapshot generation: {chaininfo['warnings']}")
 
 print(chain, blocks)
 PY

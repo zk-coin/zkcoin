@@ -3409,6 +3409,8 @@ def main():
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
+        ("litecoin-cli getblockchaininfo.warnings must be a string", "snapshot script validates source warning shape"),
+        ("Litecoin source node reports warnings", "snapshot script rejects warned source nodes"),
         ("snapshot audit summary path must differ from snapshot output path", "snapshot script rejects audit path collisions"),
         ("SNAPSHOT_CANONICAL_PATH", "snapshot script canonicalizes output paths before collision checks"),
         ("AUDIT_CANONICAL_PATH", "snapshot script canonicalizes audit output paths before collision checks"),
@@ -3461,6 +3463,8 @@ def main():
             "snapshot script test rejects IBD source nodes",
         ),
         ("Reject a pruned Litecoin snapshot source", "snapshot script test rejects pruned source nodes"),
+        ("Reject malformed Litecoin source warnings", "snapshot script test validates source warning shape"),
+        ("Reject a Litecoin source with node warnings", "snapshot script test rejects warned source nodes"),
         ("Reject a non-public Litecoin source chain", "snapshot script test rejects non-public source chains"),
         (
             "Reject rewind that does not leave the source at the snapshot height",
@@ -3837,6 +3841,10 @@ def main():
         (
             "Litecoin source node must not be pruned for snapshot generation",
             "snapshot operator pruned source rejection documentation",
+        ),
+        (
+            "Litecoin source node reports warnings",
+            "snapshot operator source warning rejection documentation",
         ),
         (
             "confirms the source tip is exactly height X after invalidation",

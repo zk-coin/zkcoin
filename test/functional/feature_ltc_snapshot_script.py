@@ -67,6 +67,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             "headers": scenario.get("source_headers", source_tip),
                             "initialblockdownload": scenario.get("initialblockdownload", False),
                             "pruned": scenario.get("pruned", False),
+                            "warnings": scenario.get("warnings", ""),
                         }
                         chaininfo.update(scenario.get("chaininfo_overrides", {}))
                         print(scenario.get("chaininfo_raw", json.dumps(chaininfo)))
@@ -557,6 +558,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(pruned=True),
             1,
             "Litecoin source node must not be pruned for snapshot generation",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source warnings")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-warnings",
+            self.scenario(chaininfo_overrides={"warnings": []}),
+            1,
+            "litecoin-cli getblockchaininfo.warnings must be a string",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject a Litecoin source with node warnings")
+        _, calls, _ = self.assert_snapshot(
+            "source-warnings",
+            self.scenario(warnings="Unknown block versions being mined"),
+            1,
+            "Litecoin source node reports warnings",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
