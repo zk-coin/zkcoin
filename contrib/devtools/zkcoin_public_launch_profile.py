@@ -772,19 +772,37 @@ def file_stat_fingerprint(file_stat):
     )
 
 
-def require_snapshot_audit_artifact_stable(snapshot_path, original_stat, snapshot_file):
+def require_regular_file_stable(path, original_stat, fd, changed_error):
     try:
-        final_fd_stat = os.fstat(snapshot_file.fileno())
-        final_path_stat = os.stat(snapshot_path, follow_symlinks=False)
+        final_fd_stat = os.fstat(fd)
+        final_path_stat = os.stat(path, follow_symlinks=False)
     except OSError as exc:
-        raise ValueError(f"snapshot audit file artifact changed during verification: {exc}") from None
+        raise ValueError(f"{changed_error}: {exc}") from None
     original_fingerprint = file_stat_fingerprint(original_stat)
     if (
         not stat.S_ISREG(final_path_stat.st_mode)
         or file_stat_fingerprint(final_fd_stat) != original_fingerprint
         or file_stat_fingerprint(final_path_stat) != original_fingerprint
     ):
-        raise ValueError("snapshot audit file artifact changed during verification")
+        raise ValueError(changed_error)
+
+
+def require_snapshot_audit_artifact_stable(snapshot_path, original_stat, snapshot_file):
+    require_regular_file_stable(
+        snapshot_path,
+        original_stat,
+        snapshot_file.fileno(),
+        "snapshot audit file artifact changed during verification",
+    )
+
+
+def require_snapshot_audit_summary_stable(audit_summary_path, original_stat, fd):
+    require_regular_file_stable(
+        audit_summary_path,
+        original_stat,
+        fd,
+        "snapshot audit summary changed during read",
+    )
 
 
 def snapshot_file_sha256(snapshot_file):
@@ -872,6 +890,7 @@ def parse_snapshot_audit(audit_path):
         raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
     try:
         audit_summary_text = read_snapshot_audit_summary_text(fd, audit_summary_path)
+        require_snapshot_audit_summary_stable(audit_summary_path, audit_summary_stat, fd)
         audit = json.loads(
             audit_summary_text,
             object_pairs_hook=reject_duplicate_json_fields,

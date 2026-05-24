@@ -1294,6 +1294,58 @@ def require_public_launch_manifest_current():
         finally:
             os.close(oversized_read_fd)
 
+        def reject_changed_audit_summary_case(name, mutate_path):
+            changed_audit_path = Path(temp_dir) / f"{name}.json"
+            changed_audit_path.write_text(json.dumps(audit), encoding="utf8")
+            changed_audit_fd, changed_audit_stat = manifest_tool.open_regular_file_no_symlink(
+                changed_audit_path,
+                symlink_error="snapshot audit summary must not be a symlink",
+                missing_error="cannot read snapshot audit summary",
+                not_regular_error="snapshot audit summary must be a regular file",
+                open_error="cannot read snapshot audit summary",
+            )
+            try:
+                mutate_path(changed_audit_path)
+                try:
+                    manifest_tool.require_snapshot_audit_summary_stable(
+                        changed_audit_path,
+                        changed_audit_stat,
+                        changed_audit_fd,
+                    )
+                except ValueError as exc:
+                    if "snapshot audit summary changed during read" not in str(exc):
+                        return "{} reported the wrong changed-audit-summary error for {}".format(
+                            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                            name,
+                        )
+                else:
+                    return "{} accepted a changed snapshot audit summary path in {}".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                        name,
+                    )
+            finally:
+                os.close(changed_audit_fd)
+            return None
+
+        def replace_changed_audit_summary(audit_path):
+            replacement_path = Path(temp_dir) / "replacement-snapshot-audit-summary.json"
+            replacement_path.write_text(json.dumps(audit), encoding="utf8")
+            os.replace(replacement_path, audit_path)
+
+        replaced_audit_summary_error = reject_changed_audit_summary_case(
+            "replaced-snapshot-audit-summary",
+            replace_changed_audit_summary,
+        )
+        if replaced_audit_summary_error:
+            return replaced_audit_summary_error
+
+        truncated_audit_summary_error = reject_changed_audit_summary_case(
+            "truncated-snapshot-audit-summary",
+            lambda audit_summary_path: audit_summary_path.write_text("{}", encoding="utf8"),
+        )
+        if truncated_audit_summary_error:
+            return truncated_audit_summary_error
+
         invalid_utf8_audit_path = Path(temp_dir) / "invalid-utf8-audit.json"
         invalid_utf8_audit_path.write_bytes(b'{"height": 1, "block_hash": "' + bytes([0xff]) + b'"}')
         invalid_utf8_audit_result = subprocess.run(
@@ -2758,6 +2810,7 @@ def main():
         ("SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES", "manifest caps snapshot audit summary input size"),
         ("snapshot audit summary must not exceed", "manifest rejects oversized snapshot audit summaries"),
         ("read_snapshot_audit_summary_text", "manifest enforces snapshot audit summary cap while reading"),
+        ("require_snapshot_audit_summary_stable", "manifest rechecks snapshot audit summaries after reading"),
         ("snapshot audit summary is not valid UTF-8", "manifest rejects invalid UTF-8 snapshot audit summaries"),
         ("SNAPSHOT_AUDIT_SUMMARY_FIELDS", "manifest requires exact snapshot audit summary fields"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
@@ -3255,6 +3308,10 @@ def main():
         (
             "size cap is enforced again while reading",
             "public launch snapshot audit summary bounded-read documentation",
+        ),
+        (
+            "rechecks the audit summary path after reading",
+            "public launch snapshot audit summary stability documentation",
         ),
         (
             "valid UTF-8 JSON",
