@@ -221,16 +221,6 @@ zk_cli() {
   "${ZK_CLI[@]}" -rpcclienttimeout=9999999 "$@"
 }
 
-snapshot_sha256() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$SNAPSHOT_PATH" | awk '{print $1}'
-  elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$SNAPSHOT_PATH" | awk '{print $1}'
-  else
-    die "missing sha256sum or shasum for snapshot artifact fingerprinting"
-  fi
-}
-
 snapshot_file_metadata() {
   python3 - "$SNAPSHOT_PATH" <<'PY'
 import errno
@@ -614,11 +604,10 @@ require_snapshot_output_directory_direct
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output became a symlink during verification: $SNAPSHOT_PATH"
 fi
-POST_VERIFY_SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
+read -r POST_VERIFY_SNAPSHOT_FILE_SIZE POST_VERIFY_SNAPSHOT_FILE_SHA256 <<< "$(snapshot_file_metadata)"
 if [[ "$POST_VERIFY_SNAPSHOT_FILE_SIZE" != "$SNAPSHOT_FILE_SIZE" ]]; then
   die "snapshot output changed during verification: size_before=$SNAPSHOT_FILE_SIZE size_after=$POST_VERIFY_SNAPSHOT_FILE_SIZE"
 fi
-POST_VERIFY_SNAPSHOT_FILE_SHA256="$(snapshot_sha256)"
 if [[ "$POST_VERIFY_SNAPSHOT_FILE_SHA256" != "$SNAPSHOT_FILE_SHA256" ]]; then
   die "snapshot output changed during verification: sha256_before=$SNAPSHOT_FILE_SHA256 sha256_after=$POST_VERIFY_SNAPSHOT_FILE_SHA256"
 fi

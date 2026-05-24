@@ -3771,6 +3771,10 @@ def main():
         ("snapshot output changed during fingerprinting", "snapshot script rejects dump artifact replacement during fingerprinting"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
         ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
+        (
+            "read -r POST_VERIFY_SNAPSHOT_FILE_SIZE POST_VERIFY_SNAPSHOT_FILE_SHA256",
+            "snapshot script rechecks dump artifacts after verification through the stable helper",
+        ),
         ("snapshot output became a symlink during verification", "snapshot script rejects verifier-time symlink replacement"),
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("dumptxoutset base_height mismatch", "snapshot script rejects dump metadata before verifier handoff"),
@@ -4344,7 +4348,7 @@ def main():
             "snapshot operator verifier-time artifact mutation documentation",
         ),
         (
-            "fingerprints the snapshot artifact through a direct file descriptor",
+            "direct file descriptor before",
             "snapshot operator direct artifact fingerprint documentation",
         ),
         (
