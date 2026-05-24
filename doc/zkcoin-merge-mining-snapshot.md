@@ -281,6 +281,8 @@ and referenced snapshot artifact as regular files without following symlinks.
 It also rejects audit summaries larger than 65536 bytes before parsing.
 That size cap is enforced again while reading the already-open audit summary, so
 a concurrently changed summary cannot grow past the limit after the initial file check.
+Audit summaries must be valid UTF-8 JSON; invalid byte sequences are rejected
+with a stable operator-facing error before JSON parsing.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
