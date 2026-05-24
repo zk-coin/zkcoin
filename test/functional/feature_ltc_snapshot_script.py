@@ -639,6 +639,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject malformed Litecoin source sync booleans")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-ibd",
+            self.scenario(chaininfo_overrides={"initialblockdownload": "false"}),
+            1,
+            "litecoin-cli getblockchaininfo.initialblockdownload must be a boolean",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-pruned",
+            self.scenario(chaininfo_overrides={"pruned": "false"}),
+            1,
+            "litecoin-cli getblockchaininfo.pruned must be a boolean",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject a Litecoin source still in initial block download")
         _, calls, _ = self.assert_snapshot(
             "source-ibd",
