@@ -77,6 +77,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             "chainwork": scenario.get("source_chainwork", "00" * 31 + "01"),
                             "verificationprogress": scenario.get("source_verificationprogress", 1.0),
                             "difficulty": scenario.get("source_difficulty", 1.0),
+                            "size_on_disk": scenario.get("source_size_on_disk", 1024),
                             "time": scenario.get("source_time", 1600000000),
                             "mediantime": scenario.get(
                                 "source_mediantime", scenario.get("source_time", 1600000000)
@@ -592,6 +593,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(source_difficulty=-1.0),
             1,
             "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source disk footprint")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-size-on-disk",
+            self.scenario(source_size_on_disk=0),
+            1,
+            "litecoin-cli getblockchaininfo.size_on_disk must be a positive integer",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 

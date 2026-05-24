@@ -3426,6 +3426,7 @@ def main():
             "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
             "snapshot script validates source difficulty shape",
         ),
+        ('require_positive_int("size_on_disk")', "snapshot script validates source disk footprint shape"),
         ('require_nonnegative_int("time")', "snapshot script validates source tip time shape"),
         ('require_nonnegative_int("mediantime")', "snapshot script validates source median time shape"),
         (
@@ -3496,6 +3497,7 @@ def main():
             "snapshot script test validates source verification progress shape",
         ),
         ("Reject malformed Litecoin source difficulty", "snapshot script test validates source difficulty shape"),
+        ("Reject malformed Litecoin source disk footprint", "snapshot script test validates source disk footprint shape"),
         ("Reject malformed Litecoin source tip times", "snapshot script test validates source tip times"),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
@@ -3806,6 +3808,10 @@ def main():
         (
             "non-negative source difficulty",
             "public launch snapshot source difficulty documentation",
+        ),
+        (
+            "positive source disk footprint",
+            "public launch snapshot source disk footprint documentation",
         ),
         (
             "non-negative source tip times",
