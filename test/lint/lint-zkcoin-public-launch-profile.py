@@ -3219,6 +3219,14 @@ def main():
             "preflight cross-checks snapshot import detail",
         ),
         (
+            "getblockchaininfo.ltc_snapshot.height must be a positive integer",
+            "preflight validates configured snapshot height shape",
+        ),
+        (
+            "getblockchaininfo.ltc_snapshot.import_hash must be a non-null lowercase 64-character hex string",
+            "preflight validates configured snapshot import hash shape",
+        ),
+        (
             "getblockchaininfo.blocks must be 0 when launch_readiness.at_launch_tip is true",
             "preflight cross-checks launch-tip chain height",
         ),
@@ -3265,6 +3273,10 @@ def main():
         (
             "Reject launch-tip readiness away from genesis height",
             "preflight fake-CLI launch-tip height coverage",
+        ),
+        (
+            "Reject malformed configured snapshot detail shape",
+            "preflight fake-CLI snapshot detail shape coverage",
         ),
     )
     for needle, description in preflight_test_checks:
@@ -3419,6 +3431,10 @@ def main():
             "preflight placeholder AuxPoW chain-id documentation",
         ),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
+        (
+            "positive snapshot height plus non-null lowercase snapshot block/import hashes",
+            "preflight configured snapshot detail shape documentation",
+        ),
         (
             "transactions must remain inactive for the first launch block",
             "shielded launch posture documentation",

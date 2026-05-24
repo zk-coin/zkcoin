@@ -39,9 +39,16 @@ INFO_JSON="$(zk_cli getblockchaininfo)"
 
 python3 - "$INFO_JSON" <<'PY'
 import json
+import re
 import sys
 
 PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+NULL_UINT256 = "0" * 64
+SNAPSHOT_HASH_FIELD_ERRORS = {
+    "block_hash": "getblockchaininfo.ltc_snapshot.block_hash must be a non-null lowercase 64-character hex string when launch_readiness.snapshot_configured is true",
+    "import_hash": "getblockchaininfo.ltc_snapshot.import_hash must be a non-null lowercase 64-character hex string when launch_readiness.snapshot_configured is true",
+}
 
 try:
     info = json.loads(sys.argv[1])
@@ -173,6 +180,15 @@ if snapshot_detail is not None:
     for field in ("enabled", "imported", "import_in_progress"):
         if field in snapshot_detail and type(snapshot_detail[field]) is not bool:
             schema_errors.append(f"getblockchaininfo.ltc_snapshot.{field} must be a boolean")
+    if readiness.get("snapshot_configured") is True:
+        if type(snapshot_detail.get("height")) is not int or snapshot_detail.get("height") <= 0:
+            schema_errors.append(
+                "getblockchaininfo.ltc_snapshot.height must be a positive integer when launch_readiness.snapshot_configured is true"
+            )
+        for field in ("block_hash", "import_hash"):
+            value = snapshot_detail.get(field)
+            if not isinstance(value, str) or HEX64_RE.fullmatch(value) is None or value == NULL_UINT256:
+                schema_errors.append(SNAPSHOT_HASH_FIELD_ERRORS[field])
     if (
         "enabled" in snapshot_detail
         and "snapshot_configured" in readiness
