@@ -195,6 +195,12 @@ def validate_download_timeout(timeout):
         raise VerifyError("--download-timeout must be a positive number of seconds")
 
 
+def require_https_download_response(response, filename):
+    final_url = response.geturl()
+    if urlparse(final_url).scheme != "https":
+        raise VerifyError("artifact download redirected away from HTTPS: {}".format(filename))
+
+
 def download_artifact(base_url, filename, target, timeout):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
@@ -212,8 +218,16 @@ def download_artifact(base_url, filename, target, timeout):
         ) as output:
             temp_path = Path(output.name)
             with urlopen(url, timeout=timeout) as response:
+                require_https_download_response(response, filename)
                 shutil.copyfileobj(response, output)
         temp_path.replace(target)
+    except VerifyError:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+        raise
     except Exception as exc:
         if temp_path is not None:
             try:
