@@ -23,8 +23,8 @@ regular files, not symlinks. Artifacts directories must be direct directories, n
 
 If artifacts are not already present locally, pass the resolved HTTPS base URL
 for release artifacts without embedded credentials. Artifact downloads must not
-redirect away from HTTPS, must use a positive download timeout, and are written
-through a temporary file before being installed atomically without overwriting a final artifact path that appears during the download.
+redirect away from HTTPS or redirect to credentialed URLs, must use a positive download timeout,
+and are written through a temporary file before being installed atomically without overwriting a final artifact path that appears during the download.
 Downloaded artifacts that fail hash verification are removed, while pre-existing
 local artifacts are left in place for operator inspection:
 
