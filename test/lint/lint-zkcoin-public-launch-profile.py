@@ -3244,6 +3244,19 @@ def main():
             return fail(SIGNET_TEST, error)
 
     preflight_checks = (
+        ("reject_duplicate_json_fields", "preflight rejects duplicate getblockchaininfo JSON fields"),
+        (
+            "object_pairs_hook=reject_duplicate_json_fields",
+            "preflight parses getblockchaininfo JSON without duplicate shadowing",
+        ),
+        (
+            "getblockchaininfo contains duplicate field",
+            "preflight explains duplicate getblockchaininfo JSON field rejection",
+        ),
+        (
+            "getblockchaininfo response must be a JSON object",
+            "preflight rejects non-object getblockchaininfo JSON",
+        ),
         (
             "getblockchaininfo.chain must be a recognized chain name",
             "preflight validates chain name shape",
@@ -3351,6 +3364,14 @@ def main():
             return fail(LAUNCH_PREFLIGHT, error)
 
     preflight_test_checks = (
+        (
+            "Reject duplicate getblockchaininfo fields in launch preflight",
+            "preflight fake-CLI duplicate JSON field coverage",
+        ),
+        (
+            "Reject non-object getblockchaininfo JSON in launch preflight",
+            "preflight fake-CLI non-object JSON coverage",
+        ),
         (
             "Reject placeholder AuxPoW chain id in launch preflight",
             "preflight fake-CLI placeholder AuxPoW chain-id coverage",
@@ -3696,6 +3717,7 @@ def main():
             "preflight placeholder AuxPoW chain-id documentation",
         ),
         ("getblockchaininfo.chain", "preflight chain name documentation"),
+        ("duplicate-free JSON object", "preflight duplicate-field JSON documentation"),
         ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         ("getblockchaininfo.headers=0", "preflight genesis header documentation"),
         ("getblockchaininfo.bestblockhash", "preflight launch-tip hash documentation"),
