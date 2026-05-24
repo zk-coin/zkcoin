@@ -202,8 +202,25 @@ def download_artifact(base_url, filename, target, timeout):
         raise VerifyError("artifact path must not be a symlink: {}".format(filename))
     target.parent.mkdir(parents=True, exist_ok=True)
     url = base_url.rstrip("/") + "/" + quote(filename, safe="/._-+~")
-    with urlopen(url, timeout=timeout) as response, target.open("wb") as output:
-        output.write(response.read())
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=target.name + ".",
+            suffix=".download",
+            dir=target.parent,
+            delete=False,
+        ) as output:
+            temp_path = Path(output.name)
+            with urlopen(url, timeout=timeout) as response:
+                shutil.copyfileobj(response, output)
+        temp_path.replace(target)
+    except Exception as exc:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+        raise VerifyError("failed to download artifact {}: {}".format(filename, exc)) from exc
 
 
 def sha256_file(path):

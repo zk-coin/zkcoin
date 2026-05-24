@@ -580,6 +580,65 @@ def require_zkcoin_verifier_rejects_invalid_download_timeout():
     return None
 
 
+def require_zkcoin_verifier_downloads_atomically():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    class FailingResponse:
+        def __init__(self):
+            self._read_once = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+        def read(self, _size=-1):
+            if not self._read_once:
+                self._read_once = True
+                return b"partial artifact payload"
+            raise OSError("simulated interrupted download")
+
+    def failing_urlopen(_url, timeout):
+        if timeout != 1:
+            raise AssertionError("unexpected timeout")
+        return FailingResponse()
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        artifacts_dir = Path(tempdir) / "artifacts"
+        target = artifacts_dir / "zkcoin-1.0.tar.gz"
+        original_urlopen = verifier.urlopen
+        verifier.urlopen = failing_urlopen
+        try:
+            try:
+                verifier.download_artifact(
+                    "https://downloads.example.invalid/zkcoin",
+                    "zkcoin-1.0.tar.gz",
+                    target,
+                    1,
+                )
+            except verifier.VerifyError as exc:
+                if "failed to download artifact zkcoin-1.0.tar.gz" not in str(exc):
+                    return "zkCoin verifier reported the wrong interrupted-download error"
+            else:
+                return "zkCoin verifier accepted an interrupted artifact download"
+        finally:
+            verifier.urlopen = original_urlopen
+
+        if target.exists():
+            return "zkCoin verifier left a partial artifact after an interrupted download"
+        leftovers = list(artifacts_dir.iterdir()) if artifacts_dir.exists() else []
+        if leftovers:
+            return "zkCoin verifier left temporary download files after failure"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_malformed_trusted_fingerprints():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -632,6 +691,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_invalid_download_timeout()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_downloads_atomically()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_malformed_trusted_fingerprints()
@@ -1283,6 +1345,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-base must be an HTTPS base URL", "zkCoin verifier HTTPS download base guard"),
         (ZKCOIN_VERIFY_SCRIPT, "--download-timeout must be a positive number of seconds", "zkCoin verifier download timeout guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "failed to download artifact", "zkCoin verifier interrupted download guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "replace(target)", "zkCoin verifier atomic artifact install"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
@@ -1296,6 +1360,7 @@ def main():
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "HTTPS base URL", "zkCoin verifier HTTPS download base documentation"),
         (VERIFY_README, "positive download timeout", "zkCoin verifier download timeout documentation"),
+        (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
