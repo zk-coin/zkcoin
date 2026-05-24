@@ -495,6 +495,28 @@ def require_zkcoin_verifier_rejects_duplicate_artifacts():
     return None
 
 
+def require_zkcoin_verifier_rejects_uppercase_checksum_digests():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        manifest = Path(tempdir) / "SHA256SUMS"
+        manifest.write_text("{}  zkcoin-linux.tar.gz\n".format("A" * 64), encoding="utf8")
+        try:
+            verifier.parse_checksum_manifest(manifest)
+        except verifier.VerifyError as exc:
+            if "checksum digest must be lowercase hex in checksum manifest" not in str(exc):
+                return "zkCoin verifier reported the wrong uppercase checksum digest error"
+        else:
+            return "zkCoin verifier accepted an uppercase checksum digest"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_nonportable_artifact_paths():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -944,6 +966,9 @@ def main():
         return fail("status must stay release_infrastructure_not_ready until release keys, repos, and hosts are configured")
 
     error = require_zkcoin_verifier_rejects_duplicate_artifacts()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_uppercase_checksum_digests()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_nonportable_artifact_paths()
@@ -1628,6 +1653,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "os.link", "zkCoin verifier exclusive artifact install"),
         (ZKCOIN_VERIFY_SCRIPT, "target.unlink()", "zkCoin verifier downloaded mismatch cleanup"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
+        (ZKCOIN_VERIFY_SCRIPT, "checksum digest must be lowercase hex", "zkCoin verifier lowercase checksum digest rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
@@ -1646,6 +1672,7 @@ def main():
         (VERIFY_README, "temporary file", "zkCoin verifier atomic download documentation"),
         (VERIFY_README, "without overwriting a final artifact path that appears during the download", "zkCoin verifier raced artifact target documentation"),
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
+        (VERIFY_README, "lowercase 64-character hex digests", "zkCoin verifier lowercase checksum digest documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
