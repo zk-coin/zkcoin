@@ -111,6 +111,13 @@ fi
 if [[ -e "$SNAPSHOT_PATH" ]]; then
   die "snapshot output already exists: $SNAPSHOT_PATH"
 fi
+SNAPSHOT_INCOMPLETE_PATH="${SNAPSHOT_PATH}.incomplete"
+if [[ -L "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
+  die "snapshot incomplete output path must not be a symlink: $SNAPSHOT_INCOMPLETE_PATH"
+fi
+if [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
+  die "snapshot incomplete output already exists: $SNAPSHOT_INCOMPLETE_PATH"
+fi
 SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
 if [[ ! -d "$SNAPSHOT_DIR" ]]; then
   die "snapshot output directory does not exist: $SNAPSHOT_DIR"
@@ -370,6 +377,9 @@ fi
 
 echo "Dumping Litecoin UTXO snapshot at height $HEIGHT to $SNAPSHOT_PATH" >&2
 DUMP_JSON="$(ltc_cli dumptxoutset "$SNAPSHOT_PATH")"
+if [[ -L "$SNAPSHOT_INCOMPLETE_PATH" ]] || [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
+  die "snapshot incomplete output remained after dumptxoutset: $SNAPSHOT_INCOMPLETE_PATH"
+fi
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output must not be a symlink after dumptxoutset: $SNAPSHOT_PATH"
 fi

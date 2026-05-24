@@ -252,7 +252,9 @@ exist, must not equal the snapshot output path, and must have an existing parent
 directory. The snapshot output directory must also exist before the script calls
 either node, and snapshot and audit output directories must be writable. The
 snapshot and audit output paths must be direct files, not symlinks, before the
-operator writes launch artifacts. Paths that resolve
+operator writes launch artifacts. The snapshot `.incomplete` work file used by
+`dumptxoutset` must also be absent and non-symlinked before the dump starts,
+and it must not remain after a successful dump response. Paths that resolve
 through physical parent directories to the same canonical output target, or
 that contain control characters, are rejected before any node RPC is called.
 

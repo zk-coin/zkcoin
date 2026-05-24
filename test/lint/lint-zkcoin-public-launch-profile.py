@@ -3491,6 +3491,9 @@ def main():
         ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
+        ("snapshot incomplete output path must not be a symlink", "snapshot script rejects symlink dump work files"),
+        ("snapshot incomplete output already exists", "snapshot script rejects pre-existing dump work files"),
+        ("snapshot incomplete output remained after dumptxoutset", "snapshot script rejects leftover dump work files"),
         ("restore block hash at height", "snapshot script validates rewind restore hashes"),
         (
             "litecoin-cli getblockcount after rewind returned unexpected value",
@@ -3612,6 +3615,10 @@ def main():
             "snapshot script test rejects symlink snapshot output before RPC",
         ),
         (
+            "Reject pre-existing snapshot incomplete output paths before calling either CLI",
+            "snapshot script test rejects pre-existing dump work files before RPC",
+        ),
+        (
             "Reject a missing snapshot output directory before calling either CLI",
             "snapshot script test rejects missing snapshot directory before RPC",
         ),
@@ -3637,6 +3644,10 @@ def main():
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
         ("Reject empty snapshot dump file before verification", "snapshot script test rejects empty dump file"),
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
+        (
+            "Reject leftover snapshot incomplete output after dump before verification",
+            "snapshot script test rejects leftover dump work files before verifier handoff",
+        ),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
         ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
@@ -4036,6 +4047,10 @@ def main():
         (
             "validates the audit summary output path before running snapshot RPCs",
             "snapshot operator preflights audit output documentation",
+        ),
+        (
+            "snapshot `.incomplete` work file",
+            "snapshot operator preflights and rechecks dump work-file documentation",
         ),
         (
             "Litecoin source node is still in initial block download",
