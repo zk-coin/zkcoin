@@ -231,6 +231,72 @@ snapshot_sha256() {
   fi
 }
 
+snapshot_file_metadata() {
+  python3 - "$SNAPSHOT_PATH" <<'PY'
+import errno
+import hashlib
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+
+def fail(message):
+    print(f"error: {message}", file=sys.stderr)
+    sys.exit(1)
+
+def file_fingerprint(file_stat):
+    return (
+        file_stat.st_dev,
+        file_stat.st_ino,
+        file_stat.st_mode,
+        file_stat.st_size,
+        file_stat.st_mtime_ns,
+        file_stat.st_ctime_ns,
+    )
+
+flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+try:
+    fd = os.open(path, flags)
+except OSError as exc:
+    if exc.errno == errno.ELOOP:
+        fail(f"snapshot output must not be a symlink after dumptxoutset: {path}")
+    if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+        fail(f"snapshot output was not created by dumptxoutset: {path}")
+    fail(f"cannot open snapshot output for fingerprinting: {exc}")
+
+try:
+    initial_stat = os.fstat(fd)
+    if not stat.S_ISREG(initial_stat.st_mode):
+        fail(f"snapshot output was not created by dumptxoutset: {path}")
+    if initial_stat.st_size <= 0:
+        fail(f"snapshot output is empty after dumptxoutset: {path}")
+
+    digest = hashlib.sha256()
+    while True:
+        chunk = os.read(fd, 1024 * 1024)
+        if not chunk:
+            break
+        digest.update(chunk)
+
+    final_fd_stat = os.fstat(fd)
+    final_path_stat = os.stat(path, follow_symlinks=False)
+except OSError as exc:
+    fail(f"cannot read snapshot output for fingerprinting: {exc}")
+finally:
+    os.close(fd)
+
+if (
+    not stat.S_ISREG(final_path_stat.st_mode)
+    or file_fingerprint(final_fd_stat) != file_fingerprint(initial_stat)
+    or file_fingerprint(final_path_stat) != file_fingerprint(initial_stat)
+):
+    fail(f"snapshot output changed during fingerprinting: {path}")
+
+print(f"{initial_stat.st_size} {digest.hexdigest()}")
+PY
+}
+
 RESTORE_BLOCK_HASH=""
 cleanup() {
   local status=$?
@@ -438,17 +504,10 @@ fi
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output must not be a symlink after dumptxoutset: $SNAPSHOT_PATH"
 fi
-if [[ ! -f "$SNAPSHOT_PATH" ]]; then
-  die "snapshot output was not created by dumptxoutset: $SNAPSHOT_PATH"
-fi
-if [[ ! -s "$SNAPSHOT_PATH" ]]; then
-  die "snapshot output is empty after dumptxoutset: $SNAPSHOT_PATH"
-fi
-SNAPSHOT_FILE_SIZE="$(wc -c < "$SNAPSHOT_PATH" | tr -d '[:space:]')"
+read -r SNAPSHOT_FILE_SIZE SNAPSHOT_FILE_SHA256 <<< "$(snapshot_file_metadata)"
 if [[ ! "$SNAPSHOT_FILE_SIZE" =~ ^[1-9][0-9]*$ ]]; then
   die "snapshot output size is not a positive byte count: $SNAPSHOT_FILE_SIZE"
 fi
-SNAPSHOT_FILE_SHA256="$(snapshot_sha256)"
 if [[ ! "$SNAPSHOT_FILE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   die "snapshot output SHA-256 fingerprint is malformed: $SNAPSHOT_FILE_SHA256"
 fi

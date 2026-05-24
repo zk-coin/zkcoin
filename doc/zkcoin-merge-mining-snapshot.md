@@ -243,7 +243,10 @@ coin count before invoking `verifysnapshotmanifest`, so malformed or inconsisten
 Litecoin dump metadata cannot advance to zkCoin verifier handoff. It also
 requires `dumptxoutset.path` to match the requested snapshot output path before
 trusting the dump handoff.
-It also fails if the snapshot artifact becomes a symlink after dump or verification, or if its size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
+It fingerprints the snapshot artifact through a direct file descriptor, rechecks
+the path after hashing, and fails if the artifact becomes a symlink after dump
+or verification, or if its size or SHA-256 changes during zkCoin verification,
+so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
 dedicated disposable snapshot node because it invalidates block `X + 1` and then

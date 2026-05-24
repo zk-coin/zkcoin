@@ -3767,6 +3767,8 @@ def main():
         ("snapshot output was not created by dumptxoutset", "snapshot script rejects missing dump artifact"),
         ("snapshot output must not be a symlink after dumptxoutset", "snapshot script rejects symlink dump artifacts"),
         ("snapshot output is empty after dumptxoutset", "snapshot script rejects empty dump artifact"),
+        ("snapshot_file_metadata", "snapshot script fingerprints dump artifacts through a stable helper"),
+        ("snapshot output changed during fingerprinting", "snapshot script rejects dump artifact replacement during fingerprinting"),
         ("SNAPSHOT_FILE_SHA256", "snapshot script fingerprints dump artifacts"),
         ("POST_VERIFY_SNAPSHOT_FILE_SHA256", "snapshot script rechecks dump artifact after verification"),
         ("snapshot output became a symlink during verification", "snapshot script rejects verifier-time symlink replacement"),
@@ -4340,6 +4342,10 @@ def main():
         (
             "changes during zkCoin verification",
             "snapshot operator verifier-time artifact mutation documentation",
+        ),
+        (
+            "fingerprints the snapshot artifact through a direct file descriptor",
+            "snapshot operator direct artifact fingerprint documentation",
         ),
         (
             "replaced after dump or verification",
