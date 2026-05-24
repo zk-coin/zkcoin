@@ -314,6 +314,7 @@ if [[ "$POST_VERIFY_SNAPSHOT_FILE_SHA256" != "$SNAPSHOT_FILE_SHA256" ]]; then
 fi
 
 python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$SNAPSHOT_PATH" "$SOURCE_CHAIN" "$SNAPSHOT_FILE_SIZE" "$SNAPSHOT_FILE_SHA256" "$DUMP_JSON" "$VERIFY_JSON" <<'PY'
+import errno
 import json
 import os
 import re
@@ -413,6 +414,48 @@ total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")
 def shell_quote(value):
     return shlex.quote(value)
 
+def fsync_parent_directory(path):
+    parent = os.path.dirname(path) or "."
+    parent_fd = os.open(parent, os.O_RDONLY)
+    try:
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
+
+def write_audit_summary(audit_json_path, summary):
+    if os.path.islink(audit_json_path):
+        fail(f"snapshot audit summary path must not be a symlink: {audit_json_path}")
+    if os.path.lexists(audit_json_path):
+        fail(f"snapshot audit summary already exists: {audit_json_path}")
+
+    audit_text = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = None
+    created = False
+    try:
+        fd = os.open(audit_json_path, flags, 0o644)
+        created = True
+        audit_file = os.fdopen(fd, "w", encoding="utf8")
+        fd = None
+        with audit_file:
+            audit_file.write(audit_text)
+            audit_file.flush()
+            os.fsync(audit_file.fileno())
+        fsync_parent_directory(audit_json_path)
+    except FileExistsError:
+        fail(f"snapshot audit summary already exists: {audit_json_path}")
+    except OSError as exc:
+        if fd is not None:
+            os.close(fd)
+        if created:
+            try:
+                os.unlink(audit_json_path)
+            except OSError:
+                pass
+        if exc.errno == errno.ELOOP:
+            fail(f"snapshot audit summary path must not be a symlink: {audit_json_path}")
+        fail(f"cannot write snapshot audit summary durably: {exc}")
+
 if dump_height != height:
     fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")
 
@@ -447,11 +490,7 @@ summary = {
 
 audit_json_path = os.environ.get("ZKCOIN_SNAPSHOT_AUDIT_JSON")
 if audit_json_path:
-    if os.path.exists(audit_json_path):
-        fail(f"snapshot audit summary already exists: {audit_json_path}")
-    with open(audit_json_path, "x", encoding="utf8") as audit_file:
-        json.dump(summary, audit_file, indent=2, sort_keys=True)
-        audit_file.write("\n")
+    write_audit_summary(audit_json_path, summary)
 target_network = "main" if source_chain == "main" else "testnet"
 
 print("Snapshot verified.")

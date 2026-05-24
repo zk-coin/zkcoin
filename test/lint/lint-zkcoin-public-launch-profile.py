@@ -3267,6 +3267,9 @@ def main():
     ltc_snapshot_script_checks = (
         ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
+        ("write_audit_summary", "snapshot script writes audit summaries through a hardened path"),
+        ("os.O_EXCL", "snapshot script creates audit summaries exclusively"),
+        ("os.fsync", "snapshot script fsyncs audit summary writes"),
         ("height must be a positive integer", "snapshot script rejects zero or malformed snapshot heights"),
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
@@ -3372,6 +3375,7 @@ def main():
         ("Reject symlink snapshot dump artifact before verification", "snapshot script test rejects symlink dump file"),
         ("Reject snapshot artifact mutation during verification", "snapshot script test rejects verifier-time dump mutation"),
         ("Reject snapshot artifact symlink replacement during verification", "snapshot script test rejects verifier-time symlink replacement"),
+        ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
         ("Reject null verifier snapshot and import hashes", "snapshot script test rejects null verifier hashes"),
         ("Reject malformed verifier total amount", "snapshot script test rejects malformed total amount"),
         ("Reject over maximum verifier total amount", "snapshot script test rejects over-maximum total amount"),
@@ -3534,6 +3538,10 @@ def main():
         (
             "ZKCOIN_SNAPSHOT_AUDIT_JSON",
             "public launch snapshot audit summary documentation",
+        ),
+        (
+            "exclusive final-path write, fsyncs the file and parent directory",
+            "public launch snapshot audit durable write documentation",
         ),
         (
             "audit summary path itself must also be a direct file",

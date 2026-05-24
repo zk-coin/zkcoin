@@ -277,7 +277,9 @@ Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
 command with the target profile derived from `source_chain` and the exact audit
 summary path filled in. Printed snapshot and audit paths are shell-quoted when
-needed, so copy the generated command exactly.
+needed, so copy the generated command exactly. The operator creates the audit
+summary with an exclusive final-path write, fsyncs the file and parent directory,
+and rejects symlink replacement before writing the handoff artifact.
 The audit summary path itself must also be a direct file, not a symlink, when
 it is applied to the launch profile. The manifest update opens the audit summary
 and referenced snapshot artifact as regular files without following symlinks.
