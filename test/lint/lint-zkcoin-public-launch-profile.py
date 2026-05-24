@@ -3218,6 +3218,10 @@ def main():
             "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
             "preflight cross-checks snapshot import detail",
         ),
+        (
+            "getblockchaininfo.blocks must be 0 when launch_readiness.at_launch_tip is true",
+            "preflight cross-checks launch-tip chain height",
+        ),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
@@ -3257,6 +3261,10 @@ def main():
         (
             '"AuxPoW chain id is still the local launch placeholder 0x5a4b"',
             "preflight fake-CLI placeholder AuxPoW chain-id assertion",
+        ),
+        (
+            "Reject launch-tip readiness away from genesis height",
+            "preflight fake-CLI launch-tip height coverage",
         ),
     )
     for needle, description in preflight_test_checks:
@@ -3410,6 +3418,7 @@ def main():
             "rejects the local launch placeholder `0x5a4b` chain id",
             "preflight placeholder AuxPoW chain-id documentation",
         ),
+        ("getblockchaininfo.blocks=0", "preflight genesis height documentation"),
         (
             "transactions must remain inactive for the first launch block",
             "shielded launch posture documentation",
