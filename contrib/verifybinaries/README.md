@@ -18,7 +18,8 @@ must be regular files, not symlinks.
 ```
 
 If artifacts are not already present locally, pass the resolved HTTPS base URL
-for release artifacts. Artifact downloads must use a positive download timeout:
+for release artifacts. Artifact downloads must use a positive download timeout
+and are written through a temporary file before being installed atomically:
 
 ```sh
 ./verify-zkcoin-release.py \
