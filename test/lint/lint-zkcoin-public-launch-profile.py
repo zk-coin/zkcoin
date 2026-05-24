@@ -618,6 +618,136 @@ def require_public_launch_manifest_current():
             if malformed_manifest_error:
                 return malformed_manifest_error
 
+        snapshot_artifact_path = Path(temp_dir) / "update-ltc-block-x.dat"
+        snapshot_artifact = b"snapshot"
+        snapshot_artifact_path.write_bytes(snapshot_artifact)
+        update_audit_path = Path(temp_dir) / "update-snapshot-audit.json"
+        update_audit_path.write_text(
+            json.dumps(
+                {
+                    "height": 777,
+                    "block_hash": "55" * 32,
+                    "import_hash": "66" * 32,
+                    "snapshot_hash": "77" * 32,
+                    "coins": 4,
+                    "base_nchaintx": 11,
+                    "source_chain": "main",
+                    "snapshot_file_size": len(snapshot_artifact),
+                    "snapshot_file_sha256": hashlib.sha256(snapshot_artifact).hexdigest(),
+                    "snapshot_file": str(snapshot_artifact_path),
+                    "total_amount": "50.00000000",
+                },
+            ),
+            encoding="utf8",
+        )
+
+        def reject_malformed_update_case(name, malformed_manifest, update_args, expected_error):
+            malformed_update_path = Path(temp_dir) / f"{name}.json"
+            malformed_update_path.write_text(json.dumps(malformed_manifest), encoding="utf8")
+            malformed_update_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    *update_args,
+                    str(malformed_update_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if malformed_update_result.returncode == 0:
+                return "{} update command accepted malformed manifest section in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if "Traceback" in malformed_update_result.stderr:
+                return "{} update command emitted a traceback for malformed manifest section in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if expected_error not in malformed_update_result.stderr:
+                return "{} update command did not explain malformed manifest section rejection for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            return None
+
+        malformed_update_cases = (
+            (
+                "update-root-array",
+                [],
+                ("--set-auxpow", "main", "0x5001"),
+                "manifest must be an object",
+            ),
+            (
+                "update-networks-array",
+                copied_manifest_with(lambda value: value.update({"networks": []})),
+                ("--set-auxpow", "main", "0x5001"),
+                "networks must be an object",
+            ),
+            (
+                "update-profile-array",
+                copied_manifest_with(lambda value: value["networks"].update({"main": []})),
+                ("--set-auxpow", "main", "0x5001"),
+                "networks.main must be an object",
+            ),
+            (
+                "update-snapshot-audit-networks-array",
+                copied_manifest_with(lambda value: value.update({"networks": []})),
+                ("--set-snapshot-audit", "main", str(update_audit_path)),
+                "networks must be an object",
+            ),
+            (
+                "update-dns-identity-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"].update(
+                        {"public_network_identity": []},
+                    ),
+                ),
+                ("--set-dns-seeds", "main", "seed1.zkcoin.net"),
+                "main.public_network_identity must be an object",
+            ),
+            (
+                "update-identity-array",
+                copied_manifest_with(
+                    lambda value: value["networks"]["main"].update(
+                        {"public_network_identity": []},
+                    ),
+                ),
+                (
+                    "--set-identity",
+                    "main",
+                    "fa,bf,b5,d9",
+                    "19445",
+                    "75",
+                    "76",
+                    "77",
+                    "178",
+                    "04202431",
+                    "04202432",
+                    "zk",
+                    "zkmweb",
+                ),
+                "main.public_network_identity must be an object",
+            ),
+            (
+                "update-blockers-object",
+                copied_manifest_with(lambda value: value.update({"blockers": {}})),
+                ("--set-auxpow", "main", "0x5001"),
+                "blockers must be an array",
+            ),
+        )
+        for name, malformed_manifest, update_args, expected_error in malformed_update_cases:
+            malformed_update_error = reject_malformed_update_case(
+                name,
+                malformed_manifest,
+                update_args,
+                expected_error,
+            )
+            if malformed_update_error:
+                return malformed_update_error
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -2252,6 +2382,8 @@ def main():
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
         ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
+        ("update_network_profile", "manifest update commands reject malformed profile sections"),
+        ("blockers must be an array", "manifest update commands reject malformed blocker lists"),
         ("require_known_fields", "manifest rejects unexpected schema fields"),
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("ready-for-chainparams", "manifest ready status"),
@@ -2669,6 +2801,10 @@ def main():
         (
             "malformed manifest sections are reported as validation errors",
             "public launch manifest malformed schema documentation",
+        ),
+        (
+            "Manifest update commands reject malformed sections before mutation",
+            "public launch manifest update malformed schema documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",

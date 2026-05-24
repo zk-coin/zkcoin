@@ -900,7 +900,10 @@ def parse_default_port(value):
 
 
 def remove_blocker(manifest, blocker_id):
+    require_update_manifest(manifest)
     blockers = manifest.get("blockers", [])
+    if not isinstance(blockers, list):
+        raise ValueError("blockers must be an array")
     manifest["blockers"] = [
         blocker
         for blocker in blockers
@@ -908,11 +911,31 @@ def remove_blocker(manifest, blocker_id):
     ]
 
 
-def set_snapshot(manifest, network, height, block_hash, import_hash, audit=None):
+def require_update_manifest(manifest):
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest must be an object")
+
+
+def update_child_object(parent, field, path):
+    value = parent.get(field)
+    if value is None:
+        value = {}
+        parent[field] = value
+    elif not isinstance(value, dict):
+        raise ValueError(f"{path} must be an object")
+    return value
+
+
+def update_network_profile(manifest, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
-    networks = manifest.setdefault("networks", {})
-    profile = networks.setdefault(network, {})
+    require_update_manifest(manifest)
+    networks = update_child_object(manifest, "networks", "networks")
+    return update_child_object(networks, network, f"networks.{network}")
+
+
+def set_snapshot(manifest, network, height, block_hash, import_hash, audit=None):
+    profile = update_network_profile(manifest, network)
     snapshot = {
         "height": parse_height(height),
         "block_hash": parse_hex256(block_hash, "block_hash"),
@@ -927,6 +950,7 @@ def set_snapshot(manifest, network, height, block_hash, import_hash, audit=None)
 def set_snapshot_from_audit(manifest, network, audit_path):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    update_network_profile(manifest, network)
     audit = parse_snapshot_audit(audit_path)
     expected_source_chain = SNAPSHOT_SOURCE_CHAINS[network]
     if audit["audit"]["source_chain"] != expected_source_chain:
@@ -939,10 +963,7 @@ def set_snapshot_from_audit(manifest, network, audit_path):
 
 
 def set_auxpow(manifest, network, chain_id):
-    if network not in NETWORKS:
-        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
-    networks = manifest.setdefault("networks", {})
-    profile = networks.setdefault(network, {})
+    profile = update_network_profile(manifest, network)
     profile["auxpow"] = {
         "start_height": 1,
         "chain_id": parse_chain_id(chain_id),
@@ -970,11 +991,12 @@ def parse_dns_seeds(value):
 
 
 def set_dns_seeds(manifest, network, dns_seeds):
-    if network not in NETWORKS:
-        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
-    networks = manifest.setdefault("networks", {})
-    profile = networks.setdefault(network, {})
-    identity = profile.setdefault("public_network_identity", {})
+    profile = update_network_profile(manifest, network)
+    identity = update_child_object(
+        profile,
+        "public_network_identity",
+        f"{network}.public_network_identity",
+    )
     identity["dns_seeds"] = parse_dns_seeds(dns_seeds)
     remove_blocker(manifest, f"{network}.dns_seeds")
 
@@ -1019,9 +1041,12 @@ def set_identity(
     if bech32_hrp == mweb_hrp:
         raise ValueError("mweb_hrp must differ from bech32_hrp")
 
-    networks = manifest.setdefault("networks", {})
-    profile = networks.setdefault(network, {})
-    identity = profile.setdefault("public_network_identity", {})
+    profile = update_network_profile(manifest, network)
+    identity = update_child_object(
+        profile,
+        "public_network_identity",
+        f"{network}.public_network_identity",
+    )
     identity.update(parsed_identity)
     identity.setdefault("dns_seeds", [])
     identity.setdefault("fixed_seeds", [])
