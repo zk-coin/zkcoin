@@ -104,10 +104,9 @@ surfaces that are not production-ready for zkCoin releases yet. The
 `test/lint/lint-zkcoin-release-infrastructure.py` guard keeps those surfaces
 explicit, checks that release docs remain blocked, and fails closed until
 zkCoin release keys, signing repositories, artifact hosts, and namespace
-decisions are configured.
-The companion previous-release lint reads `test/previous_releases.json` with
-duplicate JSON field rejection so release artifact metadata cannot be shadowed
-by later duplicate keys.
+decisions are configured. The manifest is read with duplicate JSON field
+rejection so release readiness status, blocker, or custody metadata cannot be
+shadowed by later duplicate keys.
 
 zkcoin_source_dist_smoke.sh
 ===========================

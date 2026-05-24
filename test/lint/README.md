@@ -83,7 +83,9 @@ release infrastructure is tracked in
 `contrib/devtools/zkcoin_release_infrastructure_manifest.json`, and that
 release docs keep legacy binary verification guarded while zkCoin binary
 verification remains parameterized until release keys, repositories, artifact
-hosts, and namespace decisions are configured.
+hosts, and namespace decisions are configured. The manifest loader rejects
+duplicate JSON fields so release status, blocker, or custody metadata cannot be
+shadowed by later duplicate keys.
 
 lint-zkcoin-product-identity.sh
 ===============================

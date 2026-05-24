@@ -149,6 +149,39 @@ REQUIRED_RUST_SHIELDED_VERIFIER_TARGETS = (
 )
 
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+
+def parse_manifest_json(text):
+    try:
+        return json.loads(text, object_pairs_hook=reject_duplicate_json_fields)
+    except DuplicateJSONFieldError as exc:
+        raise ValueError("contains duplicate field: {}".format(exc)) from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError("invalid JSON: {}".format(exc)) from exc
+
+
+def check_manifest_json_loader():
+    try:
+        parse_manifest_json('{"status": "ready", "status": "release_infrastructure_not_ready"}')
+    except ValueError as exc:
+        if "contains duplicate field: status" not in str(exc):
+            return "duplicate-field guard reported the wrong error"
+    else:
+        return "duplicate-field guard accepted shadowed JSON"
+    return None
+
+
 def fail(message):
     print("{}: {}".format(MANIFEST, message), file=sys.stderr)
     return 1
@@ -435,10 +468,14 @@ def require_gitian_signer_descriptors():
 
 
 def main():
+    loader_error = check_manifest_json_loader()
+    if loader_error:
+        return fail(loader_error)
+
     try:
-        manifest = json.loads(MANIFEST.read_text(encoding="utf8"))
-    except json.JSONDecodeError as exc:
-        return fail("invalid JSON: {}".format(exc))
+        manifest = parse_manifest_json(MANIFEST.read_text(encoding="utf8"))
+    except ValueError as exc:
+        return fail(str(exc))
 
     if manifest.get("project") != "zkcoin":
         return fail("project must be zkcoin")
