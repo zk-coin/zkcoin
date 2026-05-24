@@ -215,7 +215,7 @@ release publication.
 - a `litecoin-cli` command pointed at the source Litecoin node;
 - a `zkcoin-cli` command pointed at a zkCoin node with `verifysnapshotmanifest`.
 
-The script fails closed if the source node does not report usable
+The script fails closed if the source node does not report usable duplicate-free
 `getblockchaininfo`, if the source is still in initial block download, if the
 source has headers ahead of downloaded blocks or reports headers below downloaded blocks,
 if the source reports malformed source sync booleans or malformed source chain names,
@@ -230,7 +230,7 @@ non-negative source difficulty, positive source disk footprint, or
 non-negative source tip times with median time not after block time, if the
 expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
-returns malformed JSON, or if required snapshot/manifest fields are missing or
+returns malformed or duplicate-field JSON, or if required snapshot/manifest fields are missing or
 inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
 It also fails if the snapshot artifact becomes a symlink after dump or verification, or if its size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless

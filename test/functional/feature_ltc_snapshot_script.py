@@ -542,6 +542,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject duplicate Litecoin source chain info fields")
+        _, calls, _ = self.assert_snapshot(
+            "duplicate-chaininfo-field",
+            self.scenario(chaininfo_raw='{"chain": "main", "chain": "test"}'),
+            1,
+            "litecoin-cli getblockchaininfo contains duplicate field: chain",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject malformed Litecoin source chain name")
         _, calls, _ = self.assert_snapshot(
             "source-malformed-chain-name",
@@ -815,6 +824,19 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "dumptxoutset did not return JSON",
         )
 
+        self.log.info("Reject duplicate snapshot dump fields")
+        self.assert_snapshot(
+            "duplicate-dump-field",
+            self.scenario(
+                dump_raw=(
+                    f'{{"base_height": {HEIGHT}, "base_height": {HEIGHT}, '
+                    f'"base_hash": "{BLOCK_HASH}", "coins_written": 4}}'
+                ),
+            ),
+            1,
+            "dumptxoutset contains duplicate field: base_height",
+        )
+
         self.log.info("Reject missing snapshot dump file before verification")
         _, calls, _ = self.assert_snapshot(
             "missing-dump-file",
@@ -869,6 +891,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             write_audit=True,
         )
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [snapshot_path])
+
+        self.log.info("Reject duplicate verifier manifest fields")
+        self.assert_snapshot(
+            "duplicate-verify-field",
+            self.scenario(
+                verify_raw=(
+                    f'{{"base_height": {HEIGHT}, "base_hash": "{BLOCK_HASH}", '
+                    '"coins": 4, "metadata_coins": 4, "base_nchaintx": 11, '
+                    f'"snapshot_hash": "{SNAPSHOT_HASH}", '
+                    f'"import_hash": "{IMPORT_HASH}", "import_hash": "{IMPORT_HASH}", '
+                    '"total_amount": "50.00000000"}'
+                ),
+            ),
+            1,
+            "verifysnapshotmanifest contains duplicate field: import_hash",
+        )
 
         self.log.info("Reject missing verifier manifest fields")
         missing_import_hash = self.verify_json()
