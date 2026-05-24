@@ -85,7 +85,9 @@ the source tarball smoke while iterating.
 The expected canonical, smoke-lane, and release-candidate source-artifact
 checks are tracked in
 `zkcoin_launch_validation_manifest.json`; `test/lint/lint-zkcoin-launch-validation.py`
-fails if a wrapper stops executing a manifest entry.
+fails if a wrapper stops executing a manifest entry. The lint reads that
+manifest with duplicate JSON field rejection, so hand-edited validation entries
+cannot be shadowed by later duplicate keys.
 
 Example:
 

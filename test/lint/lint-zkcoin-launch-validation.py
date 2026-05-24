@@ -49,6 +49,19 @@ REQUIRED_MANIFEST_BLOCKS = {
 }
 
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+
 def iter_task_blocks(lines):
     block = None
     for line in lines:
@@ -191,8 +204,35 @@ def check_functional_tests(commands, tests, label):
     return None
 
 
+def parse_manifest_json(text, path):
+    try:
+        return json.loads(text, object_pairs_hook=reject_duplicate_json_fields)
+    except DuplicateJSONFieldError as exc:
+        raise ValueError("{} contains duplicate field: {}".format(path, exc))
+    except json.JSONDecodeError as exc:
+        raise ValueError("{} is not valid JSON: {}".format(path, exc))
+
+
+def check_manifest_json_loader():
+    try:
+        parse_manifest_json('{"version": 1, "version": 1}', VALIDATION_MANIFEST)
+    except ValueError as exc:
+        if "contains duplicate field: version" not in str(exc):
+            return "{} duplicate-field guard reported the wrong error".format(
+                VALIDATION_MANIFEST.relative_to(ROOT_DIR)
+            )
+    else:
+        return "{} duplicate-field guard accepted shadowed JSON".format(
+            VALIDATION_MANIFEST.relative_to(ROOT_DIR)
+        )
+    return None
+
+
 def load_manifest():
-    manifest = json.loads(VALIDATION_MANIFEST.read_text(encoding="utf8"))
+    manifest = parse_manifest_json(
+        VALIDATION_MANIFEST.read_text(encoding="utf8"),
+        VALIDATION_MANIFEST,
+    )
     if manifest.get("version") != 1:
         raise ValueError("{} version must be 1".format(VALIDATION_MANIFEST))
     for section, required_lists in REQUIRED_MANIFEST_LISTS.items():
@@ -230,6 +270,9 @@ def load_manifest():
 
 def main():
     lines = CIRRUS_CONFIG.read_text(encoding="utf8").splitlines(keepends=True)
+    loader_error = check_manifest_json_loader()
+    if loader_error:
+        return fail(loader_error)
     try:
         manifest = load_manifest()
     except (json.JSONDecodeError, ValueError) as exc:
