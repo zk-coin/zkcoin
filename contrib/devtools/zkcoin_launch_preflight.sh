@@ -210,6 +210,8 @@ auxpow_detail = detail_sections.get("auxpow")
 if auxpow_detail is not None:
     if "next_block_active" in auxpow_detail and type(auxpow_detail["next_block_active"]) is not bool:
         schema_errors.append("getblockchaininfo.auxpow.next_block_active must be a boolean")
+    if "start_height" in auxpow_detail and type(auxpow_detail["start_height"]) is not int:
+        schema_errors.append("getblockchaininfo.auxpow.start_height must be an integer")
     if "chain_id" in auxpow_detail and type(auxpow_detail["chain_id"]) is not int:
         schema_errors.append("getblockchaininfo.auxpow.chain_id must be an integer")
     if "strict_chain_id" in auxpow_detail and type(auxpow_detail["strict_chain_id"]) is not bool:
@@ -226,6 +228,15 @@ if auxpow_detail is not None:
         and auxpow_detail["next_block_active"] != readiness["auxpow_active_at_launch"]
     ):
         schema_errors.append("getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip")
+    if (
+        "start_height" in auxpow_detail
+        and "auxpow_active_at_launch" in readiness
+        and type(auxpow_detail.get("start_height")) is int
+        and type(readiness.get("auxpow_active_at_launch")) is bool
+        and readiness["auxpow_active_at_launch"] is True
+        and auxpow_detail["start_height"] != 1
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.start_height must be 1 when launch_readiness.auxpow_active_at_launch is true")
     if (
         "chain_id" in auxpow_detail
         and "chain_id_configured" in readiness

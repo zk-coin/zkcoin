@@ -263,6 +263,24 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
         )
 
+        self.log.info("Reject malformed or non-launch AuxPoW start height")
+        malformed_auxpow_start = self.valid_info()
+        malformed_auxpow_start["auxpow"]["start_height"] = "1"
+        self.assert_preflight(
+            fake_cli,
+            malformed_auxpow_start,
+            1,
+            "getblockchaininfo.auxpow.start_height must be an integer",
+        )
+        late_auxpow_start = self.valid_info()
+        late_auxpow_start["auxpow"]["start_height"] = 2
+        self.assert_preflight(
+            fake_cli,
+            late_auxpow_start,
+            1,
+            "getblockchaininfo.auxpow.start_height must be 1 when launch_readiness.auxpow_active_at_launch is true",
+        )
+
         self.log.info("Reject inconsistent AuxPoW strict chain-id detail")
         inconsistent_auxpow_strict_chain_id = self.valid_info()
         inconsistent_auxpow_strict_chain_id["auxpow"]["strict_chain_id"] = False
