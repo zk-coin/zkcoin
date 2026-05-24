@@ -388,6 +388,91 @@ if [[ ! "$SNAPSHOT_FILE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   die "snapshot output SHA-256 fingerprint is malformed: $SNAPSHOT_FILE_SHA256"
 fi
 
+python3 - "$HEIGHT" "$EXPECTED_BLOCK_HASH" "$DUMP_JSON" <<'PY'
+import json
+import re
+import sys
+
+height = int(sys.argv[1])
+expected_hash = sys.argv[2].lower()
+dump_json = sys.argv[3]
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+INT_RE = re.compile(r"^[0-9]+$")
+NULL_UINT256 = "0" * 64
+
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+def fail(message):
+    print(f"error: {message}", file=sys.stderr)
+    sys.exit(1)
+
+def load_json(source, raw):
+    try:
+        value = json.loads(raw, object_pairs_hook=reject_duplicate_json_fields)
+    except DuplicateJSONFieldError as exc:
+        fail(f"{source} contains duplicate field: {exc}")
+    except json.JSONDecodeError as exc:
+        fail(f"{source} did not return JSON: {exc}")
+    if not isinstance(value, dict):
+        fail(f"{source} response must be a JSON object")
+    return value
+
+def require_field(obj, source, field):
+    if field not in obj:
+        fail(f"missing {source} field: {field}")
+    return obj[field]
+
+def require_int(obj, source, field):
+    value = require_field(obj, source, field)
+    if isinstance(value, bool):
+        fail(f"{source}.{field} must be an integer")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and INT_RE.fullmatch(value):
+        parsed = int(value)
+    else:
+        fail(f"{source}.{field} must be an integer")
+    if parsed < 0:
+        fail(f"{source}.{field} must be a non-negative integer")
+    return parsed
+
+def require_positive_int(obj, source, field):
+    parsed = require_int(obj, source, field)
+    if parsed <= 0:
+        fail(f"{source}.{field} must be positive")
+    return parsed
+
+def require_hash(obj, source, field):
+    value = require_field(obj, source, field)
+    if not isinstance(value, str):
+        fail(f"{source}.{field} must be a lowercase 64-character hex string")
+    if not HEX64_RE.fullmatch(value):
+        fail(f"{source}.{field} must be a lowercase 64-character hex string")
+    if value == NULL_UINT256:
+        fail(f"{source}.{field} must not be the null uint256")
+    return value
+
+dump = load_json("dumptxoutset", dump_json)
+dump_height = require_int(dump, "dumptxoutset", "base_height")
+dump_hash = require_hash(dump, "dumptxoutset", "base_hash")
+require_positive_int(dump, "dumptxoutset", "coins_written")
+
+if dump_height != height:
+    fail(f"dumptxoutset base_height mismatch: expected={height} actual={dump_height}")
+
+if dump_hash != expected_hash:
+    fail(f"dumptxoutset base_hash mismatch: expected={expected_hash} actual={dump_hash}")
+PY
+
 echo "Verifying normalized zkCoin import hash" >&2
 VERIFY_JSON="$(zk_cli verifysnapshotmanifest "$SNAPSHOT_PATH")"
 if [[ -L "$SNAPSHOT_PATH" ]]; then
