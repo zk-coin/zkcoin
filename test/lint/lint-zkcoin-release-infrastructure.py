@@ -522,6 +522,33 @@ def require_zkcoin_verifier_rejects_nonportable_artifact_paths():
     return None
 
 
+def require_zkcoin_verifier_rejects_nonnormalized_artifact_paths():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    invalid_manifests = (
+        "{}  ./zkcoin-linux.tar.gz\n".format("00" * 32),
+        "{}  releases//zkcoin-linux.tar.gz\n".format("00" * 32),
+    )
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        manifest = Path(tempdir) / "SHA256SUMS"
+        for manifest_text in invalid_manifests:
+            manifest.write_text(manifest_text, encoding="utf8")
+            try:
+                verifier.parse_checksum_manifest(manifest)
+            except verifier.VerifyError as exc:
+                if "artifact path must be a normalized POSIX path in checksum manifest" not in str(exc):
+                    return "zkCoin verifier reported the wrong non-normalized artifact path error"
+            else:
+                return "zkCoin verifier accepted a non-normalized checksum artifact path"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_symlink_artifacts():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -920,6 +947,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_nonportable_artifact_paths()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_nonnormalized_artifact_paths()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_symlink_artifacts()
@@ -1600,6 +1630,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a regular file", "zkCoin verifier regular artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
@@ -1617,6 +1648,7 @@ def main():
         (VERIFY_README, "Downloaded artifacts that fail hash verification are removed", "zkCoin verifier mismatched download cleanup documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
+        (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),

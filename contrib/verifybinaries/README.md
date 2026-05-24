@@ -8,8 +8,8 @@ signing key fingerprint, then verifies every selected artifact hash from the
 signed manifest. Trusted signing key inputs must be full 40-character hex fingerprints.
 The signed manifest must not contain duplicate artifact paths, so a release
 cannot publish ambiguous checksums for the same artifact name. Artifact paths
-must not contain backslashes or control characters. Local artifacts must be
-regular files, not symlinks.
+must be normalized POSIX paths and must not contain backslashes or control characters.
+Local artifacts must be regular files, not symlinks.
 
 ```sh
 ./verify-zkcoin-release.py \

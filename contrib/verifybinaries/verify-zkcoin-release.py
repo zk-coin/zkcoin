@@ -145,6 +145,8 @@ def parse_checksum_manifest(path):
         if not pure_path.parts:
             raise VerifyError("empty artifact path in checksum manifest")
         artifact_key = pure_path.as_posix()
+        if artifact_key != filename:
+            raise VerifyError("artifact path must be a normalized POSIX path in checksum manifest: {}".format(filename))
         if artifact_key in seen_artifacts:
             raise VerifyError("duplicate artifact path in checksum manifest: {}".format(artifact_key))
         seen_artifacts.add(artifact_key)
