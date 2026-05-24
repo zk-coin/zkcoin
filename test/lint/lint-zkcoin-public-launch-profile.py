@@ -3426,6 +3426,12 @@ def main():
             "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
             "snapshot script validates source difficulty shape",
         ),
+        ('require_nonnegative_int("time")', "snapshot script validates source tip time shape"),
+        ('require_nonnegative_int("mediantime")', "snapshot script validates source median time shape"),
+        (
+            "litecoin-cli getblockchaininfo.mediantime must be less than or equal to time",
+            "snapshot script validates source median time ordering",
+        ),
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
@@ -3490,6 +3496,7 @@ def main():
             "snapshot script test validates source verification progress shape",
         ),
         ("Reject malformed Litecoin source difficulty", "snapshot script test validates source difficulty shape"),
+        ("Reject malformed Litecoin source tip times", "snapshot script test validates source tip times"),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
         (
@@ -3799,6 +3806,10 @@ def main():
         (
             "non-negative source difficulty",
             "public launch snapshot source difficulty documentation",
+        ),
+        (
+            "non-negative source tip times",
+            "public launch snapshot source tip time documentation",
         ),
         (
             "expected block hash is the null uint256 placeholder",

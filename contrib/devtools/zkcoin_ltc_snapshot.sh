@@ -275,6 +275,10 @@ bestblockhash = require_bestblockhash()
 require_chainwork()
 require_verificationprogress()
 require_difficulty()
+source_time = require_nonnegative_int("time")
+source_mediantime = require_nonnegative_int("mediantime")
+if source_mediantime > source_time:
+    fail("litecoin-cli getblockchaininfo.mediantime must be less than or equal to time")
 if headers < blocks:
     fail("litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks")
 if headers > blocks:
