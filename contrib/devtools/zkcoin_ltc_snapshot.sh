@@ -127,6 +127,7 @@ if [[ ! -w "$SNAPSHOT_DIR" ]]; then
 fi
 SNAPSHOT_DIR_PHYSICAL="$(cd "$SNAPSHOT_DIR" && pwd -P)" || die "cannot resolve snapshot output directory: $SNAPSHOT_DIR"
 SNAPSHOT_CANONICAL_PATH="$SNAPSHOT_DIR_PHYSICAL/$(basename "$SNAPSHOT_PATH")"
+SNAPSHOT_INCOMPLETE_CANONICAL_PATH="$SNAPSHOT_DIR_PHYSICAL/$(basename "$SNAPSHOT_INCOMPLETE_PATH")"
 
 if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   AUDIT_JSON_PATH="$ZKCOIN_SNAPSHOT_AUDIT_JSON"
@@ -137,6 +138,9 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   reject_control_path "$AUDIT_JSON_PATH" "snapshot audit summary"
   if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
+  fi
+  if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
+    die "snapshot audit summary path must differ from snapshot incomplete output path: $AUDIT_JSON_PATH"
   fi
   if [[ -L "$AUDIT_JSON_PATH" ]]; then
     die "snapshot audit summary path must not be a symlink: $AUDIT_JSON_PATH"
@@ -155,6 +159,9 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   AUDIT_CANONICAL_PATH="$AUDIT_JSON_DIR_PHYSICAL/$(basename "$AUDIT_JSON_PATH")"
   if [[ "$AUDIT_CANONICAL_PATH" == "$SNAPSHOT_CANONICAL_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
+  fi
+  if [[ "$AUDIT_CANONICAL_PATH" == "$SNAPSHOT_INCOMPLETE_CANONICAL_PATH" ]]; then
+    die "snapshot audit summary path must differ from snapshot incomplete output path: $AUDIT_JSON_PATH"
   fi
   export ZKCOIN_SNAPSHOT_AUDIT_JSON="$AUDIT_JSON_PATH"
 fi
