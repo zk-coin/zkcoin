@@ -724,6 +724,55 @@ def require_zkcoin_verifier_rejects_symlink_artifacts():
     return None
 
 
+def require_zkcoin_verifier_rejects_unsafe_artifacts_dir():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        tempdir = Path(tempdir)
+        external_dir = tempdir / "external-artifacts"
+        external_dir.mkdir()
+        symlink_dir = tempdir / "artifacts-link"
+        symlink_dir.symlink_to(external_dir)
+        try:
+            verifier.verify_artifacts(
+                SimpleNamespace(
+                    artifacts_dir=symlink_dir,
+                    download_base=None,
+                    download_timeout=1,
+                ),
+                [("00" * 32, "zkcoin-1.0.tar.gz")],
+            )
+        except verifier.VerifyError as exc:
+            if "artifacts directory must not be a symlink" not in str(exc):
+                return "zkCoin verifier reported the wrong symlink artifacts-dir error"
+        else:
+            return "zkCoin verifier accepted a symlinked artifacts directory"
+
+        file_artifacts_dir = tempdir / "artifacts-file"
+        file_artifacts_dir.write_text("not a directory\n", encoding="utf8")
+        try:
+            verifier.verify_artifacts(
+                SimpleNamespace(
+                    artifacts_dir=file_artifacts_dir,
+                    download_base=None,
+                    download_timeout=1,
+                ),
+                [("00" * 32, "zkcoin-1.0.tar.gz")],
+            )
+        except verifier.VerifyError as exc:
+            if "artifacts path must be a directory" not in str(exc):
+                return "zkCoin verifier reported the wrong non-directory artifacts-dir error"
+        else:
+            return "zkCoin verifier accepted a non-directory artifacts path"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_insecure_download_base():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -1124,6 +1173,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_symlink_artifacts()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_unsafe_artifacts_dir()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_insecure_download_base()
@@ -1811,6 +1863,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifacts directory must not be a symlink", "zkCoin verifier artifacts directory symlink rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifacts path must be a directory", "zkCoin verifier artifacts directory type rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a regular file", "zkCoin verifier regular artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
@@ -1836,6 +1890,7 @@ def main():
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
+        (VERIFY_README, "Artifacts directories must be direct directories, not symlinks", "zkCoin verifier artifacts directory documentation"),
         (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
