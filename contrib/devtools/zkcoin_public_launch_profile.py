@@ -62,6 +62,7 @@ SNAPSHOT_TOTAL_AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 SNAPSHOT_COIN = 100000000
 SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
 SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
+SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES = 64 * 1024
 SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
     "testnet": "test",
@@ -718,13 +719,19 @@ def verify_snapshot_audit_artifact(audit):
 
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
-    fd, _ = open_regular_file_no_symlink(
+    fd, audit_summary_size = open_regular_file_no_symlink(
         audit_summary_path,
         symlink_error="snapshot audit summary must not be a symlink",
         missing_error="cannot read snapshot audit summary",
         not_regular_error="snapshot audit summary must be a regular file",
         open_error="cannot read snapshot audit summary",
     )
+    if audit_summary_size > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(
+            f"snapshot audit summary must not exceed {SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES} bytes: "
+            f"{audit_summary_path}"
+        )
     audit_summary_file = None
     try:
         audit_summary_file = os.fdopen(fd, "r", encoding="utf8")
