@@ -133,11 +133,12 @@ REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 
 def unresolved_blocker_ids(manifest):
     blockers = set()
-    networks = manifest.get("networks", {})
+    manifest = object_or_empty(manifest)
+    networks = object_or_empty(manifest.get("networks", {}))
     for network in NETWORKS:
-        profile = networks.get(network, {})
-        snapshot = profile.get("litecoin_snapshot", {})
-        snapshot_audit = snapshot.get("audit", {})
+        profile = object_or_empty(networks.get(network, {}))
+        snapshot = object_or_empty(profile.get("litecoin_snapshot", {}))
+        snapshot_audit = object_or_empty(snapshot.get("audit", {}))
         if (
             any(snapshot.get(field) is None for field in SNAPSHOT_FIELDS)
             or not isinstance(snapshot_audit, dict)
@@ -145,12 +146,12 @@ def unresolved_blocker_ids(manifest):
         ):
             blockers.add(f"{network}.litecoin_snapshot")
 
-        auxpow = profile.get("auxpow", {})
+        auxpow = object_or_empty(profile.get("auxpow", {}))
         if auxpow.get("chain_id") is None:
             blockers.add(f"{network}.auxpow_chain_id")
 
-        identity = profile.get("public_network_identity", {})
-        base58 = identity.get("base58_prefixes", {})
+        identity = object_or_empty(profile.get("public_network_identity", {}))
+        base58 = object_or_empty(identity.get("base58_prefixes", {}))
         if (
             identity.get("message_start") is None
             or identity.get("default_port") is None
@@ -171,6 +172,10 @@ def ordered_unresolved_blocker_ids(manifest):
 
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def object_or_empty(value):
+    return value if isinstance(value, dict) else {}
 
 
 class Validation:
@@ -592,6 +597,7 @@ def validate_unique_launch_values(check, networks):
 
 def validate_manifest(manifest, allow_blocked):
     check = Validation(allow_blocked)
+    manifest = check.require_object(manifest, "manifest")
     check.require_known_fields(manifest, "manifest", MANIFEST_FIELDS)
     if not is_plain_int(manifest.get("version")) or manifest.get("version") != 1:
         check.error("version", "must be 1")
