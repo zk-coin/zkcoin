@@ -3438,6 +3438,8 @@ def main():
             "snapshot script validates source header/block ordering",
         ),
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
+        ('require_bool("initialblockdownload")', "snapshot script validates source IBD flag shape"),
+        ('require_bool("pruned")', "snapshot script validates source pruned flag shape"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
         ("litecoin-cli getblockchaininfo.warnings must be a string", "snapshot script validates source warning shape"),
@@ -3509,6 +3511,7 @@ def main():
         ),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
+        ("Reject malformed Litecoin source sync booleans", "snapshot script test validates source sync boolean shape"),
         (
             "Reject a Litecoin source still in initial block download",
             "snapshot script test rejects IBD source nodes",
@@ -3780,6 +3783,10 @@ def main():
         (
             "headers below downloaded blocks",
             "public launch snapshot source header-order documentation",
+        ),
+        (
+            "malformed source sync booleans",
+            "public launch snapshot source sync boolean documentation",
         ),
         (
             "validates the block `X + 1` restore hash before invalidating",
