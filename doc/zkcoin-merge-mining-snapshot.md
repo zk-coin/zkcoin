@@ -317,6 +317,8 @@ the reviewed manifest ready, emit chainparams, or check chainparams in separate
 commands.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary and rejects symlinked snapshot artifacts and other non-file artifacts.
+It also rechecks the snapshot artifact path after hashing, rejecting artifact
+replacement or truncation during verification before writing launch metadata.
 The manifest update rejects a snapshot audit whose source chain does not match
 the target profile: `main` requires Litecoin `main`, and `testnet` requires
 Litecoin `test`.

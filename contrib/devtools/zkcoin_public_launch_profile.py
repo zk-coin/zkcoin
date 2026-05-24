@@ -759,7 +759,32 @@ def open_regular_file_no_symlink(path, *, symlink_error, missing_error, not_regu
     if not stat.S_ISREG(file_stat.st_mode):
         os.close(fd)
         raise ValueError(f"{not_regular_error}: {path}")
-    return fd, file_stat.st_size
+    return fd, file_stat
+
+
+def file_stat_fingerprint(file_stat):
+    return (
+        file_stat.st_dev,
+        file_stat.st_ino,
+        file_stat.st_size,
+        file_stat.st_mtime_ns,
+        file_stat.st_ctime_ns,
+    )
+
+
+def require_snapshot_audit_artifact_stable(snapshot_path, original_stat, snapshot_file):
+    try:
+        final_fd_stat = os.fstat(snapshot_file.fileno())
+        final_path_stat = os.stat(snapshot_path, follow_symlinks=False)
+    except OSError as exc:
+        raise ValueError(f"snapshot audit file artifact changed during verification: {exc}") from None
+    original_fingerprint = file_stat_fingerprint(original_stat)
+    if (
+        not stat.S_ISREG(final_path_stat.st_mode)
+        or file_stat_fingerprint(final_fd_stat) != original_fingerprint
+        or file_stat_fingerprint(final_path_stat) != original_fingerprint
+    ):
+        raise ValueError("snapshot audit file artifact changed during verification")
 
 
 def snapshot_file_sha256(snapshot_file):
@@ -771,7 +796,7 @@ def snapshot_file_sha256(snapshot_file):
 
 def verify_snapshot_audit_artifact(audit):
     snapshot_path = Path(audit["snapshot_file"])
-    fd, actual_size = open_regular_file_no_symlink(
+    fd, initial_stat = open_regular_file_no_symlink(
         snapshot_path,
         symlink_error="snapshot audit file artifact must not be a symlink",
         missing_error="snapshot audit file artifact does not exist",
@@ -779,6 +804,7 @@ def verify_snapshot_audit_artifact(audit):
         open_error="cannot read snapshot audit file artifact",
     )
     snapshot_file = None
+    actual_size = initial_stat.st_size
     if actual_size != audit["snapshot_file_size"]:
         os.close(fd)
         raise ValueError(
@@ -789,6 +815,7 @@ def verify_snapshot_audit_artifact(audit):
         snapshot_file = os.fdopen(fd, "rb")
         fd = None
         actual_sha256 = snapshot_file_sha256(snapshot_file)
+        require_snapshot_audit_artifact_stable(snapshot_path, initial_stat, snapshot_file)
     except OSError as exc:
         raise ValueError(f"cannot read snapshot audit file artifact: {exc}")
     finally:
@@ -832,13 +859,14 @@ def read_snapshot_audit_summary_text(fd, audit_summary_path):
 
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
-    fd, audit_summary_size = open_regular_file_no_symlink(
+    fd, audit_summary_stat = open_regular_file_no_symlink(
         audit_summary_path,
         symlink_error="snapshot audit summary must not be a symlink",
         missing_error="cannot read snapshot audit summary",
         not_regular_error="snapshot audit summary must be a regular file",
         open_error="cannot read snapshot audit summary",
     )
+    audit_summary_size = audit_summary_stat.st_size
     if audit_summary_size > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
         os.close(fd)
         raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
