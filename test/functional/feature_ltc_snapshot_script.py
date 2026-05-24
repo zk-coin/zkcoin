@@ -74,6 +74,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             "blocks": source_tip,
                             "headers": scenario.get("source_headers", source_tip),
                             "bestblockhash": source_bestblockhash,
+                            "chainwork": scenario.get("source_chainwork", "00" * 31 + "01"),
                             "initialblockdownload": scenario.get("initialblockdownload", False),
                             "pruned": scenario.get("pruned", False),
                             "warnings": scenario.get("warnings", ""),
@@ -558,6 +559,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(source_bestblockhash="11" * 32),
             1,
             "litecoin-cli getblockchaininfo.bestblockhash must match expected block hash when source tip is at snapshot height",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source chainwork")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-chainwork",
+            self.scenario(chaininfo_overrides={"chainwork": "00" * 32}),
+            1,
+            "litecoin-cli getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
