@@ -24,13 +24,52 @@ REQUIRED_ARTIFACT_FIELDS = {
 }
 
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+
 def fail(message):
     print("{}: {}".format(MANIFEST, message), file=sys.stderr)
     return 1
 
 
+def parse_manifest_json(text):
+    try:
+        return json.loads(text, object_pairs_hook=reject_duplicate_json_fields)
+    except DuplicateJSONFieldError as exc:
+        raise ValueError("contains duplicate field: {}".format(exc))
+    except json.JSONDecodeError as exc:
+        raise ValueError("is not valid JSON: {}".format(exc))
+
+
+def check_manifest_json_loader():
+    try:
+        parse_manifest_json('{"project": "zkcoin", "project": "litecoin"}')
+    except ValueError as exc:
+        if "contains duplicate field: project" not in str(exc):
+            return "duplicate-field guard reported the wrong error"
+    else:
+        return "duplicate-field guard accepted shadowed JSON"
+    return None
+
+
 def main():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf8"))
+    loader_error = check_manifest_json_loader()
+    if loader_error:
+        return fail(loader_error)
+    try:
+        manifest = parse_manifest_json(MANIFEST.read_text(encoding="utf8"))
+    except ValueError as exc:
+        return fail(str(exc))
 
     if manifest.get("project") != "zkcoin":
         return fail("project must be zkcoin")
