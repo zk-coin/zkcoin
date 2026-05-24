@@ -3428,6 +3428,7 @@ def main():
             "snapshot script validates source difficulty shape",
         ),
         ('require_positive_int("size_on_disk")', "snapshot script validates source disk footprint shape"),
+        ('require_nonnegative_int("headers")', "snapshot script validates source header height shape"),
         ('require_nonnegative_int("time")', "snapshot script validates source tip time shape"),
         ('require_nonnegative_int("mediantime")', "snapshot script validates source median time shape"),
         (
@@ -3491,6 +3492,7 @@ def main():
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
         ("Reject malformed Litecoin source chain name", "snapshot script test validates source chain name shape"),
         ("Reject fractional Litecoin source chain heights", "snapshot script test rejects fractional source heights"),
+        ("Reject malformed Litecoin source header height", "snapshot script test validates source header height shape"),
         (
             "Reject malformed Litecoin source best block hash",
             "snapshot script test validates source best block hash shape",
@@ -3793,6 +3795,10 @@ def main():
         (
             "malformed source chain names",
             "public launch snapshot source chain-name documentation",
+        ),
+        (
+            "malformed source block or header heights",
+            "public launch snapshot source height-shape documentation",
         ),
         (
             "validates the block `X + 1` restore hash before invalidating",
