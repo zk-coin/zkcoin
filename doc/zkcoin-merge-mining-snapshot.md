@@ -308,6 +308,9 @@ audit summaries, so hand-edited values cannot be shadowed by later duplicate
 keys.
 The launch manifest must be valid UTF-8 JSON; invalid byte sequences are
 reported as stable operator-facing errors instead of Python decode tracebacks.
+It must not exceed 262144 bytes and is read as a direct regular file, with the
+path rechecked before parsing so symlinked or concurrently changed manifests do
+not feed launch-profile decisions.
 The validator ensures malformed manifest sections are reported as validation errors
 instead of operator-facing tool tracebacks.
 Manifest update commands reject malformed sections before mutation, so operator
