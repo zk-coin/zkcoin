@@ -674,6 +674,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        invalid_utf8_manifest_path = Path(temp_dir) / "invalid-utf8-manifest.json"
+        invalid_utf8_manifest_path.write_bytes(b'{"version": 1, "status": "' + bytes([0xff]) + b'"}')
+        invalid_utf8_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(invalid_utf8_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if invalid_utf8_manifest_result.returncode == 0:
+            return "{} accepted an invalid UTF-8 manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "is not valid UTF-8" not in invalid_utf8_manifest_result.stderr:
+            return "{} did not explain invalid UTF-8 manifest rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "Traceback" in invalid_utf8_manifest_result.stderr:
+            return "{} leaked a traceback for invalid UTF-8 manifest input".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         snapshot_artifact_path = Path(temp_dir) / "update-ltc-block-x.dat"
         snapshot_artifact = b"snapshot"
         snapshot_artifact_path.write_bytes(snapshot_artifact)
@@ -2781,6 +2808,7 @@ def main():
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
         ("DuplicateJSONFieldError", "manifest rejects duplicate JSON fields"),
+        ("is not valid UTF-8", "manifest rejects invalid UTF-8 JSON"),
         ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
         ("update_network_profile", "manifest update commands reject malformed profile sections"),
         ("blockers must be an array", "manifest update commands reject malformed blocker lists"),
@@ -3212,6 +3240,10 @@ def main():
         (
             "Duplicate JSON fields are rejected",
             "public launch manifest duplicate JSON field documentation",
+        ),
+        (
+            "manifest must be valid UTF-8 JSON",
+            "public launch manifest UTF-8 JSON documentation",
         ),
         (
             "malformed manifest sections are reported as validation errors",

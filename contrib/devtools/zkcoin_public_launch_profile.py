@@ -1512,6 +1512,9 @@ def main():
     except OSError as exc:
         print(f"error: cannot read {args.manifest}: {exc}", file=sys.stderr)
         return 1
+    except UnicodeDecodeError:
+        print(f"error: {args.manifest} is not valid UTF-8", file=sys.stderr)
+        return 1
     except DuplicateJSONFieldError as exc:
         print(f"error: {args.manifest} contains duplicate field: {exc}", file=sys.stderr)
         return 1
