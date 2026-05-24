@@ -218,12 +218,13 @@ release publication.
 The script fails closed if the source node does not report usable
 `getblockchaininfo`, if the source is still in initial block download, if the
 source has headers ahead of downloaded blocks, if the source is pruned, if the
+source node reports non-empty warnings, if the
 requested snapshot height is zero or malformed, if the source node does not
 report a well-formed non-null block hash for height X, if that hash does not
 match the expected block hash, if the expected block hash is the null uint256 placeholder, if
 `dumptxoutset` does not leave a non-empty snapshot file before running zkCoin verification, if `dumptxoutset` or `verifysnapshotmanifest`
 returns malformed JSON, or if required snapshot/manifest fields are missing or
-inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download` or `Litecoin source node must not be pruned for snapshot generation`.
+inconsistent, including non-positive coin or transaction counts. The operator error is explicit: `Litecoin source node is still in initial block download`, `Litecoin source node must not be pruned for snapshot generation`, or `Litecoin source node reports warnings`.
 It also fails if the snapshot artifact becomes a symlink after dump or verification, or if its size or SHA-256 changes during zkCoin verification, so the audit summary always describes the exact verified file.
 If the source node is already beyond height X, it refuses to rewind unless
 `ZKCOIN_SNAPSHOT_ALLOW_REWIND=1` is set. Rewind mode should only be used on a
