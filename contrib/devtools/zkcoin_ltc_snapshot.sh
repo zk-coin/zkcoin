@@ -64,7 +64,7 @@ if (( $# < 6 )); then
 fi
 
 HEIGHT="$1"
-EXPECTED_BLOCK_HASH="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
+EXPECTED_BLOCK_HASH="$2"
 SNAPSHOT_PATH="$3"
 NULL_UINT256="0000000000000000000000000000000000000000000000000000000000000000"
 shift 3
@@ -74,7 +74,7 @@ if [[ ! "$HEIGHT" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 if [[ ! "$EXPECTED_BLOCK_HASH" =~ ^[0-9a-f]{64}$ ]]; then
-  die "expected block hash must be 64 hex characters"
+  die "expected block hash must be a lowercase 64-character hex string"
 fi
 if [[ "$EXPECTED_BLOCK_HASH" == "$NULL_UINT256" ]]; then
   die "expected block hash must not be the null uint256"
@@ -338,9 +338,8 @@ if (( SOURCE_TIP > HEIGHT )); then
   fi
 
   RESTORE_CANDIDATE_HASH="$(ltc_cli getblockhash "$((HEIGHT + 1))")"
-  RESTORE_CANDIDATE_HASH="$(printf '%s' "$RESTORE_CANDIDATE_HASH" | tr '[:upper:]' '[:lower:]')"
   if [[ ! "$RESTORE_CANDIDATE_HASH" =~ ^[0-9a-f]{64}$ ]]; then
-    die "restore block hash at height $((HEIGHT + 1)) must be 64 hex characters"
+    die "restore block hash at height $((HEIGHT + 1)) must be a lowercase 64-character hex string"
   fi
   if [[ "$RESTORE_CANDIDATE_HASH" == "$NULL_UINT256" ]]; then
     die "restore block hash at height $((HEIGHT + 1)) must not be the null uint256"
@@ -359,15 +358,14 @@ if (( SOURCE_TIP > HEIGHT )); then
 fi
 
 ACTUAL_BLOCK_HASH="$(ltc_cli getblockhash "$HEIGHT")"
-ACTUAL_BLOCK_HASH_LOWER="$(printf '%s' "$ACTUAL_BLOCK_HASH" | tr '[:upper:]' '[:lower:]')"
-if [[ ! "$ACTUAL_BLOCK_HASH_LOWER" =~ ^[0-9a-f]{64}$ ]]; then
-  die "snapshot block hash at height $HEIGHT must be 64 hex characters"
+if [[ ! "$ACTUAL_BLOCK_HASH" =~ ^[0-9a-f]{64}$ ]]; then
+  die "snapshot block hash at height $HEIGHT must be a lowercase 64-character hex string"
 fi
-if [[ "$ACTUAL_BLOCK_HASH_LOWER" == "$NULL_UINT256" ]]; then
+if [[ "$ACTUAL_BLOCK_HASH" == "$NULL_UINT256" ]]; then
   die "snapshot block hash at height $HEIGHT must not be the null uint256"
 fi
-if [[ "$ACTUAL_BLOCK_HASH_LOWER" != "$EXPECTED_BLOCK_HASH" ]]; then
-  die "snapshot block hash mismatch at height $HEIGHT: expected=$EXPECTED_BLOCK_HASH actual=$ACTUAL_BLOCK_HASH_LOWER"
+if [[ "$ACTUAL_BLOCK_HASH" != "$EXPECTED_BLOCK_HASH" ]]; then
+  die "snapshot block hash mismatch at height $HEIGHT: expected=$EXPECTED_BLOCK_HASH actual=$ACTUAL_BLOCK_HASH"
 fi
 
 echo "Dumping Litecoin UTXO snapshot at height $HEIGHT to $SNAPSHOT_PATH" >&2

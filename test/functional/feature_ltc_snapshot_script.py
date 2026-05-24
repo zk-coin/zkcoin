@@ -346,6 +346,16 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [])
 
+        self.log.info("Reject a non-lowercase expected snapshot block hash before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "uppercase-expected-hash",
+            self.scenario(),
+            1,
+            "expected block hash must be a lowercase 64-character hex string",
+            expected_hash=BLOCK_HASH.upper(),
+        )
+        assert_equal(calls, [])
+
         self.log.info("Accept a complete snapshot dump and manifest verification")
         result, calls, snapshot_path = self.assert_snapshot(
             "happy",
@@ -760,7 +770,26 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                 block_hashes={str(HEIGHT + 1): "not-a-uint256"},
             ),
             1,
-            f"restore block hash at height {HEIGHT + 1} must be 64 hex characters",
+            f"restore block hash at height {HEIGHT + 1} must be a lowercase 64-character hex string",
+            allow_rewind=True,
+        )
+        assert_equal(
+            calls,
+            [
+                {"role": "litecoin", "cmd": "getblockchaininfo", "args": []},
+                {"role": "litecoin", "cmd": "getblockhash", "args": [str(HEIGHT + 1)]},
+            ],
+        )
+
+        self.log.info("Reject non-lowercase rewind restore block hash before invalidating the source")
+        _, calls, _ = self.assert_snapshot(
+            "rewind-uppercase-restore-hash",
+            self.scenario(
+                source_tip=HEIGHT + 1,
+                block_hashes={str(HEIGHT + 1): RESTORE_HASH.upper()},
+            ),
+            1,
+            f"restore block hash at height {HEIGHT + 1} must be a lowercase 64-character hex string",
             allow_rewind=True,
         )
         assert_equal(
@@ -819,7 +848,18 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "malformed-source-block-hash",
             self.scenario(block_hashes={str(HEIGHT): "not-a-uint256"}),
             1,
-            f"snapshot block hash at height {HEIGHT} must be 64 hex characters",
+            f"snapshot block hash at height {HEIGHT} must be a lowercase 64-character hex string",
+        )
+        self.assert_command(calls, "litecoin", "getblockhash", [str(HEIGHT)])
+        assert not any(call["cmd"] == "dumptxoutset" for call in calls)
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
+        self.log.info("Reject non-lowercase source snapshot block hash before dumping UTXOs")
+        _, calls, _ = self.assert_snapshot(
+            "uppercase-source-block-hash",
+            self.scenario(block_hashes={str(HEIGHT): BLOCK_HASH.upper()}),
+            1,
+            f"snapshot block hash at height {HEIGHT} must be a lowercase 64-character hex string",
         )
         self.assert_command(calls, "litecoin", "getblockhash", [str(HEIGHT)])
         assert not any(call["cmd"] == "dumptxoutset" for call in calls)

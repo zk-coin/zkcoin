@@ -3402,6 +3402,7 @@ def main():
         ("os.O_EXCL", "snapshot script creates audit summaries exclusively"),
         ("os.fsync", "snapshot script fsyncs audit summary writes"),
         ("height must be a positive integer", "snapshot script rejects zero or malformed snapshot heights"),
+        ("expected block hash must be a lowercase 64-character hex string", "snapshot script rejects non-lowercase expected block hashes"),
         ("expected block hash must not be the null uint256", "snapshot script rejects null expected block hashes"),
         ("NULL_UINT256", "snapshot script rejects null verifier hashes"),
         ("litecoin-cli getblockchaininfo did not return JSON", "snapshot script validates source chain info JSON"),
@@ -3492,6 +3493,10 @@ def main():
         ("Quote snapshot and audit paths in printed handoff commands", "snapshot script test checks shell-quoted handoff paths"),
         ("Reject a zero snapshot height", "snapshot script test rejects zero snapshot height"),
         ("Reject a null expected snapshot block hash", "snapshot script test rejects null expected block hash"),
+        (
+            "Reject a non-lowercase expected snapshot block hash",
+            "snapshot script test rejects non-lowercase expected block hashes",
+        ),
         ("Reject control characters in snapshot and audit output paths", "snapshot script test rejects control-character output paths"),
         ("Reject malformed Litecoin source chain info", "snapshot script test rejects malformed source chain info"),
         ("Reject non-object Litecoin source chain info", "snapshot script test rejects non-object source chain info"),
@@ -3521,6 +3526,10 @@ def main():
         ),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
+        (
+            "Reject non-lowercase rewind restore block hash",
+            "snapshot script test rejects non-lowercase rewind restore hashes",
+        ),
         ("Reject malformed Litecoin source sync booleans", "snapshot script test validates source sync boolean shape"),
         (
             "Reject a Litecoin source still in initial block download",
@@ -3571,6 +3580,10 @@ def main():
             "snapshot script test rejects unwritable snapshot directory before RPC",
         ),
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
+        (
+            "Reject non-lowercase source snapshot block hash",
+            "snapshot script test rejects non-lowercase source block hashes",
+        ),
         ("Reject non-object snapshot dump JSON", "snapshot script test rejects non-object dump JSON"),
         ("Reject non-lowercase snapshot dump hashes", "snapshot script test rejects non-lowercase dump hashes"),
         ("Reject missing snapshot dump file before verification", "snapshot script test rejects missing dump file"),
@@ -3833,7 +3846,7 @@ def main():
             "public launch snapshot canonical output collision documentation",
         ),
         (
-            "well-formed non-null block hash for height X",
+            "well-formed lowercase non-null block hash for height X",
             "public launch snapshot source block-hash validation documentation",
         ),
         (
@@ -3863,6 +3876,14 @@ def main():
         (
             "expected block hash is the null uint256 placeholder",
             "public launch snapshot null expected hash rejection documentation",
+        ),
+        (
+            "not lowercase 64-character hex",
+            "snapshot operator lowercase expected hash documentation",
+        ),
+        (
+            "well-formed lowercase non-null block hash for height X",
+            "snapshot operator lowercase source block hash documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
