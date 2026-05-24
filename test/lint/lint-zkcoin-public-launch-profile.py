@@ -5,7 +5,9 @@
 """Check that public zkCoin launch parameters stay fail-closed."""
 
 import hashlib
+import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -1267,6 +1269,30 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain oversized audit summary rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+
+        manifest_tool_spec = importlib.util.spec_from_file_location(
+            "zkcoin_public_launch_profile_tool",
+            PUBLIC_LAUNCH_MANIFEST_TOOL,
+        )
+        manifest_tool = importlib.util.module_from_spec(manifest_tool_spec)
+        manifest_tool_spec.loader.exec_module(manifest_tool)
+        oversized_read_path = Path(temp_dir) / "oversized-read-audit.json"
+        oversized_read_path.write_bytes(b" " * (manifest_tool.SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES + 1))
+        oversized_read_fd = os.open(oversized_read_path, os.O_RDONLY)
+        try:
+            try:
+                manifest_tool.read_snapshot_audit_summary_text(oversized_read_fd, oversized_read_path)
+            except ValueError as exc:
+                if "snapshot audit summary must not exceed 65536 bytes" not in str(exc):
+                    return "{} bounded audit-summary read reported the wrong oversized error".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                    )
+            else:
+                return "{} bounded audit-summary read accepted oversized content".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+                )
+        finally:
+            os.close(oversized_read_fd)
 
         incomplete_audit_path = Path(temp_dir) / "incomplete-audit.json"
         incomplete_audit = dict(audit)
@@ -2647,6 +2673,7 @@ def main():
         ("snapshot audit summary must be a regular file", "manifest rejects non-file snapshot audit summaries"),
         ("SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES", "manifest caps snapshot audit summary input size"),
         ("snapshot audit summary must not exceed", "manifest rejects oversized snapshot audit summaries"),
+        ("read_snapshot_audit_summary_text", "manifest enforces snapshot audit summary cap while reading"),
         ("SNAPSHOT_AUDIT_SUMMARY_FIELDS", "manifest requires exact snapshot audit summary fields"),
         ("SNAPSHOT_AUDIT_FIELDS", "manifest blocker derivation tracks all snapshot audit fields"),
         ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
@@ -3138,6 +3165,10 @@ def main():
         (
             "audit summary path itself must also be a direct file",
             "public launch snapshot audit summary symlink rejection documentation",
+        ),
+        (
+            "size cap is enforced again while reading",
+            "public launch snapshot audit summary bounded-read documentation",
         ),
         (
             "positive Litecoin snapshot height",
