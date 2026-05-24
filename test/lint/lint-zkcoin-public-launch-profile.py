@@ -3749,7 +3749,9 @@ def main():
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
         ("snapshot output directory must not be a symlink", "snapshot script rejects symlink snapshot output directories"),
+        ("SNAPSHOT_DIR_FINGERPRINT", "snapshot script fingerprints snapshot output directories before RPC calls"),
         ("require_snapshot_output_directory_direct", "snapshot script rechecks snapshot output parents after RPC calls"),
+        ("snapshot output directory changed during snapshot generation", "snapshot script rejects snapshot output directory replacement"),
         ("snapshot incomplete output path must not be a symlink", "snapshot script rejects symlink dump work files"),
         ("snapshot incomplete output already exists", "snapshot script rejects pre-existing dump work files"),
         ("snapshot incomplete output remained after dumptxoutset", "snapshot script rejects leftover dump work files"),
@@ -3924,6 +3926,10 @@ def main():
             "snapshot script test rejects dump-time snapshot directory symlink replacement",
         ),
         (
+            "Reject snapshot output directory replacement during dump",
+            "snapshot script test rejects dump-time snapshot directory replacement",
+        ),
+        (
             "Reject leftover snapshot incomplete output after dump before verification",
             "snapshot script test rejects leftover dump work files before verifier handoff",
         ),
@@ -3932,6 +3938,10 @@ def main():
         (
             "Reject snapshot output directory symlink replacement during verification",
             "snapshot script test rejects verifier-time snapshot directory symlink replacement",
+        ),
+        (
+            "Reject snapshot output directory replacement during verification",
+            "snapshot script test rejects verifier-time snapshot directory replacement",
         ),
         ("Reject audit summary symlink replacement during verification", "snapshot script test rejects verifier-time audit symlink replacement"),
         (
@@ -4326,8 +4336,8 @@ def main():
             "snapshot operator verifier-time artifact mutation documentation",
         ),
         (
-            "becomes a symlink after dump or verification",
-            "snapshot operator post-write symlink rejection documentation",
+            "become a symlink or be replaced after dump or verification",
+            "snapshot operator post-write directory replacement documentation",
         ),
         (
             "rejects a snapshot audit whose source chain does not match",

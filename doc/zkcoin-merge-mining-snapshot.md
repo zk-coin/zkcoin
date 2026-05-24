@@ -259,7 +259,7 @@ directories, not symlinks. The snapshot and audit output paths must be direct fi
 not symlinks, before the operator writes launch artifacts. The snapshot `.incomplete` work file used by
 `dumptxoutset` must also be absent and non-symlinked before the dump starts,
 and it must not remain after a successful dump response. The snapshot output directory
-is also rechecked so it cannot become a symlink after dump or verification. The audit summary path
+is also rechecked so it cannot become a symlink or be replaced after dump or verification. The audit summary path
 must also differ from the reserved `.incomplete` work-file path. Paths that resolve
 through physical parent directories to the same canonical output target, or
 that contain control characters, are rejected before any node RPC is called.
