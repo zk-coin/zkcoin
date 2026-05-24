@@ -803,6 +803,33 @@ def verify_snapshot_audit_artifact(audit):
         )
 
 
+def snapshot_audit_summary_too_large_error(audit_summary_path):
+    return (
+        f"snapshot audit summary must not exceed {SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES} bytes: "
+        f"{audit_summary_path}"
+    )
+
+
+def read_snapshot_audit_summary_text(fd, audit_summary_path):
+    chunks = []
+    total_bytes = 0
+    try:
+        while total_bytes <= SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
+            chunk = os.read(fd, min(65536, SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES + 1 - total_bytes))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+    except OSError as exc:
+        raise ValueError(f"cannot read snapshot audit summary: {exc}")
+    if total_bytes > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
+        raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"snapshot audit summary is not valid UTF-8: {exc}")
+
+
 def parse_snapshot_audit(audit_path):
     audit_summary_path = Path(audit_path)
     fd, audit_summary_size = open_regular_file_no_symlink(
@@ -814,29 +841,19 @@ def parse_snapshot_audit(audit_path):
     )
     if audit_summary_size > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
         os.close(fd)
-        raise ValueError(
-            f"snapshot audit summary must not exceed {SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES} bytes: "
-            f"{audit_summary_path}"
-        )
-    audit_summary_file = None
+        raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
     try:
-        audit_summary_file = os.fdopen(fd, "r", encoding="utf8")
-        fd = None
+        audit_summary_text = read_snapshot_audit_summary_text(fd, audit_summary_path)
         audit = json.loads(
-            audit_summary_file.read(),
+            audit_summary_text,
             object_pairs_hook=reject_duplicate_json_fields,
         )
-    except OSError as exc:
-        raise ValueError(f"cannot read snapshot audit summary: {exc}")
     except DuplicateJSONFieldError as exc:
         raise ValueError(f"snapshot audit summary contains duplicate field: {exc}")
     except json.JSONDecodeError as exc:
         raise ValueError(f"snapshot audit summary is not valid JSON: {exc}")
     finally:
-        if audit_summary_file is not None:
-            audit_summary_file.close()
-        elif fd is not None:
-            os.close(fd)
+        os.close(fd)
 
     if not isinstance(audit, dict):
         raise ValueError("snapshot audit summary must be a JSON object")
