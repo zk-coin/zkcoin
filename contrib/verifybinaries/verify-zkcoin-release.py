@@ -164,9 +164,18 @@ def artifact_path(artifacts_dir, filename):
     return target
 
 
+def require_regular_artifact(target, filename):
+    if target.is_symlink():
+        raise VerifyError("artifact path must not be a symlink: {}".format(filename))
+    if not target.is_file():
+        raise VerifyError("artifact path must be a regular file: {}".format(filename))
+
+
 def download_artifact(base_url, filename, target, timeout):
     if not base_url:
         raise VerifyError("missing artifact and no --download-base provided: {}".format(filename))
+    if target.is_symlink():
+        raise VerifyError("artifact path must not be a symlink: {}".format(filename))
     target.parent.mkdir(parents=True, exist_ok=True)
     url = base_url.rstrip("/") + "/" + quote(filename, safe="/._-+~")
     with urlopen(url, timeout=timeout) as response, target.open("wb") as output:
@@ -190,6 +199,7 @@ def verify_artifacts(args, entries):
         target = artifact_path(artifacts_dir, filename)
         if not target.exists():
             download_artifact(args.download_base, filename, target, args.download_timeout)
+        require_regular_artifact(target, filename)
         actual_digest = sha256_file(target)
         if actual_digest != expected_digest:
             failures.append((filename, expected_digest, actual_digest))

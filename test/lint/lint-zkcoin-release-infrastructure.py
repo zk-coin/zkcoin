@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -494,6 +495,37 @@ def require_zkcoin_verifier_rejects_duplicate_artifacts():
     return None
 
 
+def require_zkcoin_verifier_rejects_symlink_artifacts():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        artifacts_dir = Path(tempdir) / "artifacts"
+        artifacts_dir.mkdir()
+        external_artifact = Path(tempdir) / "external-artifact"
+        external_artifact.write_bytes(b"not a release artifact")
+        (artifacts_dir / "litecoin-1.0.tar.gz").symlink_to(external_artifact)
+
+        args = SimpleNamespace(
+            artifacts_dir=artifacts_dir,
+            download_base=None,
+            download_timeout=1,
+        )
+        try:
+            verifier.verify_artifacts(args, [("00" * 32, "litecoin-1.0.tar.gz")])
+        except verifier.VerifyError as exc:
+            if "artifact path must not be a symlink: litecoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong symlink artifact error"
+        else:
+            return "zkCoin verifier accepted a symlinked release artifact"
+
+    return None
+
+
 def main():
     loader_error = check_manifest_json_loader()
     if loader_error:
@@ -512,6 +544,9 @@ def main():
         return fail("status must stay release_infrastructure_not_ready until release keys, repos, and hosts are configured")
 
     error = require_zkcoin_verifier_rejects_duplicate_artifacts()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_symlink_artifacts()
     if error:
         return fail(error)
 
@@ -1159,6 +1194,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "--download-base", "zkCoin artifact download base argument"),
         (ZKCOIN_VERIFY_SCRIPT, "VALIDSIG", "zkCoin GPG fingerprint validation"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact path must not be a symlink", "zkCoin verifier symlink artifact rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a regular file", "zkCoin verifier regular artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "Verified {} zkCoin release artifact", "zkCoin artifact verification success message"),
         (VERIFY_README, "Bitcoin Core-only", "Bitcoin-only README warning"),
         (VERIFY_README, UPSTREAM_VERIFY_ENV, "legacy Bitcoin verifier opt-in docs"),
@@ -1166,6 +1203,7 @@ def main():
         (VERIFY_README, "ZKCOIN_RELEASE_SIGNING_KEY_FINGERPRINT", "zkCoin verifier fingerprint documentation"),
         (VERIFY_README, "ZKCOIN_RELEASE_ARTIFACT_BASE_URL", "zkCoin verifier download base documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
+        (VERIFY_README, "regular files, not symlinks", "zkCoin verifier regular artifact documentation"),
         (CONTRIB_README, "Tools for verifying signed zkCoin release checksums", "zkCoin contrib verifier summary"),
         (GITIAN_BUILD, UPSTREAM_GITIAN_ENV, "legacy Bitcoin Gitian helper opt-in env"),
         (GITIAN_BUILD, "builds Bitcoin Core artifacts, not zkCoin", "Bitcoin-only Gitian helper warning"),
