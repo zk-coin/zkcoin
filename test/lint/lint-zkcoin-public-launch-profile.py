@@ -3433,6 +3433,10 @@ def main():
             "litecoin-cli getblockchaininfo.mediantime must be less than or equal to time",
             "snapshot script validates source median time ordering",
         ),
+        (
+            "litecoin-cli getblockchaininfo.headers must be greater than or equal to blocks",
+            "snapshot script validates source header/block ordering",
+        ),
         ("headers are ahead of downloaded blocks", "snapshot script rejects incompletely synced source headers"),
         ("Litecoin source node is still in initial block download", "snapshot script rejects IBD source nodes"),
         ("Litecoin source node must not be pruned for snapshot generation", "snapshot script rejects pruned source nodes"),
@@ -3499,6 +3503,10 @@ def main():
         ("Reject malformed Litecoin source difficulty", "snapshot script test validates source difficulty shape"),
         ("Reject malformed Litecoin source disk footprint", "snapshot script test validates source disk footprint shape"),
         ("Reject malformed Litecoin source tip times", "snapshot script test validates source tip times"),
+        (
+            "Reject a Litecoin source whose headers are below downloaded blocks",
+            "snapshot script test validates source header/block ordering",
+        ),
         ("Reject a Litecoin source with headers ahead of downloaded blocks", "snapshot script test rejects unsynced source headers"),
         ("Reject malformed rewind restore block hash", "snapshot script test rejects malformed rewind restore hashes"),
         (
@@ -3768,6 +3776,10 @@ def main():
         (
             "source has headers ahead of downloaded blocks",
             "public launch snapshot source headers synced documentation",
+        ),
+        (
+            "headers below downloaded blocks",
+            "public launch snapshot source header-order documentation",
         ),
         (
             "validates the block `X + 1` restore hash before invalidating",
