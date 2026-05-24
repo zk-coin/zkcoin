@@ -346,6 +346,8 @@ Manifest update commands reject malformed sections before mutation, so operator
 handoff commands do not partially rewrite a bad launch manifest.
 In-place manifest writes reject symlinked manifest paths, symlinked parent directories, and pre-existing temp files
 before writing the updated launch handoff.
+They create the temp file and replacement through an opened parent directory descriptor,
+so a parent-directory symlink swap cannot redirect the in-place update after preflight.
 Successful in-place manifest writes also fsync their parent directory after replacement,
 so the atomic rename is durable before the command exits.
 Use one primary launch-profile action per invocation: update one blocker, mark
