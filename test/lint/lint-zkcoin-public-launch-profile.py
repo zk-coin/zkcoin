@@ -3569,9 +3569,11 @@ def main():
         ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot audit summary directory is not writable", "snapshot script rejects unwritable audit output directories"),
+        ("snapshot audit summary directory must not be a symlink", "snapshot script rejects symlink audit output directories"),
         ("snapshot output path must not be a symlink", "snapshot script rejects symlink snapshot output paths"),
         ("snapshot output directory does not exist", "snapshot script rejects missing snapshot output directories"),
         ("snapshot output directory is not writable", "snapshot script rejects unwritable snapshot output directories"),
+        ("snapshot output directory must not be a symlink", "snapshot script rejects symlink snapshot output directories"),
         ("snapshot incomplete output path must not be a symlink", "snapshot script rejects symlink dump work files"),
         ("snapshot incomplete output already exists", "snapshot script rejects pre-existing dump work files"),
         ("snapshot incomplete output remained after dumptxoutset", "snapshot script rejects leftover dump work files"),
@@ -3696,6 +3698,10 @@ def main():
             "snapshot script test rejects unwritable audit directory before RPC",
         ),
         (
+            "Reject a symlinked audit summary output directory before calling either CLI",
+            "snapshot script test rejects symlink audit directory before RPC",
+        ),
+        (
             "Reject a symlinked audit summary output path before calling either CLI",
             "snapshot script test rejects symlink audit output before RPC",
         ),
@@ -3714,6 +3720,10 @@ def main():
         (
             "Reject an unwritable snapshot output directory before calling either CLI",
             "snapshot script test rejects unwritable snapshot directory before RPC",
+        ),
+        (
+            "Reject a symlinked snapshot output directory before calling either CLI",
+            "snapshot script test rejects symlink snapshot directory before RPC",
         ),
         ("Reject malformed source snapshot block hash", "snapshot script test rejects malformed source block hashes"),
         (

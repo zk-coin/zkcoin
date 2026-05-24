@@ -119,6 +119,9 @@ if [[ -e "$SNAPSHOT_INCOMPLETE_PATH" ]]; then
   die "snapshot incomplete output already exists: $SNAPSHOT_INCOMPLETE_PATH"
 fi
 SNAPSHOT_DIR="$(dirname "$SNAPSHOT_PATH")"
+if [[ -L "$SNAPSHOT_DIR" ]]; then
+  die "snapshot output directory must not be a symlink: $SNAPSHOT_DIR"
+fi
 if [[ ! -d "$SNAPSHOT_DIR" ]]; then
   die "snapshot output directory does not exist: $SNAPSHOT_DIR"
 fi
@@ -162,6 +165,9 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
   fi
   if [[ "$AUDIT_CANONICAL_PATH" == "$SNAPSHOT_INCOMPLETE_CANONICAL_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot incomplete output path: $AUDIT_JSON_PATH"
+  fi
+  if [[ -L "$AUDIT_JSON_DIR" ]]; then
+    die "snapshot audit summary directory must not be a symlink: $AUDIT_JSON_DIR"
   fi
   export ZKCOIN_SNAPSHOT_AUDIT_JSON="$AUDIT_JSON_PATH"
 fi
