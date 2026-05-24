@@ -5,6 +5,7 @@
 """Check that inherited release infrastructure stays explicit and fail-closed."""
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -803,6 +804,33 @@ def require_zkcoin_verifier_rejects_unsafe_artifact_parents():
         symlink_parent = artifacts_dir / "nested"
         symlink_parent.symlink_to(external_dir)
         target = symlink_parent / "zkcoin-1.0.tar.gz"
+        internal_dir = artifacts_dir / "internal-artifacts"
+        internal_dir.mkdir()
+        local_symlink_parent = artifacts_dir / "local-nested"
+        local_symlink_parent.symlink_to(internal_dir, target_is_directory=True)
+        local_artifact = internal_dir / "local-zkcoin-1.0.tar.gz"
+        local_artifact_payload = b"operator-provided release artifact"
+        local_artifact.write_bytes(local_artifact_payload)
+
+        try:
+            verifier.verify_artifacts(
+                SimpleNamespace(
+                    artifacts_dir=artifacts_dir,
+                    download_base=None,
+                    download_timeout=1,
+                ),
+                [
+                    (
+                        hashlib.sha256(local_artifact_payload).hexdigest(),
+                        "local-nested/local-zkcoin-1.0.tar.gz",
+                    ),
+                ],
+            )
+        except verifier.VerifyError as exc:
+            if "artifact parent directory must not be a symlink: local-nested/local-zkcoin-1.0.tar.gz" not in str(exc):
+                return "zkCoin verifier reported the wrong local symlink artifact-parent error"
+        else:
+            return "zkCoin verifier accepted a local artifact through a symlinked parent directory"
 
         def static_urlopen(_url, _timeout):
             return StaticResponse()
