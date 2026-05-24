@@ -20,6 +20,7 @@ from urllib.request import urlopen
 
 CHECKSUM_RE = re.compile(r"^([0-9a-fA-F]{64})( [ *])(.+)$")
 FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
+CHECKSUM_MANIFEST_MAX_BYTES = 256 * 1024
 
 
 class VerifyError(Exception):
@@ -101,6 +102,8 @@ def require_regular_checksums_file(path):
 
 def read_checksum_manifest_text(path):
     try:
+        if path.stat().st_size > CHECKSUM_MANIFEST_MAX_BYTES:
+            raise VerifyError("checksum manifest must not exceed {} bytes: {}".format(CHECKSUM_MANIFEST_MAX_BYTES, path))
         return path.read_text(encoding="utf8")
     except UnicodeDecodeError:
         raise VerifyError("checksum manifest is not valid UTF-8") from None
