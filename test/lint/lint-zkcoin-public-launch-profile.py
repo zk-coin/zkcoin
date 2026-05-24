@@ -2627,6 +2627,7 @@ def main():
         ("manifest path must not be a symlink", "manifest in-place updates reject symlinked manifest paths"),
         ("manifest temp path already exists", "manifest in-place updates reject pre-existing temp paths"),
         ("os.O_EXCL", "manifest in-place updates create temp files exclusively"),
+        ("fsync_manifest_parent_directory", "manifest in-place updates sync the parent directory after replace"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
         ("selected_primary_actions", "manifest rejects mixed primary actions"),
@@ -3057,6 +3058,10 @@ def main():
         (
             "In-place manifest writes reject symlinked manifest paths and pre-existing temp files",
             "public launch manifest safe in-place write documentation",
+        ),
+        (
+            "fsync their parent directory after replacement",
+            "public launch manifest durable in-place write documentation",
         ),
         (
             "Use one primary launch-profile action per invocation",
