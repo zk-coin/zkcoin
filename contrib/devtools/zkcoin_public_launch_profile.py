@@ -131,6 +131,19 @@ BLOCKER_ORDER = (
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 
 
+class DuplicateJSONFieldError(ValueError):
+    pass
+
+
+def reject_duplicate_json_fields(pairs):
+    result = {}
+    for field, value in pairs:
+        if field in result:
+            raise DuplicateJSONFieldError(field)
+        result[field] = value
+    return result
+
+
 def unresolved_blocker_ids(manifest):
     blockers = set()
     manifest = object_or_empty(manifest)
@@ -806,9 +819,14 @@ def parse_snapshot_audit(audit_path):
     try:
         audit_summary_file = os.fdopen(fd, "r", encoding="utf8")
         fd = None
-        audit = json.loads(audit_summary_file.read())
+        audit = json.loads(
+            audit_summary_file.read(),
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
     except OSError as exc:
         raise ValueError(f"cannot read snapshot audit summary: {exc}")
+    except DuplicateJSONFieldError as exc:
+        raise ValueError(f"snapshot audit summary contains duplicate field: {exc}")
     except json.JSONDecodeError as exc:
         raise ValueError(f"snapshot audit summary is not valid JSON: {exc}")
     finally:
@@ -1411,9 +1429,15 @@ def main():
         return 1
 
     try:
-        manifest = json.loads(args.manifest.read_text(encoding="utf8"))
+        manifest = json.loads(
+            args.manifest.read_text(encoding="utf8"),
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
     except OSError as exc:
         print(f"error: cannot read {args.manifest}: {exc}", file=sys.stderr)
+        return 1
+    except DuplicateJSONFieldError as exc:
+        print(f"error: {args.manifest} contains duplicate field: {exc}", file=sys.stderr)
         return 1
     except json.JSONDecodeError as exc:
         print(f"error: {args.manifest} is not valid JSON: {exc}", file=sys.stderr)

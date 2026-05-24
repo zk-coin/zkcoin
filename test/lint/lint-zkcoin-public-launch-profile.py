@@ -642,6 +642,36 @@ def require_public_launch_manifest_current():
             if malformed_manifest_error:
                 return malformed_manifest_error
 
+        duplicate_field_manifest_path = Path(temp_dir) / "duplicate-field-manifest.json"
+        duplicate_field_manifest_path.write_text(
+            json.dumps(manifest).replace(
+                '"status": "blocked"',
+                '"status": "blocked", "status": "blocked"',
+                1,
+            ),
+            encoding="utf8",
+        )
+        duplicate_field_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(duplicate_field_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if duplicate_field_manifest_result.returncode == 0:
+            return "{} accepted a manifest with duplicate JSON fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "contains duplicate field: status" not in duplicate_field_manifest_result.stderr:
+            return "{} did not explain duplicate manifest field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         snapshot_artifact_path = Path(temp_dir) / "update-ltc-block-x.dat"
         snapshot_artifact = b"snapshot"
         snapshot_artifact_path.write_bytes(snapshot_artifact)
@@ -1289,6 +1319,38 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit block_hash must be a 64-character lowercase hex string" not in uppercase_hash_result.stderr:
             return "{} --set-snapshot-audit did not explain uppercase audit hash rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        duplicate_field_audit_path = Path(temp_dir) / "duplicate-field-audit.json"
+        duplicate_field_audit_path.write_text(
+            json.dumps(audit).replace(
+                f'"block_hash": "{audit["block_hash"]}"',
+                f'"block_hash": "{audit["block_hash"]}", "block_hash": "{audit["block_hash"]}"',
+                1,
+            ),
+            encoding="utf8",
+        )
+        duplicate_field_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(duplicate_field_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if duplicate_field_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted an audit summary with duplicate JSON fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary contains duplicate field: block_hash" not in duplicate_field_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain duplicate audit field rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -2529,6 +2591,7 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
+        ("DuplicateJSONFieldError", "manifest rejects duplicate JSON fields"),
         ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
         ("update_network_profile", "manifest update commands reject malformed profile sections"),
         ("blockers must be an array", "manifest update commands reject malformed blocker lists"),
@@ -2950,6 +3013,10 @@ def main():
         (
             "blocker list must match the unresolved fields exactly",
             "public launch manifest blocker consistency documentation",
+        ),
+        (
+            "Duplicate JSON fields are rejected",
+            "public launch manifest duplicate JSON field documentation",
         ),
         (
             "malformed manifest sections are reported as validation errors",
