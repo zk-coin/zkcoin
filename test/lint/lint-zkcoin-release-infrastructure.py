@@ -559,6 +559,40 @@ def require_zkcoin_verifier_rejects_noncanonical_checksum_lines():
     return None
 
 
+def require_zkcoin_verifier_rejects_symlink_checksum_files():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        checksums = Path(tempdir) / "SHA256SUMS.asc"
+        checksums_target = Path(tempdir) / "SHA256SUMS.asc.target"
+        checksums_target.write_text("not a real signature\n", encoding="utf8")
+        checksums.symlink_to(checksums_target)
+        try:
+            verifier.require_regular_checksums_file(checksums)
+        except verifier.VerifyError as exc:
+            if "checksums file must not be a symlink" not in str(exc):
+                return "zkCoin verifier reported the wrong symlink checksums file error"
+        else:
+            return "zkCoin verifier accepted a symlinked checksums file"
+
+        directory_checksums = Path(tempdir) / "checksums-dir"
+        directory_checksums.mkdir()
+        try:
+            verifier.require_regular_checksums_file(directory_checksums)
+        except verifier.VerifyError as exc:
+            if "checksums file does not exist or is not a regular file" not in str(exc):
+                return "zkCoin verifier reported the wrong non-regular checksums file error"
+        else:
+            return "zkCoin verifier accepted a non-regular checksums file"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_nonportable_artifact_paths():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -1014,6 +1048,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_noncanonical_checksum_lines()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_symlink_checksum_files()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_nonportable_artifact_paths()
@@ -1701,6 +1738,8 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "checksum digest must be lowercase hex", "zkCoin verifier lowercase checksum digest rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "( [ *])", "zkCoin verifier canonical checksum line separator"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not have leading or trailing whitespace", "zkCoin verifier artifact path whitespace rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "checksums file must not be a symlink", "zkCoin verifier checksum file symlink rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "checksums file does not exist or is not a regular file", "zkCoin verifier checksum file regularity rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
@@ -1722,6 +1761,7 @@ def main():
         (VERIFY_README, "lowercase 64-character hex digests", "zkCoin verifier lowercase checksum digest documentation"),
         (VERIFY_README, "coreutils SHA256SUMS separators", "zkCoin verifier canonical checksum line documentation"),
         (VERIFY_README, "leading or trailing whitespace", "zkCoin verifier artifact path whitespace documentation"),
+        (VERIFY_README, "regular file, not a symlink", "zkCoin verifier checksum file regularity documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),

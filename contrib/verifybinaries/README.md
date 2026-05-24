@@ -5,7 +5,8 @@
 Use `verify-zkcoin-release.py` for zkCoin release artifacts. It verifies that a
 clearsigned `SHA256SUMS.asc` was signed by an explicitly supplied zkCoin release
 signing key fingerprint, then verifies every selected artifact hash from the
-signed manifest. Trusted signing key inputs must be full 40-character hex fingerprints.
+signed manifest. The checksum input must be a regular file, not a symlink.
+Trusted signing key inputs must be full 40-character hex fingerprints.
 The signed manifest must not contain duplicate artifact paths, so a release
 cannot publish ambiguous checksums for the same artifact name. Artifact checksums
 must be lowercase 64-character hex digests and use coreutils SHA256SUMS separators.
