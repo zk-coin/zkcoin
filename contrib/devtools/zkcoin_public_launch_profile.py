@@ -79,6 +79,45 @@ SNAPSHOT_AUDIT_FIELDS = (
     "total_amount",
 )
 SNAPSHOT_AUDIT_SUMMARY_FIELDS = SNAPSHOT_FIELDS + SNAPSHOT_AUDIT_FIELDS
+MANIFEST_FIELDS = ("version", "status", "purpose", "blockers", "networks")
+BLOCKER_FIELDS = ("id", "description")
+PROFILE_FIELDS = (
+    "litecoin_snapshot",
+    "auxpow",
+    "script_rules",
+    "shielded_pool",
+    "chain_history",
+    "public_network_identity",
+)
+AUXPOW_FIELDS = (
+    "start_height",
+    "chain_id",
+    "strict_chain_id",
+    "forbidden_parent_version_chain_id_range",
+)
+SCRIPT_RULES_FIELDS = ("active_at_launch", "required_rules")
+SHIELDED_POOL_FIELDS = (
+    "active_at_launch",
+    "scaffold_proofs",
+    "real_proof_backend",
+    "activation_policy",
+)
+CHAIN_HISTORY_FIELDS = (
+    "minimum_chain_work",
+    "default_assume_valid",
+    "checkpoints_policy",
+    "chain_tx_data",
+)
+IDENTITY_FIELDS = (
+    "message_start",
+    "default_port",
+    "dns_seeds",
+    "fixed_seeds",
+    "base58_prefixes",
+    "bech32_hrp",
+    "mweb_hrp",
+)
+SNAPSHOT_MANIFEST_FIELDS = SNAPSHOT_FIELDS + ("audit",)
 BLOCKER_ORDER = (
     "main.litecoin_snapshot",
     "main.auxpow_chain_id",
@@ -148,6 +187,13 @@ class Validation:
             self.error(path, "must be an object")
             return {}
         return value
+
+    def require_known_fields(self, value, path, expected_fields):
+        if not isinstance(value, dict):
+            return
+        unexpected_fields = sorted(set(value) - set(expected_fields))
+        if unexpected_fields:
+            self.error(path, "contains unexpected field(s): " + ", ".join(unexpected_fields))
 
     def require_list(self, value, path):
         if not isinstance(value, list):
@@ -305,10 +351,12 @@ def snapshot_total_amount_valid(value):
 
 def validate_snapshot(check, network, profile, allow_null):
     snapshot = check.require_object(profile.get("litecoin_snapshot"), f"{network}.litecoin_snapshot")
+    check.require_known_fields(snapshot, f"{network}.litecoin_snapshot", SNAPSHOT_MANIFEST_FIELDS)
     check.require_positive_int(snapshot.get("height"), f"{network}.litecoin_snapshot.height", allow_null=allow_null)
     check.require_hex256(snapshot.get("block_hash"), f"{network}.litecoin_snapshot.block_hash", allow_null=allow_null)
     check.require_hex256(snapshot.get("import_hash"), f"{network}.litecoin_snapshot.import_hash", allow_null=allow_null)
     audit = check.require_object(snapshot.get("audit"), f"{network}.litecoin_snapshot.audit")
+    check.require_known_fields(audit, f"{network}.litecoin_snapshot.audit", SNAPSHOT_AUDIT_FIELDS)
     check.require_hex256(audit.get("snapshot_hash"), f"{network}.litecoin_snapshot.audit.snapshot_hash", allow_null=allow_null)
     check.require_positive_int(audit.get("coins"), f"{network}.litecoin_snapshot.audit.coins", allow_null=allow_null)
     check.require_positive_int(audit.get("base_nchaintx"), f"{network}.litecoin_snapshot.audit.base_nchaintx", allow_null=allow_null)
@@ -321,6 +369,7 @@ def validate_snapshot(check, network, profile, allow_null):
 
 def validate_auxpow(check, network, profile, allow_null):
     auxpow = check.require_object(profile.get("auxpow"), f"{network}.auxpow")
+    check.require_known_fields(auxpow, f"{network}.auxpow", AUXPOW_FIELDS)
     if not is_plain_int(auxpow.get("start_height")) or auxpow.get("start_height") != 1:
         check.error(f"{network}.auxpow.start_height", "must be 1 for first post-genesis launch block")
     chain_id = auxpow.get("chain_id")
@@ -339,6 +388,7 @@ def validate_auxpow(check, network, profile, allow_null):
 
 def validate_script_rules(check, network, profile):
     script_rules = check.require_object(profile.get("script_rules"), f"{network}.script_rules")
+    check.require_known_fields(script_rules, f"{network}.script_rules", SCRIPT_RULES_FIELDS)
     check.require_bool(script_rules.get("active_at_launch"), f"{network}.script_rules.active_at_launch", True)
     rules = check.require_list(script_rules.get("required_rules"), f"{network}.script_rules.required_rules")
     if sorted(rules) != sorted(SCRIPT_RULES):
@@ -347,6 +397,7 @@ def validate_script_rules(check, network, profile):
 
 def validate_shielded_pool(check, network, profile):
     shielded = check.require_object(profile.get("shielded_pool"), f"{network}.shielded_pool")
+    check.require_known_fields(shielded, f"{network}.shielded_pool", SHIELDED_POOL_FIELDS)
     check.require_bool(shielded.get("active_at_launch"), f"{network}.shielded_pool.active_at_launch", False)
     check.require_bool(shielded.get("scaffold_proofs"), f"{network}.shielded_pool.scaffold_proofs", False)
     if shielded.get("real_proof_backend") != "orchard-v1":
@@ -358,6 +409,7 @@ def validate_shielded_pool(check, network, profile):
 
 def validate_chain_history(check, network, profile):
     history = check.require_object(profile.get("chain_history"), f"{network}.chain_history")
+    check.require_known_fields(history, f"{network}.chain_history", CHAIN_HISTORY_FIELDS)
     if history.get("minimum_chain_work") != ZERO_UINT256:
         check.error(f"{network}.chain_history.minimum_chain_work", "must be the null uint256 until public history exists")
     if history.get("default_assume_valid") != ZERO_UINT256:
@@ -370,6 +422,11 @@ def validate_chain_history(check, network, profile):
 
 def validate_base58_prefixes(check, network, identity, allow_null):
     prefixes = check.require_object(identity.get("base58_prefixes"), f"{network}.public_network_identity.base58_prefixes")
+    check.require_known_fields(
+        prefixes,
+        f"{network}.public_network_identity.base58_prefixes",
+        tuple(field for field, _ in BASE58_FIELDS),
+    )
     seen = set()
     for field, expected_len in BASE58_FIELDS:
         path = f"{network}.public_network_identity.base58_prefixes.{field}"
@@ -394,6 +451,7 @@ def validate_base58_prefixes(check, network, identity, allow_null):
 
 def validate_identity(check, network, profile, allow_null):
     identity = check.require_object(profile.get("public_network_identity"), f"{network}.public_network_identity")
+    check.require_known_fields(identity, f"{network}.public_network_identity", IDENTITY_FIELDS)
     message_start = identity.get("message_start")
     if message_start is None and allow_null:
         check.blockers.append(f"{network}.public_network_identity.message_start")
@@ -534,8 +592,10 @@ def validate_unique_launch_values(check, networks):
 
 def validate_manifest(manifest, allow_blocked):
     check = Validation(allow_blocked)
+    check.require_known_fields(manifest, "manifest", MANIFEST_FIELDS)
     if not is_plain_int(manifest.get("version")) or manifest.get("version") != 1:
         check.error("version", "must be 1")
+    check.require_string(manifest.get("purpose"), "purpose")
     status = manifest.get("status")
     if status not in ("blocked", "ready-for-chainparams"):
         check.error("status", "must be blocked or ready-for-chainparams")
@@ -543,6 +603,7 @@ def validate_manifest(manifest, allow_blocked):
     blocker_ids = set()
     for index, blocker in enumerate(blockers):
         blocker = check.require_object(blocker, f"blockers[{index}]")
+        check.require_known_fields(blocker, f"blockers[{index}]", BLOCKER_FIELDS)
         blocker_id = blocker.get("id")
         if not isinstance(blocker_id, str) or not blocker_id:
             check.error(f"blockers[{index}].id", "must be a non-empty string")
@@ -566,8 +627,10 @@ def validate_manifest(manifest, allow_blocked):
         check.error("status", "is blocked; rerun with --allow-blocked only for schema/lint checks")
 
     networks = check.require_object(manifest.get("networks"), "networks")
+    check.require_known_fields(networks, "networks", NETWORKS)
     for network in NETWORKS:
         profile = check.require_object(networks.get(network), f"networks.{network}")
+        check.require_known_fields(profile, f"networks.{network}", PROFILE_FIELDS)
         allow_null = status == "blocked"
         validate_snapshot(check, network, profile, allow_null)
         validate_auxpow(check, network, profile, allow_null)

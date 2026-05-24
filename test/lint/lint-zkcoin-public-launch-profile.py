@@ -449,6 +449,71 @@ def require_public_launch_manifest_current():
             if bool_manifest_error:
                 return bool_manifest_error
 
+        def reject_extra_manifest_field_case(name, mutate, expected_error):
+            extra_manifest = json.loads(json.dumps(manifest))
+            mutate(extra_manifest)
+            extra_manifest_path = Path(temp_dir) / f"{name}.json"
+            extra_manifest_path.write_text(json.dumps(extra_manifest), encoding="utf8")
+            extra_manifest_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--allow-blocked",
+                    str(extra_manifest_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if extra_manifest_result.returncode == 0:
+                return "{} accepted unexpected manifest field in {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            if expected_error not in extra_manifest_result.stderr:
+                return "{} did not explain unexpected manifest field rejection for {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    name,
+                )
+            return None
+
+        extra_manifest_field_cases = (
+            (
+                "extra-top-level-field",
+                lambda value: value.update({"selected_constants": "stale"}),
+                "manifest: contains unexpected field(s): selected_constants",
+            ),
+            (
+                "extra-blocker-field",
+                lambda value: value["blockers"][0].update({"resolved": False}),
+                "blockers[0]: contains unexpected field(s): resolved",
+            ),
+            (
+                "extra-network-field",
+                lambda value: value["networks"].update({"regtest": {}}),
+                "networks: contains unexpected field(s): regtest",
+            ),
+            (
+                "extra-profile-field",
+                lambda value: value["networks"]["main"].update(
+                    {"operator_notes": "stale"},
+                ),
+                "networks.main: contains unexpected field(s): operator_notes",
+            ),
+            (
+                "extra-snapshot-audit-field",
+                lambda value: value["networks"]["main"]["litecoin_snapshot"]["audit"].update(
+                    {"operator_notes": "stale"},
+                ),
+                "main.litecoin_snapshot.audit: contains unexpected field(s): operator_notes",
+            ),
+        )
+        for name, mutate, expected_error in extra_manifest_field_cases:
+            extra_manifest_error = reject_extra_manifest_field_case(name, mutate, expected_error)
+            if extra_manifest_error:
+                return extra_manifest_error
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -2082,6 +2147,7 @@ def main():
         ("REQUIRED_BLOCKERS", "manifest requires explicit blocker ids"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
+        ("require_known_fields", "manifest rejects unexpected schema fields"),
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),

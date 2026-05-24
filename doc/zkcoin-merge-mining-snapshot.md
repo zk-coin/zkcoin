@@ -289,7 +289,9 @@ silently carry ignored launch values.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts
 and integral source heights, and reject fractional values instead of rounding or truncating them.
 The launch manifest validator also rejects JSON booleans in integer and byte
-fields, because booleans are not valid production constants.
+fields, because booleans are not valid production constants. It rejects
+unexpected manifest keys so stale or hand-edited fields cannot silently shadow
+the launch profile that will be emitted into `chainparams`.
 Before it clears the blocker, the update path verifies the local snapshot artifact size and SHA-256
 against the audit summary and rejects symlinked snapshot artifacts and other non-file artifacts.
 The manifest update rejects a snapshot audit whose source chain does not match
