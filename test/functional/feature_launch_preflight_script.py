@@ -89,6 +89,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "headers": 0,
             "bestblockhash": "33" * 32,
             "chainwork": "00" * 31 + "01",
+            "verificationprogress": 1.0,
             "initialblockdownload": False,
             "pruned": False,
             "warnings": "",
@@ -222,6 +223,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             malformed_chainwork,
             1,
             "getblockchaininfo.chainwork must be a non-null lowercase 64-character hex string",
+        )
+
+        self.log.info("Reject malformed verification progress in launch preflight")
+        malformed_verification_progress = self.valid_info()
+        malformed_verification_progress["verificationprogress"] = -0.1
+        self.assert_preflight(
+            fake_cli,
+            malformed_verification_progress,
+            1,
+            "getblockchaininfo.verificationprogress must be a non-negative number",
         )
 
         self.log.info("Reject initial block download in launch preflight")
