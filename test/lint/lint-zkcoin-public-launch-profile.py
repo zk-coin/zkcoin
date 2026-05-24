@@ -760,6 +760,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        parent_symlink_manifest_target = Path(temp_dir) / "manifest-read-parent-target"
+        parent_symlink_manifest_target.mkdir()
+        parent_symlink_manifest_file = parent_symlink_manifest_target / "manifest.json"
+        parent_symlink_manifest_file.write_text(json.dumps(manifest), encoding="utf8")
+        parent_symlink_manifest_parent = Path(temp_dir) / "manifest-read-parent-link"
+        parent_symlink_manifest_parent.symlink_to(parent_symlink_manifest_target, target_is_directory=True)
+        parent_symlink_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(parent_symlink_manifest_parent / parent_symlink_manifest_file.name),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_manifest_result.returncode == 0:
+            return "{} accepted a launch manifest through a symlinked parent directory".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "manifest parent directory must not be a symlink" not in parent_symlink_manifest_result.stderr:
+            return "{} did not explain symlinked manifest parent read rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         oversized_manifest_path = Path(temp_dir) / "oversized-manifest.json"
         oversized_manifest_path.write_bytes(b" " * (manifest_tool.LAUNCH_MANIFEST_MAX_BYTES + 1))
         oversized_manifest_result = subprocess.run(
@@ -2771,6 +2798,37 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        parent_symlink_chainparams_target = Path(temp_dir) / "chainparams-parent-target"
+        parent_symlink_chainparams_target.mkdir()
+        parent_symlink_chainparams_file = parent_symlink_chainparams_target / "chainparams.cpp"
+        parent_symlink_chainparams_file.write_text(
+            chainparams_text_with(main_snippet, testnet_snippet),
+            encoding="utf8",
+        )
+        parent_symlink_chainparams_parent = Path(temp_dir) / "chainparams-parent-link"
+        parent_symlink_chainparams_parent.symlink_to(parent_symlink_chainparams_target, target_is_directory=True)
+        parent_symlink_chainparams_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-chainparams",
+                str(parent_symlink_chainparams_parent / parent_symlink_chainparams_file.name),
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_chainparams_result.returncode == 0:
+            return "{} --check-chainparams accepted chainparams through a symlinked parent directory".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "chainparams parent directory must not be a symlink" not in parent_symlink_chainparams_result.stderr:
+            return "{} --check-chainparams did not explain symlinked chainparams parent rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         oversized_chainparams_path = Path(temp_dir) / "oversized-chainparams.cpp"
         oversized_chainparams_path.write_bytes(b" " * (manifest_tool.CHAINPARAMS_INPUT_MAX_BYTES + 1))
         oversized_chainparams_result = subprocess.run(
@@ -3183,6 +3241,7 @@ def main():
         ("is not valid UTF-8", "manifest rejects invalid UTF-8 JSON"),
         ("LAUNCH_MANIFEST_MAX_BYTES", "manifest caps launch manifest input size"),
         ("read_launch_manifest_text", "manifest opens launch manifests through the hardened read path"),
+        ("manifest parent directory must not be a symlink", "manifest reads reject symlinked direct parent directories"),
         ("manifest changed during read", "manifest rechecks launch manifests after reading"),
         ("object_or_empty", "manifest reports malformed schema sections without tracebacks"),
         ("update_network_profile", "manifest update commands reject malformed profile sections"),
@@ -3204,6 +3263,7 @@ def main():
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
         ("read_chainparams_text", "manifest reads chainparams sync-check input through hardened path"),
+        ("chainparams parent directory must not be a symlink", "manifest rejects symlinked chainparams input parents"),
         ("chainparams input changed during read", "manifest rechecks chainparams sync-check input after reading"),
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
@@ -3961,7 +4021,7 @@ def main():
             "public launch manifest input size documentation",
         ),
         (
-            "read as a direct regular file",
+            "read from a direct parent directory as a",
             "public launch manifest hardened read documentation",
         ),
         (
@@ -4053,7 +4113,7 @@ def main():
             "public launch manifest chainparams sync-check documentation",
         ),
         (
-            "read as a direct regular file capped at 1048576 bytes",
+            "direct regular file capped at 1048576 bytes",
             "public launch manifest chainparams hardened read documentation",
         ),
         (
