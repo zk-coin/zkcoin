@@ -77,6 +77,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
                             "chainwork": scenario.get("source_chainwork", "00" * 31 + "01"),
                             "verificationprogress": scenario.get("source_verificationprogress", 1.0),
                             "difficulty": scenario.get("source_difficulty", 1.0),
+                            "time": scenario.get("source_time", 1600000000),
+                            "mediantime": scenario.get(
+                                "source_mediantime", scenario.get("source_time", 1600000000)
+                            ),
                             "initialblockdownload": scenario.get("initialblockdownload", False),
                             "pruned": scenario.get("pruned", False),
                             "warnings": scenario.get("warnings", ""),
@@ -588,6 +592,22 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             self.scenario(source_difficulty=-1.0),
             1,
             "litecoin-cli getblockchaininfo.difficulty must be a non-negative number",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
+        self.log.info("Reject malformed Litecoin source tip times")
+        _, calls, _ = self.assert_snapshot(
+            "source-malformed-time",
+            self.scenario(chaininfo_overrides={"time": "1600000000.0"}),
+            1,
+            "litecoin-cli getblockchaininfo.time must be a non-negative integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+        _, calls, _ = self.assert_snapshot(
+            "source-median-time-ahead",
+            self.scenario(source_time=1600000000, source_mediantime=1600000001),
+            1,
+            "litecoin-cli getblockchaininfo.mediantime must be less than or equal to time",
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
