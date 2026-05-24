@@ -238,11 +238,18 @@ def verify_artifacts(args, entries):
     failures = []
     for expected_digest, filename in entries:
         target = artifact_path(artifacts_dir, filename)
+        downloaded = False
         if not target.exists():
             download_artifact(args.download_base, filename, target, args.download_timeout)
+            downloaded = True
         require_regular_artifact(target, filename)
         actual_digest = sha256_file(target)
         if actual_digest != expected_digest:
+            if downloaded:
+                try:
+                    target.unlink()
+                except FileNotFoundError:
+                    pass
             failures.append((filename, expected_digest, actual_digest))
 
     if failures:
