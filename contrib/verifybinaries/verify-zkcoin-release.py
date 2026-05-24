@@ -99,6 +99,15 @@ def require_regular_checksums_file(path):
         raise VerifyError("checksums file does not exist or is not a regular file: {}".format(path))
 
 
+def read_checksum_manifest_text(path):
+    try:
+        return path.read_text(encoding="utf8")
+    except UnicodeDecodeError:
+        raise VerifyError("checksum manifest is not valid UTF-8") from None
+    except OSError as exc:
+        raise VerifyError("cannot read checksum manifest: {}".format(exc)) from exc
+
+
 def run_gpg_decrypt(args, output_path):
     gpg = shutil.which(args.gpg)
     if gpg is None:
@@ -136,7 +145,7 @@ def run_gpg_decrypt(args, output_path):
 def parse_checksum_manifest(path):
     entries = []
     seen_artifacts = set()
-    for line_number, line in enumerate(path.read_text(encoding="utf8").splitlines(), 1):
+    for line_number, line in enumerate(read_checksum_manifest_text(path).splitlines(), 1):
         if not line.strip():
             continue
         match = CHECKSUM_RE.match(line)

@@ -593,6 +593,30 @@ def require_zkcoin_verifier_rejects_symlink_checksum_files():
     return None
 
 
+def require_zkcoin_verifier_rejects_invalid_utf8_checksum_manifests():
+    spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "cannot import {}".format(ZKCOIN_VERIFY_SCRIPT.relative_to(ROOT_DIR))
+
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    with tempfile.TemporaryDirectory(prefix="zkcoin-verify-lint-") as tempdir:
+        manifest = Path(tempdir) / "SHA256SUMS"
+        manifest.write_bytes(b"00" * 32 + b"  zkcoin-" + bytes([0xff]) + b".tar.gz\n")
+        try:
+            verifier.parse_checksum_manifest(manifest)
+        except verifier.VerifyError as exc:
+            if "checksum manifest is not valid UTF-8" not in str(exc):
+                return "zkCoin verifier reported the wrong invalid UTF-8 checksum manifest error"
+            if "codec can't decode" in str(exc):
+                return "zkCoin verifier leaked a codec-specific UTF-8 decode error"
+        else:
+            return "zkCoin verifier accepted an invalid UTF-8 checksum manifest"
+
+    return None
+
+
 def require_zkcoin_verifier_rejects_nonportable_artifact_paths():
     spec = importlib.util.spec_from_file_location("zkcoin_verify_release", ZKCOIN_VERIFY_SCRIPT)
     if spec is None or spec.loader is None:
@@ -1051,6 +1075,9 @@ def main():
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_symlink_checksum_files()
+    if error:
+        return fail(error)
+    error = require_zkcoin_verifier_rejects_invalid_utf8_checksum_manifests()
     if error:
         return fail(error)
     error = require_zkcoin_verifier_rejects_nonportable_artifact_paths()
@@ -1740,6 +1767,7 @@ def main():
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must not have leading or trailing whitespace", "zkCoin verifier artifact path whitespace rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "checksums file must not be a symlink", "zkCoin verifier checksum file symlink rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "checksums file does not exist or is not a regular file", "zkCoin verifier checksum file regularity rejection"),
+        (ZKCOIN_VERIFY_SCRIPT, "checksum manifest is not valid UTF-8", "zkCoin verifier checksum manifest UTF-8 rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "duplicate artifact path in checksum manifest", "zkCoin verifier duplicate artifact rejection"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path contains backslashes or control characters", "zkCoin verifier portable artifact path guard"),
         (ZKCOIN_VERIFY_SCRIPT, "artifact path must be a normalized POSIX path", "zkCoin verifier normalized artifact path guard"),
@@ -1762,6 +1790,7 @@ def main():
         (VERIFY_README, "coreutils SHA256SUMS separators", "zkCoin verifier canonical checksum line documentation"),
         (VERIFY_README, "leading or trailing whitespace", "zkCoin verifier artifact path whitespace documentation"),
         (VERIFY_README, "regular file, not a symlink", "zkCoin verifier checksum file regularity documentation"),
+        (VERIFY_README, "valid UTF-8 text", "zkCoin verifier checksum manifest UTF-8 documentation"),
         (VERIFY_README, "duplicate artifact paths", "zkCoin verifier duplicate artifact documentation"),
         (VERIFY_README, "backslashes or control characters", "zkCoin verifier portable artifact path documentation"),
         (VERIFY_README, "normalized POSIX paths", "zkCoin verifier normalized artifact path documentation"),
