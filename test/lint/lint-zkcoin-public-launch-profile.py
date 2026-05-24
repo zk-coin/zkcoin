@@ -1065,6 +1065,51 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        race_parent = Path(temp_dir) / "race-parent"
+        race_parent.mkdir()
+        race_manifest_path = race_parent / "race-manifest.json"
+        race_manifest_path.write_text(json.dumps(manifest), encoding="utf8")
+        race_original_parent = Path(temp_dir) / "race-parent-original"
+        race_symlink_target = Path(temp_dir) / "race-parent-target"
+        race_symlink_target.mkdir()
+        race_symlink_target_manifest = race_symlink_target / race_manifest_path.name
+        race_symlink_target_text = "do-not-write-through-swapped-parent"
+        race_symlink_target_manifest.write_text(race_symlink_target_text, encoding="utf8")
+        race_update_manifest = {
+            "written_through": "opened-parent-directory-fd",
+        }
+        real_open_manifest_parent_directory = manifest_tool.open_manifest_parent_directory
+
+        def swap_manifest_parent_after_open(path):
+            parent_fd = real_open_manifest_parent_directory(path)
+            race_parent.rename(race_original_parent)
+            race_parent.symlink_to(race_symlink_target, target_is_directory=True)
+            return parent_fd
+
+        manifest_tool.open_manifest_parent_directory = swap_manifest_parent_after_open
+        try:
+            try:
+                manifest_tool.write_manifest(race_manifest_path, race_update_manifest)
+            except ValueError as exc:
+                return "{} write_manifest failed after opening a direct parent directory: {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    exc,
+                )
+        finally:
+            manifest_tool.open_manifest_parent_directory = real_open_manifest_parent_directory
+        if json.loads((race_original_parent / race_manifest_path.name).read_text(encoding="utf8")) != race_update_manifest:
+            return "{} write_manifest did not update the originally opened parent directory".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if race_symlink_target_manifest.read_text(encoding="utf8") != race_symlink_target_text:
+            return "{} write_manifest followed a swapped manifest parent symlink".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (race_symlink_target / (race_manifest_path.name + ".tmp")).exists():
+            return "{} write_manifest left a temp file through a swapped manifest parent symlink".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         stale_blocker_manifest = json.loads(json.dumps(manifest))
         stale_blocker_manifest["networks"]["main"]["litecoin_snapshot"].update(
             {
@@ -3082,8 +3127,10 @@ def main():
         ("is_plain_int", "manifest rejects JSON booleans in integer and byte fields"),
         ("manifest path must not be a symlink", "manifest in-place updates reject symlinked manifest paths"),
         ("manifest parent directory must not be a symlink", "manifest in-place updates reject symlinked manifest parent directories"),
+        ("open_manifest_parent_directory", "manifest in-place updates open direct parent directories"),
         ("manifest temp path already exists", "manifest in-place updates reject pre-existing temp paths"),
         ("os.O_EXCL", "manifest in-place updates create temp files exclusively"),
+        ("dir_fd=parent_fd", "manifest in-place updates write relative to the opened parent directory"),
         ("fsync_manifest_parent_directory", "manifest in-place updates sync the parent directory after replace"),
         ("ready-for-chainparams", "manifest ready status"),
         ("--allow-blocked", "manifest lint-mode flag"),
@@ -3861,6 +3908,10 @@ def main():
         (
             "In-place manifest writes reject symlinked manifest paths, symlinked parent directories, and pre-existing temp files",
             "public launch manifest safe in-place write documentation",
+        ),
+        (
+            "opened parent directory descriptor",
+            "public launch manifest directory-fd write documentation",
         ),
         (
             "fsync their parent directory after replacement",

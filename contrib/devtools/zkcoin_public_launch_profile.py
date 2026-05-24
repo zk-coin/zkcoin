@@ -1281,43 +1281,68 @@ def require_manifest_parent_directory(path):
         raise ValueError(f"manifest parent path must be a directory for in-place updates: {path.parent}")
 
 
-def fsync_manifest_parent_directory(path):
+def open_manifest_parent_directory(path):
     require_manifest_parent_directory(path)
-    parent_fd = os.open(path.parent, os.O_RDONLY)
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        os.fsync(parent_fd)
-    finally:
+        parent_fd = os.open(path.parent, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP or (exc.errno == errno.ENOTDIR and path.parent.is_symlink()):
+            raise ValueError(f"manifest parent directory must not be a symlink for in-place updates: {path.parent}")
+        if exc.errno in (errno.ENOENT, errno.ENOTDIR):
+            raise ValueError(f"manifest parent path must be a directory for in-place updates: {path.parent}")
+        raise ValueError(f"cannot open manifest parent directory for in-place updates: {exc}")
+    if not stat.S_ISDIR(os.fstat(parent_fd).st_mode):
         os.close(parent_fd)
+        raise ValueError(f"manifest parent path must be a directory for in-place updates: {path.parent}")
+    return parent_fd
+
+
+def fsync_manifest_parent_directory(parent_fd):
+    os.fsync(parent_fd)
 
 
 def write_manifest(path, manifest):
     if path.is_symlink():
         raise ValueError(f"manifest path must not be a symlink for in-place updates: {path}")
-    require_manifest_parent_directory(path)
     text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
-    tmp_path = path.with_name(path.name + ".tmp")
-    if tmp_path.exists() or tmp_path.is_symlink():
-        raise ValueError(f"manifest temp path already exists: {tmp_path}")
+    tmp_name = path.name + ".tmp"
+    tmp_path = path.with_name(tmp_name)
 
+    parent_fd = None
     fd = None
+    tmp_created = False
     try:
-        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        parent_fd = open_manifest_parent_directory(path)
+        fd = os.open(
+            tmp_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o644,
+            dir_fd=parent_fd,
+        )
+        tmp_created = True
         with os.fdopen(fd, "w", encoding="utf8") as tmp_file:
             fd = None
             tmp_file.write(text)
             tmp_file.flush()
             os.fsync(tmp_file.fileno())
-        tmp_path.replace(path)
-        fsync_manifest_parent_directory(path)
+        os.replace(tmp_name, path.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        tmp_created = False
+        fsync_manifest_parent_directory(parent_fd)
+    except FileExistsError:
+        raise ValueError(f"manifest temp path already exists: {tmp_path}")
     except OSError as exc:
         if fd is not None:
             os.close(fd)
-        if tmp_path.exists() and not tmp_path.is_symlink():
+        if tmp_created and parent_fd is not None:
             try:
-                tmp_path.unlink()
+                os.unlink(tmp_name, dir_fd=parent_fd)
             except OSError:
                 pass
         raise ValueError(f"cannot write manifest atomically: {exc}")
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
 
 
 def cpp_string(value):
