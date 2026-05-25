@@ -233,6 +233,14 @@ def require_no_checked_in_seed_entries(path):
     return None
 
 
+def require_status_json_schema_version(status_json):
+    if status_json.get("schema_version") != 1:
+        return "{} --status-json did not report schema_version 1".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    return None
+
+
 def require_generated_fixed_seed_header_current():
     result = subprocess.run(
         [sys.executable, str(GENERATE_SEEDS), str(SEEDS_DIR)],
@@ -428,6 +436,9 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
             exc,
         )
+    schema_version_error = require_status_json_schema_version(status_json)
+    if schema_version_error:
+        return schema_version_error
     if status_json.get("status") != "blocked":
         return "{} --status-json did not report blocked status".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -535,6 +546,9 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 exc,
             )
+        schema_version_error = require_status_json_schema_version(spaced_status_json)
+        if schema_version_error:
+            return schema_version_error
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("action", ""):
             return "{} --status-json did not shell-quote a staged manifest path with spaces".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3401,6 +3415,9 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 exc,
             )
+        schema_version_error = require_status_json_schema_version(complete_status)
+        if schema_version_error:
+            return schema_version_error
         if complete_status.get("unresolved_blocker_count") != 0:
             return "{} --status-json reported blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3577,6 +3594,9 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 exc,
             )
+        schema_version_error = require_status_json_schema_version(ready_status)
+        if schema_version_error:
+            return schema_version_error
         if ready_status.get("ready_for_chainparams") is not True:
             return "{} --status-json did not report ready manifest as ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4145,6 +4165,7 @@ def main():
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
         ("--status-json", "manifest machine-readable status guidance flag"),
+        ("STATUS_JSON_SCHEMA_VERSION = 1", "manifest status JSON schema version"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
@@ -4219,6 +4240,7 @@ def main():
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
+        ("schema_version", "manifest status JSON includes a schema version"),
         ("blocked_fields", "manifest status JSON includes field-level blockers"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
@@ -5055,6 +5077,10 @@ def main():
         (
             "machine-readable JSON",
             "public launch manifest status-json machine-readable documentation",
+        ),
+        (
+            "schema_version",
+            "public launch manifest status-json schema version documentation",
         ),
         (
             "shell-quotes the manifest path",
