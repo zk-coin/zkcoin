@@ -1233,9 +1233,8 @@ def set_snapshot_from_audit(manifest, network, audit_path):
     set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
 
 
-def set_auxpow(manifest, network, chain_id):
-    profile = update_network_profile(manifest, network)
-    profile["auxpow"] = {
+def auxpow_profile_from_chain_id(chain_id):
+    return {
         "start_height": 1,
         "chain_id": parse_chain_id(chain_id),
         "strict_chain_id": True,
@@ -1244,7 +1243,39 @@ def set_auxpow(manifest, network, chain_id):
             16383,
         ],
     }
+
+
+def set_auxpow(manifest, network, chain_id):
+    profile = update_network_profile(manifest, network)
+    profile["auxpow"] = auxpow_profile_from_chain_id(chain_id)
     remove_blocker(manifest, f"{network}.auxpow_chain_id")
+
+
+def checked_auxpow_candidate(manifest, network, chain_id):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    candidate = json.loads(json.dumps(manifest))
+    set_auxpow(candidate, network, chain_id)
+    check = validate_manifest(candidate, allow_blocked=True)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "AuxPoW chain id candidate failed validation:",
+                check,
+            )
+        )
+    return candidate["networks"][network]["auxpow"]
+
+
+def auxpow_check_text(network, auxpow):
+    return "\n".join((
+        f"AuxPoW chain id candidate verified for {network}.",
+        f"  chain id: {auxpow['chain_id']}",
+        f"  chain id hex: 0x{auxpow['chain_id']:x}",
+        f"  start height: {auxpow['start_height']}",
+        f"  strict chain id: {str(auxpow['strict_chain_id']).lower()}",
+        "  forbidden parent-version chain-id range: 0x2000-0x3fff",
+    ))
 
 
 def parse_dns_seeds(value):
@@ -1596,7 +1627,8 @@ def next_blocker_command(blocker_id, manifest_path):
         )
     if blocker == "auxpow_chain_id":
         return (
-            "select a non-Litecoin AuxPoW child chain id and run "
+            "select a non-Litecoin AuxPoW child chain id, run "
+            f"{tool_path} --check-auxpow {network} <chain_id> {manifest_path}, then run "
             f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
         )
     if blocker == "public_network_identity":
@@ -1646,6 +1678,8 @@ def selected_primary_actions(args):
         actions.append("--check-snapshot-audit")
     if args.set_auxpow is not None:
         actions.append("--set-auxpow")
+    if args.check_auxpow is not None:
+        actions.append("--check-auxpow")
     if args.set_dns_seeds is not None:
         actions.append("--set-dns-seeds")
     if args.set_identity is not None:
@@ -1695,6 +1729,12 @@ def main():
         nargs=2,
         metavar=("NETWORK", "CHAIN_ID"),
         help="update one network's AuxPoW chain id and remove its AuxPoW blocker",
+    )
+    parser.add_argument(
+        "--check-auxpow",
+        nargs=2,
+        metavar=("NETWORK", "CHAIN_ID"),
+        help="verify one network's AuxPoW chain id candidate without updating the manifest",
     )
     parser.add_argument(
         "--set-dns-seeds",
@@ -1788,6 +1828,18 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.check_auxpow is not None:
+        if args.in_place:
+            print("error: --check-auxpow does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            auxpow = checked_auxpow_candidate(manifest, *args.check_auxpow)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(auxpow_check_text(args.check_auxpow[0], auxpow))
+        return 0
 
     if args.set_dns_seeds is not None:
         try:
