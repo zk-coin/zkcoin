@@ -4855,6 +4855,7 @@ def main():
         ("must not exceed {MAX_MONEY_TEXT}", "snapshot script rejects over-maximum verifier total amount"),
         ("shell_quote", "snapshot script shell-quotes handoff paths"),
         ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
+        ("--check-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest check command"),
         ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
@@ -4866,6 +4867,7 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("--check-snapshot-audit main", "snapshot script test checks read-only manifest handoff"),
         ("snapshot_file_sha256", "snapshot script test checks audit artifact SHA-256 output"),
         ("Quote snapshot and audit paths in printed handoff commands", "snapshot script test checks shell-quoted handoff paths"),
         ("Reject a zero snapshot height", "snapshot script test rejects zero snapshot height"),
@@ -5255,6 +5257,10 @@ def main():
         (
             "ZKCOIN_SNAPSHOT_AUDIT_JSON",
             "public launch snapshot audit summary documentation",
+        ),
+        (
+            "read-only check command and the follow-up update command",
+            "public launch snapshot audit check-before-update documentation",
         ),
         (
             "exclusive final-path write, fsyncs the file and parent directory",
