@@ -1363,7 +1363,16 @@ def checked_auxpow_candidate(manifest, network, chain_id):
     return candidate["networks"][network]["auxpow"], candidate
 
 
-def auxpow_check_text(network, auxpow, candidate):
+def auxpow_apply_command(network, auxpow, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return (
+        f"{tool_path} --set-auxpow {network} "
+        f"0x{auxpow['chain_id']:x} --in-place {manifest_path}"
+    )
+
+
+def auxpow_check_text(network, auxpow, candidate, manifest_path):
     return "\n".join((
         f"AuxPoW chain id candidate verified for {network}.",
         f"  chain id: {auxpow['chain_id']}",
@@ -1371,6 +1380,7 @@ def auxpow_check_text(network, auxpow, candidate):
         f"  start height: {auxpow['start_height']}",
         f"  strict chain id: {str(auxpow['strict_chain_id']).lower()}",
         "  forbidden parent-version chain-id range: 0x2000-0x3fff",
+        f"  apply command: {auxpow_apply_command(network, auxpow, manifest_path)}",
         candidate_next_step_text(candidate, "candidate"),
     ))
 
@@ -2181,7 +2191,7 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(auxpow_check_text(args.check_auxpow[0], auxpow, candidate))
+        print(auxpow_check_text(args.check_auxpow[0], auxpow, candidate, args.manifest))
         return 0
 
     if args.set_dns_seeds is not None:
