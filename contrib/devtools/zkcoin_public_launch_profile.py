@@ -1196,10 +1196,9 @@ def set_snapshot(manifest, network, height, block_hash, import_hash, audit=None)
     remove_blocker(manifest, f"{network}.litecoin_snapshot")
 
 
-def set_snapshot_from_audit(manifest, network, audit_path):
+def verified_snapshot_audit_for_network(network, audit_path):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
-    update_network_profile(manifest, network)
     audit = parse_snapshot_audit(audit_path)
     expected_source_chain = SNAPSHOT_SOURCE_CHAINS[network]
     if audit["audit"]["source_chain"] != expected_source_chain:
@@ -1208,6 +1207,29 @@ def set_snapshot_from_audit(manifest, network, audit_path):
             f"expected {expected_source_chain}"
         )
     verify_snapshot_audit_artifact(audit["audit"])
+    return audit
+
+
+def snapshot_audit_check_text(network, audit):
+    audit_detail = audit["audit"]
+    return "\n".join((
+        f"Snapshot audit verified for {network}.",
+        f"  height: {audit['height']}",
+        f"  block hash: {audit['block_hash']}",
+        f"  import hash: {audit['import_hash']}",
+        f"  source chain: {audit_detail['source_chain']}",
+        f"  snapshot hash: {audit_detail['snapshot_hash']}",
+        f"  snapshot file: {audit_detail['snapshot_file']}",
+        f"  snapshot file size: {audit_detail['snapshot_file_size']}",
+        f"  snapshot file SHA-256: {audit_detail['snapshot_file_sha256']}",
+        f"  coins: {audit_detail['coins']}",
+        f"  base transactions: {audit_detail['base_nchaintx']}",
+        f"  total amount: {audit_detail['total_amount']}",
+    ))
+
+
+def set_snapshot_from_audit(manifest, network, audit_path):
+    audit = verified_snapshot_audit_for_network(network, audit_path)
     set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
 
 
@@ -1566,7 +1588,9 @@ def next_blocker_command(blocker_id, manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     if blocker == "litecoin_snapshot":
         return (
-            "select and verify the final Litecoin snapshot, then run "
+            "select and verify the final Litecoin snapshot, run "
+            f"{tool_path} --check-snapshot-audit {network} <snapshot_audit.json> "
+            f"{manifest_path}, then run "
             f"{tool_path} --set-snapshot-audit {network} <snapshot_audit.json> "
             f"--in-place {manifest_path}"
         )
@@ -1618,6 +1642,8 @@ def selected_primary_actions(args):
         actions.append("--set-snapshot")
     if args.set_snapshot_audit is not None:
         actions.append("--set-snapshot-audit")
+    if args.check_snapshot_audit is not None:
+        actions.append("--check-snapshot-audit")
     if args.set_auxpow is not None:
         actions.append("--set-auxpow")
     if args.set_dns_seeds is not None:
@@ -1657,6 +1683,12 @@ def main():
         nargs=2,
         metavar=("NETWORK", "AUDIT_JSON"),
         help="update one network's Litecoin snapshot constants from a verified snapshot audit summary",
+    )
+    parser.add_argument(
+        "--check-snapshot-audit",
+        nargs=2,
+        metavar=("NETWORK", "AUDIT_JSON"),
+        help="verify a snapshot audit summary and artifact without updating the manifest",
     )
     parser.add_argument(
         "--set-auxpow",
@@ -1737,6 +1769,18 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.check_snapshot_audit is not None:
+        if args.in_place:
+            print("error: --check-snapshot-audit does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            audit = verified_snapshot_audit_for_network(*args.check_snapshot_audit)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(snapshot_audit_check_text(args.check_snapshot_audit[0], audit))
+        return 0
 
     if args.set_auxpow is not None:
         try:

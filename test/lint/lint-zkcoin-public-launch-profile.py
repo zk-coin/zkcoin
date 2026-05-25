@@ -365,6 +365,10 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not select the first unresolved blocker".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--check-snapshot-audit main <snapshot_audit.json>" not in next_action_result.stdout:
+        return "{} --next-action did not print the snapshot audit check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--set-snapshot-audit main <snapshot_audit.json>" not in next_action_result.stdout:
         return "{} --next-action did not print the snapshot handoff command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1428,6 +1432,61 @@ def require_public_launch_manifest_current():
             )
         if "main.auxpow_chain_id" not in audit_blockers:
             return "{} --set-snapshot-audit removed unrelated blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        check_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if check_audit_result.returncode != 0:
+            return "{} --check-snapshot-audit failed: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                check_audit_result.stderr.strip() or check_audit_result.stdout.strip() or "no output",
+            )
+        for expected in (
+            "Snapshot audit verified for main.",
+            "height: 777",
+            f"snapshot file SHA-256: {snapshot_artifact_sha256}",
+            "total amount: 50.00000000",
+        ):
+            if expected not in check_audit_result.stdout:
+                return "{} --check-snapshot-audit did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        check_audit_in_place_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(audit_path),
+                "--in-place",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if check_audit_in_place_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted --in-place".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--check-snapshot-audit does not write the manifest" not in check_audit_in_place_result.stderr:
+            return "{} --check-snapshot-audit did not explain --in-place rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3268,11 +3327,14 @@ def main():
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
+        ("--check-snapshot-audit", "manifest verified snapshot audit read-only check flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
         ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
+        ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
+        ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
@@ -4276,8 +4338,16 @@ def main():
             "snapshot operator lowercase source block hash documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --check-snapshot-audit NETWORK <snapshot_audit.json>",
+            "public launch manifest read-only snapshot audit check documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py \\\n  --set-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest audit-backed snapshot update documentation",
+        ),
+        (
+            "without modifying the manifest",
+            "public launch manifest read-only snapshot audit check behavior documentation",
         ),
         (
             "target profile derived from `source_chain`",
