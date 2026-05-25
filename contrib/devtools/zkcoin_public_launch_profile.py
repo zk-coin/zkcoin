@@ -1369,14 +1369,15 @@ def checked_dns_seeds_candidate(manifest, network, dns_seeds):
                 check,
             )
         )
-    return candidate["networks"][network]["public_network_identity"]["dns_seeds"]
+    return candidate["networks"][network]["public_network_identity"]["dns_seeds"], candidate
 
 
-def dns_seeds_check_text(network, dns_seeds):
+def dns_seeds_check_text(network, dns_seeds, candidate):
     return "\n".join((
         f"DNS seed candidate verified for {network}.",
         f"  seed count: {len(dns_seeds)}",
         "  seeds: " + ", ".join(dns_seeds),
+        candidate_next_step_text(candidate, "candidate"),
     ))
 
 
@@ -2140,11 +2141,11 @@ def main():
             print("error: --check-dns-seeds does not write the manifest", file=sys.stderr)
             return 1
         try:
-            dns_seeds = checked_dns_seeds_candidate(manifest, *args.check_dns_seeds)
+            dns_seeds, candidate = checked_dns_seeds_candidate(manifest, *args.check_dns_seeds)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds))
+        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate))
         return 0
 
     if args.set_identity is not None:
