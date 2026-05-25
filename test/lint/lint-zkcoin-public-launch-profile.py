@@ -789,6 +789,45 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_check_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_check_identity_result.returncode != 0:
+            return "{} --check-identity failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_check_identity_result.stderr.strip()
+                or spaced_check_identity_result.stdout.strip()
+                or "no output",
+            )
+        expected_identity_apply = (
+            "contrib/devtools/zkcoin_public_launch_profile.py --set-identity "
+            f"main 250,191,181,217 19445 75 76 77 178 04202431 04202432 zk zkmweb --in-place {quoted_manifest_path}"
+        )
+        if expected_identity_apply not in spaced_check_identity_result.stdout:
+            return "{} --check-identity did not shell-quote a staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     mixed_action_result = subprocess.run(
         [
             sys.executable,
@@ -3405,6 +3444,7 @@ def require_public_launch_manifest_current():
         "extended public key prefix: 04,20,24,31",
         "bech32 HRP: zk",
         "MWEB HRP: zkmweb",
+        "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-identity main 250,191,181,217 19445 75 76 77 178 04202431 04202432 zk zkmweb --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
     ):
@@ -4643,9 +4683,10 @@ def main():
         ("set_identity", "manifest updates public network identity"),
         ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
         ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
+        ("identity_apply_command", "manifest prints public identity apply commands after read-only checks"),
         ("identity_check_text", "manifest prints public identity candidate check summaries"),
         (
-            "identity_check_text(args.check_identity[0], identity, candidate)",
+            "identity_check_text(args.check_identity[0], identity, candidate, args.manifest)",
             "manifest reports public identity candidate progress",
         ),
         ("remove_blocker(manifest, f\"{network}.public_network_identity\")", "manifest removes resolved public identity blocker"),
@@ -5453,7 +5494,7 @@ def main():
             "public launch manifest identity read-only check documentation",
         ),
         (
-            "read-only identity check reports the remaining blocker count and next blocker",
+            "read-only identity check reports the exact apply command, remaining blocker",
             "public launch manifest identity candidate-progress documentation",
         ),
         (

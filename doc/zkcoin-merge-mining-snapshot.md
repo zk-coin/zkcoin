@@ -163,9 +163,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --check-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`;
-  the read-only identity check reports the remaining blocker count and next blocker
-  that would remain after applying the candidate, so reviewers can verify identity
-  handoff progress before changing the manifest;
+  the read-only identity check reports the exact apply command, remaining blocker
+  count, and next blocker that would remain after applying the candidate, so
+  reviewers can verify identity handoff progress before changing the manifest;
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
   starts, ports, Base58 prefixes, HRPs, overlong HRPs, duplicate prefixes, and
