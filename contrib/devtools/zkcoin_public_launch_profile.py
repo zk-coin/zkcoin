@@ -1541,20 +1541,53 @@ def checked_identity_candidate(manifest, network, *identity_args):
     return candidate["networks"][network]["public_network_identity"], candidate
 
 
-def identity_check_text(network, identity, candidate):
+def identity_byte_arg(bytes_):
+    return ",".join(str(byte) for byte in bytes_)
+
+
+def identity_hex_arg(bytes_):
+    return "".join(f"{byte:02x}" for byte in bytes_)
+
+
+def identity_apply_command(network, identity, manifest_path):
+    base58 = identity["base58_prefixes"]
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    args = [
+        network,
+        identity_byte_arg(identity["message_start"]),
+        str(identity["default_port"]),
+        identity_byte_arg(base58["pubkey_address"]),
+        identity_byte_arg(base58["script_address"]),
+        identity_byte_arg(base58["script_address2"]),
+        identity_byte_arg(base58["secret_key"]),
+        identity_hex_arg(base58["ext_public_key"]),
+        identity_hex_arg(base58["ext_secret_key"]),
+        identity["bech32_hrp"],
+        identity["mweb_hrp"],
+    ]
+    return (
+        f"{tool_path} --set-identity "
+        + " ".join(shell_quote(arg) for arg in args)
+        + f" --in-place {manifest_path}"
+    )
+
+
+def identity_check_text(network, identity, candidate, manifest_path):
     base58 = identity["base58_prefixes"]
     return "\n".join((
         f"Public identity candidate verified for {network}.",
-        f"  message start: {','.join(str(byte) for byte in identity['message_start'])}",
+        f"  message start: {identity_byte_arg(identity['message_start'])}",
         f"  default port: {identity['default_port']}",
-        f"  pubkey address prefix: {','.join(str(byte) for byte in base58['pubkey_address'])}",
-        f"  script address prefix: {','.join(str(byte) for byte in base58['script_address'])}",
-        f"  script address 2 prefix: {','.join(str(byte) for byte in base58['script_address2'])}",
-        f"  secret key prefix: {','.join(str(byte) for byte in base58['secret_key'])}",
+        f"  pubkey address prefix: {identity_byte_arg(base58['pubkey_address'])}",
+        f"  script address prefix: {identity_byte_arg(base58['script_address'])}",
+        f"  script address 2 prefix: {identity_byte_arg(base58['script_address2'])}",
+        f"  secret key prefix: {identity_byte_arg(base58['secret_key'])}",
         f"  extended public key prefix: {','.join(f'{byte:02x}' for byte in base58['ext_public_key'])}",
         f"  extended secret key prefix: {','.join(f'{byte:02x}' for byte in base58['ext_secret_key'])}",
         f"  bech32 HRP: {identity['bech32_hrp']}",
         f"  MWEB HRP: {identity['mweb_hrp']}",
+        f"  apply command: {identity_apply_command(network, identity, manifest_path)}",
         candidate_next_step_text(candidate, "candidate"),
     ))
 
@@ -2244,7 +2277,7 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(identity_check_text(args.check_identity[0], identity, candidate))
+        print(identity_check_text(args.check_identity[0], identity, candidate, args.manifest))
         return 0
 
     updated_launch_fields = (
