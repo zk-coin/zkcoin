@@ -4748,7 +4748,8 @@ def main():
             return fail(LAUNCH_PREFLIGHT_TEST, error)
 
     ltc_snapshot_script_checks = (
-        ("Snapshot public launch-profile manifest update", "snapshot script prints manifest update section"),
+        ("Snapshot public launch-profile manifest handoff", "snapshot script prints manifest handoff section"),
+        ("public launch-profile manifest handoff\ncommands", "snapshot script usage describes manifest handoff commands"),
         ("ZKCOIN_SNAPSHOT_AUDIT_JSON", "snapshot script writes optional audit summary"),
         ("write_audit_summary", "snapshot script writes audit summaries through a hardened path"),
         ("open_direct_audit_parent_directory", "snapshot script rechecks audit output parents before writes"),
@@ -4868,7 +4869,7 @@ def main():
             return fail(LTC_SNAPSHOT_SCRIPT, error)
 
     ltc_snapshot_script_test_checks = (
-        ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
+        ("Snapshot public launch-profile manifest handoff:", "snapshot script test checks manifest handoff section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
         ("AUDIT_SUMMARY_FIELDS", "snapshot script test checks audit summary field order"),
         ("--check-snapshot-audit main", "snapshot script test checks read-only manifest handoff"),
