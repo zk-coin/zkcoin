@@ -1290,7 +1290,17 @@ def candidate_next_step_text(candidate, applied_label):
     return "\n".join(lines)
 
 
-def snapshot_audit_check_text(network, audit, candidate):
+def snapshot_audit_apply_command(network, audit_path, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    audit_path = shell_quote(display_path(audit_path))
+    manifest_path = shell_quote(display_path(manifest_path))
+    return (
+        f"{tool_path} --set-snapshot-audit {network} "
+        f"{audit_path} --in-place {manifest_path}"
+    )
+
+
+def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_path):
     audit_detail = audit["audit"]
     return "\n".join((
         f"Snapshot audit verified for {network}.",
@@ -1305,6 +1315,7 @@ def snapshot_audit_check_text(network, audit, candidate):
         f"  coins: {audit_detail['coins']}",
         f"  base transactions: {audit_detail['base_nchaintx']}",
         f"  total amount: {audit_detail['total_amount']}",
+        f"  apply command: {snapshot_audit_apply_command(network, audit_path, manifest_path)}",
         candidate_next_step_text(candidate, "audit"),
     ))
 
@@ -2215,6 +2226,8 @@ def main():
                 args.check_snapshot_audit[0],
                 audit,
                 candidate,
+                args.check_snapshot_audit[1],
+                args.manifest,
             )
         )
         return 0

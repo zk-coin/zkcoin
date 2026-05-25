@@ -2053,6 +2053,9 @@ def require_public_launch_manifest_current():
             "height: 777",
             f"snapshot file SHA-256: {snapshot_artifact_sha256}",
             "total amount: 50.00000000",
+            "apply command: contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot-audit main {shlex.quote(str(audit_path))} "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "remaining blockers after applying audit: 7",
             "next blocker after applying audit: main.auxpow_chain_id",
         ):
@@ -2061,6 +2064,62 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     expected,
                 )
+
+        spaced_audit_path = Path(temp_dir) / "snapshot audit.json"
+        spaced_audit_path.write_text(json.dumps(audit), encoding="utf8")
+        spaced_check_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(spaced_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_check_audit_result.returncode != 0:
+            return "{} --check-snapshot-audit failed for an audit path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_check_audit_result.stderr.strip()
+                or spaced_check_audit_result.stdout.strip()
+                or "no output",
+            )
+        if f"--set-snapshot-audit main {shlex.quote(str(spaced_audit_path))} --in-place" not in spaced_check_audit_result.stdout:
+            return "{} --check-snapshot-audit did not shell-quote an audit apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        spaced_audit_manifest_path = Path(temp_dir) / "public launch manifest.json"
+        spaced_audit_manifest_path.write_text(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"), encoding="utf8")
+        spaced_manifest_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(audit_path),
+                str(spaced_audit_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_manifest_check_result.returncode != 0:
+            return "{} --check-snapshot-audit failed for a manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_manifest_check_result.stderr.strip()
+                or spaced_manifest_check_result.stdout.strip()
+                or "no output",
+            )
+        if f"--in-place {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
+            return "{} --check-snapshot-audit did not shell-quote a manifest apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         malformed_check_manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
         malformed_check_manifest["networks"]["main"]["auxpow"] = "not-an-object"
@@ -4600,6 +4659,7 @@ def main():
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
+        ("snapshot_audit_apply_command", "manifest prints snapshot audit apply commands after read-only checks"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
         ("candidate_next_step_text(candidate, \"audit\")", "manifest reports snapshot audit candidate blocker count"),
@@ -5610,7 +5670,7 @@ def main():
             "public launch snapshot audit check-before-update documentation",
         ),
         (
-            "read-only check also reports the remaining blocker count and next blocker",
+            "read-only check also reports the exact apply command, remaining blocker",
             "public launch snapshot audit candidate-progress documentation",
         ),
         (
