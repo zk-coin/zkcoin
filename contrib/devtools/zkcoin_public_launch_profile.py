@@ -213,6 +213,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
     actions_by_id = {entry["id"]: entry for entry in actions}
     entries = []
     for index, blocker in enumerate(blockers, 1):
+        network, blocker_type = blocker.split(".", 1)
         fields = blocked_fields_for_blocker(blocker, blocked_fields)
         action = actions_by_id[blocker]
         entries.append(
@@ -220,6 +221,8 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "step": index,
                 "kind": "blocker",
                 "id": blocker,
+                "network": network,
+                "blocker_type": blocker_type,
                 "action": action["action"],
                 "field_count": len(fields),
                 "fields": fields,

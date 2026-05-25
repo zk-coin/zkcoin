@@ -570,6 +570,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first blocker group metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if blocked_field_groups[0].get("network") != "main" or blocked_field_groups[0].get("blocker_type") != "litecoin_snapshot":
+        return "{} --status-json did not include first blocker group network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in blocked_field_groups[0].get("action", ""):
         return "{} --status-json did not include first blocker group action guidance".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -580,6 +584,10 @@ def require_public_launch_manifest_current():
         )
     if blocked_field_groups[-1].get("id") != "testnet.dns_seeds" or blocked_field_groups[-1].get("field_count") != 1:
         return "{} --status-json did not include the final DNS seed field group".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if blocked_field_groups[-1].get("network") != "testnet" or blocked_field_groups[-1].get("blocker_type") != "dns_seeds":
+        return "{} --status-json did not include final blocker group network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_blocked_field_group") != blocked_field_groups[0]:
@@ -4558,6 +4566,7 @@ def main():
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
+        ("blocker_type", "manifest status JSON includes blocked field group blocker type"),
         ("next_blocked_field_group", "manifest status JSON includes current blocked field group"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
         ("next_blocked_fields", "manifest status JSON includes next blocked fields"),
@@ -5444,6 +5453,10 @@ def main():
         (
             "blocked_field_groups",
             "public launch manifest status-json blocked field groups documentation",
+        ),
+        (
+            "blocker_type",
+            "public launch manifest status-json blocked field group type documentation",
         ),
         (
             "blocked_field_group_count",
