@@ -614,8 +614,20 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include the full action plan".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_action") != status_json.get("next"):
+        return "{} --status-json did not expose next_action as the current handoff entry".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("id") != "main.litecoin_snapshot":
+        return "{} --status-json next_action did not preserve the current blocker id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
         return "{} --status-json did not include next action guidance".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--set-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next_action", {}).get("action", ""):
+        return "{} --status-json did not include next_action apply guidance".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "main.litecoin_snapshot.height" not in status_json.get("blocked_fields", []):
@@ -726,6 +738,10 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_blocked_field_group", {}).get("action", ""):
             return "{} --status-json did not shell-quote a staged next blocker field group action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_action", {}).get("action", ""):
+            return "{} --status-json did not shell-quote a staged next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("next_blocked_field_count") != 11:
@@ -3868,6 +3884,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not point complete blocked manifests at --mark-ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_action") != complete_status.get("next"):
+            return "{} --status-json did not expose the complete-manifest next_action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("ready_for_chainparams") is not False:
             return "{} --status-json treated complete blocked manifest as ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4076,6 +4096,10 @@ def require_public_launch_manifest_current():
             "check-chainparams",
         ]:
             return "{} --status-json did not report ready chainparams handoff actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_action", {}).get("id") != "emit-chainparams":
+            return "{} --status-json did not expose ready-manifest next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4719,6 +4743,7 @@ def main():
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
+        ("next_action", "manifest status JSON includes the current handoff action"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
