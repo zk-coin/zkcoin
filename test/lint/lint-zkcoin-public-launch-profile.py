@@ -374,6 +374,36 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    action_plan_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--action-plan",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if action_plan_result.returncode != 0:
+        return "{} --action-plan failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            action_plan_result.stderr.strip() or action_plan_result.stdout.strip() or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile action plan:",
+        "1. main.litecoin_snapshot",
+        "8. testnet.dns_seeds",
+        "--check-snapshot-audit main <snapshot_audit.json>",
+        "--check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
+    ):
+        if expected not in action_plan_result.stdout:
+            return "{} --action-plan did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     with tempfile.TemporaryDirectory(prefix="zkcoin manifest path ") as spaced_manifest_dir:
         spaced_manifest_path = Path(spaced_manifest_dir) / "public launch manifest.json"
         spaced_manifest_path.write_text(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"), encoding="utf8")
@@ -402,6 +432,30 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_action_plan_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--action-plan",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_action_plan_result.returncode != 0:
+            return "{} --action-plan failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_action_plan_result.stderr.strip()
+                or spaced_action_plan_result.stdout.strip()
+                or "no output",
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
+            return "{} --action-plan did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     mixed_action_result = subprocess.run(
         [
             sys.executable,
@@ -423,6 +477,50 @@ def require_public_launch_manifest_current():
         )
     if "use only one primary action at a time: --set-auxpow, --next-action" not in mixed_action_result.stderr:
         return "{} did not explain mixed primary launch-profile action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    mixed_plan_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--next-action",
+            "--action-plan",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if mixed_plan_result.returncode == 0:
+        return "{} accepted mixed read-only launch-profile actions".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "use only one primary action at a time: --next-action, --action-plan" not in mixed_plan_result.stderr:
+        return "{} did not explain mixed read-only launch-profile action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    action_plan_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--action-plan",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if action_plan_in_place_result.returncode == 0:
+        return "{} --action-plan accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--action-plan does not write the manifest" not in action_plan_in_place_result.stderr:
+        return "{} --action-plan did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -3096,6 +3194,31 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        complete_plan_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--action-plan",
+                str(complete_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if complete_plan_result.returncode != 0:
+            return "{} --action-plan failed for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "1. mark-ready" not in complete_plan_result.stdout:
+            return "{} --action-plan did not point complete blocked manifests at --mark-ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if str(complete_path) not in complete_plan_result.stdout:
+            return "{} --action-plan did not preserve the checked complete manifest path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         mark_ready_result = subprocess.run(
             [
                 sys.executable,
@@ -3200,6 +3323,39 @@ def require_public_launch_manifest_current():
             )
         if str(ready_path) not in ready_next_result.stdout:
             return "{} --next-action did not preserve the checked ready manifest path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        ready_plan_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--action-plan",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_plan_result.returncode != 0:
+            return "{} --action-plan failed for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "1. emit chainparams" not in ready_plan_result.stdout:
+            return "{} --action-plan did not print ready-manifest emit step".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "2. verify chainparams" not in ready_plan_result.stdout:
+            return "{} --action-plan did not print ready-manifest verify step".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--emit-chainparams" not in ready_plan_result.stdout or "--check-chainparams" not in ready_plan_result.stdout:
+            return "{} --action-plan did not print ready-manifest chainparams handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if str(ready_path) not in ready_plan_result.stdout:
+            return "{} --action-plan did not preserve the checked ready manifest path".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3753,6 +3909,7 @@ def main():
         ("--allow-blocked", "manifest lint-mode flag"),
         ("selected_primary_actions", "manifest rejects mixed primary actions"),
         ("--next-action", "manifest next-action guidance flag"),
+        ("--action-plan", "manifest full action-plan guidance flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
@@ -3823,6 +3980,7 @@ def main():
         ("shell_quote", "manifest guidance shell-quotes handoff paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("next_action_text", "manifest prints next action guidance"),
+        ("action_plan_text", "manifest prints full action-plan guidance"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
         ("validation_failure_message", "manifest emits detailed transition failures"),
@@ -4646,6 +4804,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --next-action",
             "public launch manifest next-action documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --action-plan",
+            "public launch manifest action-plan documentation",
         ),
         (
             "shell-quotes the manifest path",

@@ -1756,6 +1756,29 @@ def next_action_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
+def action_plan_text(manifest, manifest_path):
+    manifest_path = shell_quote(display_path(manifest_path))
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    lines = ["zkCoin public launch profile action plan:"]
+    if blockers:
+        for index, blocker in enumerate(blockers, 1):
+            lines.append(f"  {index}. {blocker}")
+            lines.append(f"     action: {next_blocker_command(blocker, manifest_path)}")
+        return "\n".join(lines)
+
+    if manifest.get("status") == "blocked":
+        lines.append("  1. mark-ready")
+        lines.append(f"     command: {tool_path} --mark-ready --in-place {manifest_path}")
+        return "\n".join(lines)
+
+    lines.append("  1. emit chainparams")
+    lines.append(f"     command: {tool_path} --emit-chainparams {manifest_path}")
+    lines.append("  2. verify chainparams")
+    lines.append(f"     command: {tool_path} --check-chainparams src/chainparams.cpp {manifest_path}")
+    return "\n".join(lines)
+
+
 def selected_primary_actions(args):
     actions = []
     if args.set_snapshot is not None:
@@ -1780,6 +1803,8 @@ def selected_primary_actions(args):
         actions.append("--mark-ready")
     if args.next_action:
         actions.append("--next-action")
+    if args.action_plan:
+        actions.append("--action-plan")
     if args.emit_chainparams:
         actions.append("--emit-chainparams")
     if args.check_chainparams is not None:
@@ -1791,6 +1816,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
     parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
+    parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
         "--check-chainparams",
@@ -2020,6 +2046,8 @@ def main():
     allow_blocked = args.allow_blocked or updated_manifest
     if args.next_action:
         allow_blocked = True
+    if args.action_plan:
+        allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
         print("zkCoin public launch profile manifest failed validation:", file=sys.stderr)
@@ -2048,6 +2076,13 @@ def main():
             print("error: --next-action does not write the manifest", file=sys.stderr)
             return 1
         print(next_action_text(manifest, args.manifest))
+        return 0
+
+    if args.action_plan:
+        if args.in_place:
+            print("error: --action-plan does not write the manifest", file=sys.stderr)
+            return 1
+        print(action_plan_text(manifest, args.manifest))
         return 0
 
     if args.in_place:
