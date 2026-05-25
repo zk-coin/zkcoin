@@ -2981,6 +2981,8 @@ def require_public_launch_manifest_current():
         "DNS seed candidate verified for main.",
         "seed count: 2",
         "seeds: seed1.zkcoin.net, seed2.zkcoin.net",
+        "remaining blockers after applying candidate: 7",
+        "next blocker after applying candidate: main.litecoin_snapshot",
     ):
         if expected not in check_dns_result.stdout:
             return "{} --check-dns-seeds did not print {}".format(
@@ -4429,6 +4431,10 @@ def main():
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("checked_dns_seeds_candidate", "manifest checks DNS seed candidates without writing"),
         ("dns_seeds_check_text", "manifest prints DNS seed candidate check summaries"),
+        (
+            "dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate)",
+            "manifest reports DNS seed candidate progress",
+        ),
         ("set_identity", "manifest updates public network identity"),
         ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
         ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
@@ -5218,6 +5224,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
             "public launch manifest DNS seed read-only check documentation",
+        ),
+        (
+            "read-only DNS seed check reports the remaining blocker count and next blocker",
+            "public launch manifest DNS seed candidate-progress documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
