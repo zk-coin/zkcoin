@@ -1473,10 +1473,10 @@ def checked_identity_candidate(manifest, network, *identity_args):
                 check,
             )
         )
-    return candidate["networks"][network]["public_network_identity"]
+    return candidate["networks"][network]["public_network_identity"], candidate
 
 
-def identity_check_text(network, identity):
+def identity_check_text(network, identity, candidate):
     base58 = identity["base58_prefixes"]
     return "\n".join((
         f"Public identity candidate verified for {network}.",
@@ -1490,6 +1490,7 @@ def identity_check_text(network, identity):
         f"  extended secret key prefix: {','.join(f'{byte:02x}' for byte in base58['ext_secret_key'])}",
         f"  bech32 HRP: {identity['bech32_hrp']}",
         f"  MWEB HRP: {identity['mweb_hrp']}",
+        candidate_next_step_text(candidate, "candidate"),
     ))
 
 
@@ -2160,11 +2161,15 @@ def main():
             print("error: --check-identity does not write the manifest", file=sys.stderr)
             return 1
         try:
-            identity = checked_identity_candidate(manifest, args.check_identity[0], *args.check_identity[1:])
+            identity, candidate = checked_identity_candidate(
+                manifest,
+                args.check_identity[0],
+                *args.check_identity[1:],
+            )
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(identity_check_text(args.check_identity[0], identity))
+        print(identity_check_text(args.check_identity[0], identity, candidate))
         return 0
 
     updated_launch_fields = (
