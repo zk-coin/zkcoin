@@ -127,8 +127,10 @@ Both are intentionally present before behavior changes so tests and review can t
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, the local launch placeholder `0x5a4b`, and the
   Litecoin parent versionbits-derived `0x2000..0x3fff` range. After provisioning
-  zkCoin-operated DNS seeds, update
-  the target profile with `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
+  zkCoin-operated DNS seeds, verify them without modifying the manifest with
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`,
+  then update the target profile with
+  `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
   the validator rejects empty, duplicate, single-label, numeric final-label,
   overlong-label, malformed, uppercase, reserved or local-use suffixes, and
   inherited Litecoin seed hostnames. After choosing the public network identity,
