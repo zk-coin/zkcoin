@@ -1888,6 +1888,7 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
             "blocked_fields": check.blockers,
+            "blocked_field_count": len(check.blockers),
             "action_count": len(actions),
             "next": actions[0] if actions else None,
             "actions": actions,
