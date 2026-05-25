@@ -334,6 +334,10 @@ that verified audit summary for the public launch-profile manifest handoff:
 
 ```bash
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --snapshot-audit-template NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --check-snapshot-audit NETWORK <snapshot_audit.json> \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -353,8 +357,8 @@ handoff advances the expected profile before any manifest write.
 The manifest handoff rejects reordered audit summaries when all expected fields
 are present, so the reviewed artifact must keep the template order.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
-read-only check command and the follow-up update command with the
-target profile derived from `source_chain` and the exact audit summary path filled in. Printed
+template command, the read-only check command, and the follow-up update command
+with the target profile derived from `source_chain` and the exact audit summary path filled in. Printed
 snapshot and audit paths are shell-quoted when needed, so copy the generated
 commands exactly. The operator creates the audit summary with an
 exclusive final-path write, fsyncs the file and parent directory, and rejects final-path or
