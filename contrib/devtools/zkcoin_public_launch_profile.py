@@ -132,7 +132,7 @@ BLOCKER_ORDER = (
     "testnet.dns_seeds",
 )
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
-STATUS_JSON_SCHEMA_VERSION = 1
+STATUS_JSON_SCHEMA_VERSION = 2
 
 
 class DuplicateJSONFieldError(ValueError):
