@@ -187,6 +187,28 @@ def ordered_unresolved_blocker_ids(manifest):
     return [blocker for blocker in BLOCKER_ORDER if blocker in blockers]
 
 
+def blocked_fields_for_blocker(blocker_id, blocked_fields):
+    network, blocker = blocker_id.split(".", 1)
+    if blocker == "litecoin_snapshot":
+        prefix = f"{network}.litecoin_snapshot."
+        return [field for field in blocked_fields if field.startswith(prefix)]
+    if blocker == "auxpow_chain_id":
+        path = f"{network}.auxpow.chain_id"
+        return [field for field in blocked_fields if field == path]
+    if blocker == "public_network_identity":
+        prefix = f"{network}.public_network_identity."
+        dns_seed_path = f"{network}.public_network_identity.dns_seeds"
+        return [
+            field
+            for field in blocked_fields
+            if field.startswith(prefix) and field != dns_seed_path
+        ]
+    if blocker == "dns_seeds":
+        path = f"{network}.public_network_identity.dns_seeds"
+        return [field for field in blocked_fields if field == path]
+    raise ValueError(f"unknown blocker id: {blocker_id}")
+
+
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -1878,6 +1900,12 @@ def action_plan_text(manifest, manifest_path):
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
+    next_blocker = blockers[0] if blockers else None
+    next_blocked_fields = (
+        blocked_fields_for_blocker(next_blocker, check.blockers)
+        if next_blocker is not None
+        else []
+    )
     status = manifest.get("status")
     return json.dumps(
         {
@@ -1889,6 +1917,8 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blockers": blockers,
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
+            "next_blocked_fields": next_blocked_fields,
+            "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
             "next": actions[0] if actions else None,
             "actions": actions,
