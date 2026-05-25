@@ -234,8 +234,8 @@ def require_no_checked_in_seed_entries(path):
 
 
 def require_status_json_schema_version(status_json):
-    if status_json.get("schema_version") != 1:
-        return "{} --status-json did not report schema_version 1".format(
+    if status_json.get("schema_version") != 2:
+        return "{} --status-json did not report schema_version 2".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     return None
@@ -4426,7 +4426,7 @@ def main():
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
         ("--status-json", "manifest machine-readable status guidance flag"),
-        ("STATUS_JSON_SCHEMA_VERSION = 1", "manifest status JSON schema version"),
+        ("STATUS_JSON_SCHEMA_VERSION = 2", "manifest status JSON schema version"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
