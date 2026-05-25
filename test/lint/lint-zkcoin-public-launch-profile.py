@@ -3262,6 +3262,8 @@ def require_public_launch_manifest_current():
         "extended public key prefix: 04,20,24,31",
         "bech32 HRP: zk",
         "MWEB HRP: zkmweb",
+        "remaining blockers after applying candidate: 7",
+        "next blocker after applying candidate: main.litecoin_snapshot",
     ):
         if expected not in check_identity_result.stdout:
             return "{} --check-identity did not print {}".format(
@@ -4439,6 +4441,10 @@ def main():
         ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
         ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
         ("identity_check_text", "manifest prints public identity candidate check summaries"),
+        (
+            "identity_check_text(args.check_identity[0], identity, candidate)",
+            "manifest reports public identity candidate progress",
+        ),
         ("remove_blocker(manifest, f\"{network}.public_network_identity\")", "manifest removes resolved public identity blocker"),
         ("remove_blocker(manifest, f\"{network}.dns_seeds\")", "manifest removes resolved DNS seed blocker"),
         ("remove_blocker(manifest, f\"{network}.auxpow_chain_id\")", "manifest removes resolved AuxPoW blocker"),
@@ -5240,6 +5246,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --check-identity NETWORK",
             "public launch manifest identity read-only check documentation",
+        ),
+        (
+            "read-only identity check reports the remaining blocker count and next blocker",
+            "public launch manifest identity candidate-progress documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-identity NETWORK",
