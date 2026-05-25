@@ -1987,6 +1987,7 @@ def action_plan_text(manifest, manifest_path):
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
+    next_action = actions[0] if actions else None
     blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
@@ -2007,7 +2008,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
-            "next": actions[0] if actions else None,
+            "next": next_action,
+            "next_action": next_action,
             "actions": actions,
         },
         indent=2,
