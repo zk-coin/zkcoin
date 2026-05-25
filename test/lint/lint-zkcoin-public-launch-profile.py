@@ -2251,6 +2251,34 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        reordered_field_audit_path = Path(temp_dir) / "reordered-field-audit.json"
+        reordered_field_audit_path.write_text(
+            json.dumps(dict(reversed(list(audit.items())))),
+            encoding="utf8",
+        )
+        reordered_field_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(reordered_field_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if reordered_field_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an audit summary with reordered fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--snapshot-audit-template output" not in reordered_field_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain reordered audit field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         relative_file_audit_path = Path(temp_dir) / "relative-file-audit.json"
         relative_file_audit = dict(audit)
         relative_file_audit["snapshot_file"] = "snapshots/ltc-block-x.dat"
@@ -4348,6 +4376,7 @@ def main():
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("snapshot audit summary has unexpected field", "manifest rejects extra snapshot audit summary fields"),
+        ("snapshot audit summary field order must match --snapshot-audit-template output", "manifest rejects reordered snapshot audit summary fields"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("64-character lowercase hex string", "manifest rejects non-lowercase snapshot audit hashes"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
@@ -5266,6 +5295,10 @@ def main():
         (
             "same field order as the",
             "public launch snapshot audit template-order documentation",
+        ),
+        (
+            "rejects reordered audit summaries",
+            "public launch snapshot audit order rejection documentation",
         ),
         (
             "read-only check command and the follow-up update command",

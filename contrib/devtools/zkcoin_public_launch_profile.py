@@ -1082,6 +1082,13 @@ def parse_snapshot_audit(audit_path):
             "snapshot audit summary has unexpected field(s): "
             + ", ".join(unexpected_fields)
         )
+    if (
+        set(audit) == set(SNAPSHOT_AUDIT_SUMMARY_FIELDS)
+        and list(audit) != list(SNAPSHOT_AUDIT_SUMMARY_FIELDS)
+    ):
+        raise ValueError(
+            "snapshot audit summary field order must match --snapshot-audit-template output"
+        )
 
     parsed = {
         "height": require_snapshot_audit_int(audit, "height"),

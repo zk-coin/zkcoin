@@ -330,6 +330,8 @@ Use the read-only `--check-snapshot-audit` command first to verify the audit
 summary, source-chain mapping, snapshot file byte size, and snapshot file
 SHA-256, then stage the candidate through launch-manifest validation without
 modifying the manifest.
+The manifest handoff rejects reordered audit summaries when all expected fields
+are present, so the reviewed artifact must keep the template order.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
 read-only check command and the follow-up update command with the
 target profile derived from `source_chain` and the exact audit summary path filled in. Printed
