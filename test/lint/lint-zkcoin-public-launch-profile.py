@@ -2281,6 +2281,64 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        snapshot_resolved_path = Path(temp_dir) / "snapshot-resolved.json"
+        snapshot_resolved_path.write_text(json.dumps(audit_manifest), encoding="utf8")
+        snapshot_auxpow_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-auxpow",
+                "main",
+                "0x5001",
+                str(snapshot_resolved_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if snapshot_auxpow_result.returncode != 0:
+            return "{} --set-auxpow failed after resolving the snapshot blocker: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                snapshot_auxpow_result.stderr.strip()
+                or snapshot_auxpow_result.stdout.strip()
+                or "no output",
+            )
+        snapshot_auxpow_path = Path(temp_dir) / "snapshot-auxpow-resolved.json"
+        snapshot_auxpow_path.write_text(snapshot_auxpow_result.stdout, encoding="utf8")
+        snapshot_auxpow_next_action_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(snapshot_auxpow_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if snapshot_auxpow_next_action_result.returncode != 0:
+            return "{} --next-action failed after resolving snapshot and AuxPoW blockers: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                snapshot_auxpow_next_action_result.stderr.strip()
+                or snapshot_auxpow_next_action_result.stdout.strip()
+                or "no output",
+            )
+        if "next blocker: main.public_network_identity" not in snapshot_auxpow_next_action_result.stdout:
+            return "{} --next-action did not advance to the public identity blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--check-identity main <message_start> <port>" not in snapshot_auxpow_next_action_result.stdout:
+            return "{} --next-action did not print the public identity candidate check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-identity main <message_start> <port>" not in snapshot_auxpow_next_action_result.stdout:
+            return "{} --next-action did not print the public identity update command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     check_auxpow_result = subprocess.run(
         [
             sys.executable,
@@ -2563,6 +2621,113 @@ def require_public_launch_manifest_current():
         )
     if "main.dns_seeds" not in identity_blockers:
         return "{} --set-identity removed unrelated DNS seed blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    check_identity_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-identity",
+            "main",
+            "fa,bf,b5,d9",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_identity_result.returncode != 0:
+        return "{} --check-identity failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_identity_result.stderr.strip() or check_identity_result.stdout.strip() or "no output",
+        )
+    for expected in (
+        "Public identity candidate verified for main.",
+        "message start: 250,191,181,217",
+        "default port: 19445",
+        "extended public key prefix: 04,20,24,31",
+        "bech32 HRP: zk",
+        "MWEB HRP: zkmweb",
+    ):
+        if expected not in check_identity_result.stdout:
+            return "{} --check-identity did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    check_identity_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-identity",
+            "main",
+            "fa,bf,b5,d9",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_identity_in_place_result.returncode == 0:
+        return "{} --check-identity accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-identity does not write the manifest" not in check_identity_in_place_result.stderr:
+        return "{} --check-identity did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_check_identity_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-identity",
+            "main",
+            "fb,c0,b6,db",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_check_identity_result.returncode == 0:
+        return "{} --check-identity accepted an inherited Litecoin message start".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "non-Litecoin non-printable magic bytes" not in unsafe_check_identity_result.stderr:
+        return "{} --check-identity did not explain inherited message-start rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -3444,6 +3609,7 @@ def main():
         ("--check-auxpow", "manifest AuxPoW read-only check flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
         ("--set-identity", "manifest public identity update flag"),
+        ("--check-identity", "manifest public identity read-only check flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
@@ -3506,6 +3672,9 @@ def main():
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("set_identity", "manifest updates public network identity"),
+        ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
+        ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
+        ("identity_check_text", "manifest prints public identity candidate check summaries"),
         ("remove_blocker(manifest, f\"{network}.public_network_identity\")", "manifest removes resolved public identity blocker"),
         ("remove_blocker(manifest, f\"{network}.dns_seeds\")", "manifest removes resolved DNS seed blocker"),
         ("remove_blocker(manifest, f\"{network}.auxpow_chain_id\")", "manifest removes resolved AuxPoW blocker"),
@@ -4284,6 +4453,10 @@ def main():
         (
             "reserved or local-use suffixes",
             "public launch manifest DNS seed rejection documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --check-identity NETWORK",
+            "public launch manifest identity read-only check documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-identity NETWORK",

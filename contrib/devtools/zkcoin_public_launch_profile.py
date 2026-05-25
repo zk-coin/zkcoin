@@ -1319,6 +1319,43 @@ def set_identity(
 ):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    parsed_identity = identity_profile_from_args(
+        message_start,
+        default_port,
+        pubkey_address,
+        script_address,
+        script_address2,
+        secret_key,
+        ext_public_key,
+        ext_secret_key,
+        bech32_hrp,
+        mweb_hrp,
+    )
+
+    profile = update_network_profile(manifest, network)
+    identity = update_child_object(
+        profile,
+        "public_network_identity",
+        f"{network}.public_network_identity",
+    )
+    identity.update(parsed_identity)
+    identity.setdefault("dns_seeds", [])
+    identity.setdefault("fixed_seeds", [])
+    remove_blocker(manifest, f"{network}.public_network_identity")
+
+
+def identity_profile_from_args(
+    message_start,
+    default_port,
+    pubkey_address,
+    script_address,
+    script_address2,
+    secret_key,
+    ext_public_key,
+    ext_secret_key,
+    bech32_hrp,
+    mweb_hrp,
+):
     parsed_identity = {
         "message_start": parse_byte_sequence(message_start, 4, "message_start"),
         "default_port": parse_default_port(default_port),
@@ -1342,17 +1379,40 @@ def set_identity(
         raise ValueError("mweb_hrp must be lowercase printable ASCII at most 83 characters and must not reuse Litecoin HRPs")
     if bech32_hrp == mweb_hrp:
         raise ValueError("mweb_hrp must differ from bech32_hrp")
+    return parsed_identity
 
-    profile = update_network_profile(manifest, network)
-    identity = update_child_object(
-        profile,
-        "public_network_identity",
-        f"{network}.public_network_identity",
-    )
-    identity.update(parsed_identity)
-    identity.setdefault("dns_seeds", [])
-    identity.setdefault("fixed_seeds", [])
-    remove_blocker(manifest, f"{network}.public_network_identity")
+
+def checked_identity_candidate(manifest, network, *identity_args):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    candidate = json.loads(json.dumps(manifest))
+    set_identity(candidate, network, *identity_args)
+    check = validate_manifest(candidate, allow_blocked=True)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "public identity candidate failed validation:",
+                check,
+            )
+        )
+    return candidate["networks"][network]["public_network_identity"]
+
+
+def identity_check_text(network, identity):
+    base58 = identity["base58_prefixes"]
+    return "\n".join((
+        f"Public identity candidate verified for {network}.",
+        f"  message start: {','.join(str(byte) for byte in identity['message_start'])}",
+        f"  default port: {identity['default_port']}",
+        f"  pubkey address prefix: {','.join(str(byte) for byte in base58['pubkey_address'])}",
+        f"  script address prefix: {','.join(str(byte) for byte in base58['script_address'])}",
+        f"  script address 2 prefix: {','.join(str(byte) for byte in base58['script_address2'])}",
+        f"  secret key prefix: {','.join(str(byte) for byte in base58['secret_key'])}",
+        f"  extended public key prefix: {','.join(f'{byte:02x}' for byte in base58['ext_public_key'])}",
+        f"  extended secret key prefix: {','.join(f'{byte:02x}' for byte in base58['ext_secret_key'])}",
+        f"  bech32 HRP: {identity['bech32_hrp']}",
+        f"  MWEB HRP: {identity['mweb_hrp']}",
+    ))
 
 
 def validation_failure_message(prefix, check):
@@ -1633,7 +1693,9 @@ def next_blocker_command(blocker_id, manifest_path):
         )
     if blocker == "public_network_identity":
         return (
-            "select non-Litecoin public identity values and run "
+            "select non-Litecoin public identity values, run "
+            f"{tool_path} --check-identity {network} <message_start> <port> <pubkey> <script> "
+            f"<script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> {manifest_path}, then run "
             f"{tool_path} --set-identity {network} <message_start> <port> <pubkey> <script> "
             f"<script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
         )
@@ -1684,6 +1746,8 @@ def selected_primary_actions(args):
         actions.append("--set-dns-seeds")
     if args.set_identity is not None:
         actions.append("--set-identity")
+    if args.check_identity is not None:
+        actions.append("--check-identity")
     if args.mark_ready:
         actions.append("--mark-ready")
     if args.next_action:
@@ -1759,6 +1823,24 @@ def main():
             "MWEB_HRP",
         ),
         help="update one network's public identity values and remove its public identity blocker",
+    )
+    parser.add_argument(
+        "--check-identity",
+        nargs=11,
+        metavar=(
+            "NETWORK",
+            "MESSAGE_START",
+            "DEFAULT_PORT",
+            "PUBKEY",
+            "SCRIPT",
+            "SCRIPT2",
+            "SECRET",
+            "XPUB",
+            "XPRV",
+            "BECH32_HRP",
+            "MWEB_HRP",
+        ),
+        help="verify one network's public identity candidate without updating the manifest",
     )
     parser.add_argument(
         "--mark-ready",
@@ -1854,6 +1936,18 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.check_identity is not None:
+        if args.in_place:
+            print("error: --check-identity does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            identity = checked_identity_candidate(manifest, args.check_identity[0], *args.check_identity[1:])
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(identity_check_text(args.check_identity[0], identity))
+        return 0
 
     updated_launch_fields = (
         args.set_snapshot is not None
