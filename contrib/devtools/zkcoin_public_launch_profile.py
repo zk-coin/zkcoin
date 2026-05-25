@@ -1922,18 +1922,25 @@ def next_action_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
+def blocker_action_entry(index, blocker, manifest_path):
+    network, blocker_type = blocker.split(".", 1)
+    return {
+        "step": index,
+        "kind": "blocker",
+        "id": blocker,
+        "network": network,
+        "blocker_type": blocker_type,
+        "action": next_blocker_command(blocker, manifest_path),
+    }
+
+
 def action_plan_entries(manifest, manifest_path):
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(manifest)
     if blockers:
         return [
-            {
-                "step": index,
-                "kind": "blocker",
-                "id": blocker,
-                "action": next_blocker_command(blocker, manifest_path),
-            }
+            blocker_action_entry(index, blocker, manifest_path)
             for index, blocker in enumerate(blockers, 1)
         ]
 
