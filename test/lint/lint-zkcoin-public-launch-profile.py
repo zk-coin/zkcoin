@@ -2305,8 +2305,15 @@ def require_public_launch_manifest_current():
                 or snapshot_auxpow_result.stdout.strip()
                 or "no output",
             )
+        try:
+            snapshot_auxpow_manifest = json.loads(snapshot_auxpow_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --set-auxpow after snapshot did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
         snapshot_auxpow_path = Path(temp_dir) / "snapshot-auxpow-resolved.json"
-        snapshot_auxpow_path.write_text(snapshot_auxpow_result.stdout, encoding="utf8")
+        snapshot_auxpow_path.write_text(json.dumps(snapshot_auxpow_manifest), encoding="utf8")
         snapshot_auxpow_next_action_result = subprocess.run(
             [
                 sys.executable,
@@ -2508,6 +2515,83 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    check_dns_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-dns-seeds",
+            "main",
+            "seed1.zkcoin.net,seed2.zkcoin.net",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_dns_result.returncode != 0:
+        return "{} --check-dns-seeds failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_dns_result.stderr.strip() or check_dns_result.stdout.strip() or "no output",
+        )
+    for expected in (
+        "DNS seed candidate verified for main.",
+        "seed count: 2",
+        "seeds: seed1.zkcoin.net, seed2.zkcoin.net",
+    ):
+        if expected not in check_dns_result.stdout:
+            return "{} --check-dns-seeds did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    check_dns_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-dns-seeds",
+            "main",
+            "seed1.zkcoin.net,seed2.zkcoin.net",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_dns_in_place_result.returncode == 0:
+        return "{} --check-dns-seeds accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-dns-seeds does not write the manifest" not in check_dns_in_place_result.stderr:
+        return "{} --check-dns-seeds did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_check_dns_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-dns-seeds",
+            "main",
+            "seed-a.litecoin.net",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_check_dns_result.returncode == 0:
+        return "{} --check-dns-seeds accepted an inherited Litecoin seed hostname".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "invalid DNS seed hostname" not in unsafe_check_dns_result.stderr:
+        return "{} --check-dns-seeds did not explain inherited seed hostname rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     unsafe_dns_result = subprocess.run(
         [
             sys.executable,
@@ -2623,6 +2707,80 @@ def require_public_launch_manifest_current():
         return "{} --set-identity removed unrelated DNS seed blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        snapshot_auxpow_identity_path = Path(temp_dir) / "snapshot-auxpow-resolved.json"
+        snapshot_auxpow_identity_path.write_text(json.dumps(snapshot_auxpow_manifest), encoding="utf8")
+        identity_next_manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                str(snapshot_auxpow_identity_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if identity_next_manifest_result.returncode != 0:
+            return "{} --set-identity failed after resolving snapshot and AuxPoW blockers: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                identity_next_manifest_result.stderr.strip()
+                or identity_next_manifest_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            identity_next_manifest = json.loads(identity_next_manifest_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --set-identity after snapshot and AuxPoW did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        identity_manifest_path = Path(temp_dir) / "identity-resolved-manifest.json"
+        identity_manifest_path.write_text(json.dumps(identity_next_manifest), encoding="utf8")
+        identity_next_action_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(identity_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if identity_next_action_result.returncode != 0:
+            return "{} --next-action failed after resolving the public identity blocker: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                identity_next_action_result.stderr.strip()
+                or identity_next_action_result.stdout.strip()
+                or "no output",
+            )
+        if "next blocker: main.dns_seeds" not in identity_next_action_result.stdout:
+            return "{} --next-action did not advance to the DNS seed blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--check-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in identity_next_action_result.stdout:
+            return "{} --next-action did not print the DNS seed candidate check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in identity_next_action_result.stdout:
+            return "{} --next-action did not print the DNS seed update command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
     check_identity_result = subprocess.run(
         [
@@ -3608,6 +3766,7 @@ def main():
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--check-auxpow", "manifest AuxPoW read-only check flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
+        ("--check-dns-seeds", "manifest DNS seed read-only check flag"),
         ("--set-identity", "manifest public identity update flag"),
         ("--check-identity", "manifest public identity read-only check flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
@@ -3671,6 +3830,8 @@ def main():
         ("demote_ready_for_review", "manifest demotes edited ready profiles for re-review"),
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
+        ("checked_dns_seeds_candidate", "manifest checks DNS seed candidates without writing"),
+        ("dns_seeds_check_text", "manifest prints DNS seed candidate check summaries"),
         ("set_identity", "manifest updates public network identity"),
         ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
         ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
@@ -4445,6 +4606,10 @@ def main():
         (
             "no longer the local launch placeholder",
             "public launch readiness AuxPoW placeholder documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
+            "public launch manifest DNS seed read-only check documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",

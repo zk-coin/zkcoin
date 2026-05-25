@@ -1303,6 +1303,30 @@ def set_dns_seeds(manifest, network, dns_seeds):
     remove_blocker(manifest, f"{network}.dns_seeds")
 
 
+def checked_dns_seeds_candidate(manifest, network, dns_seeds):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    candidate = json.loads(json.dumps(manifest))
+    set_dns_seeds(candidate, network, dns_seeds)
+    check = validate_manifest(candidate, allow_blocked=True)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "DNS seed candidate failed validation:",
+                check,
+            )
+        )
+    return candidate["networks"][network]["public_network_identity"]["dns_seeds"]
+
+
+def dns_seeds_check_text(network, dns_seeds):
+    return "\n".join((
+        f"DNS seed candidate verified for {network}.",
+        f"  seed count: {len(dns_seeds)}",
+        "  seeds: " + ", ".join(dns_seeds),
+    ))
+
+
 def set_identity(
     manifest,
     network,
@@ -1701,7 +1725,9 @@ def next_blocker_command(blocker_id, manifest_path):
         )
     if blocker == "dns_seeds":
         return (
-            "provision zkCoin DNS seed infrastructure and run "
+            "provision zkCoin DNS seed infrastructure, run "
+            f"{tool_path} --check-dns-seeds {network} <seed1.hostname>,<seed2.hostname> "
+            f"{manifest_path}, then run "
             f"{tool_path} --set-dns-seeds {network} <seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
         )
     raise ValueError(f"unknown blocker id: {blocker_id}")
@@ -1744,6 +1770,8 @@ def selected_primary_actions(args):
         actions.append("--check-auxpow")
     if args.set_dns_seeds is not None:
         actions.append("--set-dns-seeds")
+    if args.check_dns_seeds is not None:
+        actions.append("--check-dns-seeds")
     if args.set_identity is not None:
         actions.append("--set-identity")
     if args.check_identity is not None:
@@ -1805,6 +1833,12 @@ def main():
         nargs=2,
         metavar=("NETWORK", "SEED1,SEED2"),
         help="update one network's DNS seed hostnames and remove its DNS seed blocker",
+    )
+    parser.add_argument(
+        "--check-dns-seeds",
+        nargs=2,
+        metavar=("NETWORK", "SEED1,SEED2"),
+        help="verify one network's DNS seed hostname candidates without updating the manifest",
     )
     parser.add_argument(
         "--set-identity",
@@ -1929,6 +1963,18 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.check_dns_seeds is not None:
+        if args.in_place:
+            print("error: --check-dns-seeds does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            dns_seeds = checked_dns_seeds_candidate(manifest, *args.check_dns_seeds)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds))
+        return 0
 
     if args.set_identity is not None:
         try:
