@@ -566,6 +566,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not preserve field group blocker order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if blocked_field_groups[0].get("step") != 1 or blocked_field_groups[0].get("kind") != "blocker":
+        return "{} --status-json did not include first blocker group metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-snapshot-audit main <snapshot_audit.json>" not in blocked_field_groups[0].get("action", ""):
+        return "{} --status-json did not include first blocker group action guidance".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if blocked_field_groups[0].get("field_count") != 11:
         return "{} --status-json did not count first blocker fields".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -698,6 +706,10 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("blocked_field_group_count") != 8:
             return "{} --status-json did not count staged blocker field groups".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("action", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("next_blocked_field_count") != 11:
