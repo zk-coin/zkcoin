@@ -856,7 +856,12 @@ print(f"-ltcsnapshotfile={shell_quote(snapshot_path)}")
 print()
 print("Snapshot public launch-profile manifest update:")
 if audit_json_path:
-    print("Apply the verified audit summary to the matching public profile.")
+    print("Verify the audit summary, then apply it to the matching public profile.")
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--check-snapshot-audit {target_network} {shell_quote(audit_json_path)} "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
     print(
         "contrib/devtools/zkcoin_public_launch_profile.py "
         f"--set-snapshot-audit {target_network} {shell_quote(audit_json_path)} "
@@ -864,6 +869,11 @@ if audit_json_path:
     )
 else:
     print("Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> and rerun before updating the public profile.")
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--check-snapshot-audit {target_network} <snapshot_audit.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
     print(
         "contrib/devtools/zkcoin_public_launch_profile.py "
         f"--set-snapshot-audit {target_network} <snapshot_audit.json> "
