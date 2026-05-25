@@ -135,6 +135,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow NETWORK <chain_id>`,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
+  the read-only AuxPoW check reports the remaining blocker count and next blocker
+  that would remain after applying the candidate, so reviewers can verify blocker
+  progress before changing the manifest;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, the local launch placeholder `0x5a4b`, and the
   Litecoin parent versionbits-derived `0x2000..0x3fff` range. After provisioning

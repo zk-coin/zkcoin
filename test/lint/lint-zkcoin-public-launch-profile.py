@@ -2811,6 +2811,8 @@ def require_public_launch_manifest_current():
         "chain id: 20481",
         "chain id hex: 0x5001",
         "strict chain id: true",
+        "remaining blockers after applying candidate: 7",
+        "next blocker after applying candidate: main.litecoin_snapshot",
     ):
         if expected not in check_auxpow_result.stdout:
             return "{} --check-auxpow did not print {}".format(
@@ -4357,13 +4359,14 @@ def main():
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
+        ("candidate_next_step_text(candidate, \"candidate\")", "manifest reports AuxPoW candidate progress"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
-        ("remaining blockers after applying audit", "manifest reports snapshot audit candidate blocker count"),
+        ("candidate_next_step_text(candidate, \"audit\")", "manifest reports snapshot audit candidate blocker count"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
@@ -5191,6 +5194,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --check-auxpow NETWORK <chain_id>",
             "public launch manifest AuxPoW read-only check documentation",
+        ),
+        (
+            "read-only AuxPoW check reports the remaining blocker count and next blocker",
+            "public launch manifest AuxPoW candidate-progress documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
