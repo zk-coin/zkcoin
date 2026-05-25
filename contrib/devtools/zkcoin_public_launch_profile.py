@@ -1230,19 +1230,19 @@ def verified_snapshot_audit_for_network(network, audit_path):
     return audit
 
 
-def candidate_next_step_text(candidate):
+def candidate_next_step_text(candidate, applied_label):
     blockers = ordered_unresolved_blocker_ids(candidate)
-    lines = [f"  remaining blockers after applying audit: {len(blockers)}"]
+    lines = [f"  remaining blockers after applying {applied_label}: {len(blockers)}"]
     if blockers:
-        lines.append(f"  next blocker after applying audit: {blockers[0]}")
+        lines.append(f"  next blocker after applying {applied_label}: {blockers[0]}")
         return "\n".join(lines)
     if candidate.get("status") == "blocked":
         lines.append(
-            "  next step after applying audit: "
+            f"  next step after applying {applied_label}: "
             "mark the complete manifest ready for chainparams"
         )
         return "\n".join(lines)
-    lines.append("  next step after applying audit: emit and check chainparams")
+    lines.append(f"  next step after applying {applied_label}: emit and check chainparams")
     return "\n".join(lines)
 
 
@@ -1261,7 +1261,7 @@ def snapshot_audit_check_text(network, audit, candidate):
         f"  coins: {audit_detail['coins']}",
         f"  base transactions: {audit_detail['base_nchaintx']}",
         f"  total amount: {audit_detail['total_amount']}",
-        candidate_next_step_text(candidate),
+        candidate_next_step_text(candidate, "audit"),
     ))
 
 
@@ -1316,10 +1316,10 @@ def checked_auxpow_candidate(manifest, network, chain_id):
                 check,
             )
         )
-    return candidate["networks"][network]["auxpow"]
+    return candidate["networks"][network]["auxpow"], candidate
 
 
-def auxpow_check_text(network, auxpow):
+def auxpow_check_text(network, auxpow, candidate):
     return "\n".join((
         f"AuxPoW chain id candidate verified for {network}.",
         f"  chain id: {auxpow['chain_id']}",
@@ -1327,6 +1327,7 @@ def auxpow_check_text(network, auxpow):
         f"  start height: {auxpow['start_height']}",
         f"  strict chain id: {str(auxpow['strict_chain_id']).lower()}",
         "  forbidden parent-version chain-id range: 0x2000-0x3fff",
+        candidate_next_step_text(candidate, "candidate"),
     ))
 
 
@@ -2120,11 +2121,11 @@ def main():
             print("error: --check-auxpow does not write the manifest", file=sys.stderr)
             return 1
         try:
-            auxpow = checked_auxpow_candidate(manifest, *args.check_auxpow)
+            auxpow, candidate = checked_auxpow_candidate(manifest, *args.check_auxpow)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(auxpow_check_text(args.check_auxpow[0], auxpow))
+        print(auxpow_check_text(args.check_auxpow[0], auxpow, candidate))
         return 0
 
     if args.set_dns_seeds is not None:
