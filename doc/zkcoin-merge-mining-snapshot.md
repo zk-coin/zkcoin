@@ -125,7 +125,7 @@ Both are intentionally present before behavior changes so tests and review can t
   as machine-readable JSON with a stable `schema_version` (`2` for the grouped
   blocker payload) plus direct `blocked_field_count`,
   `blocked_field_group_count`, and `action_count`; the same payload includes
-  ordered `blocked_field_groups` and
+  ordered `blocked_field_groups`, `next_blocked_field_group`, and
   `next_blocked_fields` so dashboards can show the concrete fields and action
   guidance for each unresolved blocker and the first unresolved blocker without
   re-parsing every blocked field path;
