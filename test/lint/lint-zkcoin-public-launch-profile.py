@@ -381,6 +381,99 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print the snapshot handoff command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--snapshot-audit-template main" not in next_action_result.stdout:
+        return "{} --next-action did not print the snapshot audit template command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    expected_snapshot_audit_template_fields = [
+        "height",
+        "block_hash",
+        "import_hash",
+        "snapshot_hash",
+        "coins",
+        "base_nchaintx",
+        "source_chain",
+        "snapshot_file_size",
+        "snapshot_file_sha256",
+        "snapshot_file",
+        "total_amount",
+    ]
+    snapshot_template_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--snapshot-audit-template",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_template_result.returncode != 0:
+        return "{} --snapshot-audit-template failed for main: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            snapshot_template_result.stderr.strip()
+            or snapshot_template_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        snapshot_template = json.loads(snapshot_template_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --snapshot-audit-template did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if list(snapshot_template) != expected_snapshot_audit_template_fields:
+        return "{} --snapshot-audit-template did not emit the expected field order".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if snapshot_template.get("source_chain") != "main":
+        return "{} --snapshot-audit-template did not prefill main source_chain".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if any(
+        value is not None
+        for field, value in snapshot_template.items()
+        if field != "source_chain"
+    ):
+        return "{} --snapshot-audit-template guessed production snapshot values".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    testnet_snapshot_template_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--snapshot-audit-template",
+            "testnet",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if testnet_snapshot_template_result.returncode != 0:
+        return "{} --snapshot-audit-template failed for testnet: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            testnet_snapshot_template_result.stderr.strip()
+            or testnet_snapshot_template_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        testnet_snapshot_template = json.loads(testnet_snapshot_template_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --snapshot-audit-template testnet output was not JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if testnet_snapshot_template.get("source_chain") != "test":
+        return "{} --snapshot-audit-template did not prefill testnet source_chain".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
 
     action_plan_result = subprocess.run(
         [
@@ -403,6 +496,7 @@ def require_public_launch_manifest_current():
         "zkCoin public launch profile action plan:",
         "1. main.litecoin_snapshot",
         "8. testnet.dns_seeds",
+        "--snapshot-audit-template main",
         "--check-snapshot-audit main <snapshot_audit.json>",
         "--check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
     ):
@@ -622,6 +716,29 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    mixed_template_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--status-json",
+            "--snapshot-audit-template",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if mixed_template_result.returncode == 0:
+        return "{} accepted mixed status-json and snapshot template actions".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "use only one primary action at a time: --status-json, --snapshot-audit-template" not in mixed_template_result.stderr:
+        return "{} did not explain mixed snapshot template action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     action_plan_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -663,6 +780,29 @@ def require_public_launch_manifest_current():
         )
     if "--status-json does not write the manifest" not in status_json_in_place_result.stderr:
         return "{} --status-json did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    snapshot_template_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--snapshot-audit-template",
+            "main",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_template_in_place_result.returncode == 0:
+        return "{} --snapshot-audit-template accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--snapshot-audit-template does not write the manifest" not in snapshot_template_in_place_result.stderr:
+        return "{} --snapshot-audit-template did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -4174,6 +4314,7 @@ def main():
         ("chainparams input changed during read", "manifest rechecks chainparams sync-check input after reading"),
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
+        ("--snapshot-audit-template", "manifest snapshot audit template flag"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--check-snapshot-audit", "manifest verified snapshot audit read-only check flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
@@ -4187,6 +4328,7 @@ def main():
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
+        ("snapshot_audit_template", "manifest builds snapshot audit templates"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
@@ -5073,6 +5215,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --status-json",
             "public launch manifest status-json documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK",
+            "public launch manifest snapshot audit template documentation",
         ),
         (
             "machine-readable JSON",
