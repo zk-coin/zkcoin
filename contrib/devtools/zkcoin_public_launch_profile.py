@@ -132,6 +132,7 @@ BLOCKER_ORDER = (
     "testnet.dns_seeds",
 )
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
+STATUS_JSON_SCHEMA_VERSION = 1
 
 
 class DuplicateJSONFieldError(ValueError):
@@ -1839,6 +1840,7 @@ def status_json_text(manifest, manifest_path, check):
     status = manifest.get("status")
     return json.dumps(
         {
+            "schema_version": STATUS_JSON_SCHEMA_VERSION,
             "manifest": display_path(manifest_path),
             "status": status,
             "ready_for_chainparams": status == "ready-for-chainparams" and not blockers,
