@@ -1230,7 +1230,19 @@ def verified_snapshot_audit_for_network(network, audit_path):
     return audit
 
 
-def snapshot_audit_check_text(network, audit):
+def candidate_next_step_text(candidate):
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    if blockers:
+        return f"  next blocker after applying audit: {blockers[0]}"
+    if candidate.get("status") == "blocked":
+        return (
+            "  next step after applying audit: "
+            "mark the complete manifest ready for chainparams"
+        )
+    return "  next step after applying audit: emit and check chainparams"
+
+
+def snapshot_audit_check_text(network, audit, candidate):
     audit_detail = audit["audit"]
     return "\n".join((
         f"Snapshot audit verified for {network}.",
@@ -1245,6 +1257,7 @@ def snapshot_audit_check_text(network, audit):
         f"  coins: {audit_detail['coins']}",
         f"  base transactions: {audit_detail['base_nchaintx']}",
         f"  total amount: {audit_detail['total_amount']}",
+        candidate_next_step_text(candidate),
     ))
 
 
@@ -1260,7 +1273,7 @@ def checked_snapshot_audit_candidate(manifest, network, audit_path):
                 check,
             )
         )
-    return audit
+    return audit, candidate
 
 
 def set_snapshot_from_audit(manifest, network, audit_path):
@@ -2075,11 +2088,20 @@ def main():
             print("error: --check-snapshot-audit does not write the manifest", file=sys.stderr)
             return 1
         try:
-            audit = checked_snapshot_audit_candidate(manifest, *args.check_snapshot_audit)
+            audit, candidate = checked_snapshot_audit_candidate(
+                manifest,
+                *args.check_snapshot_audit,
+            )
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(snapshot_audit_check_text(args.check_snapshot_audit[0], audit))
+        print(
+            snapshot_audit_check_text(
+                args.check_snapshot_audit[0],
+                audit,
+                candidate,
+            )
+        )
         return 0
 
     if args.set_auxpow is not None:
