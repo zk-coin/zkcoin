@@ -870,6 +870,11 @@ print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={shell_quote(snapshot_path)}")
 print()
 print("Snapshot public launch-profile manifest handoff:")
+print(
+    "contrib/devtools/zkcoin_public_launch_profile.py "
+    f"--snapshot-audit-template {target_network} "
+    "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+)
 if audit_json_path:
     print("Verify the audit summary, then apply it to the matching public profile.")
     print(

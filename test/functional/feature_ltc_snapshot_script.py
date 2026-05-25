@@ -488,6 +488,11 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert "Snapshot public launch-profile manifest handoff:" in result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--snapshot-audit-template main "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
             f"--check-snapshot-audit main {audit_path} "
             "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in result.stdout
@@ -526,6 +531,11 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert f"-ltcsnapshotfile='{quoted_snapshot_path}'" in quoted_result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--snapshot-audit-template main "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in quoted_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
             f"--check-snapshot-audit main '{quoted_audit_path}' "
             "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in quoted_result.stdout
@@ -546,6 +556,11 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             write_audit=True,
         )
         testnet_audit_path = os.path.join(self.options.tmpdir, "testnet-handoff.audit.json")
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--snapshot-audit-template testnet "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
             f"--check-snapshot-audit testnet {testnet_audit_path} "
