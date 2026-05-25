@@ -4853,6 +4853,9 @@ def main():
         ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
         ("must not exceed {MAX_MONEY_TEXT}", "snapshot script rejects over-maximum verifier total amount"),
+        ("AUDIT_SUMMARY_FIELDS", "snapshot script preserves audit summary field order"),
+        ("snapshot audit summary field order does not match public launch template", "snapshot script fails on audit summary field-order drift"),
+        ("json.dumps(summary, indent=2, sort_keys=False)", "snapshot script does not sort audit summary keys"),
         ("shell_quote", "snapshot script shell-quotes handoff paths"),
         ("target_network", "snapshot script derives the target public profile from the Litecoin source chain"),
         ("--check-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest check command"),
@@ -4867,6 +4870,7 @@ def main():
     ltc_snapshot_script_test_checks = (
         ("Snapshot public launch-profile manifest update:", "snapshot script test checks manifest update section"),
         ("Snapshot audit summary written:", "snapshot script test checks audit summary output"),
+        ("AUDIT_SUMMARY_FIELDS", "snapshot script test checks audit summary field order"),
         ("--check-snapshot-audit main", "snapshot script test checks read-only manifest handoff"),
         ("snapshot_file_sha256", "snapshot script test checks audit artifact SHA-256 output"),
         ("Quote snapshot and audit paths in printed handoff commands", "snapshot script test checks shell-quoted handoff paths"),
@@ -5257,6 +5261,10 @@ def main():
         (
             "ZKCOIN_SNAPSHOT_AUDIT_JSON",
             "public launch snapshot audit summary documentation",
+        ),
+        (
+            "same field order as the",
+            "public launch snapshot audit template-order documentation",
         ),
         (
             "read-only check command and the follow-up update command",
