@@ -1920,6 +1920,7 @@ def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
     blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
     status = manifest.get("status")
     return json.dumps(
@@ -1934,6 +1935,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_count": len(check.blockers),
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
+            "next_blocked_field_group": next_blocked_field_group,
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
