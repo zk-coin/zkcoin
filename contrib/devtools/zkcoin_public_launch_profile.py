@@ -742,6 +742,18 @@ def require_snapshot_audit_source_chain(audit, field):
     return value
 
 
+def snapshot_audit_template(network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    template = {field: None for field in SNAPSHOT_AUDIT_SUMMARY_FIELDS}
+    template["source_chain"] = SNAPSHOT_SOURCE_CHAINS[network]
+    return template
+
+
+def snapshot_audit_template_text(network):
+    return json.dumps(snapshot_audit_template(network), indent=2, sort_keys=False)
+
+
 def open_direct_parent_directory_for_read(path, *, parent_symlink_error, missing_error, open_error):
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     if nofollow == 0 and path.parent.is_symlink():
@@ -1719,7 +1731,9 @@ def next_blocker_command(blocker_id, manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     if blocker == "litecoin_snapshot":
         return (
-            "select and verify the final Litecoin snapshot, run "
+            "select and verify the final Litecoin snapshot, generate the required audit JSON shape with "
+            f"{tool_path} --snapshot-audit-template {network} {manifest_path}, "
+            "fill it with final audited constants, run "
             f"{tool_path} --check-snapshot-audit {network} <snapshot_audit.json> "
             f"{manifest_path}, then run "
             f"{tool_path} --set-snapshot-audit {network} <snapshot_audit.json> "
@@ -1887,6 +1901,8 @@ def selected_primary_actions(args):
         actions.append("--emit-chainparams")
     if args.check_chainparams is not None:
         actions.append("--check-chainparams")
+    if args.snapshot_audit_template is not None:
+        actions.append("--snapshot-audit-template")
     return actions
 
 
@@ -1897,6 +1913,11 @@ def main():
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
+    parser.add_argument(
+        "--snapshot-audit-template",
+        metavar="NETWORK",
+        help="print the required snapshot audit summary JSON shape for one public network",
+    )
     parser.add_argument(
         "--check-chainparams",
         metavar="CHAINPARAMS",
@@ -2015,6 +2036,17 @@ def main():
     except json.JSONDecodeError as exc:
         print(f"error: {args.manifest} is not valid JSON: {exc}", file=sys.stderr)
         return 1
+
+    if args.snapshot_audit_template is not None:
+        if args.in_place:
+            print("error: --snapshot-audit-template does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(snapshot_audit_template_text(args.snapshot_audit_template))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     if args.set_snapshot is not None and args.set_snapshot_audit is not None:
         print("error: use either --set-snapshot or --set-snapshot-audit, not both", file=sys.stderr)

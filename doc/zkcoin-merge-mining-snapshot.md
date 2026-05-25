@@ -125,6 +125,11 @@ Both are intentionally present before behavior changes so tests and review can t
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
+  Before collecting final snapshot constants, run
+  `contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK`
+  to print the exact JSON summary shape expected by the snapshot audit handoff;
+  the template fills only the network-specific Litecoin `source_chain` value and
+  leaves production snapshot values unset until the real audit is complete.
   After selecting a final AuxPoW child chain id, verify it without modifying
   the manifest with
   `contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow NETWORK <chain_id>`,
