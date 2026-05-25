@@ -1598,6 +1598,37 @@ def require_public_launch_manifest_current():
                     expected,
                 )
 
+        malformed_check_manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
+        malformed_check_manifest["networks"]["main"]["auxpow"] = "not-an-object"
+        malformed_check_manifest_path = Path(temp_dir) / "malformed-check-manifest.json"
+        malformed_check_manifest_path.write_text(json.dumps(malformed_check_manifest), encoding="utf8")
+        malformed_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(audit_path),
+                str(malformed_check_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a candidate against a malformed manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "Snapshot audit candidate failed validation:" not in malformed_check_result.stderr:
+            return "{} --check-snapshot-audit did not report candidate validation failure".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.auxpow: must be an object" not in malformed_check_result.stderr:
+            return "{} --check-snapshot-audit did not validate the staged manifest candidate".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         check_audit_in_place_result = subprocess.run(
             [
                 sys.executable,
@@ -3932,6 +3963,7 @@ def main():
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
+        ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),

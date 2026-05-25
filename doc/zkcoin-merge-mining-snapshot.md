@@ -318,7 +318,8 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
 Use the read-only `--check-snapshot-audit` command first to verify the audit
 summary, source-chain mapping, snapshot file byte size, and snapshot file
-SHA-256 without modifying the manifest.
+SHA-256, then stage the candidate through launch-manifest validation without
+modifying the manifest.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
 command with the target profile derived from `source_chain` and the exact audit
 summary path filled in. Printed snapshot and audit paths are shell-quoted when
