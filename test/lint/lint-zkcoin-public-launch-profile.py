@@ -737,6 +737,32 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_check_auxpow_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-auxpow",
+                "main",
+                "0x5001",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_check_auxpow_result.returncode != 0:
+            return "{} --check-auxpow failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_check_auxpow_result.stderr.strip()
+                or spaced_check_auxpow_result.stdout.strip()
+                or "no output",
+            )
+        if f"--set-auxpow main 0x5001 --in-place {quoted_manifest_path}" not in spaced_check_auxpow_result.stdout:
+            return "{} --check-auxpow did not shell-quote a staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     mixed_action_result = subprocess.run(
         [
             sys.executable,
@@ -2900,6 +2926,7 @@ def require_public_launch_manifest_current():
         "chain id: 20481",
         "chain id hex: 0x5001",
         "strict chain id: true",
+        "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main 0x5001 --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
     ):
@@ -4499,6 +4526,7 @@ def main():
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
+        ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
         ("candidate_next_step_text(candidate, \"candidate\")", "manifest reports AuxPoW candidate progress"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
@@ -5357,7 +5385,7 @@ def main():
             "public launch manifest AuxPoW read-only check documentation",
         ),
         (
-            "read-only AuxPoW check reports the remaining blocker count and next blocker",
+            "read-only AuxPoW check reports the exact apply command, remaining blocker",
             "public launch manifest AuxPoW candidate-progress documentation",
         ),
         (
