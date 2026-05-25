@@ -123,9 +123,10 @@ Both are intentionally present before behavior changes so tests and review can t
   release automation needs the same blocker order, field-level blockers, blocked
   field count, action count, and action-plan guidance as machine-readable JSON
   with a stable `schema_version` plus direct `blocked_field_count` and
-  `action_count`; the same payload includes `next_blocked_fields` so dashboards
-  can show the concrete fields for the first unresolved blocker without
-  re-parsing every blocked field path;
+  `action_count`; the same payload includes ordered `blocked_field_groups` and
+  `next_blocked_fields` so dashboards can show the concrete fields for each
+  unresolved blocker and the first unresolved blocker without re-parsing every
+  blocked field path;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.

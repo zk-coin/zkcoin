@@ -209,6 +209,20 @@ def blocked_fields_for_blocker(blocker_id, blocked_fields):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
+def blocked_field_group_entries(blockers, blocked_fields):
+    entries = []
+    for blocker in blockers:
+        fields = blocked_fields_for_blocker(blocker, blocked_fields)
+        entries.append(
+            {
+                "id": blocker,
+                "field_count": len(fields),
+                "fields": fields,
+            }
+        )
+    return entries
+
+
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -1900,12 +1914,8 @@ def action_plan_text(manifest, manifest_path):
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
-    next_blocker = blockers[0] if blockers else None
-    next_blocked_fields = (
-        blocked_fields_for_blocker(next_blocker, check.blockers)
-        if next_blocker is not None
-        else []
-    )
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers)
+    next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
     status = manifest.get("status")
     return json.dumps(
         {
@@ -1917,6 +1927,7 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blockers": blockers,
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
+            "blocked_field_groups": blocked_field_groups,
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
