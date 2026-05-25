@@ -763,6 +763,32 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_check_dns_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-dns-seeds",
+                "main",
+                "seed1.zkcoin.net,seed2.zkcoin.net",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_check_dns_result.returncode != 0:
+            return "{} --check-dns-seeds failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_check_dns_result.stderr.strip()
+                or spaced_check_dns_result.stdout.strip()
+                or "no output",
+            )
+        if f"--set-dns-seeds main seed1.zkcoin.net,seed2.zkcoin.net --in-place {quoted_manifest_path}" not in spaced_check_dns_result.stdout:
+            return "{} --check-dns-seeds did not shell-quote a staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     mixed_action_result = subprocess.run(
         [
             sys.executable,
@@ -3097,6 +3123,7 @@ def require_public_launch_manifest_current():
         "DNS seed candidate verified for main.",
         "seed count: 2",
         "seeds: seed1.zkcoin.net, seed2.zkcoin.net",
+        "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main seed1.zkcoin.net,seed2.zkcoin.net --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
     ):
@@ -4575,6 +4602,7 @@ def main():
         ("snapshot_hash", "manifest preserves snapshot audit hash metadata"),
         ("base_nchaintx", "manifest preserves snapshot audit transaction-count metadata"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
+        ("dns_seeds_apply_command", "manifest prints DNS seed apply commands after read-only checks"),
         ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
         ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
         ("len(label) <= 63", "manifest rejects overlong DNS seed labels"),
@@ -4609,7 +4637,7 @@ def main():
         ("checked_dns_seeds_candidate", "manifest checks DNS seed candidates without writing"),
         ("dns_seeds_check_text", "manifest prints DNS seed candidate check summaries"),
         (
-            "dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate)",
+            "dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate, args.manifest)",
             "manifest reports DNS seed candidate progress",
         ),
         ("set_identity", "manifest updates public network identity"),
@@ -5409,7 +5437,7 @@ def main():
             "public launch manifest DNS seed read-only check documentation",
         ),
         (
-            "read-only DNS seed check reports the remaining blocker count and next blocker",
+            "read-only DNS seed check reports the exact apply command, remaining blocker",
             "public launch manifest DNS seed candidate-progress documentation",
         ),
         (

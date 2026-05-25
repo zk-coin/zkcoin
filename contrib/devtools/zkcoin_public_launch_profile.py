@@ -1426,11 +1426,22 @@ def checked_dns_seeds_candidate(manifest, network, dns_seeds):
     return candidate["networks"][network]["public_network_identity"]["dns_seeds"], candidate
 
 
-def dns_seeds_check_text(network, dns_seeds, candidate):
+def dns_seeds_apply_command(network, dns_seeds, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    dns_seed_arg = shell_quote(",".join(dns_seeds))
+    return (
+        f"{tool_path} --set-dns-seeds {network} "
+        f"{dns_seed_arg} --in-place {manifest_path}"
+    )
+
+
+def dns_seeds_check_text(network, dns_seeds, candidate, manifest_path):
     return "\n".join((
         f"DNS seed candidate verified for {network}.",
         f"  seed count: {len(dns_seeds)}",
         "  seeds: " + ", ".join(dns_seeds),
+        f"  apply command: {dns_seeds_apply_command(network, dns_seeds, manifest_path)}",
         candidate_next_step_text(candidate, "candidate"),
     ))
 
@@ -2210,7 +2221,7 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate))
+        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate, args.manifest))
         return 0
 
     if args.set_identity is not None:

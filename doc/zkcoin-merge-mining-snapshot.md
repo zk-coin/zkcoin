@@ -153,9 +153,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
-  the read-only DNS seed check reports the remaining blocker count and next blocker
-  that would remain after applying the candidate, so reviewers can verify seed
-  handoff progress before changing the manifest;
+  the read-only DNS seed check reports the exact apply command, remaining blocker
+  count, and next blocker that would remain after applying the candidate, so
+  reviewers can verify seed handoff progress before changing the manifest;
   the validator rejects empty, duplicate, single-label, numeric final-label,
   overlong-label, malformed, uppercase, reserved or local-use suffixes, and
   inherited Litecoin seed hostnames. After choosing the public network identity,
