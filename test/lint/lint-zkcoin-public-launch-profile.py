@@ -545,6 +545,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count unresolved blocker groups".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("action_count") != 8:
+        return "{} --status-json did not count action-plan entries".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("unresolved_blockers", [None])[0] != "main.litecoin_snapshot":
         return "{} --status-json did not preserve blocker order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -643,6 +647,10 @@ def require_public_launch_manifest_current():
         schema_version_error = require_status_json_schema_version(spaced_status_json)
         if schema_version_error:
             return schema_version_error
+        if spaced_status_json.get("action_count") != 8:
+            return "{} --status-json did not count staged action-plan entries".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("action", ""):
             return "{} --status-json did not shell-quote a staged manifest path with spaces".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3598,6 +3606,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("action_count") != 1:
+            return "{} --status-json did not count complete blocked manifest actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next", {}).get("id") != "mark-ready":
             return "{} --status-json did not point complete blocked manifests at --mark-ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3779,6 +3791,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("blocked_fields") != []:
             return "{} --status-json reported field blockers for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("action_count") != 2:
+            return "{} --status-json did not count ready manifest handoff actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if [action.get("id") for action in ready_status.get("actions", [])] != [
@@ -4423,6 +4439,7 @@ def main():
         ("action_plan_text", "manifest prints full action-plan guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
+        ("action_count", "manifest status JSON includes an action count"),
         ("blocked_fields", "manifest status JSON includes field-level blockers"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
@@ -5294,6 +5311,10 @@ def main():
         (
             "schema_version",
             "public launch manifest status-json schema version documentation",
+        ),
+        (
+            "action_count",
+            "public launch manifest status-json action count documentation",
         ),
         (
             "shell-quotes the manifest path",

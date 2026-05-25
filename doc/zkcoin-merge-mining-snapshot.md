@@ -120,8 +120,9 @@ Both are intentionally present before behavior changes so tests and review can t
   every unresolved blocker group and handoff command in launch order. Both
   commands are read-only. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
-  release automation needs the same blocker order, field-level blockers, and
-  action-plan guidance as machine-readable JSON with a stable `schema_version`;
+  release automation needs the same blocker order, field-level blockers, action
+  count, and action-plan guidance as machine-readable JSON with a stable
+  `schema_version` and direct `action_count`;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
