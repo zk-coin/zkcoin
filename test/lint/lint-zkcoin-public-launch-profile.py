@@ -1873,6 +1873,7 @@ def require_public_launch_manifest_current():
             "height: 777",
             f"snapshot file SHA-256: {snapshot_artifact_sha256}",
             "total amount: 50.00000000",
+            "remaining blockers after applying audit: 7",
             "next blocker after applying audit: main.auxpow_chain_id",
         ):
             if expected not in check_audit_result.stdout:
@@ -4362,6 +4363,7 @@ def main():
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
+        ("remaining blockers after applying audit", "manifest reports snapshot audit candidate blocker count"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
@@ -5307,7 +5309,7 @@ def main():
             "public launch snapshot audit check-before-update documentation",
         ),
         (
-            "read-only check also reports the next blocker",
+            "read-only check also reports the remaining blocker count and next blocker",
             "public launch snapshot audit candidate-progress documentation",
         ),
         (
