@@ -118,7 +118,10 @@ Both are intentionally present before behavior changes so tests and review can t
   the next unresolved blocker group and the matching handoff command template;
   run `contrib/devtools/zkcoin_public_launch_profile.py --action-plan` to print
   every unresolved blocker group and handoff command in launch order. Both
-  commands are read-only;
+  commands are read-only. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
+  release automation needs the same blocker order, field-level blockers, and
+  action-plan guidance as machine-readable JSON;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
