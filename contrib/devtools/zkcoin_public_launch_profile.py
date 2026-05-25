@@ -1228,6 +1228,21 @@ def snapshot_audit_check_text(network, audit):
     ))
 
 
+def checked_snapshot_audit_candidate(manifest, network, audit_path):
+    audit = verified_snapshot_audit_for_network(network, audit_path)
+    candidate = json.loads(json.dumps(manifest))
+    set_snapshot(candidate, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
+    check = validate_manifest(candidate, allow_blocked=True)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "Snapshot audit candidate failed validation:",
+                check,
+            )
+        )
+    return audit
+
+
 def set_snapshot_from_audit(manifest, network, audit_path):
     audit = verified_snapshot_audit_for_network(network, audit_path)
     set_snapshot(manifest, network, audit["height"], audit["block_hash"], audit["import_hash"], audit["audit"])
@@ -1957,7 +1972,7 @@ def main():
             print("error: --check-snapshot-audit does not write the manifest", file=sys.stderr)
             return 1
         try:
-            audit = verified_snapshot_audit_for_network(*args.check_snapshot_audit)
+            audit = checked_snapshot_audit_candidate(manifest, *args.check_snapshot_audit)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
