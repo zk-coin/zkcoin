@@ -121,9 +121,10 @@ Both are intentionally present before behavior changes so tests and review can t
   commands are read-only. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
   release automation needs the same blocker order, field-level blockers, blocked
-  field count, action count, and action-plan guidance as machine-readable JSON
-  with a stable `schema_version` (`2` for the grouped blocker payload) plus
-  direct `blocked_field_count` and `action_count`; the same payload includes
+  field count, blocked field group count, action count, and action-plan guidance
+  as machine-readable JSON with a stable `schema_version` (`2` for the grouped
+  blocker payload) plus direct `blocked_field_count`,
+  `blocked_field_group_count`, and `action_count`; the same payload includes
   ordered `blocked_field_groups` and
   `next_blocked_fields` so dashboards can show the concrete fields for each
   unresolved blocker and the first unresolved blocker without re-parsing every

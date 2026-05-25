@@ -1928,6 +1928,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_groups": blocked_field_groups,
+            "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),

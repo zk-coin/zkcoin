@@ -558,6 +558,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include every blocker field group".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("blocked_field_group_count") != 8:
+        return "{} --status-json did not count blocker field groups".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if blocked_field_groups[0].get("id") != "main.litecoin_snapshot":
         return "{} --status-json did not preserve field group blocker order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -690,6 +694,10 @@ def require_public_launch_manifest_current():
             )
         if len(spaced_status_json.get("blocked_field_groups", [])) != 8:
             return "{} --status-json did not include staged blocker field groups".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("blocked_field_group_count") != 8:
+            return "{} --status-json did not count staged blocker field groups".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("next_blocked_field_count") != 11:
@@ -3667,6 +3675,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker field groups for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocked_field_group_count") != 0:
+            return "{} --status-json counted blocker field groups for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next", {}).get("id") != "mark-ready":
             return "{} --status-json did not point complete blocked manifests at --mark-ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3860,6 +3872,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("blocked_field_groups") != []:
             return "{} --status-json reported blocker field groups for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_field_group_count") != 0:
+            return "{} --status-json counted blocker field groups for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("action_count") != 2:
@@ -4513,6 +4529,7 @@ def main():
         ("action_count", "manifest status JSON includes an action count"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
+        ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
         ("next_blocked_fields", "manifest status JSON includes next blocked fields"),
         ("blocked_fields", "manifest status JSON includes field-level blockers"),
@@ -5398,6 +5415,10 @@ def main():
         (
             "blocked_field_groups",
             "public launch manifest status-json blocked field groups documentation",
+        ),
+        (
+            "blocked_field_group_count",
+            "public launch manifest status-json blocked field group count documentation",
         ),
         (
             "next_blocked_fields",
