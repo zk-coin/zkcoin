@@ -404,6 +404,59 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    status_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--status-json",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if status_json_result.returncode != 0:
+        return "{} --status-json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            status_json_result.stderr.strip() or status_json_result.stdout.strip() or "no output",
+        )
+    try:
+        status_json = json.loads(status_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --status-json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if status_json.get("status") != "blocked":
+        return "{} --status-json did not report blocked status".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("ready_for_chainparams") is not False:
+        return "{} --status-json treated blocked manifest as ready".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("unresolved_blocker_count") != 8:
+        return "{} --status-json did not count unresolved blocker groups".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("unresolved_blockers", [None])[0] != "main.litecoin_snapshot":
+        return "{} --status-json did not preserve blocker order".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("actions", [{}])[-1].get("id") != "testnet.dns_seeds":
+        return "{} --status-json did not include the full action plan".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
+        return "{} --status-json did not include next action guidance".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "main.litecoin_snapshot.height" not in status_json.get("blocked_fields", []):
+        return "{} --status-json did not include field-level blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     with tempfile.TemporaryDirectory(prefix="zkcoin manifest path ") as spaced_manifest_dir:
         spaced_manifest_path = Path(spaced_manifest_dir) / "public launch manifest.json"
         spaced_manifest_path.write_text(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"), encoding="utf8")
@@ -456,6 +509,37 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_status_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--status-json",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_status_json_result.returncode != 0:
+            return "{} --status-json failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_status_json_result.stderr.strip()
+                or spaced_status_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            spaced_status_json = json.loads(spaced_status_json_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --status-json for a staged manifest path did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("action", ""):
+            return "{} --status-json did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     mixed_action_result = subprocess.run(
         [
             sys.executable,
@@ -502,6 +586,28 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    mixed_status_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--action-plan",
+            "--status-json",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if mixed_status_result.returncode == 0:
+        return "{} accepted mixed text and JSON launch-profile actions".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "use only one primary action at a time: --action-plan, --status-json" not in mixed_status_result.stderr:
+        return "{} did not explain mixed status-json action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     action_plan_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -521,6 +627,28 @@ def require_public_launch_manifest_current():
         )
     if "--action-plan does not write the manifest" not in action_plan_in_place_result.stderr:
         return "{} --action-plan did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    status_json_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--status-json",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if status_json_in_place_result.returncode == 0:
+        return "{} --status-json accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--status-json does not write the manifest" not in status_json_in_place_result.stderr:
+        return "{} --status-json did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -3250,6 +3378,42 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        complete_status_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--status-json",
+                str(complete_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if complete_status_result.returncode != 0:
+            return "{} --status-json failed for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        try:
+            complete_status = json.loads(complete_status_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --status-json complete manifest output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if complete_status.get("unresolved_blocker_count") != 0:
+            return "{} --status-json reported blockers for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next", {}).get("id") != "mark-ready":
+            return "{} --status-json did not point complete blocked manifests at --mark-ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("ready_for_chainparams") is not False:
+            return "{} --status-json treated complete blocked manifest as ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         mark_ready_result = subprocess.run(
             [
                 sys.executable,
@@ -3387,6 +3551,45 @@ def require_public_launch_manifest_current():
             )
         if str(ready_path) not in ready_plan_result.stdout:
             return "{} --action-plan did not preserve the checked ready manifest path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        ready_status_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--status-json",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_status_result.returncode != 0:
+            return "{} --status-json failed for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        try:
+            ready_status = json.loads(ready_status_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --status-json ready manifest output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if ready_status.get("ready_for_chainparams") is not True:
+            return "{} --status-json did not report ready manifest as ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_fields") != []:
+            return "{} --status-json reported field blockers for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if [action.get("id") for action in ready_status.get("actions", [])] != [
+            "emit-chainparams",
+            "check-chainparams",
+        ]:
+            return "{} --status-json did not report ready chainparams handoff actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3941,6 +4144,7 @@ def main():
         ("selected_primary_actions", "manifest rejects mixed primary actions"),
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
+        ("--status-json", "manifest machine-readable status guidance flag"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
         ("--check-chainparams", "manifest chainparams sync-check flag"),
         ("CHAINPARAMS_INPUT_MAX_BYTES", "manifest caps chainparams sync-check input size"),
@@ -4012,7 +4216,10 @@ def main():
         ("shell_quote", "manifest guidance shell-quotes handoff paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("next_action_text", "manifest prints next action guidance"),
+        ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
+        ("status_json_text", "manifest prints machine-readable status guidance"),
+        ("blocked_fields", "manifest status JSON includes field-level blockers"),
         ("require_unique_manifest_value", "manifest reports duplicate ready-value paths"),
         ("validate_unique_launch_values", "manifest rejects cross-network launch value collisions"),
         ("validation_failure_message", "manifest emits detailed transition failures"),
@@ -4840,6 +5047,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --action-plan",
             "public launch manifest action-plan documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --status-json",
+            "public launch manifest status-json documentation",
+        ),
+        (
+            "machine-readable JSON",
+            "public launch manifest status-json machine-readable documentation",
         ),
         (
             "shell-quotes the manifest path",

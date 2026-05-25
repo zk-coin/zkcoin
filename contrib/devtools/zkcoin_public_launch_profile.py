@@ -1771,27 +1771,86 @@ def next_action_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
-def action_plan_text(manifest, manifest_path):
+def action_plan_entries(manifest, manifest_path):
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(manifest)
-    lines = ["zkCoin public launch profile action plan:"]
     if blockers:
-        for index, blocker in enumerate(blockers, 1):
-            lines.append(f"  {index}. {blocker}")
-            lines.append(f"     action: {next_blocker_command(blocker, manifest_path)}")
-        return "\n".join(lines)
+        return [
+            {
+                "step": index,
+                "kind": "blocker",
+                "id": blocker,
+                "action": next_blocker_command(blocker, manifest_path),
+            }
+            for index, blocker in enumerate(blockers, 1)
+        ]
 
     if manifest.get("status") == "blocked":
-        lines.append("  1. mark-ready")
-        lines.append(f"     command: {tool_path} --mark-ready --in-place {manifest_path}")
+        return [
+            {
+                "step": 1,
+                "kind": "mark-ready",
+                "id": "mark-ready",
+                "command": f"{tool_path} --mark-ready --in-place {manifest_path}",
+            },
+        ]
+
+    return [
+        {
+            "step": 1,
+            "kind": "emit-chainparams",
+            "id": "emit-chainparams",
+            "command": f"{tool_path} --emit-chainparams {manifest_path}",
+        },
+        {
+            "step": 2,
+            "kind": "check-chainparams",
+            "id": "check-chainparams",
+            "command": f"{tool_path} --check-chainparams src/chainparams.cpp {manifest_path}",
+        },
+    ]
+
+
+def action_plan_text(manifest, manifest_path):
+    entries = action_plan_entries(manifest, manifest_path)
+    lines = ["zkCoin public launch profile action plan:"]
+    if entries and entries[0]["kind"] == "blocker":
+        for entry in entries:
+            lines.append(f"  {entry['step']}. {entry['id']}")
+            lines.append(f"     action: {entry['action']}")
         return "\n".join(lines)
 
-    lines.append("  1. emit chainparams")
-    lines.append(f"     command: {tool_path} --emit-chainparams {manifest_path}")
-    lines.append("  2. verify chainparams")
-    lines.append(f"     command: {tool_path} --check-chainparams src/chainparams.cpp {manifest_path}")
+    descriptions = {
+        "mark-ready": "mark-ready",
+        "emit-chainparams": "emit chainparams",
+        "check-chainparams": "verify chainparams",
+    }
+    for entry in entries:
+        description = descriptions.get(entry["id"], entry["id"])
+        lines.append(f"  {entry['step']}. {description}")
+        lines.append(f"     command: {entry['command']}")
     return "\n".join(lines)
+
+
+def status_json_text(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    status = manifest.get("status")
+    return json.dumps(
+        {
+            "manifest": display_path(manifest_path),
+            "status": status,
+            "ready_for_chainparams": status == "ready-for-chainparams" and not blockers,
+            "unresolved_blocker_count": len(blockers),
+            "unresolved_blockers": blockers,
+            "blocked_fields": check.blockers,
+            "next": actions[0] if actions else None,
+            "actions": actions,
+        },
+        indent=2,
+        sort_keys=False,
+    )
 
 
 def selected_primary_actions(args):
@@ -1820,6 +1879,8 @@ def selected_primary_actions(args):
         actions.append("--next-action")
     if args.action_plan:
         actions.append("--action-plan")
+    if args.status_json:
+        actions.append("--status-json")
     if args.emit_chainparams:
         actions.append("--emit-chainparams")
     if args.check_chainparams is not None:
@@ -1832,6 +1893,7 @@ def main():
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
     parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
+    parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
         "--check-chainparams",
@@ -2063,6 +2125,8 @@ def main():
         allow_blocked = True
     if args.action_plan:
         allow_blocked = True
+    if args.status_json:
+        allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
     if check.errors:
         print("zkCoin public launch profile manifest failed validation:", file=sys.stderr)
@@ -2098,6 +2162,13 @@ def main():
             print("error: --action-plan does not write the manifest", file=sys.stderr)
             return 1
         print(action_plan_text(manifest, args.manifest))
+        return 0
+
+    if args.status_json:
+        if args.in_place:
+            print("error: --status-json does not write the manifest", file=sys.stderr)
+            return 1
+        print(status_json_text(manifest, args.manifest, check))
         return 0
 
     if args.in_place:
