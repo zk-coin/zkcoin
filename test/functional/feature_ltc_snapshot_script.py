@@ -485,7 +485,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         assert f"-ltcsnapshotutxoroot={IMPORT_HASH}" in result.stdout
         assert f"-ltcsnapshotfile={snapshot_path}" in result.stdout
         assert f"Snapshot audit summary written: {audit_path}" in result.stdout
-        assert "Snapshot public launch-profile manifest update:" in result.stdout
+        assert "Snapshot public launch-profile manifest handoff:" in result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
             f"--check-snapshot-audit main {audit_path} "

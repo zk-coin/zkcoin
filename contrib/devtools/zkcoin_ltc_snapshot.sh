@@ -30,9 +30,9 @@ it unless ZKCOIN_SNAPSHOT_ALLOW_REWIND=1 is set.
 Only use rewind mode on a dedicated disposable snapshot node.
 
 The script prints snapshot-related launch-node arguments, including
--ltcsnapshotfile=<path>, and the public launch-profile manifest update command
-after the snapshot manifest is dumped and verified. Combine them with the
-AuxPoW launch profile and confirm launch_readiness before mining the first
+-ltcsnapshotfile=<path>, and the public launch-profile manifest handoff
+commands after the snapshot manifest is dumped and verified. Combine them with
+the AuxPoW launch profile and confirm launch_readiness before mining the first
 child block.
 
 Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> to write the verified audit summary that
@@ -869,7 +869,7 @@ print(f"-ltcsnapshotblockhash={expected_hash}")
 print(f"-ltcsnapshotutxoroot={import_hash}")
 print(f"-ltcsnapshotfile={shell_quote(snapshot_path)}")
 print()
-print("Snapshot public launch-profile manifest update:")
+print("Snapshot public launch-profile manifest handoff:")
 if audit_json_path:
     print("Verify the audit summary, then apply it to the matching public profile.")
     print(
