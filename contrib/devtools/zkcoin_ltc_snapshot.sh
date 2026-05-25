@@ -636,6 +636,19 @@ COIN = 100000000
 MAX_MONEY = 84000000 * COIN
 MAX_MONEY_TEXT = "84000000.00000000"
 NULL_UINT256 = "0" * 64
+AUDIT_SUMMARY_FIELDS = (
+    "height",
+    "block_hash",
+    "import_hash",
+    "snapshot_hash",
+    "coins",
+    "base_nchaintx",
+    "source_chain",
+    "snapshot_file_size",
+    "snapshot_file_sha256",
+    "snapshot_file",
+    "total_amount",
+)
 
 class DuplicateJSONFieldError(ValueError):
     pass
@@ -764,7 +777,7 @@ def write_audit_summary(audit_json_path, summary):
     if os.path.lexists(audit_json_path):
         fail(f"snapshot audit summary already exists: {audit_json_path}")
 
-    audit_text = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    audit_text = json.dumps(summary, indent=2, sort_keys=False) + "\n"
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
     audit_basename = os.path.basename(audit_json_path)
     parent_fd = None
@@ -827,17 +840,19 @@ if verify_metadata_coins != dump_coins:
 
 summary = {
     "height": height,
+    "block_hash": expected_hash,
+    "import_hash": import_hash,
+    "snapshot_hash": snapshot_hash,
+    "coins": verify_coins,
+    "base_nchaintx": verify_base_nchaintx,
     "source_chain": source_chain,
     "snapshot_file_size": snapshot_file_size,
     "snapshot_file_sha256": snapshot_file_sha256,
-    "block_hash": expected_hash,
-    "coins": verify_coins,
-    "base_nchaintx": verify_base_nchaintx,
-    "snapshot_hash": snapshot_hash,
-    "import_hash": import_hash,
     "snapshot_file": snapshot_path,
     "total_amount": total_amount,
 }
+if tuple(summary) != AUDIT_SUMMARY_FIELDS:
+    fail("snapshot audit summary field order does not match public launch template")
 
 audit_json_path = os.environ.get("ZKCOIN_SNAPSHOT_AUDIT_JSON")
 if audit_json_path:
@@ -884,5 +899,5 @@ print("Combine these with the AuxPoW launch profile and confirm")
 print("getblockchaininfo.launch_readiness.ready is true before mining.")
 print()
 print("Audit summary:")
-print(json.dumps(summary, indent=2, sort_keys=True))
+print(json.dumps(summary, indent=2, sort_keys=False))
 PY

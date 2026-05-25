@@ -20,6 +20,19 @@ BLOCK_HASH = "aa" * 32
 RESTORE_HASH = "bb" * 32
 SNAPSHOT_HASH = "cc" * 32
 IMPORT_HASH = "dd" * 32
+AUDIT_SUMMARY_FIELDS = [
+    "height",
+    "block_hash",
+    "import_hash",
+    "snapshot_hash",
+    "coins",
+    "base_nchaintx",
+    "source_chain",
+    "snapshot_file_size",
+    "snapshot_file_sha256",
+    "snapshot_file",
+    "total_amount",
+]
 
 
 class LtcSnapshotScriptTest(BitcoinTestFramework):
@@ -484,7 +497,9 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in result.stdout
         with open(audit_path, encoding="utf8") as audit_file:
-            audit = json.load(audit_file)
+            audit_pairs = json.load(audit_file, object_pairs_hook=lambda pairs: pairs)
+        audit = dict(audit_pairs)
+        assert_equal([field for field, _ in audit_pairs], AUDIT_SUMMARY_FIELDS)
         assert_equal(audit["height"], HEIGHT)
         assert_equal(audit["source_chain"], "main")
         assert_equal(audit["block_hash"], BLOCK_HASH)

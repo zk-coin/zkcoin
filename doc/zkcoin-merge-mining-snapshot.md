@@ -310,8 +310,10 @@ It prints the snapshot-related launch-node arguments:
 ```
 
 It also writes a machine-readable audit summary when `ZKCOIN_SNAPSHOT_AUDIT_JSON`
-is set. Use that verified audit summary for the public launch-profile manifest
-handoff:
+is set. The audit summary uses the same field order as the
+`--snapshot-audit-template` output, so reviewers can compare the generated
+artifact against the expected handoff shape without key reordering noise. Use
+that verified audit summary for the public launch-profile manifest handoff:
 
 ```bash
 contrib/devtools/zkcoin_public_launch_profile.py \
