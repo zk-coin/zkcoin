@@ -1435,6 +1435,40 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        audit_manifest_path = Path(temp_dir) / "snapshot-resolved-manifest.json"
+        audit_manifest_path.write_text(json.dumps(audit_manifest), encoding="utf8")
+        audit_next_action_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--next-action",
+                str(audit_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if audit_next_action_result.returncode != 0:
+            return "{} --next-action failed after resolving the snapshot blocker: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                audit_next_action_result.stderr.strip()
+                or audit_next_action_result.stdout.strip()
+                or "no output",
+            )
+        if "next blocker: main.auxpow_chain_id" not in audit_next_action_result.stdout:
+            return "{} --next-action did not advance to the AuxPoW blocker after snapshot resolution".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--check-auxpow main <chain_id>" not in audit_next_action_result.stdout:
+            return "{} --next-action did not print the AuxPoW candidate check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-auxpow main <chain_id>" not in audit_next_action_result.stdout:
+            return "{} --next-action did not print the AuxPoW update command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         check_audit_result = subprocess.run(
             [
                 sys.executable,
@@ -2244,6 +2278,84 @@ def require_public_launch_manifest_current():
         )
     if "main.litecoin_snapshot" not in auxpow_blockers:
         return "{} --set-auxpow removed unrelated blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    check_auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-auxpow",
+            "main",
+            "0x5001",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_auxpow_result.returncode != 0:
+        return "{} --check-auxpow failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_auxpow_result.stderr.strip() or check_auxpow_result.stdout.strip() or "no output",
+        )
+    for expected in (
+        "AuxPoW chain id candidate verified for main.",
+        "chain id: 20481",
+        "chain id hex: 0x5001",
+        "strict chain id: true",
+    ):
+        if expected not in check_auxpow_result.stdout:
+            return "{} --check-auxpow did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    check_auxpow_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-auxpow",
+            "main",
+            "0x5001",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_auxpow_in_place_result.returncode == 0:
+        return "{} --check-auxpow accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-auxpow does not write the manifest" not in check_auxpow_in_place_result.stderr:
+        return "{} --check-auxpow did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    unsafe_check_auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-auxpow",
+            "main",
+            "0x2000",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if unsafe_check_auxpow_result.returncode == 0:
+        return "{} --check-auxpow accepted a Litecoin parent-versionbits chain id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "0x2000-0x3fff" not in unsafe_check_auxpow_result.stderr:
+        return "{} --check-auxpow did not explain the parent-versionbits chain-id rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -3329,9 +3441,13 @@ def main():
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--check-snapshot-audit", "manifest verified snapshot audit read-only check flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
+        ("--check-auxpow", "manifest AuxPoW read-only check flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
         ("--set-identity", "manifest public identity update flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
+        ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
+        ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
+        ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
@@ -4140,6 +4256,10 @@ def main():
         (
             "Use one primary launch-profile action per invocation",
             "public launch manifest single primary action documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --check-auxpow NETWORK <chain_id>",
+            "public launch manifest AuxPoW read-only check documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
