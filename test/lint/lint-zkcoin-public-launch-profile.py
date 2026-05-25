@@ -610,8 +610,17 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not preserve blocker order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
-    if status_json.get("actions", [{}])[-1].get("id") != "testnet.dns_seeds":
+    actions = status_json.get("actions", [])
+    if actions[-1].get("id") != "testnet.dns_seeds":
         return "{} --status-json did not include the full action plan".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if actions[0].get("network") != "main" or actions[0].get("blocker_type") != "litecoin_snapshot":
+        return "{} --status-json did not include first action network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if actions[-1].get("network") != "testnet" or actions[-1].get("blocker_type") != "dns_seeds":
+        return "{} --status-json did not include final action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_action") != status_json.get("next"):
@@ -620,6 +629,14 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_action", {}).get("id") != "main.litecoin_snapshot":
         return "{} --status-json next_action did not preserve the current blocker id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("network") != "main":
+        return "{} --status-json next_action did not expose the current blocker network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("blocker_type") != "litecoin_snapshot":
+        return "{} --status-json next_action did not expose the current blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
@@ -750,6 +767,10 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("action", ""):
             return "{} --status-json did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("actions", [{}])[0].get("network") != "main":
+            return "{} --status-json did not preserve staged action network metadata".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4739,6 +4760,7 @@ def main():
         ("blocked_field_group_entries", "manifest builds field-level blocker group entries"),
         ("next_action_text", "manifest prints next action guidance"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
+        ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -5629,6 +5651,14 @@ def main():
         (
             "action_count",
             "public launch manifest status-json action count documentation",
+        ),
+        (
+            "next_action",
+            "public launch manifest status-json next action documentation",
+        ),
+        (
+            "action entries expose `network` and `blocker_type`",
+            "public launch manifest status-json action metadata documentation",
         ),
         (
             "blocked_field_count",

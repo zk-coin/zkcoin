@@ -127,9 +127,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_count`, `action_count`, and `next_action`; the same
   payload includes ordered `blocked_field_groups`, `next_blocked_field_group`, and
   `next_blocked_fields` so dashboards can show the concrete fields and action
-  guidance for each unresolved blocker and the first unresolved blocker, with
-  explicit `network` and `blocker_type` values instead of parsing blocker ids or
-  blocked field paths;
+  guidance for each unresolved blocker and the first unresolved blocker. Blocker
+  action entries expose `network` and `blocker_type` values directly in `actions`
+  and `next_action`, so automation does not need to parse blocker ids or blocked
+  field paths;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
