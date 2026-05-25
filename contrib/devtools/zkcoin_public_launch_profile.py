@@ -1232,14 +1232,18 @@ def verified_snapshot_audit_for_network(network, audit_path):
 
 def candidate_next_step_text(candidate):
     blockers = ordered_unresolved_blocker_ids(candidate)
+    lines = [f"  remaining blockers after applying audit: {len(blockers)}"]
     if blockers:
-        return f"  next blocker after applying audit: {blockers[0]}"
+        lines.append(f"  next blocker after applying audit: {blockers[0]}")
+        return "\n".join(lines)
     if candidate.get("status") == "blocked":
-        return (
+        lines.append(
             "  next step after applying audit: "
             "mark the complete manifest ready for chainparams"
         )
-    return "  next step after applying audit: emit and check chainparams"
+        return "\n".join(lines)
+    lines.append("  next step after applying audit: emit and check chainparams")
+    return "\n".join(lines)
 
 
 def snapshot_audit_check_text(network, audit, candidate):
