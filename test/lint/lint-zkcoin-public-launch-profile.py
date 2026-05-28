@@ -385,6 +385,18 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print the snapshot audit template command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main" not in next_action_result.stdout:
+        return "{} --next-action did not print a copyable snapshot template command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>" not in next_action_result.stdout:
+        return "{} --next-action did not print a copyable snapshot check command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>" not in next_action_result.stdout:
+        return "{} --next-action did not print a copyable snapshot apply command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
 
     expected_snapshot_audit_template_fields = [
         "height",
@@ -499,6 +511,11 @@ def require_public_launch_manifest_current():
         "--snapshot-audit-template main",
         "--check-snapshot-audit main <snapshot_audit.json>",
         "--check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
+        "     template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
+        "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
+        "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
+        "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
     ):
         if expected not in action_plan_result.stdout:
             return "{} --action-plan did not print {}".format(
@@ -773,6 +790,18 @@ def require_public_launch_manifest_current():
             return "{} --next-action did not shell-quote a staged manifest path with spaces".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote a copyable staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote a copyable staged check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote a copyable staged template command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         spaced_action_plan_result = subprocess.run(
             [
@@ -795,6 +824,14 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
             return "{} --action-plan did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
+            return "{} --action-plan did not shell-quote a copyable staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
+            return "{} --action-plan did not shell-quote a copyable staged check command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -2195,6 +2232,18 @@ def require_public_launch_manifest_current():
             return "{} --next-action did not print the AuxPoW update command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id>" not in audit_next_action_result.stdout:
+            return "{} --next-action did not print a copyable AuxPoW check command line".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main <chain_id>" not in audit_next_action_result.stdout:
+            return "{} --next-action did not print a copyable AuxPoW apply command line".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - template command:" in audit_next_action_result.stdout:
+            return "{} --next-action printed a template command for the AuxPoW blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         check_audit_result = subprocess.run(
             [
@@ -3194,6 +3243,14 @@ def require_public_launch_manifest_current():
             return "{} --next-action did not print the public identity update command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-identity main <message_start> <port>" not in snapshot_auxpow_next_action_result.stdout:
+            return "{} --next-action did not print a copyable public identity check command line".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-identity main <message_start> <port>" not in snapshot_auxpow_next_action_result.stdout:
+            return "{} --next-action did not print a copyable public identity apply command line".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
     check_auxpow_result = subprocess.run(
         [
@@ -3640,6 +3697,14 @@ def require_public_launch_manifest_current():
             )
         if "--set-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in identity_next_action_result.stdout:
             return "{} --next-action did not print the DNS seed update command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in identity_next_action_result.stdout:
+            return "{} --next-action did not print a copyable DNS seed check command line".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in identity_next_action_result.stdout:
+            return "{} --next-action did not print a copyable DNS seed apply command line".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4912,6 +4977,7 @@ def main():
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
+        ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
@@ -5796,6 +5862,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --status-json",
             "public launch manifest status-json documentation",
+        ),
+        (
+            "copyable `template command`, `check command`,",
+            "public launch manifest copyable command-line documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK",

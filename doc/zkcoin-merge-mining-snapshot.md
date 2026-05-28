@@ -118,7 +118,9 @@ Both are intentionally present before behavior changes so tests and review can t
   the next unresolved blocker group and the matching handoff command template;
   run `contrib/devtools/zkcoin_public_launch_profile.py --action-plan` to print
   every unresolved blocker group and handoff command in launch order. Both
-  commands are read-only. Use
+  commands are read-only and print copyable `template command`, `check command`,
+  and `apply command` lines next to the prose handoff, omitting the template line
+  for blocker types that only need check/apply commands. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
   release automation needs the same blocker order, field-level blockers, blocked
   field count, blocked field group count, action count, and action-plan guidance

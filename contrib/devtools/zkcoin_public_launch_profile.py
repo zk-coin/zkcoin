@@ -2002,14 +2002,27 @@ def next_blocker_command(blocker_id, manifest_path):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
+def append_blocker_command_lines(lines, commands, prefix):
+    if commands["template_command"] is not None:
+        lines.append(f"{prefix}template command: {commands['template_command']}")
+    lines.append(f"{prefix}check command: {commands['check_command']}")
+    lines.append(f"{prefix}apply command: {commands['apply_command']}")
+
+
 def next_action_text(manifest, manifest_path):
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(manifest)
     lines = ["zkCoin public launch profile next action:"]
     if blockers:
-        lines.append(f"  - next blocker: {blockers[0]}")
-        lines.append(f"  - action: {next_blocker_command(blockers[0], manifest_path)}")
+        next_blocker = blockers[0]
+        lines.append(f"  - next blocker: {next_blocker}")
+        lines.append(f"  - action: {next_blocker_command(next_blocker, manifest_path)}")
+        append_blocker_command_lines(
+            lines,
+            blocker_action_commands(next_blocker, manifest_path),
+            "  - ",
+        )
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
         return "\n".join(lines)
@@ -2081,6 +2094,7 @@ def action_plan_text(manifest, manifest_path):
         for entry in entries:
             lines.append(f"  {entry['step']}. {entry['id']}")
             lines.append(f"     action: {entry['action']}")
+            append_blocker_command_lines(lines, entry, "     ")
         return "\n".join(lines)
 
     descriptions = {
