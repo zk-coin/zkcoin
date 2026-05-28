@@ -224,6 +224,9 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "network": network,
                 "blocker_type": blocker_type,
                 "action": action["action"],
+                "template_command": action["template_command"],
+                "check_command": action["check_command"],
+                "apply_command": action["apply_command"],
                 "field_count": len(fields),
                 "fields": fields,
             }
