@@ -619,6 +619,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if actions[0].get("field_count") != blocked_field_groups[0].get("field_count"):
+        return "{} --status-json did not include first action blocked field count".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if actions[0].get("fields") != blocked_field_groups[0].get("fields"):
+        return "{} --status-json did not include first action blocked fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--snapshot-audit-template main" not in actions[0].get("template_command", ""):
         return "{} --status-json did not include first action template command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -633,6 +641,10 @@ def require_public_launch_manifest_current():
         )
     if actions[-1].get("network") != "testnet" or actions[-1].get("blocker_type") != "dns_seeds":
         return "{} --status-json did not include final action network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if actions[-1].get("field_count") != 1 or actions[-1].get("fields") != ["testnet.public_network_identity.dns_seeds"]:
+        return "{} --status-json did not include final action blocked field metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>" not in actions[-1].get("check_command", ""):
@@ -657,6 +669,14 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_action", {}).get("blocker_type") != "litecoin_snapshot":
         return "{} --status-json next_action did not expose the current blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("field_count") != 11:
+        return "{} --status-json next_action did not expose the current field count".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("fields") != status_json.get("next_blocked_fields"):
+        return "{} --status-json next_action did not expose the current blocked fields".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_action", {}).get("check_command") != actions[0].get("check_command"):
@@ -807,6 +827,10 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("actions", [{}])[0].get("network") != "main":
             return "{} --status-json did not preserve staged action network metadata".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("actions", [{}])[0].get("fields", [None])[0] != "main.litecoin_snapshot.height":
+            return "{} --status-json did not preserve staged action blocked fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4794,6 +4818,7 @@ def main():
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("blocked_fields_for_blocker", "manifest filters field-level blockers by blocker id"),
         ("blocked_field_group_entries", "manifest builds field-level blocker group entries"),
+        ("actions_with_blocked_fields", "manifest enriches action entries with blocked fields"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
@@ -4805,6 +4830,7 @@ def main():
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("check_command", "manifest status JSON includes current check commands"),
         ("apply_command", "manifest status JSON includes current apply commands"),
+        ("field_count", "manifest status JSON includes action field counts"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
