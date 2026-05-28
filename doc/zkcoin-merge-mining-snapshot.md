@@ -129,8 +129,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_count`, `action_count`, and `next_action`; it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
-  launch readiness separately without parsing field paths. It also
-  includes `network_progress`, which consolidates each network's ready flag,
+  launch readiness separately without parsing field paths. It also exposes
+  `blocked_networks`, `blocked_network_count`, `ready_networks`, and
+  `ready_network_count` for a compact network readiness summary without parsing
+  per-network progress entries. It also includes `network_progress`, which consolidates each network's ready flag,
   unresolved blockers, blocked fields, and next blocker group for operator views.
   The same payload
   includes ordered `blocked_field_groups`, `next_blocked_field_group`, and
