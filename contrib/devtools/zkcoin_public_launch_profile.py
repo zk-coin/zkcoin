@@ -231,6 +231,19 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
     return entries
 
 
+def actions_with_blocked_fields(actions, blocked_field_groups):
+    groups_by_id = {entry["id"]: entry for entry in blocked_field_groups}
+    entries = []
+    for action in actions:
+        entry = dict(action)
+        if entry.get("kind") == "blocker":
+            group = groups_by_id[entry["id"]]
+            entry["field_count"] = group["field_count"]
+            entry["fields"] = group["fields"]
+        entries.append(entry)
+    return entries
+
+
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -2039,8 +2052,9 @@ def action_plan_text(manifest, manifest_path):
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
-    next_action = actions[0] if actions else None
     blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    next_action = actions[0] if actions else None
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
     status = manifest.get("status")
