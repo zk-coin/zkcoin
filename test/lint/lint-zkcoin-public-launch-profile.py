@@ -558,6 +558,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json treated blocked manifest as ready".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("blocked_network_count") != 2 or status_json.get("blocked_networks") != ["main", "testnet"]:
+        return "{} --status-json did not summarize blocked networks".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("ready_network_count") != 0 or status_json.get("ready_networks") != []:
+        return "{} --status-json reported ready networks for a blocked manifest".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("unresolved_blocker_count") != 8:
         return "{} --status-json did not count unresolved blocker groups".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4160,6 +4168,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported network blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocked_network_count") != 0 or complete_status.get("blocked_networks") != []:
+            return "{} --status-json reported blocked networks for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("ready_network_count") != 2 or complete_status.get("ready_networks") != ["main", "testnet"]:
+            return "{} --status-json did not summarize complete ready networks".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("action_count") != 1:
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4395,6 +4411,14 @@ def require_public_launch_manifest_current():
             return schema_version_error
         if ready_status.get("ready_for_chainparams") is not True:
             return "{} --status-json did not report ready manifest as ready".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_network_count") != 0 or ready_status.get("blocked_networks") != []:
+            return "{} --status-json reported blocked networks for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("ready_network_count") != 2 or ready_status.get("ready_networks") != ["main", "testnet"]:
+            return "{} --status-json did not summarize ready networks".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("blocked_fields") != []:
@@ -5114,6 +5138,8 @@ def main():
         ("items_by_network", "manifest groups status items by network"),
         ("item_counts_by_network", "manifest counts status items by network"),
         ("network_progress_entries", "manifest builds network progress entries"),
+        ("blocked_networks", "manifest summarizes blocked networks"),
+        ("ready_networks", "manifest summarizes ready networks"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
@@ -5130,6 +5156,8 @@ def main():
         ("apply_command", "manifest status JSON includes current apply commands"),
         ("field_count", "manifest status JSON includes action field counts"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
+        ("blocked_network_count", "manifest status JSON includes a blocked network count"),
+        ("ready_network_count", "manifest status JSON includes a ready network count"),
         ("unresolved_blockers_by_network", "manifest status JSON groups blockers by network"),
         ("unresolved_blocker_counts_by_network", "manifest status JSON counts blockers by network"),
         ("blocked_field_counts_by_network", "manifest status JSON counts blocked fields by network"),
@@ -6058,6 +6086,14 @@ def main():
         (
             "blocked_field_counts_by_network",
             "public launch manifest status-json network field count documentation",
+        ),
+        (
+            "blocked_networks",
+            "public launch manifest status-json blocked network summary documentation",
+        ),
+        (
+            "ready_networks",
+            "public launch manifest status-json ready network summary documentation",
         ),
         (
             "network_progress",

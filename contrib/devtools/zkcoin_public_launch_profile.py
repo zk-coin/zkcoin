@@ -287,6 +287,22 @@ def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     }
 
 
+def blocked_networks(network_progress):
+    return [
+        network
+        for network in NETWORKS
+        if not network_progress[network]["ready_for_launch_profile"]
+    ]
+
+
+def ready_networks(network_progress):
+    return [
+        network
+        for network in NETWORKS
+        if network_progress[network]["ready_for_launch_profile"]
+    ]
+
+
 def action_command_fields(action):
     if action is None:
         return None
@@ -2154,6 +2170,13 @@ def status_json_text(manifest, manifest_path, check):
     actions = action_plan_entries(manifest, manifest_path)
     blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
     actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    blocked_network_list = blocked_networks(network_progress)
+    ready_network_list = ready_networks(network_progress)
     next_action = actions[0] if actions else None
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
@@ -2164,6 +2187,10 @@ def status_json_text(manifest, manifest_path, check):
             "manifest": display_path(manifest_path),
             "status": status,
             "ready_for_chainparams": status == "ready-for-chainparams" and not blockers,
+            "blocked_network_count": len(blocked_network_list),
+            "blocked_networks": blocked_network_list,
+            "ready_network_count": len(ready_network_list),
+            "ready_networks": ready_network_list,
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
             "unresolved_blockers_by_network": items_by_network(blockers),
@@ -2171,11 +2198,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
-            "network_progress": network_progress_entries(
-                blockers,
-                check.blockers,
-                blocked_field_groups,
-            ),
+            "network_progress": network_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
