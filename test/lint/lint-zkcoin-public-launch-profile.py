@@ -716,6 +716,23 @@ def require_public_launch_manifest_current():
         return "{} --status-json next_action did not expose the current apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    next_commands = status_json.get("next_commands", {})
+    if next_commands.get("template_command") != actions[0].get("template_command"):
+        return "{} --status-json next_commands did not expose the current template command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("check_command") != actions[0].get("check_command"):
+        return "{} --status-json next_commands did not expose the current check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("apply_command") != actions[0].get("apply_command"):
+        return "{} --status-json next_commands did not expose the current apply command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("command") is not None:
+        return "{} --status-json next_commands reported a blocker command alias".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
         return "{} --status-json did not include next action guidance".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -848,6 +865,18 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_action", {}).get("action", ""):
             return "{} --status-json did not shell-quote a staged next_action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_commands", {}).get("apply_command", ""):
+            return "{} --status-json did not shell-quote a staged next_commands apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands", {}).get("check_command", ""):
+            return "{} --status-json did not shell-quote a staged next_commands check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands", {}).get("template_command", ""):
+            return "{} --status-json did not shell-quote a staged next_commands template command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("next_blocked_field_count") != 11:
@@ -4021,6 +4050,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose the complete-manifest next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_commands", {}).get("command") != complete_status.get("next_action", {}).get("command"):
+            return "{} --status-json did not expose the complete-manifest next command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("ready_for_chainparams") is not False:
             return "{} --status-json treated complete blocked manifest as ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4233,6 +4266,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_action", {}).get("id") != "emit-chainparams":
             return "{} --status-json did not expose ready-manifest next_action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_commands", {}).get("command") != ready_status.get("next_action", {}).get("command"):
+            return "{} --status-json did not expose ready-manifest next command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4872,6 +4909,7 @@ def main():
         ("blocked_fields_for_blocker", "manifest filters field-level blockers by blocker id"),
         ("blocked_field_group_entries", "manifest builds field-level blocker group entries"),
         ("actions_with_blocked_fields", "manifest enriches action entries with blocked fields"),
+        ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
@@ -4881,6 +4919,7 @@ def main():
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
         ("next_action", "manifest status JSON includes the current handoff action"),
+        ("next_commands", "manifest status JSON includes current handoff commands"),
         ("check_command", "manifest status JSON includes current check commands"),
         ("apply_command", "manifest status JSON includes current apply commands"),
         ("field_count", "manifest status JSON includes action field counts"),
@@ -5777,6 +5816,10 @@ def main():
         (
             "next_action",
             "public launch manifest status-json next action documentation",
+        ),
+        (
+            "next_commands",
+            "public launch manifest status-json next command documentation",
         ),
         (
             "action entries expose `network` and `blocker_type`",

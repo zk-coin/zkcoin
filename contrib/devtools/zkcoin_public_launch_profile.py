@@ -247,6 +247,17 @@ def actions_with_blocked_fields(actions, blocked_field_groups):
     return entries
 
 
+def action_command_fields(action):
+    if action is None:
+        return None
+    return {
+        "template_command": action.get("template_command"),
+        "check_command": action.get("check_command"),
+        "apply_command": action.get("apply_command"),
+        "command": action.get("command"),
+    }
+
+
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -2111,6 +2122,7 @@ def status_json_text(manifest, manifest_path, check):
             "action_count": len(actions),
             "next": next_action,
             "next_action": next_action,
+            "next_commands": action_command_fields(next_action),
             "actions": actions,
         },
         indent=2,
