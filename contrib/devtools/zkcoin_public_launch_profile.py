@@ -314,6 +314,14 @@ def action_command_fields(action):
     }
 
 
+def list_summary(items):
+    return ", ".join(items) if items else "none"
+
+
+def yes_no(value):
+    return "yes" if value else "no"
+
+
 def is_plain_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -2165,6 +2173,47 @@ def action_plan_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
+def readiness_summary_text(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    ready_for_chainparams = manifest.get("status") == "ready-for-chainparams" and not blockers
+    next_action = actions[0] if actions else None
+    lines = [
+        "zkCoin public launch profile readiness summary:",
+        f"  - status: {manifest.get('status')}",
+        f"  - ready for chainparams: {yes_no(ready_for_chainparams)}",
+        f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
+        f"  - ready networks: {list_summary(ready_networks(network_progress))}",
+        f"  - unresolved blockers: {len(blockers)}",
+        f"  - blocked fields: {len(check.blockers)}",
+    ]
+
+    if blockers:
+        lines.append(f"  - next blocker: {next_action['id']}")
+        lines.append(f"  - next blocker fields: {next_action['field_count']}")
+        append_blocker_command_lines(lines, next_action, "  - ")
+        if len(blockers) > 1:
+            lines.append("  - later blockers: " + ", ".join(blockers[1:]))
+        return "\n".join(lines)
+
+    if manifest.get("status") == "blocked":
+        lines.append("  - next step: mark-ready")
+        lines.append(f"  - command: {next_action['command']}")
+        return "\n".join(lines)
+
+    lines.append("  - next step: apply ready manifest to chainparams and verify sync")
+    for action in actions:
+        lines.append(f"  - {action['id']}: {action['command']}")
+    return "\n".join(lines)
+
+
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -2241,6 +2290,8 @@ def selected_primary_actions(args):
         actions.append("--next-action")
     if args.action_plan:
         actions.append("--action-plan")
+    if args.readiness_summary:
+        actions.append("--readiness-summary")
     if args.status_json:
         actions.append("--status-json")
     if args.emit_chainparams:
@@ -2257,6 +2308,7 @@ def main():
     parser.add_argument("--allow-blocked", action="store_true", help="allow the checked-in blocked manifest while still validating schema and known constraints")
     parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
+    parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
@@ -2520,6 +2572,8 @@ def main():
         allow_blocked = True
     if args.action_plan:
         allow_blocked = True
+    if args.readiness_summary:
+        allow_blocked = True
     if args.status_json:
         allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
@@ -2557,6 +2611,13 @@ def main():
             print("error: --action-plan does not write the manifest", file=sys.stderr)
             return 1
         print(action_plan_text(manifest, args.manifest))
+        return 0
+
+    if args.readiness_summary:
+        if args.in_place:
+            print("error: --readiness-summary does not write the manifest", file=sys.stderr)
+            return 1
+        print(readiness_summary_text(manifest, args.manifest, check))
         return 0
 
     if args.status_json:
