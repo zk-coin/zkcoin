@@ -619,8 +619,28 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--snapshot-audit-template main" not in actions[0].get("template_command", ""):
+        return "{} --status-json did not include first action template command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-snapshot-audit main <snapshot_audit.json>" not in actions[0].get("check_command", ""):
+        return "{} --status-json did not include first action check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--set-snapshot-audit main <snapshot_audit.json>" not in actions[0].get("apply_command", ""):
+        return "{} --status-json did not include first action apply command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if actions[-1].get("network") != "testnet" or actions[-1].get("blocker_type") != "dns_seeds":
         return "{} --status-json did not include final action network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>" not in actions[-1].get("check_command", ""):
+        return "{} --status-json did not include final action check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--set-dns-seeds testnet <seed1.hostname>,<seed2.hostname>" not in actions[-1].get("apply_command", ""):
+        return "{} --status-json did not include final action apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_action") != status_json.get("next"):
@@ -637,6 +657,14 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_action", {}).get("blocker_type") != "litecoin_snapshot":
         return "{} --status-json next_action did not expose the current blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("check_command") != actions[0].get("check_command"):
+        return "{} --status-json next_action did not expose the current check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_action", {}).get("apply_command") != actions[0].get("apply_command"):
+        return "{} --status-json next_action did not expose the current apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
@@ -767,6 +795,14 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("action", ""):
             return "{} --status-json did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("actions", [{}])[0].get("apply_command", ""):
+            return "{} --status-json did not shell-quote a staged action apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("check_command", ""):
+            return "{} --status-json did not shell-quote a staged action check command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("actions", [{}])[0].get("network") != "main":
@@ -4758,6 +4794,7 @@ def main():
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
         ("blocked_fields_for_blocker", "manifest filters field-level blockers by blocker id"),
         ("blocked_field_group_entries", "manifest builds field-level blocker group entries"),
+        ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
@@ -4766,6 +4803,8 @@ def main():
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
         ("next_action", "manifest status JSON includes the current handoff action"),
+        ("check_command", "manifest status JSON includes current check commands"),
+        ("apply_command", "manifest status JSON includes current apply commands"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),

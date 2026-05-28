@@ -1862,39 +1862,83 @@ def shell_quote(value):
     return shlex.quote(str(value))
 
 
-def next_blocker_command(blocker_id, manifest_path):
+def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     if blocker == "litecoin_snapshot":
+        return {
+            "template_command": (
+                f"{tool_path} --snapshot-audit-template {network} {manifest_path}"
+            ),
+            "check_command": (
+                f"{tool_path} --check-snapshot-audit {network} "
+                f"<snapshot_audit.json> {manifest_path}"
+            ),
+            "apply_command": (
+                f"{tool_path} --set-snapshot-audit {network} "
+                f"<snapshot_audit.json> --in-place {manifest_path}"
+            ),
+        }
+    if blocker == "auxpow_chain_id":
+        return {
+            "check_command": (
+                f"{tool_path} --check-auxpow {network} <chain_id> {manifest_path}"
+            ),
+            "apply_command": (
+                f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
+            ),
+        }
+    if blocker == "public_network_identity":
+        return {
+            "check_command": (
+                f"{tool_path} --check-identity {network} <message_start> <port> "
+                f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
+                f"<bech32_hrp> <mweb_hrp> {manifest_path}"
+            ),
+            "apply_command": (
+                f"{tool_path} --set-identity {network} <message_start> <port> "
+                f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
+                f"<bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
+            ),
+        }
+    if blocker == "dns_seeds":
+        return {
+            "check_command": (
+                f"{tool_path} --check-dns-seeds {network} "
+                f"<seed1.hostname>,<seed2.hostname> {manifest_path}"
+            ),
+            "apply_command": (
+                f"{tool_path} --set-dns-seeds {network} "
+                f"<seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
+            ),
+        }
+    raise ValueError(f"unknown blocker id: {blocker_id}")
+
+
+def next_blocker_command(blocker_id, manifest_path):
+    network, blocker = blocker_id.split(".", 1)
+    commands = blocker_action_commands(blocker_id, manifest_path)
+    if blocker == "litecoin_snapshot":
         return (
             "select and verify the final Litecoin snapshot, generate the required audit JSON shape with "
-            f"{tool_path} --snapshot-audit-template {network} {manifest_path}, "
+            f"{commands['template_command']}, "
             "fill it with final audited constants, run "
-            f"{tool_path} --check-snapshot-audit {network} <snapshot_audit.json> "
-            f"{manifest_path}, then run "
-            f"{tool_path} --set-snapshot-audit {network} <snapshot_audit.json> "
-            f"--in-place {manifest_path}"
+            f"{commands['check_command']}, then run {commands['apply_command']}"
         )
     if blocker == "auxpow_chain_id":
         return (
             "select a non-Litecoin AuxPoW child chain id, run "
-            f"{tool_path} --check-auxpow {network} <chain_id> {manifest_path}, then run "
-            f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
+            f"{commands['check_command']}, then run {commands['apply_command']}"
         )
     if blocker == "public_network_identity":
         return (
             "select non-Litecoin public identity values, run "
-            f"{tool_path} --check-identity {network} <message_start> <port> <pubkey> <script> "
-            f"<script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> {manifest_path}, then run "
-            f"{tool_path} --set-identity {network} <message_start> <port> <pubkey> <script> "
-            f"<script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
+            f"{commands['check_command']}, then run {commands['apply_command']}"
         )
     if blocker == "dns_seeds":
         return (
             "provision zkCoin DNS seed infrastructure, run "
-            f"{tool_path} --check-dns-seeds {network} <seed1.hostname>,<seed2.hostname> "
-            f"{manifest_path}, then run "
-            f"{tool_path} --set-dns-seeds {network} <seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
+            f"{commands['check_command']}, then run {commands['apply_command']}"
         )
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
@@ -1931,6 +1975,7 @@ def blocker_action_entry(index, blocker, manifest_path):
         "network": network,
         "blocker_type": blocker_type,
         "action": next_blocker_command(blocker, manifest_path),
+        **blocker_action_commands(blocker, manifest_path),
     }
 
 
