@@ -643,6 +643,19 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include final action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    for action in actions:
+        for command_field in ("template_command", "check_command", "apply_command"):
+            if command_field not in action:
+                return "{} --status-json action {} did not include {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                    command_field,
+                )
+        if action.get("blocker_type") != "litecoin_snapshot" and action.get("template_command") is not None:
+            return "{} --status-json action {} did not report null template_command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                action.get("id"),
+            )
     if actions[-1].get("field_count") != 1 or actions[-1].get("fields") != ["testnet.public_network_identity.dns_seeds"]:
         return "{} --status-json did not include final action blocked field metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -5724,6 +5737,10 @@ def main():
         (
             "action entries expose `network` and `blocker_type`",
             "public launch manifest status-json action metadata documentation",
+        ),
+        (
+            "`template_command` is `null` for blocker types",
+            "public launch manifest status-json stable command-field documentation",
         ),
         (
             "blocked_field_count",
