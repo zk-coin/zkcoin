@@ -149,8 +149,9 @@ Both are intentionally present before behavior changes so tests and review can t
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
   the read-only AuxPoW check reports the exact apply command, remaining blocker
-  count, and next blocker that would remain after applying the candidate, so
-  reviewers can verify blocker progress before changing the manifest;
+  count, next blocker, and next check/apply commands that would remain after
+  applying the candidate, so reviewers can verify blocker progress before changing
+  the manifest;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, the local launch placeholder `0x5a4b`, and the
   Litecoin parent versionbits-derived `0x2000..0x3fff` range. After provisioning
@@ -159,8 +160,9 @@ Both are intentionally present before behavior changes so tests and review can t
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
   the read-only DNS seed check reports the exact apply command, remaining blocker
-  count, and next blocker that would remain after applying the candidate, so
-  reviewers can verify seed handoff progress before changing the manifest;
+  count, next blocker, and next check/apply commands that would remain after
+  applying the candidate, so reviewers can verify seed handoff progress before
+  changing the manifest;
   the validator rejects empty, duplicate, single-label, numeric final-label,
   overlong-label, malformed, uppercase, reserved or local-use suffixes, and
   inherited Litecoin seed hostnames. After choosing the public network identity,
@@ -169,8 +171,9 @@ Both are intentionally present before behavior changes so tests and review can t
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`;
   the read-only identity check reports the exact apply command, remaining blocker
-  count, and next blocker that would remain after applying the candidate, so
-  reviewers can verify identity handoff progress before changing the manifest;
+  count, next blocker, and next check/apply commands that would remain after
+  applying the candidate, so reviewers can verify identity handoff progress before
+  changing the manifest;
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
   starts, ports, Base58 prefixes, HRPs, overlong HRPs, duplicate prefixes, and
@@ -357,8 +360,9 @@ summary, source-chain mapping, snapshot file byte size, and snapshot file
 SHA-256, then stage the candidate through launch-manifest validation without
 modifying the manifest.
 The read-only check also reports the exact apply command, remaining blocker
-count, and next blocker that would remain after applying the audit, so reviewers
-can confirm the handoff advances the expected profile before any manifest write.
+count, next blocker, and next check/apply commands that would remain after
+applying the audit, so reviewers can confirm the handoff advances the expected
+profile before any manifest write.
 The manifest handoff rejects reordered audit summaries when all expected fields
 are present, so the reviewed artifact must keep the template order.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
