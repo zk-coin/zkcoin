@@ -1894,6 +1894,7 @@ def blocker_action_commands(blocker_id, manifest_path):
         }
     if blocker == "auxpow_chain_id":
         return {
+            "template_command": None,
             "check_command": (
                 f"{tool_path} --check-auxpow {network} <chain_id> {manifest_path}"
             ),
@@ -1903,6 +1904,7 @@ def blocker_action_commands(blocker_id, manifest_path):
         }
     if blocker == "public_network_identity":
         return {
+            "template_command": None,
             "check_command": (
                 f"{tool_path} --check-identity {network} <message_start> <port> "
                 f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
@@ -1916,6 +1918,7 @@ def blocker_action_commands(blocker_id, manifest_path):
         }
     if blocker == "dns_seeds":
         return {
+            "template_command": None,
             "check_command": (
                 f"{tool_path} --check-dns-seeds {network} "
                 f"<seed1.hostname>,<seed2.hostname> {manifest_path}"

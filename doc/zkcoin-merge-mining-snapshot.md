@@ -130,9 +130,10 @@ Both are intentionally present before behavior changes so tests and review can t
   guidance for each unresolved blocker and the first unresolved blocker. Blocker
   action entries expose `network` and `blocker_type` values directly in `actions`
   and `next_action`, include the same blocker `fields` and `field_count`, and
-  expose split command fields such as `template_command`, `check_command`, and
-  `apply_command`, so automation does not need to parse blocker ids, blocked
-  field paths, or human-readable action prose;
+  always expose split command fields such as `template_command`, `check_command`,
+  and `apply_command`; `template_command` is `null` for blocker types that only
+  need check/apply commands, so automation does not need to parse blocker ids,
+  blocked field paths, or human-readable action prose;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
