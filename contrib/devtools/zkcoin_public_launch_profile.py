@@ -247,6 +247,22 @@ def actions_with_blocked_fields(actions, blocked_field_groups):
     return entries
 
 
+def items_by_network(items):
+    grouped = {network: [] for network in NETWORKS}
+    for item in items:
+        network = item.split(".", 1)[0]
+        if network in grouped:
+            grouped[network].append(item)
+    return grouped
+
+
+def item_counts_by_network(items):
+    return {
+        network: len(network_items)
+        for network, network_items in items_by_network(items).items()
+    }
+
+
 def action_command_fields(action):
     if action is None:
         return None
@@ -2126,8 +2142,11 @@ def status_json_text(manifest, manifest_path, check):
             "ready_for_chainparams": status == "ready-for-chainparams" and not blockers,
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
+            "unresolved_blockers_by_network": items_by_network(blockers),
+            "unresolved_blocker_counts_by_network": item_counts_by_network(blockers),
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
+            "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
