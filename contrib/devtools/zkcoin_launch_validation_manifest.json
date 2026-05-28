@@ -94,6 +94,7 @@
     ],
     "unit_tests": [
       "pow_tests",
+      "shielded_tests",
       "auxpow_tests",
       "utxo_snapshot_tests"
     ],
