@@ -2196,6 +2196,8 @@ def require_public_launch_manifest_current():
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "remaining blockers after applying audit: 7",
             "next blocker after applying audit: main.auxpow_chain_id",
+            "next check command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "next apply command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main <chain_id> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         ):
             if expected not in check_audit_result.stdout:
                 return "{} --check-snapshot-audit did not print {}".format(
@@ -3191,6 +3193,9 @@ def require_public_launch_manifest_current():
         "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main 0x5001 --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
+        "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_auxpow_result.stdout:
             return "{} --check-auxpow did not print {}".format(
@@ -3362,6 +3367,9 @@ def require_public_launch_manifest_current():
         "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main seed1.zkcoin.net,seed2.zkcoin.net --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
+        "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_dns_result.stdout:
             return "{} --check-dns-seeds did not print {}".format(
@@ -3644,6 +3652,9 @@ def require_public_launch_manifest_current():
         "apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-identity main 250,191,181,217 19445 75 76 77 178 04202431 04202432 zk zkmweb --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "remaining blockers after applying candidate: 7",
         "next blocker after applying candidate: main.litecoin_snapshot",
+        "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_identity_result.stdout:
             return "{} --check-identity did not print {}".format(
@@ -4800,7 +4811,8 @@ def main():
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
-        ("candidate_next_step_text(candidate, \"candidate\")", "manifest reports AuxPoW candidate progress"),
+        ("candidate_next_step_text(candidate, \"candidate\", manifest_path)", "manifest reports AuxPoW candidate progress"),
+        ("blocker_action_commands(next_blocker, manifest_path)", "manifest reports next candidate handoff commands"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
@@ -4808,7 +4820,7 @@ def main():
         ("snapshot_audit_apply_command", "manifest prints snapshot audit apply commands after read-only checks"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
-        ("candidate_next_step_text(candidate, \"audit\")", "manifest reports snapshot audit candidate blocker count"),
+        ("candidate_next_step_text(candidate, \"audit\", manifest_path)", "manifest reports snapshot audit candidate blocker count"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
@@ -5669,6 +5681,10 @@ def main():
         (
             "read-only AuxPoW check reports the exact apply command, remaining blocker",
             "public launch manifest AuxPoW candidate-progress documentation",
+        ),
+        (
+            "next check/apply commands that would remain",
+            "public launch manifest candidate next-command documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",

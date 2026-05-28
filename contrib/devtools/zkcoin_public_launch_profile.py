@@ -1290,19 +1290,48 @@ def verified_snapshot_audit_for_network(network, audit_path):
     return audit
 
 
-def candidate_next_step_text(candidate, applied_label):
+def candidate_next_step_text(candidate, applied_label, manifest_path):
+    manifest_path = shell_quote(display_path(manifest_path))
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(candidate)
     lines = [f"  remaining blockers after applying {applied_label}: {len(blockers)}"]
     if blockers:
-        lines.append(f"  next blocker after applying {applied_label}: {blockers[0]}")
+        next_blocker = blockers[0]
+        commands = blocker_action_commands(next_blocker, manifest_path)
+        lines.append(f"  next blocker after applying {applied_label}: {next_blocker}")
+        if commands["template_command"] is not None:
+            lines.append(
+                f"  next template command after applying {applied_label}: "
+                f"{commands['template_command']}"
+            )
+        lines.append(
+            f"  next check command after applying {applied_label}: "
+            f"{commands['check_command']}"
+        )
+        lines.append(
+            f"  next apply command after applying {applied_label}: "
+            f"{commands['apply_command']}"
+        )
         return "\n".join(lines)
     if candidate.get("status") == "blocked":
         lines.append(
             f"  next step after applying {applied_label}: "
             "mark the complete manifest ready for chainparams"
         )
+        lines.append(
+            f"  next command after applying {applied_label}: "
+            f"{tool_path} --mark-ready --in-place {manifest_path}"
+        )
         return "\n".join(lines)
     lines.append(f"  next step after applying {applied_label}: emit and check chainparams")
+    lines.append(
+        f"  next emit command after applying {applied_label}: "
+        f"{tool_path} --emit-chainparams {manifest_path}"
+    )
+    lines.append(
+        f"  next check command after applying {applied_label}: "
+        f"{tool_path} --check-chainparams src/chainparams.cpp {manifest_path}"
+    )
     return "\n".join(lines)
 
 
@@ -1332,7 +1361,7 @@ def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_pa
         f"  base transactions: {audit_detail['base_nchaintx']}",
         f"  total amount: {audit_detail['total_amount']}",
         f"  apply command: {snapshot_audit_apply_command(network, audit_path, manifest_path)}",
-        candidate_next_step_text(candidate, "audit"),
+        candidate_next_step_text(candidate, "audit", manifest_path),
     ))
 
 
@@ -1408,7 +1437,7 @@ def auxpow_check_text(network, auxpow, candidate, manifest_path):
         f"  strict chain id: {str(auxpow['strict_chain_id']).lower()}",
         "  forbidden parent-version chain-id range: 0x2000-0x3fff",
         f"  apply command: {auxpow_apply_command(network, auxpow, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate"),
+        candidate_next_step_text(candidate, "candidate", manifest_path),
     ))
 
 
@@ -1469,7 +1498,7 @@ def dns_seeds_check_text(network, dns_seeds, candidate, manifest_path):
         f"  seed count: {len(dns_seeds)}",
         "  seeds: " + ", ".join(dns_seeds),
         f"  apply command: {dns_seeds_apply_command(network, dns_seeds, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate"),
+        candidate_next_step_text(candidate, "candidate", manifest_path),
     ))
 
 
@@ -1615,7 +1644,7 @@ def identity_check_text(network, identity, candidate, manifest_path):
         f"  bech32 HRP: {identity['bech32_hrp']}",
         f"  MWEB HRP: {identity['mweb_hrp']}",
         f"  apply command: {identity_apply_command(network, identity, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate"),
+        candidate_next_step_text(candidate, "candidate", manifest_path),
     ))
 
 
