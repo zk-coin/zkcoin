@@ -590,6 +590,23 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include final blocker group network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    actions = status_json.get("actions", [])
+    actions_by_id = {action.get("id"): action for action in actions}
+    for group in blocked_field_groups:
+        action = actions_by_id.get(group.get("id"), {})
+        for command_field in ("template_command", "check_command", "apply_command"):
+            if command_field not in group:
+                return "{} --status-json blocker group {} did not include {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    group.get("id"),
+                    command_field,
+                )
+            if group.get(command_field) != action.get(command_field):
+                return "{} --status-json blocker group {} did not match action {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    group.get("id"),
+                    command_field,
+                )
     if status_json.get("next_blocked_field_group") != blocked_field_groups[0]:
         return "{} --status-json did not report the current blocker field group".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -610,7 +627,6 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not preserve blocker order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
-    actions = status_json.get("actions", [])
     if actions[-1].get("id") != "testnet.dns_seeds":
         return "{} --status-json did not include the full action plan".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -816,6 +832,18 @@ def require_public_launch_manifest_current():
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_blocked_field_group", {}).get("action", ""):
             return "{} --status-json did not shell-quote a staged next blocker field group action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("apply_command", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("check_command", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("template_command", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group template command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_action", {}).get("action", ""):
@@ -5749,6 +5777,10 @@ def main():
         (
             "blocked_field_groups",
             "public launch manifest status-json blocked field groups documentation",
+        ),
+        (
+            "blocked field groups carry the same split command fields",
+            "public launch manifest status-json grouped command-field documentation",
         ),
         (
             "blocker_type",
