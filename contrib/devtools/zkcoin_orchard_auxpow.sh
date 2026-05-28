@@ -65,8 +65,9 @@ for prefix in \
   fi
 done
 
-echo "Running public launch profile and seed quarantine lint"
+echo "Running public launch profile, product identity, and seed quarantine lints"
 test/lint/lint-zkcoin-public-launch-profile.sh
+test/lint/lint-zkcoin-product-identity.sh
 
 echo "Running release infrastructure and previous-release fail-closed lints"
 test/lint/lint-zkcoin-release-infrastructure.sh
