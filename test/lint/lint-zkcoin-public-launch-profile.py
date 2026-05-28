@@ -523,6 +523,44 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    readiness_summary_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--readiness-summary",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if readiness_summary_result.returncode != 0:
+        return "{} --readiness-summary failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            readiness_summary_result.stderr.strip() or readiness_summary_result.stdout.strip() or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile readiness summary:",
+        "  - status: blocked",
+        "  - ready for chainparams: no",
+        "  - blocked networks: main, testnet",
+        "  - ready networks: none",
+        "  - unresolved blockers: 8",
+        "  - blocked fields: 46",
+        "  - next blocker: main.litecoin_snapshot",
+        "  - next blocker fields: 11",
+        "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
+        "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
+        "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - later blockers: main.auxpow_chain_id",
+    ):
+        if expected not in readiness_summary_result.stdout:
+            return "{} --readiness-summary did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     status_json_result = subprocess.run(
         [
             sys.executable,
@@ -912,6 +950,38 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_readiness_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--readiness-summary",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_readiness_result.returncode != 0:
+            return "{} --readiness-summary failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_readiness_result.stderr.strip()
+                or spaced_readiness_result.stdout.strip()
+                or "no output",
+            )
+        if "  - blocked networks: main, testnet" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not print staged blocked networks".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--in-place {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote a staged manifest path with spaces".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote a copyable staged check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         spaced_status_json_result = subprocess.run(
             [
                 sys.executable,
@@ -1155,6 +1225,28 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    mixed_summary_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--action-plan",
+            "--readiness-summary",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if mixed_summary_result.returncode == 0:
+        return "{} accepted mixed action-plan and readiness-summary actions".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "use only one primary action at a time: --action-plan, --readiness-summary" not in mixed_summary_result.stderr:
+        return "{} did not explain mixed readiness-summary action rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     mixed_status_result = subprocess.run(
         [
             sys.executable,
@@ -1219,6 +1311,28 @@ def require_public_launch_manifest_current():
         )
     if "--action-plan does not write the manifest" not in action_plan_in_place_result.stderr:
         return "{} --action-plan did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    readiness_summary_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--readiness-summary",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if readiness_summary_in_place_result.returncode == 0:
+        return "{} --readiness-summary accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--readiness-summary does not write the manifest" not in readiness_summary_in_place_result.stderr:
+        return "{} --readiness-summary did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -4130,6 +4244,38 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        complete_summary_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--readiness-summary",
+                str(complete_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if complete_summary_result.returncode != 0:
+            return "{} --readiness-summary failed for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        for expected in (
+            "  - status: blocked",
+            "  - ready for chainparams: no",
+            "  - blocked networks: none",
+            "  - ready networks: main, testnet",
+            "  - unresolved blockers: 0",
+            "  - blocked fields: 0",
+            "  - next step: mark-ready",
+            "--mark-ready --in-place",
+        ):
+            if expected not in complete_summary_result.stdout:
+                return "{} --readiness-summary did not print complete blocked manifest guidance {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
         complete_status_result = subprocess.run(
             [
                 sys.executable,
@@ -4382,6 +4528,39 @@ def require_public_launch_manifest_current():
             return "{} --action-plan did not preserve the checked ready manifest path".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+
+        ready_summary_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--readiness-summary",
+                str(ready_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_summary_result.returncode != 0:
+            return "{} --readiness-summary failed for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        for expected in (
+            "  - status: ready-for-chainparams",
+            "  - ready for chainparams: yes",
+            "  - blocked networks: none",
+            "  - ready networks: main, testnet",
+            "  - unresolved blockers: 0",
+            "  - blocked fields: 0",
+            "  - next step: apply ready manifest to chainparams and verify sync",
+            "  - emit-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams",
+            "  - check-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
+        ):
+            if expected not in ready_summary_result.stdout:
+                return "{} --readiness-summary did not print ready manifest guidance {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
 
         ready_status_result = subprocess.run(
             [
@@ -5050,6 +5229,7 @@ def main():
         ("selected_primary_actions", "manifest rejects mixed primary actions"),
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
+        ("--readiness-summary", "manifest readiness summary flag"),
         ("--status-json", "manifest machine-readable status guidance flag"),
         ("STATUS_JSON_SCHEMA_VERSION = 2", "manifest status JSON schema version"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
@@ -5140,6 +5320,8 @@ def main():
         ("network_progress_entries", "manifest builds network progress entries"),
         ("blocked_networks", "manifest summarizes blocked networks"),
         ("ready_networks", "manifest summarizes ready networks"),
+        ("list_summary", "manifest formats compact readiness lists"),
+        ("yes_no", "manifest formats readiness booleans"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
@@ -5147,6 +5329,7 @@ def main():
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
+        ("readiness_summary_text", "manifest prints compact readiness guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
@@ -6030,6 +6213,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --action-plan",
             "public launch manifest action-plan documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --readiness-summary",
+            "public launch manifest readiness-summary documentation",
+        ),
+        (
+            "compact human-readable summary of blocked networks",
+            "public launch manifest readiness-summary contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --status-json",
