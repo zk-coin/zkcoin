@@ -263,6 +263,30 @@ def item_counts_by_network(items):
     }
 
 
+def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
+    blockers_by_network = items_by_network(blockers)
+    blocked_fields_by_network = items_by_network(blocked_fields)
+    groups_by_network = {network: [] for network in NETWORKS}
+    for group in blocked_field_groups:
+        groups_by_network[group["network"]].append(group)
+    return {
+        network: {
+            "ready_for_launch_profile": (
+                len(blockers_by_network[network]) == 0
+                and len(blocked_fields_by_network[network]) == 0
+            ),
+            "unresolved_blocker_count": len(blockers_by_network[network]),
+            "unresolved_blockers": blockers_by_network[network],
+            "blocked_field_count": len(blocked_fields_by_network[network]),
+            "blocked_fields": blocked_fields_by_network[network],
+            "next_blocked_field_group": (
+                groups_by_network[network][0] if groups_by_network[network] else None
+            ),
+        }
+        for network in NETWORKS
+    }
+
+
 def action_command_fields(action):
     if action is None:
         return None
@@ -2147,6 +2171,11 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
+            "network_progress": network_progress_entries(
+                blockers,
+                check.blockers,
+                blocked_field_groups,
+            ),
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,

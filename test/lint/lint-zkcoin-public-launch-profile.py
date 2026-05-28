@@ -633,6 +633,49 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include final blocker group network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    network_progress = status_json.get("network_progress", {})
+    main_progress = network_progress.get("main", {})
+    if main_progress.get("ready_for_launch_profile") is not False:
+        return "{} --status-json treated blocked mainnet profile as ready".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if main_progress.get("unresolved_blocker_count") != 4 or main_progress.get("blocked_field_count") != 23:
+        return "{} --status-json did not expose mainnet network progress counts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if main_progress.get("unresolved_blockers") != status_json.get("unresolved_blockers_by_network", {}).get("main"):
+        return "{} --status-json did not expose mainnet network progress blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if main_progress.get("blocked_fields", [None])[0] != "main.litecoin_snapshot.height":
+        return "{} --status-json did not expose mainnet network progress fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if main_progress.get("next_blocked_field_group") != blocked_field_groups[0]:
+        return "{} --status-json did not expose mainnet next blocker progress".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    testnet_progress = network_progress.get("testnet", {})
+    if testnet_progress.get("ready_for_launch_profile") is not False:
+        return "{} --status-json treated blocked testnet profile as ready".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if testnet_progress.get("unresolved_blocker_count") != 4 or testnet_progress.get("blocked_field_count") != 23:
+        return "{} --status-json did not expose testnet network progress counts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if testnet_progress.get("unresolved_blockers") != status_json.get("unresolved_blockers_by_network", {}).get("testnet"):
+        return "{} --status-json did not expose testnet network progress blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if testnet_progress.get("blocked_fields", [None])[0] != "testnet.litecoin_snapshot.height":
+        return "{} --status-json did not expose testnet network progress fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if testnet_progress.get("next_blocked_field_group") != blocked_field_groups[4]:
+        return "{} --status-json did not expose testnet next blocker progress".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     actions = status_json.get("actions", [])
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
@@ -4129,6 +4172,28 @@ def require_public_launch_manifest_current():
             return "{} --status-json counted network field blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("network_progress", {}).get("main") != {
+            "ready_for_launch_profile": True,
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_blocked_field_group": None,
+        }:
+            return "{} --status-json did not report complete mainnet network progress".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("network_progress", {}).get("testnet") != {
+            "ready_for_launch_profile": True,
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_blocked_field_group": None,
+        }:
+            return "{} --status-json did not report complete testnet network progress".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocked_fields") != [] or complete_status.get("next_blocked_field_count") != 0:
             return "{} --status-json reported next blocker fields for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4350,6 +4415,28 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("blocked_field_counts_by_network") != {"main": 0, "testnet": 0}:
             return "{} --status-json counted network field blockers for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("network_progress", {}).get("main") != {
+            "ready_for_launch_profile": True,
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_blocked_field_group": None,
+        }:
+            return "{} --status-json did not report ready mainnet network progress".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("network_progress", {}).get("testnet") != {
+            "ready_for_launch_profile": True,
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_blocked_field_group": None,
+        }:
+            return "{} --status-json did not report ready testnet network progress".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_fields") != [] or ready_status.get("next_blocked_field_count") != 0:
@@ -5026,6 +5113,7 @@ def main():
         ("actions_with_blocked_fields", "manifest enriches action entries with blocked fields"),
         ("items_by_network", "manifest groups status items by network"),
         ("item_counts_by_network", "manifest counts status items by network"),
+        ("network_progress_entries", "manifest builds network progress entries"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
@@ -5045,6 +5133,7 @@ def main():
         ("unresolved_blockers_by_network", "manifest status JSON groups blockers by network"),
         ("unresolved_blocker_counts_by_network", "manifest status JSON counts blockers by network"),
         ("blocked_field_counts_by_network", "manifest status JSON counts blocked fields by network"),
+        ("network_progress", "manifest status JSON includes network progress entries"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
         ("blocker_type", "manifest status JSON includes blocked field group blocker type"),
@@ -5969,6 +6058,10 @@ def main():
         (
             "blocked_field_counts_by_network",
             "public launch manifest status-json network field count documentation",
+        ),
+        (
+            "network_progress",
+            "public launch manifest status-json network progress documentation",
         ),
         (
             "blocked_field_groups",
