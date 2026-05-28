@@ -47,6 +47,7 @@ run_step test/lint/lint-zkcoin-release-infrastructure.sh
 run_step test/lint/lint-zkcoin-previous-releases.sh
 
 run_step src/test/test_litecoin --run_test=pow_tests
+run_step src/test/test_litecoin --run_test=shielded_tests
 run_step src/test/test_litecoin --run_test=auxpow_tests
 run_step src/test/test_litecoin --run_test=utxo_snapshot_tests
 
