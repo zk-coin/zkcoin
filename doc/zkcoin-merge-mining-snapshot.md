@@ -129,8 +129,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocked_fields` so dashboards can show the concrete fields and action
   guidance for each unresolved blocker and the first unresolved blocker. Blocker
   action entries expose `network` and `blocker_type` values directly in `actions`
-  and `next_action`, so automation does not need to parse blocker ids or blocked
-  field paths;
+  and `next_action`, plus split command fields such as `template_command`,
+  `check_command`, and `apply_command`, so automation does not need to parse
+  blocker ids, blocked field paths, or human-readable action prose;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
