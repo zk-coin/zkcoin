@@ -550,6 +550,9 @@ def require_public_launch_manifest_current():
         "  - blocked fields: 46",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
+        "  - blocked field paths:",
+        "    - main.litecoin_snapshot.height",
+        "    - main.litecoin_snapshot.audit.total_amount",
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
@@ -971,6 +974,10 @@ def require_public_launch_manifest_current():
             )
         if "  - blocked networks: main, testnet" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not print staged blocked networks".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "    - main.litecoin_snapshot.audit.total_amount" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not print staged next blocked fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_readiness_result.stdout:
@@ -5326,6 +5333,7 @@ def main():
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
         ("next_action_text", "manifest prints next action guidance"),
         ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
+        ("append_blocker_field_lines", "manifest prints human-readable blocked field paths"),
         ("action_plan_entries", "manifest builds reusable action-plan entries"),
         ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
@@ -6221,6 +6229,10 @@ def main():
         (
             "compact human-readable summary of blocked networks",
             "public launch manifest readiness-summary contents documentation",
+        ),
+        (
+            "immediate blocker's exact field paths",
+            "public launch manifest readiness-summary field-path documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --status-json",
