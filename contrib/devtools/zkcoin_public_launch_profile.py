@@ -2073,6 +2073,12 @@ def append_blocker_command_lines(lines, commands, prefix):
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
 
 
+def append_blocker_field_lines(lines, entry, prefix, item_prefix):
+    lines.append(f"{prefix}blocked field paths:")
+    for field in entry["fields"]:
+        lines.append(f"{item_prefix}{field}")
+
+
 def next_action_text(manifest, manifest_path):
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -2198,6 +2204,7 @@ def readiness_summary_text(manifest, manifest_path, check):
     if blockers:
         lines.append(f"  - next blocker: {next_action['id']}")
         lines.append(f"  - next blocker fields: {next_action['field_count']}")
+        append_blocker_field_lines(lines, next_action, "  - ", "    - ")
         append_blocker_command_lines(lines, next_action, "  - ")
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
