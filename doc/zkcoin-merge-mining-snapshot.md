@@ -368,6 +368,9 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 contrib/devtools/zkcoin_public_launch_profile.py \
   --set-snapshot-audit NETWORK <snapshot_audit.json> \
   --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json
 ```
 
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
@@ -378,11 +381,14 @@ modifying the manifest.
 The read-only check also reports the exact apply command, remaining blocker
 count, next blocker, and next check/apply commands that would remain after
 applying the audit, so reviewers can confirm the handoff advances the expected
-profile before any manifest write.
+profile before any manifest write. After applying the audit summary, run
+`--readiness-summary` to confirm the current blocker moved from the snapshot
+handoff to the next production launch input.
 The manifest handoff rejects reordered audit summaries when all expected fields
 are present, so the reviewed artifact must keep the template order.
 When `ZKCOIN_SNAPSHOT_AUDIT_JSON` is set, the operator script prints this
-template command, the read-only check command, and the follow-up update command
+template command, the read-only check command, the follow-up update command,
+and the post-apply readiness summary command
 with the target profile derived from `source_chain` and the exact audit summary path filled in. Printed
 snapshot and audit paths are shell-quoted when needed, so copy the generated
 commands exactly. The operator creates the audit summary with an

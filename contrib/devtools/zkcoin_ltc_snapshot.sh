@@ -887,6 +887,10 @@ if audit_json_path:
         f"--set-snapshot-audit {target_network} {shell_quote(audit_json_path)} "
         "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     )
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
 else:
     print("Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> and rerun before updating the public profile.")
     print(
@@ -898,6 +902,10 @@ else:
         "contrib/devtools/zkcoin_public_launch_profile.py "
         f"--set-snapshot-audit {target_network} <snapshot_audit.json> "
         "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     )
 print()
 print("Combine these with the AuxPoW launch profile and confirm")
