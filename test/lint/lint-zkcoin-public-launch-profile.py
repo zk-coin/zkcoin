@@ -5847,6 +5847,7 @@ def main():
         ("--snapshot-audit-template {target_network}", "snapshot script prints audit template handoff command"),
         ("--check-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest check command"),
         ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
+        ("--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json", "snapshot script prints post-apply readiness summary command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
     for needle, description in ltc_snapshot_script_checks:
@@ -5860,6 +5861,7 @@ def main():
         ("AUDIT_SUMMARY_FIELDS", "snapshot script test checks audit summary field order"),
         ("--snapshot-audit-template main", "snapshot script test checks audit template manifest handoff"),
         ("--check-snapshot-audit main", "snapshot script test checks read-only manifest handoff"),
+        ("--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json", "snapshot script test checks readiness summary handoff"),
         ("snapshot_file_sha256", "snapshot script test checks audit artifact SHA-256 output"),
         ("Quote snapshot and audit paths in printed handoff commands", "snapshot script test checks shell-quoted handoff paths"),
         ("Reject a zero snapshot height", "snapshot script test rejects zero snapshot height"),
@@ -6363,7 +6365,7 @@ def main():
             "public launch snapshot audit order rejection documentation",
         ),
         (
-            "template command, the read-only check command, and the follow-up update command",
+            "template command, the read-only check command, the follow-up update command",
             "public launch snapshot audit check-before-update documentation",
         ),
         (
@@ -6499,8 +6501,16 @@ def main():
             "public launch manifest audit-backed snapshot update documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --readiness-summary",
+            "public launch manifest post-apply readiness summary documentation",
+        ),
+        (
             "without modifying the manifest",
             "public launch manifest read-only snapshot audit check behavior documentation",
+        ),
+        (
+            "post-apply readiness summary command",
+            "public launch snapshot operator post-apply summary documentation",
         ),
         (
             "target profile derived from `source_chain`",

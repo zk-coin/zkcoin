@@ -501,6 +501,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             f"--set-snapshot-audit main {audit_path} "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in result.stdout
         with open(audit_path, encoding="utf8") as audit_file:
             audit_pairs = json.load(audit_file, object_pairs_hook=lambda pairs: pairs)
         audit = dict(audit_pairs)
@@ -544,6 +548,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             f"--set-snapshot-audit main '{quoted_audit_path}' "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in quoted_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in quoted_result.stdout
         self.assert_command(calls, "litecoin", "dumptxoutset", [quoted_snapshot_path])
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [quoted_snapshot_path])
 
@@ -570,6 +578,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "contrib/devtools/zkcoin_public_launch_profile.py "
             f"--set-snapshot-audit testnet {testnet_audit_path} "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in testnet_result.stdout
 
         self.log.info("Reject a pre-existing audit summary output path before calling either CLI")
