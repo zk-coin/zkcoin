@@ -387,6 +387,21 @@ def action_command_fields(action):
     }
 
 
+def next_actions_by_blocker_type(actions):
+    grouped = actions_by_blocker_type(actions)
+    return {
+        blocker_type: blocker_actions[0] if blocker_actions else None
+        for blocker_type, blocker_actions in grouped.items()
+    }
+
+
+def next_commands_by_blocker_type(actions):
+    return {
+        blocker_type: action_command_fields(action)
+        for blocker_type, action in next_actions_by_blocker_type(actions).items()
+    }
+
+
 def network_next_command_fields(network_progress):
     return {
         network: action_command_fields(
@@ -2528,6 +2543,8 @@ def status_json_text(manifest, manifest_path, check):
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
             "action_counts_by_blocker_type": action_counts_by_blocker_type(actions),
+            "next_actions_by_blocker_type": next_actions_by_blocker_type(actions),
+            "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
             "next": next_action,
             "next_action": next_action,
             "next_commands": action_command_fields(next_action),

@@ -151,8 +151,9 @@ Both are intentionally present before behavior changes so tests and review can t
   by public network while non-network chainparams handoffs remain only in the
   global `actions` list. `actions_by_blocker_type` and
   `action_counts_by_blocker_type` also group and count remaining blocker
-  handoffs by snapshot, AuxPoW, public identity, and DNS seed workstream. The
-  payload also exposes
+  handoffs by snapshot, AuxPoW, public identity, and DNS seed workstream, with
+  `next_actions_by_blocker_type` and `next_commands_by_blocker_type` exposing
+  the next dispatchable handoff for each workstream. The payload also exposes
   `next_commands_by_network`, which mirrors the current command fields for each
   network's next blocker so automation can dispatch scoped handoffs directly.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
