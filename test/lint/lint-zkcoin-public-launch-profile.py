@@ -409,6 +409,14 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print a copyable blocker readiness-summary command line".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "  - later blocker readiness summary commands: main.auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id" not in next_action_result.stdout:
+        return "{} --next-action did not print copyable later blocker readiness-summary command lines".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "testnet.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds" not in next_action_result.stdout:
+        return "{} --next-action did not print the final later blocker readiness-summary command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
 
     expected_snapshot_audit_template_fields = [
         "height",
@@ -1488,6 +1496,14 @@ def require_public_launch_manifest_current():
             )
         if f"  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}" not in spaced_next_action_result.stdout:
             return "{} --next-action did not shell-quote a copyable staged template command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - later blocker readiness summary commands: main.auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote staged later blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"testnet.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote the final staged later blocker summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
