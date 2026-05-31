@@ -129,7 +129,8 @@ Both are intentionally present before behavior changes so tests and review can t
   per-workstream next network, blocker-type, and blocker-scoped summary
   commands, per-network next
   blocker-type summary commands, per-network next blocker-scoped summary
-  commands, per-network scoped summary commands, the immediate blocker's exact field paths,
+  commands, copyable action-plan, next-action, and rerun commands,
+  per-network scoped summary commands, the immediate blocker's exact field paths,
   earlier and later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   `apply command`, `readiness summary command`,
