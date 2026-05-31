@@ -1658,6 +1658,7 @@ def verified_snapshot_audit_for_network(network, audit_path):
 
 
 def candidate_next_step_text(candidate, applied_label, manifest_path, network, blocker_type):
+    next_action = next_action_command(manifest_path)
     readiness_command = readiness_summary_command(manifest_path)
     network_readiness_command = network_readiness_summary_command(manifest_path, network)
     blocker_type_readiness_command = blocker_type_readiness_summary_command(manifest_path, blocker_type)
@@ -1672,6 +1673,7 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network, b
         f"  remaining blocked fields after applying {applied_label}: {len(blocked_fields)}",
         f"  remaining blocked fields on {network} after applying {applied_label}: "
         f"{item_counts_by_network(blocked_fields)[network]}",
+        f"  next action command after applying {applied_label}: {next_action}",
         f"  readiness summary command after applying {applied_label}: {readiness_command}",
         f"  network readiness summary command after applying {applied_label}: {network_readiness_command}",
         f"  blocker type readiness summary command after applying {applied_label}: {blocker_type_readiness_command}",
@@ -2304,6 +2306,12 @@ def readiness_summary_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
     return f"{tool_path} --readiness-summary {manifest_path}"
+
+
+def next_action_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --next-action {manifest_path}"
 
 
 def network_readiness_summary_command(manifest_path, network):
