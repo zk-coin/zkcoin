@@ -120,8 +120,9 @@ Both are intentionally present before behavior changes so tests and review can t
   every unresolved blocker group and handoff command in launch order. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary` for a
   compact human-readable summary of blocked networks, ready networks, blocker
-  counts, blocked field counts, the immediate blocker's exact field paths, and
-  the immediate handoff commands. These
+  counts, per-network blocker counts, blocked field counts, per-network blocked
+  field counts, the immediate blocker's exact field paths, and the immediate
+  handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   and `apply command` lines next to the prose handoff, omitting the template line
   for blocker types that only need check/apply commands. Use
