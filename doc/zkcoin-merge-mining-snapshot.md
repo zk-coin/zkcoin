@@ -125,7 +125,8 @@ Both are intentionally present before behavior changes so tests and review can t
   per-network next blocker field counts, per-workstream next blockers,
   per-workstream next blocker networks, per-workstream next blocker field counts,
   per-network and per-workstream next template/check/apply commands,
-  per-workstream next blocker-scoped summary commands, per-network next
+  per-workstream next network, blocker-type, and blocker-scoped summary
+  commands, per-network next
   blocker-type summary commands, per-network next blocker-scoped summary
   commands, per-network scoped summary commands, the immediate blocker's exact field paths,
   and the immediate handoff commands. These
