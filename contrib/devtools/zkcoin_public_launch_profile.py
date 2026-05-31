@@ -2337,6 +2337,15 @@ def blocker_readiness_summary_commands(manifest_path, blockers):
     }
 
 
+def blocker_readiness_summary_command_summary(manifest_path, blockers):
+    if not blockers:
+        return "none"
+    return "; ".join(
+        f"{blocker}={blocker_readiness_summary_command(manifest_path, blocker)}"
+        for blocker in blockers
+    )
+
+
 def network_readiness_summary_command_summary(manifest_path):
     commands = network_readiness_summary_commands(manifest_path)
     return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
@@ -2644,6 +2653,10 @@ def readiness_summary_text(manifest, manifest_path, check):
         append_blocker_command_lines(lines, next_action, "  - ")
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
+            lines.append(
+                "  - later blocker readiness summary commands: "
+                + blocker_readiness_summary_command_summary(manifest_path, blockers[1:])
+            )
         return "\n".join(lines)
 
     if manifest.get("status") == "blocked":
@@ -2688,6 +2701,10 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
     remaining_blockers = progress["unresolved_blockers"][1:]
     if remaining_blockers:
         lines.append("  - later blockers: " + ", ".join(remaining_blockers))
+        lines.append(
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, remaining_blockers)
+        )
     return "\n".join(lines)
 
 
@@ -2723,6 +2740,10 @@ def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_
     remaining_blockers = progress["unresolved_blockers"][1:]
     if remaining_blockers:
         lines.append("  - later blockers: " + ", ".join(remaining_blockers))
+        lines.append(
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, remaining_blockers)
+        )
     return "\n".join(lines)
 
 
@@ -2762,6 +2783,10 @@ def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
         lines.append("  - earlier blockers: " + ", ".join(earlier_blockers))
     if later_blockers:
         lines.append("  - later blockers: " + ", ".join(later_blockers))
+        lines.append(
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        )
     return "\n".join(lines)
 
 
