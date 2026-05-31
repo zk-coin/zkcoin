@@ -228,7 +228,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
   the read-only AuxPoW check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
-  remaining blocked field counts, post-apply readiness summary command,
+  remaining blocked field counts, post-apply next-action command,
+  post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
   the candidate, and next scoped summary commands for that next blocker, so reviewers can verify blocker progress before changing the manifest;
@@ -241,7 +242,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
   the read-only DNS seed check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
-  remaining blocked field counts, post-apply readiness summary command,
+  remaining blocked field counts, post-apply next-action command,
+  post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
   the candidate, and next scoped summary commands for that next blocker, so reviewers can verify seed handoff progress before changing the manifest;
@@ -254,7 +256,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --set-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`;
   the read-only identity check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
-  remaining blocked field counts, post-apply readiness summary command,
+  remaining blocked field counts, post-apply next-action command,
+  post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
   the candidate, and next scoped summary commands for that next blocker, so reviewers can verify identity handoff progress before changing the manifest;
@@ -452,7 +455,8 @@ SHA-256, then stage the candidate through launch-manifest validation without
 modifying the manifest.
 The read-only check also reports the exact apply command, remaining blocker
 count, target-network remaining blocker count, overall and target-network
-remaining blocked field counts, post-apply readiness summary command,
+remaining blocked field counts, post-apply next-action command,
+post-apply readiness summary command,
 target-network readiness summary command, blocker-type readiness summary command,
 next blocker, next check/apply commands, next network and blocker-type
 readiness summary commands, and the
