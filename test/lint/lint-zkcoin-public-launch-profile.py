@@ -689,6 +689,29 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count action-plan entries".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("action_counts_by_network") != {"main": 4, "testnet": 4}:
+        return "{} --status-json did not count action-plan entries by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    actions_by_network = status_json.get("actions_by_network", {})
+    if [action.get("id") for action in actions_by_network.get("main", [])] != [
+        "main.litecoin_snapshot",
+        "main.auxpow_chain_id",
+        "main.public_network_identity",
+        "main.dns_seeds",
+    ]:
+        return "{} --status-json did not group mainnet action entries by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if [action.get("id") for action in actions_by_network.get("testnet", [])] != [
+        "testnet.litecoin_snapshot",
+        "testnet.auxpow_chain_id",
+        "testnet.public_network_identity",
+        "testnet.dns_seeds",
+    ]:
+        return "{} --status-json did not group testnet action entries by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("blocked_field_count") != 46:
         return "{} --status-json did not count field-level blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1215,6 +1238,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count staged action-plan entries".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if spaced_status_json.get("action_counts_by_network") != {"main": 4, "testnet": 4}:
+            return "{} --status-json did not count staged action-plan entries by network".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if spaced_status_json.get("blocked_field_count") != 46:
             return "{} --status-json did not count staged field-level blockers".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1297,6 +1324,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("readiness_summary_command", ""):
             return "{} --status-json did not shell-quote a staged action readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("actions_by_network", {}).get("main", [{}])[0].get("check_command", ""):
+            return "{} --status-json did not shell-quote a staged network action check command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("actions", [{}])[0].get("network") != "main":
@@ -4586,6 +4617,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("action_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted network actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("actions_by_network") != {"main": [], "testnet": []}:
+            return "{} --status-json reported network actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("blocked_field_count") != 0:
             return "{} --status-json reported field-level blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4976,6 +5015,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("action_count") != 2:
             return "{} --status-json did not count ready manifest handoff actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("action_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted network actions for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("actions_by_network") != {"main": [], "testnet": []}:
+            return "{} --status-json reported network actions for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if [action.get("id") for action in ready_status.get("actions", [])] != [
@@ -5639,6 +5686,8 @@ def main():
         ("actions_with_blocked_fields", "manifest enriches action entries with blocked fields"),
         ("items_by_network", "manifest groups status items by network"),
         ("item_counts_by_network", "manifest counts status items by network"),
+        ("actions_by_network", "manifest groups action entries by network"),
+        ("action_counts_by_network", "manifest counts action entries by network"),
         ("network_progress_entries", "manifest builds network progress entries"),
         ("blocked_networks", "manifest summarizes blocked networks"),
         ("ready_networks", "manifest summarizes ready networks"),
@@ -5662,6 +5711,8 @@ def main():
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
+        ("actions_by_network", "manifest status JSON groups actions by network"),
+        ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
@@ -6593,6 +6644,14 @@ def main():
         (
             "action_count",
             "public launch manifest status-json action count documentation",
+        ),
+        (
+            "actions_by_network",
+            "public launch manifest status-json network action documentation",
+        ),
+        (
+            "action_counts_by_network",
+            "public launch manifest status-json network action count documentation",
         ),
         (
             "next_action",
