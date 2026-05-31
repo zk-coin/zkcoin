@@ -6806,6 +6806,7 @@ def main():
         ("--check-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest check command"),
         ("--set-snapshot-audit {target_network}", "snapshot script prints audit-backed manifest update command"),
         ("--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json", "snapshot script prints post-apply readiness summary command"),
+        ("--blocker-readiness-summary {blocker_id}", "snapshot script prints blocker-scoped post-apply summary command"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script points at public launch manifest"),
     )
     for needle, description in ltc_snapshot_script_checks:
@@ -6820,6 +6821,8 @@ def main():
         ("--snapshot-audit-template main", "snapshot script test checks audit template manifest handoff"),
         ("--check-snapshot-audit main", "snapshot script test checks read-only manifest handoff"),
         ("--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json", "snapshot script test checks readiness summary handoff"),
+        ("--blocker-readiness-summary main.litecoin_snapshot", "snapshot script test checks blocker readiness summary handoff"),
+        ("Print placeholder audit handoff when no audit summary path is configured", "snapshot script test checks placeholder audit handoff"),
         ("snapshot_file_sha256", "snapshot script test checks audit artifact SHA-256 output"),
         ("Quote snapshot and audit paths in printed handoff commands", "snapshot script test checks shell-quoted handoff paths"),
         ("Reject a zero snapshot height", "snapshot script test rejects zero snapshot height"),
@@ -6996,6 +6999,7 @@ def main():
         ("Reject zero verifier base transaction count", "snapshot script test rejects zero base transaction count"),
         ("Print the testnet snapshot audit manifest handoff", "snapshot script test checks source-chain manifest handoff mapping"),
         ("--set-snapshot-audit testnet", "snapshot script test checks audit-backed manifest update command"),
+        ("--blocker-readiness-summary testnet.litecoin_snapshot", "snapshot script test checks testnet blocker summary handoff"),
         ("zkcoin_public_launch_profile_manifest.json", "snapshot script test checks public launch manifest path"),
     )
     for needle, description in ltc_snapshot_script_test_checks:
@@ -7553,6 +7557,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py \\\n  --readiness-summary",
             "public launch manifest post-apply readiness summary documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --blocker-readiness-summary NETWORK.litecoin_snapshot",
+            "public launch manifest post-apply blocker summary documentation",
         ),
         (
             "without modifying the manifest",
