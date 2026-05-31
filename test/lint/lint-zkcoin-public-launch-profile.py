@@ -571,6 +571,7 @@ def require_public_launch_manifest_current():
         "  - action plan command: contrib/devtools/zkcoin_public_launch_profile.py --action-plan contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next action command: contrib/devtools/zkcoin_public_launch_profile.py --next-action contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocked networks: main, testnet",
         "  - ready networks: none",
         "  - unresolved blockers: 8",
@@ -1094,6 +1095,13 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose the readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("status_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --status-json "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the status-json command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("network_readiness_summary_commands_by_network") != {
         "main": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -1602,6 +1610,10 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote staged rerun commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged status-json commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if "  - unresolved blockers by network: main=4, testnet=4" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not print staged per-network blocker counts".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1926,6 +1938,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("readiness_summary_command", ""):
             return "{} --status-json did not shell-quote staged readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("status_json_command", ""):
+            return "{} --status-json did not shell-quote staged status-json commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
@@ -5393,6 +5409,7 @@ def require_public_launch_manifest_current():
             "  - action plan command: contrib/devtools/zkcoin_public_launch_profile.py --action-plan",
             "  - next action command: contrib/devtools/zkcoin_public_launch_profile.py --next-action",
             "  - readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary",
+            "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json",
             "  - blocked networks: none",
             "  - ready networks: main, testnet",
             "  - unresolved blockers: 0",
@@ -5775,6 +5792,7 @@ def require_public_launch_manifest_current():
             "  - action plan command: contrib/devtools/zkcoin_public_launch_profile.py --action-plan",
             "  - next action command: contrib/devtools/zkcoin_public_launch_profile.py --next-action",
             "  - readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary",
+            "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json",
             "  - blocked networks: none",
             "  - ready networks: main, testnet",
             "  - unresolved blockers: 0",
@@ -6563,6 +6581,7 @@ def main():
         ("action_plan_command", "manifest prints action-plan commands after read-only checks"),
         ("next_action_command", "manifest prints next-action commands after read-only checks"),
         ("readiness_summary_command", "manifest prints readiness-summary commands after read-only checks"),
+        ("status_json_command", "manifest prints status-json commands after read-only checks"),
         ("network_readiness_summary_command", "manifest prints network readiness-summary commands after read-only checks"),
         ("blocker_type_readiness_summary_command", "manifest prints blocker-type readiness-summary commands after read-only checks"),
         ("blocker_readiness_summary_command", "manifest prints blocker readiness-summary commands after read-only checks"),
@@ -6675,6 +6694,7 @@ def main():
         ("action plan command:", "manifest prints action-plan commands in readiness summaries"),
         ("next action command:", "manifest prints next-action commands in readiness summaries"),
         ("readiness summary command:", "manifest prints rerun commands in readiness summaries"),
+        ("status JSON command:", "manifest prints status-json commands in readiness summaries"),
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
@@ -6709,6 +6729,7 @@ def main():
         ("next_blocker_networks_by_blocker_type", "manifest status JSON includes blocker-type next networks"),
         ("action_plan_command", "manifest status JSON includes a copyable action-plan command"),
         ("readiness_summary_command", "manifest status JSON includes a copyable readiness-summary command"),
+        ("status_json_command", "manifest status JSON includes a copyable status-json command"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
@@ -7654,7 +7675,7 @@ def main():
             "public launch manifest readiness-summary network blocker-type summary documentation",
         ),
         (
-            "copyable action-plan, next-action, and rerun commands",
+            "copyable action-plan, next-action, status-json, and rerun commands",
             "public launch manifest readiness-summary entry command documentation",
         ),
         (
@@ -7712,6 +7733,10 @@ def main():
         (
             "readiness_summary_command",
             "public launch manifest status-json readiness-summary command documentation",
+        ),
+        (
+            "status_json_command",
+            "public launch manifest status-json status-json command documentation",
         ),
         (
             "next_action",

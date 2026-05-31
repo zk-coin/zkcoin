@@ -129,7 +129,7 @@ Both are intentionally present before behavior changes so tests and review can t
   per-workstream next network, blocker-type, and blocker-scoped summary
   commands, per-network next
   blocker-type summary commands, per-network next blocker-scoped summary
-  commands, copyable action-plan, next-action, and rerun commands,
+  commands, copyable action-plan, next-action, status-json, and rerun commands,
   per-network scoped summary commands, the immediate blocker's exact field paths,
   earlier and later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
@@ -155,8 +155,8 @@ Both are intentionally present before behavior changes so tests and review can t
   as machine-readable JSON with a stable `schema_version` (`2` for the grouped
   blocker payload) plus direct `blocked_field_count`,
   `blocked_field_group_count`, `action_count`, `action_plan_command`,
-  `readiness_summary_command`, `next_action`, and `next_action_command`; it also
-  exposes
+  `readiness_summary_command`, `status_json_command`, `next_action`, and
+  `next_action_command`; it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
   launch readiness separately without parsing field paths, plus
