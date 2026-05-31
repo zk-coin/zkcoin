@@ -214,7 +214,8 @@ Both are intentionally present before behavior changes so tests and review can t
   the read-only AuxPoW check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
   remaining blocked field counts, post-apply readiness summary command,
-  target-network readiness summary command, next blocker, and next check/apply commands that would remain after applying
+  target-network readiness summary command, blocker-type readiness summary command,
+  next blocker, and next check/apply commands that would remain after applying
   the candidate, so reviewers can verify blocker progress before changing the manifest;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, the local launch placeholder `0x5a4b`, and the
@@ -226,7 +227,8 @@ Both are intentionally present before behavior changes so tests and review can t
   the read-only DNS seed check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
   remaining blocked field counts, post-apply readiness summary command,
-  target-network readiness summary command, next blocker, and next check/apply commands that would remain after applying
+  target-network readiness summary command, blocker-type readiness summary command,
+  next blocker, and next check/apply commands that would remain after applying
   the candidate, so reviewers can verify seed handoff progress before changing the manifest;
   the validator rejects empty, duplicate, single-label, numeric final-label,
   overlong-label, malformed, uppercase, reserved or local-use suffixes, and
@@ -238,7 +240,8 @@ Both are intentionally present before behavior changes so tests and review can t
   the read-only identity check reports the exact apply command, remaining blocker
   count, target-network remaining blocker count, overall and target-network
   remaining blocked field counts, post-apply readiness summary command,
-  target-network readiness summary command, next blocker, and next check/apply commands that would remain after applying
+  target-network readiness summary command, blocker-type readiness summary command,
+  next blocker, and next check/apply commands that would remain after applying
   the candidate, so reviewers can verify identity handoff progress before changing the manifest;
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
@@ -435,7 +438,8 @@ modifying the manifest.
 The read-only check also reports the exact apply command, remaining blocker
 count, target-network remaining blocker count, overall and target-network
 remaining blocked field counts, post-apply readiness summary command,
-target-network readiness summary command, next blocker, next check/apply commands, and the
+target-network readiness summary command, blocker-type readiness summary command,
+next blocker, next check/apply commands, and the
 exact next `--blocker-readiness-summary` command that would remain after applying
 the audit, so reviewers can confirm the handoff advances the expected profile
 before any manifest write. After applying the audit summary, run `--readiness-summary`
