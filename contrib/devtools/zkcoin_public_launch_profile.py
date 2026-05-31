@@ -2261,6 +2261,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
+        f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
     ]
 
     if blockers:
