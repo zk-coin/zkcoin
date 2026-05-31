@@ -514,6 +514,7 @@ def require_public_launch_manifest_current():
         "     template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "     readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
         "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
     ):
@@ -729,7 +730,7 @@ def require_public_launch_manifest_current():
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
-        for command_field in ("template_command", "check_command", "apply_command"):
+        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command"):
             if command_field not in group:
                 return "{} --status-json blocker group {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -790,12 +791,16 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[0].get("readiness_summary_command", ""):
+        return "{} --status-json did not include first action readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if actions[-1].get("network") != "testnet" or actions[-1].get("blocker_type") != "dns_seeds":
         return "{} --status-json did not include final action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     for action in actions:
-        for command_field in ("template_command", "check_command", "apply_command"):
+        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command"):
             if command_field not in action:
                 return "{} --status-json action {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -817,6 +822,10 @@ def require_public_launch_manifest_current():
         )
     if "--set-dns-seeds testnet <seed1.hostname>,<seed2.hostname>" not in actions[-1].get("apply_command", ""):
         return "{} --status-json did not include final action apply command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[-1].get("readiness_summary_command", ""):
+        return "{} --status-json did not include final action readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_action") != status_json.get("next"):
@@ -851,6 +860,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json next_action did not expose the current apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_action", {}).get("readiness_summary_command") != actions[0].get("readiness_summary_command"):
+        return "{} --status-json next_action did not expose the current readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_commands = status_json.get("next_commands", {})
     if next_commands.get("template_command") != actions[0].get("template_command"):
         return "{} --status-json next_commands did not expose the current template command".format(
@@ -862,6 +875,10 @@ def require_public_launch_manifest_current():
         )
     if next_commands.get("apply_command") != actions[0].get("apply_command"):
         return "{} --status-json next_commands did not expose the current apply command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("readiness_summary_command") != actions[0].get("readiness_summary_command"):
+        return "{} --status-json next_commands did not expose the current readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if next_commands.get("command") is not None:
@@ -950,6 +967,10 @@ def require_public_launch_manifest_current():
             )
         if f"     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
             return "{} --action-plan did not shell-quote a copyable staged check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"     readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary {quoted_manifest_path}" not in spaced_action_plan_result.stdout:
+            return "{} --action-plan did not shell-quote a copyable staged readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1054,6 +1075,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote a staged blocker field group template command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("next_action", {}).get("action", ""):
             return "{} --status-json did not shell-quote a staged next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1070,6 +1095,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote a staged next_commands template command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands", {}).get("readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged next_commands readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if spaced_status_json.get("next_blocked_field_count") != 11:
             return "{} --status-json did not count staged next blocker fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1084,6 +1113,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("check_command", ""):
             return "{} --status-json did not shell-quote a staged action check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged action readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("actions", [{}])[0].get("network") != "main":
@@ -5366,6 +5399,7 @@ def main():
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("check_command", "manifest status JSON includes current check commands"),
         ("apply_command", "manifest status JSON includes current apply commands"),
+        ("readiness_summary_command", "manifest status JSON includes current readiness-summary commands"),
         ("field_count", "manifest status JSON includes action field counts"),
         ("blocked_field_count", "manifest status JSON includes a blocked field count"),
         ("blocked_network_count", "manifest status JSON includes a blocked network count"),
