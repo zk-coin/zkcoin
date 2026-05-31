@@ -2285,6 +2285,40 @@ def readiness_summary_text(manifest, manifest_path, check):
     return "\n".join(lines)
 
 
+def network_readiness_summary_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    progress = network_progress[network]
+    next_group = progress["next_blocked_field_group"]
+    lines = [
+        "zkCoin public launch profile network readiness summary:",
+        f"  - network: {network}",
+        f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
+        f"  - unresolved blockers: {progress['unresolved_blocker_count']}",
+        f"  - blocked fields: {progress['blocked_field_count']}",
+    ]
+    if next_group is None:
+        lines.append("  - next blocker: none")
+        return "\n".join(lines)
+
+    lines.append(f"  - next blocker: {next_group['id']}")
+    lines.append(f"  - next blocker fields: {next_group['field_count']}")
+    append_blocker_field_lines(lines, next_group, "  - ", "    - ")
+    append_blocker_command_lines(lines, next_group, "  - ")
+    remaining_blockers = progress["unresolved_blockers"][1:]
+    if remaining_blockers:
+        lines.append("  - later blockers: " + ", ".join(remaining_blockers))
+    return "\n".join(lines)
+
+
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -2363,6 +2397,8 @@ def selected_primary_actions(args):
         actions.append("--action-plan")
     if args.readiness_summary:
         actions.append("--readiness-summary")
+    if args.network_readiness_summary is not None:
+        actions.append("--network-readiness-summary")
     if args.status_json:
         actions.append("--status-json")
     if args.emit_chainparams:
@@ -2380,6 +2416,7 @@ def main():
     parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
+    parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
@@ -2645,6 +2682,8 @@ def main():
         allow_blocked = True
     if args.readiness_summary:
         allow_blocked = True
+    if args.network_readiness_summary is not None:
+        allow_blocked = True
     if args.status_json:
         allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
@@ -2689,6 +2728,24 @@ def main():
             print("error: --readiness-summary does not write the manifest", file=sys.stderr)
             return 1
         print(readiness_summary_text(manifest, args.manifest, check))
+        return 0
+
+    if args.network_readiness_summary is not None:
+        if args.in_place:
+            print("error: --network-readiness-summary does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                network_readiness_summary_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.network_readiness_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
         return 0
 
     if args.status_json:
