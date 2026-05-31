@@ -302,6 +302,39 @@ def action_counts_by_blocker_type(actions):
     }
 
 
+def blockers_by_blocker_type(blockers):
+    grouped = {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+    for blocker in blockers:
+        blocker_parts = blocker.split(".", 1)
+        blocker_type = blocker_parts[1] if len(blocker_parts) == 2 else None
+        if blocker_type in grouped:
+            grouped[blocker_type].append(blocker)
+    return grouped
+
+
+def blocker_counts_by_blocker_type(blockers):
+    return {
+        blocker_type: len(blocker_ids)
+        for blocker_type, blocker_ids in blockers_by_blocker_type(blockers).items()
+    }
+
+
+def blocked_fields_by_blocker_type(blocked_field_groups):
+    grouped = {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+    for group in blocked_field_groups:
+        blocker_type = group.get("blocker_type")
+        if blocker_type in grouped:
+            grouped[blocker_type].extend(group.get("fields", []))
+    return grouped
+
+
+def blocked_field_counts_by_blocker_type(blocked_field_groups):
+    return {
+        blocker_type: len(fields)
+        for blocker_type, fields in blocked_fields_by_blocker_type(blocked_field_groups).items()
+    }
+
+
 def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     blockers_by_network = items_by_network(blockers)
     blocked_fields_by_network = items_by_network(blocked_fields)
@@ -2470,9 +2503,13 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blockers": blockers,
             "unresolved_blockers_by_network": items_by_network(blockers),
             "unresolved_blocker_counts_by_network": item_counts_by_network(blockers),
+            "unresolved_blockers_by_blocker_type": blockers_by_blocker_type(blockers),
+            "unresolved_blocker_counts_by_blocker_type": blocker_counts_by_blocker_type(blockers),
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
+            "blocked_fields_by_blocker_type": blocked_fields_by_blocker_type(blocked_field_groups),
+            "blocked_field_counts_by_blocker_type": blocked_field_counts_by_blocker_type(blocked_field_groups),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
             "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
