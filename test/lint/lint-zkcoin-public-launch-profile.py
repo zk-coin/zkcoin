@@ -720,6 +720,17 @@ def require_public_launch_manifest_current():
         blocker_type: 0
         for blocker_type in expected_blockers_by_blocker_type
     }
+    empty_blocker_type_progress = {
+        blocker_type: {
+            "ready_for_launch_profile": True,
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_action": None,
+        }
+        for blocker_type in expected_blockers_by_blocker_type
+    }
     if status_json.get("action_counts_by_blocker_type") != expected_action_counts_by_blocker_type:
         return "{} --status-json did not count action-plan entries by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -783,6 +794,36 @@ def require_public_launch_manifest_current():
         )
     if "--check-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in next_commands_by_blocker_type.get("dns_seeds", {}).get("check_command", ""):
         return "{} --status-json did not expose DNS seed next commands by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    blocker_type_progress = status_json.get("blocker_type_progress", {})
+    snapshot_progress = blocker_type_progress.get("litecoin_snapshot", {})
+    if snapshot_progress.get("ready_for_launch_profile") is not False:
+        return "{} --status-json treated snapshot workstream as ready".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if snapshot_progress.get("unresolved_blockers") != expected_blockers_by_blocker_type["litecoin_snapshot"]:
+        return "{} --status-json did not expose snapshot blocker-type progress blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if snapshot_progress.get("blocked_field_count") != 22:
+        return "{} --status-json did not expose snapshot blocker-type progress field count".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if snapshot_progress.get("next_action") != next_actions_by_blocker_type.get("litecoin_snapshot"):
+        return "{} --status-json did not expose snapshot blocker-type progress next action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    dns_progress = blocker_type_progress.get("dns_seeds", {})
+    if dns_progress.get("blocked_fields") != [
+        "main.public_network_identity.dns_seeds",
+        "testnet.public_network_identity.dns_seeds",
+    ]:
+        return "{} --status-json did not expose DNS seed blocker-type progress fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if dns_progress.get("next_action") != next_actions_by_blocker_type.get("dns_seeds"):
+        return "{} --status-json did not expose DNS seed blocker-type progress next action".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("blocked_field_count") != 46:
@@ -4810,6 +4851,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker-type next commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocker_type_progress") != empty_blocker_type_progress:
+            return "{} --status-json reported blocker-type progress for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
             return "{} --status-json reported per-network next fields for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -5150,6 +5195,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_commands_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocker_type_progress") != empty_blocker_type_progress:
+            return "{} --status-json reported blocker-type progress for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
@@ -5902,6 +5951,7 @@ def main():
         ("blocker_counts_by_blocker_type", "manifest counts blocker entries by blocker type"),
         ("blocked_fields_by_blocker_type", "manifest groups blocked fields by blocker type"),
         ("blocked_field_counts_by_blocker_type", "manifest counts blocked fields by blocker type"),
+        ("blocker_type_progress_entries", "manifest builds blocker-type progress entries"),
         ("network_progress_entries", "manifest builds network progress entries"),
         ("blocked_networks", "manifest summarizes blocked networks"),
         ("ready_networks", "manifest summarizes ready networks"),
@@ -5953,6 +6003,7 @@ def main():
         ("blocked_fields_by_blocker_type", "manifest status JSON groups blocked fields by blocker type"),
         ("blocked_field_counts_by_blocker_type", "manifest status JSON counts blocked fields by blocker type"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
+        ("blocker_type_progress", "manifest status JSON includes blocker-type progress entries"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
         ("next_blocked_field_groups_by_network", "manifest status JSON includes per-network next blocked field groups"),
         ("next_blocked_fields_by_network", "manifest status JSON includes per-network next blocked fields"),
@@ -6938,6 +6989,10 @@ def main():
         (
             "blocked_field_counts_by_blocker_type",
             "public launch manifest status-json blocker-type field count documentation",
+        ),
+        (
+            "blocker_type_progress",
+            "public launch manifest status-json blocker-type progress documentation",
         ),
         (
             "network_readiness_summary_commands_by_network",

@@ -359,6 +359,26 @@ def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     }
 
 
+def blocker_type_progress_entries(actions, blockers, blocked_field_groups):
+    blockers_by_type = blockers_by_blocker_type(blockers)
+    fields_by_type = blocked_fields_by_blocker_type(blocked_field_groups)
+    next_actions_by_type = next_actions_by_blocker_type(actions)
+    return {
+        blocker_type: {
+            "ready_for_launch_profile": (
+                len(blockers_by_type[blocker_type]) == 0
+                and len(fields_by_type[blocker_type]) == 0
+            ),
+            "unresolved_blocker_count": len(blockers_by_type[blocker_type]),
+            "unresolved_blockers": blockers_by_type[blocker_type],
+            "blocked_field_count": len(fields_by_type[blocker_type]),
+            "blocked_fields": fields_by_type[blocker_type],
+            "next_action": next_actions_by_type[blocker_type],
+        }
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
 def blocked_networks(network_progress):
     return [
         network
@@ -2498,6 +2518,11 @@ def status_json_text(manifest, manifest_path, check):
         check.blockers,
         blocked_field_groups,
     )
+    blocker_type_progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
     blocked_network_list = blocked_networks(network_progress)
     ready_network_list = ready_networks(network_progress)
     next_action = actions[0] if actions else None
@@ -2533,6 +2558,7 @@ def status_json_text(manifest, manifest_path, check):
             "next_blockers_by_network": network_next_blockers(network_progress),
             "next_blocker_types_by_network": network_next_blocker_types(network_progress),
             "network_progress": network_progress,
+            "blocker_type_progress": blocker_type_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
