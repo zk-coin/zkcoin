@@ -1768,6 +1768,10 @@ def require_public_launch_manifest_current():
             return "{} --check-auxpow did not shell-quote a staged readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"--network-readiness-summary main {quoted_manifest_path}" not in spaced_check_auxpow_result.stdout:
+            return "{} --check-auxpow did not shell-quote a staged network readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         spaced_check_dns_result = subprocess.run(
             [
@@ -1796,6 +1800,10 @@ def require_public_launch_manifest_current():
             )
         if f"--readiness-summary {quoted_manifest_path}" not in spaced_check_dns_result.stdout:
             return "{} --check-dns-seeds did not shell-quote a staged readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--network-readiness-summary main {quoted_manifest_path}" not in spaced_check_dns_result.stdout:
+            return "{} --check-dns-seeds did not shell-quote a staged network readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -1839,6 +1847,10 @@ def require_public_launch_manifest_current():
             )
         if f"--readiness-summary {quoted_manifest_path}" not in spaced_check_identity_result.stdout:
             return "{} --check-identity did not shell-quote a staged readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--network-readiness-summary main {quoted_manifest_path}" not in spaced_check_identity_result.stdout:
+            return "{} --check-identity did not shell-quote a staged network readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3177,6 +3189,7 @@ def require_public_launch_manifest_current():
             "remaining blocked fields after applying audit: 35",
             "remaining blocked fields on main after applying audit: 12",
             "readiness summary command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "network readiness summary command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "next blocker after applying audit: main.auxpow_chain_id",
             "next check command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "next apply command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main <chain_id> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -3245,6 +3258,10 @@ def require_public_launch_manifest_current():
             )
         if f"--readiness-summary {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
             return "{} --check-snapshot-audit did not shell-quote a manifest readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--network-readiness-summary main {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
+            return "{} --check-snapshot-audit did not shell-quote a manifest network readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--blocker-readiness-summary main.auxpow_chain_id {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
@@ -4195,6 +4212,7 @@ def require_public_launch_manifest_current():
         "remaining blocked fields after applying candidate: 45",
         "remaining blocked fields on main after applying candidate: 22",
         "readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "network readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next blocker after applying candidate: main.litecoin_snapshot",
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -4374,6 +4392,7 @@ def require_public_launch_manifest_current():
         "remaining blocked fields after applying candidate: 45",
         "remaining blocked fields on main after applying candidate: 22",
         "readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "network readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next blocker after applying candidate: main.litecoin_snapshot",
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -4672,6 +4691,7 @@ def require_public_launch_manifest_current():
         "remaining blocked fields after applying candidate: 36",
         "remaining blocked fields on main after applying candidate: 13",
         "readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "network readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next blocker after applying candidate: main.litecoin_snapshot",
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -6173,6 +6193,7 @@ def main():
         ("remaining blocked fields after applying", "manifest reports read-only candidate field-count progress"),
         ("remaining blockers on {network} after applying", "manifest reports network-scoped candidate blocker progress"),
         ("remaining blocked fields on {network} after applying", "manifest reports network-scoped candidate field-count progress"),
+        ("network readiness summary command after applying", "manifest reports network-scoped post-apply summary commands"),
         ("blocker_action_commands(next_blocker, manifest_path)", "manifest reports next candidate handoff commands"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
@@ -7121,6 +7142,10 @@ def main():
             "public launch manifest candidate next-command documentation",
         ),
         (
+            "target-network readiness summary command",
+            "public launch manifest candidate network summary documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>",
             "public launch manifest AuxPoW update documentation",
         ),
@@ -7575,6 +7600,10 @@ def main():
         (
             "post-apply readiness summary command",
             "public launch snapshot operator post-apply summary documentation",
+        ),
+        (
+            "target-network readiness summary command",
+            "public launch snapshot operator target-network summary documentation",
         ),
         (
             "exact next `--blocker-readiness-summary` command",
