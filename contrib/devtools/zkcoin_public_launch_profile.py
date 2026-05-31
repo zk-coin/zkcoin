@@ -325,6 +325,28 @@ def network_next_command_fields(network_progress):
     }
 
 
+def network_next_blocked_fields(network_progress):
+    return {
+        network: (
+            network_progress[network]["next_blocked_field_group"]["fields"]
+            if network_progress[network]["next_blocked_field_group"]
+            else []
+        )
+        for network in NETWORKS
+    }
+
+
+def network_next_blocked_field_counts(network_progress):
+    return {
+        network: (
+            network_progress[network]["next_blocked_field_group"]["field_count"]
+            if network_progress[network]["next_blocked_field_group"]
+            else 0
+        )
+        for network in NETWORKS
+    }
+
+
 def list_summary(items):
     return ", ".join(items) if items else "none"
 
@@ -2386,6 +2408,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
+            "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),
+            "next_blocked_field_counts_by_network": network_next_blocked_field_counts(network_progress),
             "network_progress": network_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
