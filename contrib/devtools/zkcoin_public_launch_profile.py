@@ -325,6 +325,13 @@ def network_next_command_fields(network_progress):
     }
 
 
+def network_next_blocked_field_groups(network_progress):
+    return {
+        network: network_progress[network]["next_blocked_field_group"]
+        for network in NETWORKS
+    }
+
+
 def network_next_blocked_fields(network_progress):
     return {
         network: (
@@ -2430,6 +2437,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
+            "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),
             "next_blocked_field_counts_by_network": network_next_blocked_field_counts(network_progress),
             "next_blockers_by_network": network_next_blockers(network_progress),
