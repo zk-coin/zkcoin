@@ -155,8 +155,10 @@ Both are intentionally present before behavior changes so tests and review can t
   as machine-readable JSON with a stable `schema_version` (`2` for the grouped
   blocker payload) plus direct `blocked_field_count`,
   `blocked_field_group_count`, `action_count`, `action_plan_command`,
-  `readiness_summary_command`, `status_json_command`, `next_action`, and
-  `next_action_command`; it also exposes
+  `readiness_summary_command`, `status_json_command`, `next_action`,
+  `next_action_command`, and a global `commands` map that groups the same
+  read-only action-plan, next-action, readiness-summary, and status-json entry
+  points; it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
   launch readiness separately without parsing field paths, plus
