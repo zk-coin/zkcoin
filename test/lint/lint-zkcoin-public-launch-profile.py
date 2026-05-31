@@ -581,6 +581,10 @@ def require_public_launch_manifest_current():
         "auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next apply commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main <seed1.hostname>,<seed2.hostname> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next network readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker type readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -1544,6 +1548,14 @@ def require_public_launch_manifest_current():
             )
         if f"dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main <seed1.hostname>,<seed2.hostname> --in-place {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged blocker-type next apply commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - next network readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged blocker-type next network summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary dns_seeds {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged blocker-type next blocker-type summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - next blocker readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot {quoted_manifest_path}" not in spaced_readiness_result.stdout:
@@ -6483,6 +6495,8 @@ def main():
         ("blocker_type_next_blocker_network_summary", "manifest formats blocker-type next networks for readiness summaries"),
         ("blocker_type_next_blocker_field_count_summary", "manifest formats blocker-type next field counts for readiness summaries"),
         ("blocker_type_next_action_command_summary", "manifest formats blocker-type next action commands for readiness summaries"),
+        ("next network readiness summary commands by blocker type", "manifest prints blocker-type next network summary commands for readiness summaries"),
+        ("next blocker type readiness summary commands by blocker type", "manifest prints blocker-type next blocker-type summary commands for readiness summaries"),
         ("next blocker type readiness summary commands by network", "manifest prints network next blocker-type summary commands for readiness summaries"),
         ("next blocker readiness summary commands by blocker type", "manifest prints blocker-type next blocker summary commands for readiness summaries"),
         ("next blocker readiness summary commands by network", "manifest prints network next blocker summary commands for readiness summaries"),

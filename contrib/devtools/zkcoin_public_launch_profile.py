@@ -2628,6 +2628,8 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next template commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'template_command')}",
         f"  - next check commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'check_command')}",
         f"  - next apply commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'apply_command')}",
+        f"  - next network readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'network_readiness_summary_command')}",
+        f"  - next blocker type readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_readiness_summary_command')}",
         f"  - next blocker type readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
