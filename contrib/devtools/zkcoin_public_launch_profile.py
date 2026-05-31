@@ -2867,6 +2867,7 @@ def status_json_text(manifest, manifest_path, check):
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),
             "blocker_readiness_summary_commands_by_blocker": blocker_readiness_summary_commands(manifest_path, blockers),
+            "next_action_command": next_action_command(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
             "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),

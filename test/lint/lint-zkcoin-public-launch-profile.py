@@ -1106,6 +1106,13 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose blocker readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_action_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --next-action "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the next-action command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_commands_by_network = status_json.get("next_commands_by_network", {})
     if "--snapshot-audit-template main" not in next_commands_by_network.get("main", {}).get("template_command", ""):
         return "{} --status-json did not expose mainnet next commands".format(
@@ -1894,6 +1901,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("blocker_readiness_summary_commands_by_blocker", {}).get("main.litecoin_snapshot", ""):
             return "{} --status-json did not shell-quote staged blocker readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_action_command", ""):
+            return "{} --status-json did not shell-quote staged next-action commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("next_commands_by_network", {}).get("main", {}).get("check_command", ""):
@@ -6650,6 +6661,7 @@ def main():
         ("next_blockers_by_blocker_type", "manifest status JSON includes blocker-type next blockers"),
         ("next_blocker_networks_by_blocker_type", "manifest status JSON includes blocker-type next networks"),
         ("next_action", "manifest status JSON includes the current handoff action"),
+        ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
         ("network_next_blocked_field_groups", "manifest status JSON includes network-scoped next blocked field groups"),
@@ -7643,6 +7655,10 @@ def main():
         (
             "next_action",
             "public launch manifest status-json next action documentation",
+        ),
+        (
+            "next_action_command",
+            "public launch manifest status-json next action command documentation",
         ),
         (
             "next_commands",
