@@ -131,6 +131,12 @@ BLOCKER_ORDER = (
     "testnet.public_network_identity",
     "testnet.dns_seeds",
 )
+BLOCKER_TYPES = (
+    "litecoin_snapshot",
+    "auxpow_chain_id",
+    "public_network_identity",
+    "dns_seeds",
+)
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 STATUS_JSON_SCHEMA_VERSION = 2
 
@@ -277,6 +283,22 @@ def action_counts_by_network(actions):
     return {
         network: len(network_actions)
         for network, network_actions in actions_by_network(actions).items()
+    }
+
+
+def actions_by_blocker_type(actions):
+    grouped = {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+    for action in actions:
+        blocker_type = action.get("blocker_type")
+        if blocker_type in grouped:
+            grouped[blocker_type].append(action)
+    return grouped
+
+
+def action_counts_by_blocker_type(actions):
+    return {
+        blocker_type: len(blocker_actions)
+        for blocker_type, blocker_actions in actions_by_blocker_type(actions).items()
     }
 
 
@@ -2467,6 +2489,8 @@ def status_json_text(manifest, manifest_path, check):
             "action_count": len(actions),
             "actions_by_network": actions_by_network(actions),
             "action_counts_by_network": action_counts_by_network(actions),
+            "actions_by_blocker_type": actions_by_blocker_type(actions),
+            "action_counts_by_blocker_type": action_counts_by_blocker_type(actions),
             "next": next_action,
             "next_action": next_action,
             "next_commands": action_command_fields(next_action),
