@@ -1375,6 +1375,8 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network):
     blocked_fields = validate_manifest(candidate, allow_blocked=True).blockers
     lines = [
         f"  remaining blockers after applying {applied_label}: {len(blockers)}",
+        f"  remaining blockers on {network} after applying {applied_label}: "
+        f"{item_counts_by_network(blockers)[network]}",
         f"  remaining blocked fields after applying {applied_label}: {len(blocked_fields)}",
         f"  remaining blocked fields on {network} after applying {applied_label}: "
         f"{item_counts_by_network(blocked_fields)[network]}",
