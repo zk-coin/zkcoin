@@ -122,7 +122,8 @@ Both are intentionally present before behavior changes so tests and review can t
   compact human-readable summary of blocked networks, ready networks, blocker
   counts, per-network blocker counts, blocked field counts, per-network blocked
   field counts, per-network next blockers, per-network next blocker field counts,
-  the immediate blocker's exact field paths, and the immediate handoff commands. These
+  per-network next check commands, the immediate blocker's exact field paths, and
+  the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   and `apply command` lines next to the prose handoff, omitting the template line
   for blocker types that only need check/apply commands. Use
