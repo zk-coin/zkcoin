@@ -564,10 +564,15 @@ def require_public_launch_manifest_current():
         "  - ready networks: none",
         "  - unresolved blockers: 8",
         "  - unresolved blockers by network: main=4, testnet=4",
+        "  - unresolved blockers by blocker type: litecoin_snapshot=2, auxpow_chain_id=2, public_network_identity=2, dns_seeds=2",
         "  - blocked fields: 46",
         "  - blocked fields by network: main=23, testnet=23",
+        "  - blocked fields by blocker type: litecoin_snapshot=22, auxpow_chain_id=2, public_network_identity=20, dns_seeds=2",
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
         "  - next blocker fields by network: main=11, testnet=11",
+        "  - next blockers by blocker type: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds",
+        "  - next blocker networks by blocker type: litecoin_snapshot=main, auxpow_chain_id=main, public_network_identity=main, dns_seeds=main",
+        "  - next blocker fields by blocker type: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
         "  - next template commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next check commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit testnet <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next apply commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit testnet <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -898,6 +903,42 @@ def require_public_launch_manifest_current():
         "dns_seeds": "main.dns_seeds",
     }:
         return "{} --status-json did not expose next actions by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blockers_by_blocker_type") != {
+        "litecoin_snapshot": "main.litecoin_snapshot",
+        "auxpow_chain_id": "main.auxpow_chain_id",
+        "public_network_identity": "main.public_network_identity",
+        "dns_seeds": "main.dns_seeds",
+    }:
+        return "{} --status-json did not expose next blockers by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_networks_by_blocker_type") != {
+        "litecoin_snapshot": "main",
+        "auxpow_chain_id": "main",
+        "public_network_identity": "main",
+        "dns_seeds": "main",
+    }:
+        return "{} --status-json did not expose next blocker networks by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocked_field_counts_by_blocker_type") != {
+        "litecoin_snapshot": 11,
+        "auxpow_chain_id": 1,
+        "public_network_identity": 10,
+        "dns_seeds": 1,
+    }:
+        return "{} --status-json did not expose next blocked field counts by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_fields_by_blocker_type = status_json.get("next_blocked_fields_by_blocker_type", {})
+    if next_fields_by_blocker_type.get("litecoin_snapshot", [None])[0] != "main.litecoin_snapshot.height":
+        return "{} --status-json did not expose snapshot next blocked fields by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_fields_by_blocker_type.get("dns_seeds") != ["main.public_network_identity.dns_seeds"]:
+        return "{} --status-json did not expose DNS seed next blocked fields by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     next_commands_by_blocker_type = status_json.get("next_commands_by_blocker_type", {})
@@ -6402,14 +6443,22 @@ def main():
         ("blocked_fields_by_blocker_type", "manifest groups blocked fields by blocker type"),
         ("blocked_field_counts_by_blocker_type", "manifest counts blocked fields by blocker type"),
         ("blocker_type_progress_entries", "manifest builds blocker-type progress entries"),
+        ("blocker_type_next_blocked_fields", "manifest builds blocker-type next blocked field aliases"),
+        ("blocker_type_next_blocked_field_counts", "manifest builds blocker-type next blocked field count aliases"),
+        ("blocker_type_next_blockers", "manifest builds blocker-type next blocker aliases"),
+        ("blocker_type_next_blocker_networks", "manifest builds blocker-type next network aliases"),
         ("network_progress_entries", "manifest builds network progress entries"),
         ("blocked_networks", "manifest summarizes blocked networks"),
         ("ready_networks", "manifest summarizes ready networks"),
         ("list_summary", "manifest formats compact readiness lists"),
         ("network_count_summary", "manifest formats network counts for readiness summaries"),
+        ("blocker_type_count_summary", "manifest formats blocker-type counts for readiness summaries"),
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
+        ("blocker_type_next_blocker_summary", "manifest formats blocker-type next blockers for readiness summaries"),
+        ("blocker_type_next_blocker_network_summary", "manifest formats blocker-type next networks for readiness summaries"),
+        ("blocker_type_next_blocker_field_count_summary", "manifest formats blocker-type next field counts for readiness summaries"),
         ("next blocker type readiness summary commands by network", "manifest prints network next blocker-type summary commands for readiness summaries"),
         ("next blocker readiness summary commands by network", "manifest prints network next blocker summary commands for readiness summaries"),
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
@@ -6437,6 +6486,10 @@ def main():
         ("action_counts_by_blocker_type", "manifest status JSON counts actions by blocker type"),
         ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
         ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
+        ("next_blocked_fields_by_blocker_type", "manifest status JSON includes blocker-type next blocked fields"),
+        ("next_blocked_field_counts_by_blocker_type", "manifest status JSON counts blocker-type next blocked fields"),
+        ("next_blockers_by_blocker_type", "manifest status JSON includes blocker-type next blockers"),
+        ("next_blocker_networks_by_blocker_type", "manifest status JSON includes blocker-type next networks"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
@@ -7483,6 +7536,22 @@ def main():
         (
             "blocker_type_progress",
             "public launch manifest status-json blocker-type progress documentation",
+        ),
+        (
+            "next_blockers_by_blocker_type",
+            "public launch manifest status-json blocker-type next blocker documentation",
+        ),
+        (
+            "next_blocker_networks_by_blocker_type",
+            "public launch manifest status-json blocker-type next network documentation",
+        ),
+        (
+            "next_blocked_fields_by_blocker_type",
+            "public launch manifest status-json blocker-type next field documentation",
+        ),
+        (
+            "next_blocked_field_counts_by_blocker_type",
+            "public launch manifest status-json blocker-type next field count documentation",
         ),
         (
             "blocker_type_readiness_summary_commands_by_blocker_type",

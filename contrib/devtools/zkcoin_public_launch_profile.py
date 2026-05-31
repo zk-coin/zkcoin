@@ -488,12 +488,63 @@ def network_next_blocker_types(network_progress):
     }
 
 
+def blocker_type_next_blocked_fields(blocker_type_progress):
+    return {
+        blocker_type: (
+            blocker_type_progress[blocker_type]["next_action"]["fields"]
+            if blocker_type_progress[blocker_type]["next_action"]
+            else []
+        )
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_type_next_blocked_field_counts(blocker_type_progress):
+    return {
+        blocker_type: (
+            blocker_type_progress[blocker_type]["next_action"]["field_count"]
+            if blocker_type_progress[blocker_type]["next_action"]
+            else 0
+        )
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_type_next_blockers(blocker_type_progress):
+    return {
+        blocker_type: (
+            blocker_type_progress[blocker_type]["next_action"]["id"]
+            if blocker_type_progress[blocker_type]["next_action"]
+            else None
+        )
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_type_next_blocker_networks(blocker_type_progress):
+    return {
+        blocker_type: (
+            blocker_type_progress[blocker_type]["next_action"]["network"]
+            if blocker_type_progress[blocker_type]["next_action"]
+            else None
+        )
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
 def list_summary(items):
     return ", ".join(items) if items else "none"
 
 
 def network_count_summary(counts):
     return ", ".join(f"{network}={counts[network]}" for network in NETWORKS)
+
+
+def blocker_type_count_summary(counts):
+    return ", ".join(
+        f"{blocker_type}={counts[blocker_type]}"
+        for blocker_type in BLOCKER_TYPES
+    )
 
 
 def network_next_blocker_summary(network_progress):
@@ -521,6 +572,33 @@ def network_next_blocker_command_summary(network_progress, command_key):
         command = next_group.get(command_key) if next_group else None
         entries.append(f"{network}={command or 'none'}")
     return "; ".join(entries)
+
+
+def blocker_type_next_blocker_summary(blocker_type_progress):
+    entries = []
+    for blocker_type in BLOCKER_TYPES:
+        next_action = blocker_type_progress[blocker_type]["next_action"]
+        next_blocker = next_action["id"] if next_action else "none"
+        entries.append(f"{blocker_type}={next_blocker}")
+    return ", ".join(entries)
+
+
+def blocker_type_next_blocker_network_summary(blocker_type_progress):
+    entries = []
+    for blocker_type in BLOCKER_TYPES:
+        next_action = blocker_type_progress[blocker_type]["next_action"]
+        network = next_action["network"] if next_action else "none"
+        entries.append(f"{blocker_type}={network}")
+    return ", ".join(entries)
+
+
+def blocker_type_next_blocker_field_count_summary(blocker_type_progress):
+    entries = []
+    for blocker_type in BLOCKER_TYPES:
+        next_action = blocker_type_progress[blocker_type]["next_action"]
+        field_count = next_action["field_count"] if next_action else 0
+        entries.append(f"{blocker_type}={field_count}")
+    return ", ".join(entries)
 
 
 def yes_no(value):
@@ -2511,6 +2589,11 @@ def readiness_summary_text(manifest, manifest_path, check):
         check.blockers,
         blocked_field_groups,
     )
+    blocker_type_progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
     ready_for_chainparams = manifest.get("status") == "ready-for-chainparams" and not blockers
     next_action = actions[0] if actions else None
     lines = [
@@ -2521,10 +2604,15 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - unresolved blockers: {len(blockers)}",
         f"  - unresolved blockers by network: {network_count_summary(item_counts_by_network(blockers))}",
+        f"  - unresolved blockers by blocker type: {blocker_type_count_summary(blocker_counts_by_blocker_type(blockers))}",
         f"  - blocked fields: {len(check.blockers)}",
         f"  - blocked fields by network: {network_count_summary(item_counts_by_network(check.blockers))}",
+        f"  - blocked fields by blocker type: {blocker_type_count_summary(blocked_field_counts_by_blocker_type(blocked_field_groups))}",
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
+        f"  - next blockers by blocker type: {blocker_type_next_blocker_summary(blocker_type_progress)}",
+        f"  - next blocker networks by blocker type: {blocker_type_next_blocker_network_summary(blocker_type_progress)}",
+        f"  - next blocker fields by blocker type: {blocker_type_next_blocker_field_count_summary(blocker_type_progress)}",
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
@@ -2713,6 +2801,10 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocked_field_counts_by_network": network_next_blocked_field_counts(network_progress),
             "next_blockers_by_network": network_next_blockers(network_progress),
             "next_blocker_types_by_network": network_next_blocker_types(network_progress),
+            "next_blocked_fields_by_blocker_type": blocker_type_next_blocked_fields(blocker_type_progress),
+            "next_blocked_field_counts_by_blocker_type": blocker_type_next_blocked_field_counts(blocker_type_progress),
+            "next_blockers_by_blocker_type": blocker_type_next_blockers(blocker_type_progress),
+            "next_blocker_networks_by_blocker_type": blocker_type_next_blocker_networks(blocker_type_progress),
             "network_progress": network_progress,
             "blocker_type_progress": blocker_type_progress,
             "blocked_field_groups": blocked_field_groups,

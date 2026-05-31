@@ -120,8 +120,10 @@ Both are intentionally present before behavior changes so tests and review can t
   every unresolved blocker group and handoff command in launch order. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary` for a
   compact human-readable summary of blocked networks, ready networks, blocker
-  counts, per-network blocker counts, blocked field counts, per-network blocked
-  field counts, per-network next blockers, per-network next blocker field counts,
+  counts, per-network and per-workstream blocker counts, blocked field counts,
+  per-network and per-workstream blocked field counts, per-network next blockers,
+  per-network next blocker field counts, per-workstream next blockers,
+  per-workstream next blocker networks, per-workstream next blocker field counts,
   per-network next template/check/apply commands, per-network next
   blocker-type summary commands, per-network next blocker-scoped summary
   commands, per-network scoped summary commands, the immediate blocker's exact field paths,
@@ -159,6 +161,10 @@ Both are intentionally present before behavior changes so tests and review can t
   tracked by snapshot, AuxPoW, public identity, and DNS seed workstream, plus
   `blocker_type_progress` so each workstream has its ready flag, remaining
   blockers, blocked fields, and next action in one object, plus
+  `next_blockers_by_blocker_type`, `next_blocker_networks_by_blocker_type`,
+  `next_blocked_fields_by_blocker_type`, and
+  `next_blocked_field_counts_by_blocker_type` so dashboards can read each
+  workstream's next blocker, target network, and field gap directly, plus
   `blocker_type_readiness_summary_commands_by_blocker_type` so dashboards and
   operators can jump directly to a scoped workstream handoff, plus
   `blocker_readiness_summary_commands_by_blocker` so dashboards and operators
