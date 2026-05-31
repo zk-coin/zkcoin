@@ -227,6 +227,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "template_command": action["template_command"],
                 "check_command": action["check_command"],
                 "apply_command": action["apply_command"],
+                "readiness_summary_command": action["readiness_summary_command"],
                 "field_count": len(fields),
                 "fields": fields,
             }
@@ -310,6 +311,7 @@ def action_command_fields(action):
         "template_command": action.get("template_command"),
         "check_command": action.get("check_command"),
         "apply_command": action.get("apply_command"),
+        "readiness_summary_command": action.get("readiness_summary_command"),
         "command": action.get("command"),
     }
 
@@ -1995,6 +1997,7 @@ def readiness_summary_command(manifest_path):
 def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    readiness_command = f"{tool_path} --readiness-summary {manifest_path}"
     if blocker == "litecoin_snapshot":
         return {
             "template_command": (
@@ -2008,6 +2011,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --set-snapshot-audit {network} "
                 f"<snapshot_audit.json> --in-place {manifest_path}"
             ),
+            "readiness_summary_command": readiness_command,
         }
     if blocker == "auxpow_chain_id":
         return {
@@ -2018,6 +2022,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "apply_command": (
                 f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
             ),
+            "readiness_summary_command": readiness_command,
         }
     if blocker == "public_network_identity":
         return {
@@ -2032,6 +2037,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
                 f"<bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
             ),
+            "readiness_summary_command": readiness_command,
         }
     if blocker == "dns_seeds":
         return {
@@ -2044,6 +2050,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --set-dns-seeds {network} "
                 f"<seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
             ),
+            "readiness_summary_command": readiness_command,
         }
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
@@ -2081,6 +2088,9 @@ def append_blocker_command_lines(lines, commands, prefix):
         lines.append(f"{prefix}template command: {commands['template_command']}")
     lines.append(f"{prefix}check command: {commands['check_command']}")
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
+    lines.append(
+        f"{prefix}readiness summary command: {commands['readiness_summary_command']}"
+    )
 
 
 def append_blocker_field_lines(lines, entry, prefix, item_prefix):

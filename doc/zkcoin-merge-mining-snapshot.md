@@ -145,9 +145,10 @@ Both are intentionally present before behavior changes so tests and review can t
   action entries expose `network` and `blocker_type` values directly in `actions`
   and `next_action`, include the same blocker `fields` and `field_count`, and
   always expose split command fields such as `template_command`, `check_command`,
-  and `apply_command`; `next_commands` mirrors the command fields from the
-  current `next_action` so automation can dispatch the immediate handoff without
-  parsing the full action entry; blocked field groups carry the same split command fields.
+  `apply_command`, and `readiness_summary_command`; `next_commands` mirrors the
+  command fields from the current `next_action` so automation can dispatch the
+  immediate handoff and post-apply readiness check without parsing the full
+  action entry; blocked field groups carry the same split command fields.
   `template_command` is `null` for blocker types that only need check/apply
   commands, so automation does not need to parse blocker ids, blocked field paths,
   or human-readable action prose;
