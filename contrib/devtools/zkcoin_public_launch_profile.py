@@ -1568,6 +1568,7 @@ def verified_snapshot_audit_for_network(network, audit_path):
 
 def candidate_next_step_text(candidate, applied_label, manifest_path, network):
     readiness_command = readiness_summary_command(manifest_path)
+    network_readiness_command = network_readiness_summary_command(manifest_path, network)
     manifest_path_arg = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(candidate)
@@ -1580,6 +1581,7 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network):
         f"  remaining blocked fields on {network} after applying {applied_label}: "
         f"{item_counts_by_network(blocked_fields)[network]}",
         f"  readiness summary command after applying {applied_label}: {readiness_command}",
+        f"  network readiness summary command after applying {applied_label}: {network_readiness_command}",
     ]
     if blockers:
         next_blocker = blockers[0]
