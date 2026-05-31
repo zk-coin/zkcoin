@@ -740,6 +740,15 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose per-network next blocker types".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    next_groups_by_network = status_json.get("next_blocked_field_groups_by_network", {})
+    if next_groups_by_network.get("main", {}).get("id") != "main.litecoin_snapshot":
+        return "{} --status-json did not expose mainnet next blocker group".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_groups_by_network.get("testnet", {}).get("id") != "testnet.litecoin_snapshot":
+        return "{} --status-json did not expose testnet next blocker group".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     blocked_field_groups = status_json.get("blocked_field_groups", [])
     if len(blocked_field_groups) != 8:
         return "{} --status-json did not include every blocker field group".format(
@@ -4605,6 +4614,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported per-network next blocker types for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_blocked_field_groups_by_network") != {"main": None, "testnet": None}:
+            return "{} --status-json reported per-network next groups for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("network_progress", {}).get("main") != {
             "ready_for_launch_profile": True,
             "unresolved_blocker_count": 0,
@@ -4917,6 +4930,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_blocker_types_by_network") != {"main": None, "testnet": None}:
             return "{} --status-json reported per-network next blocker types for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocked_field_groups_by_network") != {"main": None, "testnet": None}:
+            return "{} --status-json reported per-network next groups for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("network_progress", {}).get("main") != {
@@ -5648,6 +5665,7 @@ def main():
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
+        ("network_next_blocked_field_groups", "manifest status JSON includes network-scoped next blocked field groups"),
         ("network_next_blocked_fields", "manifest status JSON includes network-scoped next blocked fields"),
         ("network_next_blockers", "manifest status JSON includes network-scoped next blockers"),
         ("network_next_blocker_types", "manifest status JSON includes network-scoped next blocker types"),
@@ -5663,6 +5681,7 @@ def main():
         ("blocked_field_counts_by_network", "manifest status JSON counts blocked fields by network"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
+        ("next_blocked_field_groups_by_network", "manifest status JSON includes per-network next blocked field groups"),
         ("next_blocked_fields_by_network", "manifest status JSON includes per-network next blocked fields"),
         ("next_blocked_field_counts_by_network", "manifest status JSON counts per-network next blocked fields"),
         ("next_blockers_by_network", "manifest status JSON includes per-network next blockers"),
@@ -6614,6 +6633,10 @@ def main():
         (
             "next_commands_by_network",
             "public launch manifest status-json network next command documentation",
+        ),
+        (
+            "next_blocked_field_groups_by_network",
+            "public launch manifest status-json network next field-group documentation",
         ),
         (
             "next_blocked_fields_by_network",
