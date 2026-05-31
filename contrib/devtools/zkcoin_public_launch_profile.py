@@ -2037,6 +2037,18 @@ def network_readiness_summary_command(manifest_path, network):
     return f"{tool_path} --network-readiness-summary {network} {manifest_path}"
 
 
+def network_readiness_summary_commands(manifest_path):
+    return {
+        network: network_readiness_summary_command(manifest_path, network)
+        for network in NETWORKS
+    }
+
+
+def network_readiness_summary_command_summary(manifest_path):
+    commands = network_readiness_summary_commands(manifest_path)
+    return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
+
+
 def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -2269,6 +2281,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
+        f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
     ]
 
     if blockers:
@@ -2362,6 +2375,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
+            "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "network_progress": network_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),

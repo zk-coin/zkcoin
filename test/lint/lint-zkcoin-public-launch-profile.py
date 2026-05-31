@@ -556,6 +556,7 @@ def require_public_launch_manifest_current():
         "  - next template commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next check commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit testnet <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next apply commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit testnet <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
         "  - blocked field paths:",
@@ -694,6 +695,13 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("blocked_field_counts_by_network") != {"main": 23, "testnet": 23}:
         return "{} --status-json did not count field-level blockers by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_readiness_summary_commands_by_network") != {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose network readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     blocked_field_groups = status_json.get("blocked_field_groups", [])
@@ -1075,6 +1083,10 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote staged per-network next apply commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged per-network summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if "    - main.litecoin_snapshot.audit.total_amount" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not print staged next blocked fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1168,6 +1180,10 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("blocked_field_group_count") != 8:
             return "{} --status-json did not count staged blocker field groups".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
+            return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("action", ""):
@@ -4461,6 +4477,7 @@ def require_public_launch_manifest_current():
             "  - next template commands by network: main=none; testnet=none",
             "  - next check commands by network: main=none; testnet=none",
             "  - next apply commands by network: main=none; testnet=none",
+            "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main",
             "  - next step: mark-ready",
             "--mark-ready --in-place",
         ):
@@ -4753,6 +4770,7 @@ def require_public_launch_manifest_current():
             "  - next template commands by network: main=none; testnet=none",
             "  - next check commands by network: main=none; testnet=none",
             "  - next apply commands by network: main=none; testnet=none",
+            "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main",
             "  - next step: apply ready manifest to chainparams and verify sync",
             "  - emit-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams",
             "  - check-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
@@ -5532,6 +5550,7 @@ def main():
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
+        ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
@@ -5558,6 +5577,7 @@ def main():
         ("unresolved_blockers_by_network", "manifest status JSON groups blockers by network"),
         ("unresolved_blocker_counts_by_network", "manifest status JSON counts blockers by network"),
         ("blocked_field_counts_by_network", "manifest status JSON counts blocked fields by network"),
+        ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
         ("network_progress", "manifest status JSON includes network progress entries"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
@@ -6497,6 +6517,10 @@ def main():
         (
             "blocked_field_counts_by_network",
             "public launch manifest status-json network field count documentation",
+        ),
+        (
+            "network_readiness_summary_commands_by_network",
+            "public launch manifest status-json network readiness-summary command documentation",
         ),
         (
             "blocked_networks",

@@ -122,8 +122,9 @@ Both are intentionally present before behavior changes so tests and review can t
   compact human-readable summary of blocked networks, ready networks, blocker
   counts, per-network blocker counts, blocked field counts, per-network blocked
   field counts, per-network next blockers, per-network next blocker field counts,
-  per-network next template/check/apply commands, the immediate blocker's exact field paths,
-  and the immediate handoff commands. These
+  per-network next template/check/apply commands, per-network scoped summary
+  commands, the immediate blocker's exact field paths, and the immediate
+  handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   and `apply command` lines next to the prose handoff, omitting the template line
   for blocker types that only need check/apply commands. Use
@@ -138,7 +139,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_count`, `action_count`, and `next_action`; it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
-  launch readiness separately without parsing field paths. It also exposes
+  launch readiness separately without parsing field paths, plus
+  `network_readiness_summary_commands_by_network` so dashboards and operators
+  can jump directly to a scoped mainnet or testnet handoff. It also exposes
   `blocked_networks`, `blocked_network_count`, `ready_networks`, and
   `ready_network_count` for a compact network readiness summary without parsing
   per-network progress entries. It also includes `network_progress`, which consolidates each network's ready flag,
