@@ -601,6 +601,15 @@ def blocker_type_next_blocker_field_count_summary(blocker_type_progress):
     return ", ".join(entries)
 
 
+def blocker_type_next_action_command_summary(blocker_type_progress, command_key):
+    entries = []
+    for blocker_type in BLOCKER_TYPES:
+        next_action = blocker_type_progress[blocker_type]["next_action"]
+        command = next_action.get(command_key) if next_action else None
+        entries.append(f"{blocker_type}={command or 'none'}")
+    return "; ".join(entries)
+
+
 def yes_no(value):
     return "yes" if value else "no"
 
@@ -2616,6 +2625,10 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
+        f"  - next template commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'template_command')}",
+        f"  - next check commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'check_command')}",
+        f"  - next apply commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'apply_command')}",
+        f"  - next blocker readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_readiness_summary_command')}",
         f"  - next blocker type readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
