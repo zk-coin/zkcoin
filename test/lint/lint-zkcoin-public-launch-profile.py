@@ -572,6 +572,48 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    network_readiness_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--network-readiness-summary",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_readiness_result.returncode != 0:
+        return "{} --network-readiness-summary failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            network_readiness_result.stderr.strip()
+            or network_readiness_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile network readiness summary:",
+        "  - network: main",
+        "  - ready for launch profile: no",
+        "  - unresolved blockers: 4",
+        "  - blocked fields: 23",
+        "  - next blocker: main.litecoin_snapshot",
+        "  - next blocker fields: 11",
+        "  - blocked field paths:",
+        "    - main.litecoin_snapshot.height",
+        "    - main.litecoin_snapshot.audit.total_amount",
+        "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
+        "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
+        "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - later blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds",
+    ):
+        if expected not in network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     status_json_result = subprocess.run(
         [
             sys.executable,
@@ -1042,6 +1084,39 @@ def require_public_launch_manifest_current():
             )
         if f"  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote a copyable staged check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        spaced_network_readiness_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--network-readiness-summary",
+                "main",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_network_readiness_result.returncode != 0:
+            return "{} --network-readiness-summary failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_network_readiness_result.stderr.strip()
+                or spaced_network_readiness_result.stdout.strip()
+                or "no output",
+            )
+        if f"  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not shell-quote a staged template command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not shell-quote a staged check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not shell-quote a staged apply command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5351,6 +5426,7 @@ def main():
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
         ("--readiness-summary", "manifest readiness summary flag"),
+        ("--network-readiness-summary", "manifest network readiness summary flag"),
         ("--status-json", "manifest machine-readable status guidance flag"),
         ("STATUS_JSON_SCHEMA_VERSION = 2", "manifest status JSON schema version"),
         ("--emit-chainparams", "manifest chainparams emitter flag"),
@@ -5460,6 +5536,7 @@ def main():
         ("blocker_action_entry", "manifest builds action entries with blocker metadata"),
         ("action_plan_text", "manifest prints full action-plan guidance"),
         ("readiness_summary_text", "manifest prints compact readiness guidance"),
+        ("network_readiness_summary_text", "manifest prints network-scoped readiness guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
