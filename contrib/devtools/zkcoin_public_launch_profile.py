@@ -2498,6 +2498,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
+        f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
     ]

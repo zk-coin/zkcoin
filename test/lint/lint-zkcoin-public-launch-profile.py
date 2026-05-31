@@ -561,6 +561,7 @@ def require_public_launch_manifest_current():
         "  - next template commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next check commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit testnet <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next apply commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit testnet <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next blocker readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
@@ -6254,6 +6255,7 @@ def main():
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
+        ("next blocker readiness summary commands by network", "manifest prints network next blocker summary commands for readiness summaries"),
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
@@ -7205,6 +7207,10 @@ def main():
         (
             "immediate blocker's exact field paths",
             "public launch manifest readiness-summary field-path documentation",
+        ),
+        (
+            "per-network next\n  blocker-scoped summary commands",
+            "public launch manifest readiness-summary network blocker summary documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --status-json",
