@@ -752,6 +752,39 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    terminal_blocker_readiness_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--blocker-readiness-summary",
+            "testnet.dns_seeds",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if terminal_blocker_readiness_result.returncode != 0:
+        return "{} --blocker-readiness-summary failed for terminal blocked manifest blocker: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            terminal_blocker_readiness_result.stderr.strip()
+            or terminal_blocker_readiness_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "  - blocker: testnet.dns_seeds",
+        "  - launch order: 8 of 8",
+        "  - earlier blockers: main.litecoin_snapshot, main.auxpow_chain_id, main.public_network_identity, main.dns_seeds, testnet.litecoin_snapshot, testnet.auxpow_chain_id, testnet.public_network_identity",
+        "  - earlier blocker readiness summary commands: main.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet.public_network_identity=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in terminal_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not print terminal blocker {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     status_json_result = subprocess.run(
         [
             sys.executable,
@@ -1742,6 +1775,35 @@ def require_public_launch_manifest_current():
             )
         if f"testnet.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
             return "{} --blocker-readiness-summary did not shell-quote staged later blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        spaced_terminal_blocker_readiness_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--blocker-readiness-summary",
+                "testnet.dns_seeds",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_terminal_blocker_readiness_result.returncode != 0:
+            return "{} --blocker-readiness-summary failed for a staged terminal blocker path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_terminal_blocker_readiness_result.stderr.strip()
+                or spaced_terminal_blocker_readiness_result.stdout.strip()
+                or "no output",
+            )
+        if f"  - earlier blocker readiness summary commands: main.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot {quoted_manifest_path}" not in spaced_terminal_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not shell-quote staged earlier blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"testnet.public_network_identity=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.public_network_identity {quoted_manifest_path}" not in spaced_terminal_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not shell-quote staged terminal earlier blocker summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -6527,6 +6589,7 @@ def main():
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
         ("blocker_readiness_summary_command_summary", "manifest formats blocker readiness-summary command summaries"),
+        ("earlier blocker readiness summary commands", "manifest prints earlier blocker summary commands for blocker readiness summaries"),
         ("later blocker readiness summary commands", "manifest prints later blocker summary commands for readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
         ("action_command_fields", "manifest builds current action command aliases"),

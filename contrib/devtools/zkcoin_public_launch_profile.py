@@ -2781,6 +2781,10 @@ def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
     later_blockers = blockers[step:]
     if earlier_blockers:
         lines.append("  - earlier blockers: " + ", ".join(earlier_blockers))
+        lines.append(
+            "  - earlier blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, earlier_blockers)
+        )
     if later_blockers:
         lines.append("  - later blockers: " + ", ".join(later_blockers))
         lines.append(
