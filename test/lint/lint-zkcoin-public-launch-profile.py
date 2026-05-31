@@ -766,6 +766,25 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not group DNS seed action entries by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    next_actions_by_blocker_type = status_json.get("next_actions_by_blocker_type", {})
+    if {blocker_type: action.get("id") for blocker_type, action in next_actions_by_blocker_type.items()} != {
+        "litecoin_snapshot": "main.litecoin_snapshot",
+        "auxpow_chain_id": "main.auxpow_chain_id",
+        "public_network_identity": "main.public_network_identity",
+        "dns_seeds": "main.dns_seeds",
+    }:
+        return "{} --status-json did not expose next actions by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_commands_by_blocker_type = status_json.get("next_commands_by_blocker_type", {})
+    if "--snapshot-audit-template main" not in next_commands_by_blocker_type.get("litecoin_snapshot", {}).get("template_command", ""):
+        return "{} --status-json did not expose snapshot next commands by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-dns-seeds main <seed1.hostname>,<seed2.hostname>" not in next_commands_by_blocker_type.get("dns_seeds", {}).get("check_command", ""):
+        return "{} --status-json did not expose DNS seed next commands by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("blocked_field_count") != 46:
         return "{} --status-json did not count field-level blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1356,6 +1375,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("next_commands_by_network", {}).get("main", {}).get("check_command", ""):
             return "{} --status-json did not shell-quote staged network next commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands_by_blocker_type", {}).get("litecoin_snapshot", {}).get("check_command", ""):
+            return "{} --status-json did not shell-quote staged blocker-type next commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("action", ""):
@@ -4773,6 +4796,20 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported per-network next commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        empty_next_by_blocker_type = {
+            "litecoin_snapshot": None,
+            "auxpow_chain_id": None,
+            "public_network_identity": None,
+            "dns_seeds": None,
+        }
+        if complete_status.get("next_actions_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_commands_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
             return "{} --status-json reported per-network next fields for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -5105,6 +5142,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_commands_by_network") != {"main": None, "testnet": None}:
             return "{} --status-json reported per-network next commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_actions_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next actions for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_commands_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next commands for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
@@ -5851,6 +5896,8 @@ def main():
         ("action_counts_by_network", "manifest counts action entries by network"),
         ("actions_by_blocker_type", "manifest groups action entries by blocker type"),
         ("action_counts_by_blocker_type", "manifest counts action entries by blocker type"),
+        ("next_actions_by_blocker_type", "manifest exposes next action entries by blocker type"),
+        ("next_commands_by_blocker_type", "manifest exposes next commands by blocker type"),
         ("blockers_by_blocker_type", "manifest groups blocker entries by blocker type"),
         ("blocker_counts_by_blocker_type", "manifest counts blocker entries by blocker type"),
         ("blocked_fields_by_blocker_type", "manifest groups blocked fields by blocker type"),
@@ -5882,6 +5929,8 @@ def main():
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("actions_by_blocker_type", "manifest status JSON groups actions by blocker type"),
         ("action_counts_by_blocker_type", "manifest status JSON counts actions by blocker type"),
+        ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
+        ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
@@ -6833,6 +6882,14 @@ def main():
         (
             "action_counts_by_blocker_type",
             "public launch manifest status-json blocker-type action count documentation",
+        ),
+        (
+            "next_actions_by_blocker_type",
+            "public launch manifest status-json blocker-type next action documentation",
+        ),
+        (
+            "next_commands_by_blocker_type",
+            "public launch manifest status-json blocker-type next command documentation",
         ),
         (
             "next_action",
