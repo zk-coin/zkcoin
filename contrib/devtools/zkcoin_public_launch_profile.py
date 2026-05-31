@@ -234,6 +234,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "check_command": action["check_command"],
                 "apply_command": action["apply_command"],
                 "readiness_summary_command": action["readiness_summary_command"],
+                "blocker_type_readiness_summary_command": action["blocker_type_readiness_summary_command"],
                 "blocker_readiness_summary_command": action["blocker_readiness_summary_command"],
                 "field_count": len(fields),
                 "fields": fields,
@@ -404,6 +405,7 @@ def action_command_fields(action):
         "check_command": action.get("check_command"),
         "apply_command": action.get("apply_command"),
         "readiness_summary_command": action.get("readiness_summary_command"),
+        "blocker_type_readiness_summary_command": action.get("blocker_type_readiness_summary_command"),
         "blocker_readiness_summary_command": action.get("blocker_readiness_summary_command"),
         "command": action.get("command"),
     }
@@ -2263,6 +2265,9 @@ def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     readiness_command = f"{tool_path} --readiness-summary {manifest_path}"
+    blocker_type_summary_command = (
+        f"{tool_path} --blocker-type-readiness-summary {blocker} {manifest_path}"
+    )
     blocker_summary_command = (
         f"{tool_path} --blocker-readiness-summary {blocker_id} {manifest_path}"
     )
@@ -2280,6 +2285,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<snapshot_audit.json> --in-place {manifest_path}"
             ),
             "readiness_summary_command": readiness_command,
+            "blocker_type_readiness_summary_command": blocker_type_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "auxpow_chain_id":
@@ -2292,6 +2298,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
             ),
             "readiness_summary_command": readiness_command,
+            "blocker_type_readiness_summary_command": blocker_type_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "public_network_identity":
@@ -2308,6 +2315,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
             ),
             "readiness_summary_command": readiness_command,
+            "blocker_type_readiness_summary_command": blocker_type_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "dns_seeds":
@@ -2322,6 +2330,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
             ),
             "readiness_summary_command": readiness_command,
+            "blocker_type_readiness_summary_command": blocker_type_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     raise ValueError(f"unknown blocker id: {blocker_id}")
@@ -2362,6 +2371,10 @@ def append_blocker_command_lines(lines, commands, prefix):
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
     lines.append(
         f"{prefix}readiness summary command: {commands['readiness_summary_command']}"
+    )
+    lines.append(
+        f"{prefix}blocker type readiness summary command: "
+        f"{commands['blocker_type_readiness_summary_command']}"
     )
     lines.append(
         f"{prefix}blocker readiness summary command: "
@@ -2502,6 +2515,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
+        f"  - next blocker type readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
@@ -2594,10 +2608,6 @@ def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_
     lines.append(f"  - next blocker fields: {next_action['field_count']}")
     append_blocker_field_lines(lines, next_action, "  - ", "    - ")
     append_blocker_command_lines(lines, next_action, "  - ")
-    lines.append(
-        "  - blocker type readiness summary command: "
-        f"{blocker_type_readiness_summary_command(manifest_path, blocker_type)}"
-    )
     remaining_blockers = progress["unresolved_blockers"][1:]
     if remaining_blockers:
         lines.append("  - later blockers: " + ", ".join(remaining_blockers))

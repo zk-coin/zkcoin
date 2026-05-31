@@ -123,12 +123,14 @@ Both are intentionally present before behavior changes so tests and review can t
   counts, per-network blocker counts, blocked field counts, per-network blocked
   field counts, per-network next blockers, per-network next blocker field counts,
   per-network next template/check/apply commands, per-network next
-  blocker-scoped summary commands, per-network scoped summary commands, the
-  immediate blocker's exact field paths, and the immediate
-  handoff commands. These
+  blocker-type summary commands, per-network next blocker-scoped summary
+  commands, per-network scoped summary commands, the immediate blocker's exact field paths,
+  and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
-  and `apply command` lines next to the prose handoff, omitting the template line
-  for blocker types that only need check/apply commands. Use
+  `apply command`, `readiness summary command`,
+  `blocker type readiness summary command`, and
+  `blocker readiness summary command` lines next to the prose handoff, omitting
+  the template line for blocker types that only need check/apply commands. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary NETWORK`
   for the same read-only next-blocker detail scoped to one public network; the
   network summary prints its own copyable rerun command after the handoff commands. Use
@@ -170,7 +172,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_actions_by_blocker_type` and `next_commands_by_blocker_type` exposing
   the next dispatchable handoff for each workstream. The payload also exposes
   `next_commands_by_network`, which mirrors the current command fields for each
-  network's next blocker so automation can dispatch scoped handoffs directly.
+  network's next blocker, including the blocker-type summary command, so
+  automation can dispatch scoped handoffs directly.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
   objects by network without requiring clients to traverse `network_progress`.
   `next_blocked_fields_by_network` and
@@ -190,7 +193,8 @@ Both are intentionally present before behavior changes so tests and review can t
   action entries expose `network` and `blocker_type` values directly in `actions`
   and `next_action`, include the same blocker `fields` and `field_count`, and
   always expose split command fields such as `template_command`, `check_command`,
-  `apply_command`, `readiness_summary_command`, and
+  `apply_command`, `readiness_summary_command`,
+  `blocker_type_readiness_summary_command`, and
   `blocker_readiness_summary_command`; `next_commands` mirrors the command
   fields from the current `next_action` so automation can dispatch the immediate
   handoff and post-apply readiness check without parsing the full action entry;
