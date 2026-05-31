@@ -551,6 +551,7 @@ def require_public_launch_manifest_current():
         "  - unresolved blockers by network: main=4, testnet=4",
         "  - blocked fields: 46",
         "  - blocked fields by network: main=23, testnet=23",
+        "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
         "  - blocked field paths:",
@@ -1005,6 +1006,10 @@ def require_public_launch_manifest_current():
             )
         if "  - blocked fields by network: main=23, testnet=23" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not print staged per-network field counts".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not print staged per-network next blockers".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if "    - main.litecoin_snapshot.audit.total_amount" not in spaced_readiness_result.stdout:
@@ -4351,6 +4356,7 @@ def require_public_launch_manifest_current():
             "  - unresolved blockers by network: main=0, testnet=0",
             "  - blocked fields: 0",
             "  - blocked fields by network: main=0, testnet=0",
+            "  - next blockers by network: main=none, testnet=none",
             "  - next step: mark-ready",
             "--mark-ready --in-place",
         ):
@@ -4638,6 +4644,7 @@ def require_public_launch_manifest_current():
             "  - unresolved blockers by network: main=0, testnet=0",
             "  - blocked fields: 0",
             "  - blocked fields by network: main=0, testnet=0",
+            "  - next blockers by network: main=none, testnet=none",
             "  - next step: apply ready manifest to chainparams and verify sync",
             "  - emit-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --emit-chainparams",
             "  - check-chainparams: contrib/devtools/zkcoin_public_launch_profile.py --check-chainparams src/chainparams.cpp",
@@ -5412,6 +5419,7 @@ def main():
         ("ready_networks", "manifest summarizes ready networks"),
         ("list_summary", "manifest formats compact readiness lists"),
         ("network_count_summary", "manifest formats network counts for readiness summaries"),
+        ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
