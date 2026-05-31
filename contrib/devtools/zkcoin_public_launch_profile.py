@@ -320,6 +320,10 @@ def list_summary(items):
     return ", ".join(items) if items else "none"
 
 
+def network_count_summary(counts):
+    return ", ".join(f"{network}={counts[network]}" for network in NETWORKS)
+
+
 def yes_no(value):
     return "yes" if value else "no"
 
@@ -2224,7 +2228,9 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - unresolved blockers: {len(blockers)}",
+        f"  - unresolved blockers by network: {network_count_summary(item_counts_by_network(blockers))}",
         f"  - blocked fields: {len(check.blockers)}",
+        f"  - blocked fields by network: {network_count_summary(item_counts_by_network(check.blockers))}",
     ]
 
     if blockers:
