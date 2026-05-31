@@ -1367,7 +1367,7 @@ def verified_snapshot_audit_for_network(network, audit_path):
     return audit
 
 
-def candidate_next_step_text(candidate, applied_label, manifest_path):
+def candidate_next_step_text(candidate, applied_label, manifest_path, network):
     readiness_command = readiness_summary_command(manifest_path)
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -1376,6 +1376,8 @@ def candidate_next_step_text(candidate, applied_label, manifest_path):
     lines = [
         f"  remaining blockers after applying {applied_label}: {len(blockers)}",
         f"  remaining blocked fields after applying {applied_label}: {len(blocked_fields)}",
+        f"  remaining blocked fields on {network} after applying {applied_label}: "
+        f"{item_counts_by_network(blocked_fields)[network]}",
         f"  readiness summary command after applying {applied_label}: {readiness_command}",
     ]
     if blockers:
@@ -1444,7 +1446,7 @@ def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_pa
         f"  base transactions: {audit_detail['base_nchaintx']}",
         f"  total amount: {audit_detail['total_amount']}",
         f"  apply command: {snapshot_audit_apply_command(network, audit_path, manifest_path)}",
-        candidate_next_step_text(candidate, "audit", manifest_path),
+        candidate_next_step_text(candidate, "audit", manifest_path, network),
     ))
 
 
@@ -1520,7 +1522,7 @@ def auxpow_check_text(network, auxpow, candidate, manifest_path):
         f"  strict chain id: {str(auxpow['strict_chain_id']).lower()}",
         "  forbidden parent-version chain-id range: 0x2000-0x3fff",
         f"  apply command: {auxpow_apply_command(network, auxpow, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate", manifest_path),
+        candidate_next_step_text(candidate, "candidate", manifest_path, network),
     ))
 
 
@@ -1581,7 +1583,7 @@ def dns_seeds_check_text(network, dns_seeds, candidate, manifest_path):
         f"  seed count: {len(dns_seeds)}",
         "  seeds: " + ", ".join(dns_seeds),
         f"  apply command: {dns_seeds_apply_command(network, dns_seeds, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate", manifest_path),
+        candidate_next_step_text(candidate, "candidate", manifest_path, network),
     ))
 
 
@@ -1727,7 +1729,7 @@ def identity_check_text(network, identity, candidate, manifest_path):
         f"  bech32 HRP: {identity['bech32_hrp']}",
         f"  MWEB HRP: {identity['mweb_hrp']}",
         f"  apply command: {identity_apply_command(network, identity, manifest_path)}",
-        candidate_next_step_text(candidate, "candidate", manifest_path),
+        candidate_next_step_text(candidate, "candidate", manifest_path, network),
     ))
 
 
