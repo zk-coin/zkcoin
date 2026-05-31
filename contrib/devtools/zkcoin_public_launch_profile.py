@@ -2513,6 +2513,18 @@ def next_action_text(manifest, manifest_path):
         )
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
+            lines.append(
+                "  - later blocker readiness summary commands: "
+                + "; ".join(
+                    "{}={}".format(
+                        blocker,
+                        blocker_action_commands(blocker, manifest_path)[
+                            "blocker_readiness_summary_command"
+                        ],
+                    )
+                    for blocker in blockers[1:]
+                )
+            )
         return "\n".join(lines)
 
     if manifest.get("status") == "blocked":
