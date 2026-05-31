@@ -264,6 +264,22 @@ def item_counts_by_network(items):
     }
 
 
+def actions_by_network(actions):
+    grouped = {network: [] for network in NETWORKS}
+    for action in actions:
+        network = action.get("network")
+        if network in grouped:
+            grouped[network].append(action)
+    return grouped
+
+
+def action_counts_by_network(actions):
+    return {
+        network: len(network_actions)
+        for network, network_actions in actions_by_network(actions).items()
+    }
+
+
 def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     blockers_by_network = items_by_network(blockers)
     blocked_fields_by_network = items_by_network(blocked_fields)
@@ -2449,6 +2465,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
+            "actions_by_network": actions_by_network(actions),
+            "action_counts_by_network": action_counts_by_network(actions),
             "next": next_action,
             "next_action": next_action,
             "next_commands": action_command_fields(next_action),
