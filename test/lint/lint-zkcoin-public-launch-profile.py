@@ -3146,6 +3146,7 @@ def require_public_launch_manifest_current():
             "next blocker after applying audit: main.auxpow_chain_id",
             "next check command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "next apply command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main <chain_id> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "next blocker readiness summary command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         ):
             if expected not in check_audit_result.stdout:
                 return "{} --check-snapshot-audit did not print {}".format(
@@ -3210,6 +3211,10 @@ def require_public_launch_manifest_current():
             )
         if f"--readiness-summary {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
             return "{} --check-snapshot-audit did not shell-quote a manifest readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--blocker-readiness-summary main.auxpow_chain_id {shlex.quote(str(spaced_audit_manifest_path))}" not in spaced_manifest_check_result.stdout:
+            return "{} --check-snapshot-audit did not shell-quote a manifest blocker readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4160,6 +4165,7 @@ def require_public_launch_manifest_current():
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next blocker readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_auxpow_result.stdout:
             return "{} --check-auxpow did not print {}".format(
@@ -4338,6 +4344,7 @@ def require_public_launch_manifest_current():
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next blocker readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_dns_result.stdout:
             return "{} --check-dns-seeds did not print {}".format(
@@ -4635,6 +4642,7 @@ def require_public_launch_manifest_current():
         "next template command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next check command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "next apply command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "next blocker readiness summary command after applying candidate: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in check_identity_result.stdout:
             return "{} --check-identity did not print {}".format(
@@ -6140,6 +6148,7 @@ def main():
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
         ("candidate_next_step_text(candidate, \"audit\", manifest_path, network)", "manifest reports snapshot audit candidate blocker count"),
+        ("next blocker readiness summary command after applying", "manifest prints exact next-blocker summaries after candidate checks"),
         ("verify_snapshot_audit_artifact", "manifest verifies snapshot audit artifact fingerprints"),
         ("O_NOFOLLOW", "manifest opens snapshot audit inputs without following symlinks"),
         ("parent_symlink_error", "manifest can reject symlinked snapshot audit input parents"),
@@ -7515,6 +7524,10 @@ def main():
         (
             "post-apply readiness summary command",
             "public launch snapshot operator post-apply summary documentation",
+        ),
+        (
+            "exact next `--blocker-readiness-summary` command",
+            "public launch snapshot operator post-apply blocker summary documentation",
         ),
         (
             "target profile derived from `source_chain`",

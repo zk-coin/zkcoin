@@ -429,9 +429,10 @@ modifying the manifest.
 The read-only check also reports the exact apply command, remaining blocker
 count, target-network remaining blocker count, overall and target-network
 remaining blocked field counts, post-apply
-readiness summary command, next blocker, and next check/apply commands that would remain after applying the
-audit, so reviewers can confirm the handoff advances the expected profile before
-any manifest write. After applying the audit summary, run `--readiness-summary`
+readiness summary command, next blocker, next check/apply commands, and the
+exact next `--blocker-readiness-summary` command that would remain after applying
+the audit, so reviewers can confirm the handoff advances the expected profile
+before any manifest write. After applying the audit summary, run `--readiness-summary`
 to confirm the current blocker moved from the snapshot handoff to the next
 production launch input.
 The manifest handoff rejects reordered audit summaries when all expected fields
