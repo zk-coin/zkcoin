@@ -135,6 +135,10 @@ Both are intentionally present before behavior changes so tests and review can t
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or
   `dns_seeds`. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
+  for the same read-only handoff detail scoped to one exact unresolved blocker,
+  such as `main.litecoin_snapshot`, when release operators need to hand off a
+  single blocker without the surrounding network or workstream queue. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
   release automation needs the same blocker order, field-level blockers, blocked
   field count, blocked field group count, action count, and action-plan guidance
@@ -153,6 +157,8 @@ Both are intentionally present before behavior changes so tests and review can t
   blockers, blocked fields, and next action in one object, plus
   `blocker_type_readiness_summary_commands_by_blocker_type` so dashboards and
   operators can jump directly to a scoped workstream handoff, plus
+  `blocker_readiness_summary_commands_by_blocker` so dashboards and operators
+  can deep-link directly to exact unresolved blocker handoffs, plus
   `network_readiness_summary_commands_by_network` so dashboards and operators
   can jump directly to a scoped mainnet or testnet handoff. `actions_by_network`
   and `action_counts_by_network` group and count the remaining blocker handoffs
