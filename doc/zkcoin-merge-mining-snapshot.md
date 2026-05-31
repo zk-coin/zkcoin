@@ -144,6 +144,9 @@ Both are intentionally present before behavior changes so tests and review can t
   can jump directly to a scoped mainnet or testnet handoff. The payload also exposes
   `next_commands_by_network`, which mirrors the current command fields for each
   network's next blocker so automation can dispatch scoped handoffs directly.
+  `next_blocked_fields_by_network` and
+  `next_blocked_field_counts_by_network` provide the same per-network field gap
+  view without parsing `network_progress`.
   It also exposes
   `blocked_networks`, `blocked_network_count`, `ready_networks`, and
   `ready_network_count` for a compact network readiness summary without parsing

@@ -713,6 +713,19 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose testnet next commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    next_fields_by_network = status_json.get("next_blocked_fields_by_network", {})
+    if next_fields_by_network.get("main", [None])[0] != "main.litecoin_snapshot.height":
+        return "{} --status-json did not expose mainnet next blocked fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_fields_by_network.get("testnet", [None])[-1] != "testnet.litecoin_snapshot.audit.total_amount":
+        return "{} --status-json did not expose testnet next blocked fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocked_field_counts_by_network") != {"main": 11, "testnet": 11}:
+        return "{} --status-json did not count per-network next blocked fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     blocked_field_groups = status_json.get("blocked_field_groups", [])
     if len(blocked_field_groups) != 8:
         return "{} --status-json did not include every blocker field group".format(
@@ -4562,6 +4575,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported per-network next commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
+            return "{} --status-json reported per-network next fields for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_blocked_field_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted per-network next fields for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("network_progress", {}).get("main") != {
             "ready_for_launch_profile": True,
             "unresolved_blocker_count": 0,
@@ -4858,6 +4879,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_commands_by_network") != {"main": None, "testnet": None}:
             return "{} --status-json reported per-network next commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
+            return "{} --status-json reported per-network next fields for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocked_field_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted per-network next fields for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("network_progress", {}).get("main") != {
@@ -5589,6 +5618,7 @@ def main():
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
+        ("network_next_blocked_fields", "manifest status JSON includes network-scoped next blocked fields"),
         ("check_command", "manifest status JSON includes current check commands"),
         ("apply_command", "manifest status JSON includes current apply commands"),
         ("readiness_summary_command", "manifest status JSON includes current readiness-summary commands"),
@@ -5601,6 +5631,8 @@ def main():
         ("blocked_field_counts_by_network", "manifest status JSON counts blocked fields by network"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
+        ("next_blocked_fields_by_network", "manifest status JSON includes per-network next blocked fields"),
+        ("next_blocked_field_counts_by_network", "manifest status JSON counts per-network next blocked fields"),
         ("network_progress", "manifest status JSON includes network progress entries"),
         ("blocked_field_groups", "manifest status JSON includes blocked field groups"),
         ("blocked_field_group_count", "manifest status JSON includes a blocked field group count"),
@@ -6548,6 +6580,14 @@ def main():
         (
             "next_commands_by_network",
             "public launch manifest status-json network next command documentation",
+        ),
+        (
+            "next_blocked_fields_by_network",
+            "public launch manifest status-json network next field documentation",
+        ),
+        (
+            "next_blocked_field_counts_by_network",
+            "public launch manifest status-json network next field-count documentation",
         ),
         (
             "blocked_networks",
