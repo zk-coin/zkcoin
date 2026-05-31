@@ -2302,6 +2302,12 @@ def shell_quote(value):
     return shlex.quote(str(value))
 
 
+def action_plan_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --action-plan {manifest_path}"
+
+
 def readiness_summary_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -2864,6 +2870,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
             "blocked_fields_by_blocker_type": blocked_fields_by_blocker_type(blocked_field_groups),
             "blocked_field_counts_by_blocker_type": blocked_field_counts_by_blocker_type(blocked_field_groups),
+            "action_plan_command": action_plan_command(manifest_path),
+            "readiness_summary_command": readiness_summary_command(manifest_path),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),
             "blocker_readiness_summary_commands_by_blocker": blocker_readiness_summary_commands(manifest_path, blockers),

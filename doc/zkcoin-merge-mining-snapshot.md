@@ -153,8 +153,9 @@ Both are intentionally present before behavior changes so tests and review can t
   field count, blocked field group count, action count, and action-plan guidance
   as machine-readable JSON with a stable `schema_version` (`2` for the grouped
   blocker payload) plus direct `blocked_field_count`,
-  `blocked_field_group_count`, `action_count`, `next_action`, and
-  `next_action_command`; it also exposes
+  `blocked_field_group_count`, `action_count`, `action_plan_command`,
+  `readiness_summary_command`, `next_action`, and `next_action_command`; it also
+  exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
   launch readiness separately without parsing field paths, plus

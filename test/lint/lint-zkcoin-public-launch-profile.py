@@ -1077,6 +1077,20 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not group DNS seed blocked fields by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("action_plan_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --action-plan "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the action-plan command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("readiness_summary_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("network_readiness_summary_commands_by_network") != {
         "main": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -1889,6 +1903,14 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("blocked_field_group_count") != 8:
             return "{} --status-json did not count staged blocker field groups".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("action_plan_command", ""):
+            return "{} --status-json did not shell-quote staged action-plan commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote staged readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
@@ -6517,6 +6539,7 @@ def main():
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
+        ("action_plan_command", "manifest prints action-plan commands after read-only checks"),
         ("next_action_command", "manifest prints next-action commands after read-only checks"),
         ("readiness_summary_command", "manifest prints readiness-summary commands after read-only checks"),
         ("network_readiness_summary_command", "manifest prints network readiness-summary commands after read-only checks"),
@@ -6660,6 +6683,8 @@ def main():
         ("next_blocked_field_counts_by_blocker_type", "manifest status JSON counts blocker-type next blocked fields"),
         ("next_blockers_by_blocker_type", "manifest status JSON includes blocker-type next blockers"),
         ("next_blocker_networks_by_blocker_type", "manifest status JSON includes blocker-type next networks"),
+        ("action_plan_command", "manifest status JSON includes a copyable action-plan command"),
+        ("readiness_summary_command", "manifest status JSON includes a copyable readiness-summary command"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
@@ -7651,6 +7676,14 @@ def main():
         (
             "next_commands_by_blocker_type",
             "public launch manifest status-json blocker-type next command documentation",
+        ),
+        (
+            "action_plan_command",
+            "public launch manifest status-json action-plan command documentation",
+        ),
+        (
+            "readiness_summary_command",
+            "public launch manifest status-json readiness-summary command documentation",
         ),
         (
             "next_action",
