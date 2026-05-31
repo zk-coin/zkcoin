@@ -858,6 +858,7 @@ audit_json_path = os.environ.get("ZKCOIN_SNAPSHOT_AUDIT_JSON")
 if audit_json_path:
     write_audit_summary(audit_json_path, summary)
 target_network = "main" if source_chain == "main" else "testnet"
+blocker_id = f"{target_network}.litecoin_snapshot"
 
 print("Snapshot verified.")
 if audit_json_path:
@@ -891,6 +892,11 @@ if audit_json_path:
         "contrib/devtools/zkcoin_public_launch_profile.py "
         "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     )
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--blocker-readiness-summary {blocker_id} "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
 else:
     print("Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> and rerun before updating the public profile.")
     print(
@@ -906,6 +912,11 @@ else:
     print(
         "contrib/devtools/zkcoin_public_launch_profile.py "
         "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    )
+    print(
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        f"--blocker-readiness-summary {blocker_id} "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     )
 print()
 print("Combine these with the AuxPoW launch profile and confirm")
