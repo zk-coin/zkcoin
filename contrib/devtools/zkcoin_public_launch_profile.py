@@ -1372,8 +1372,10 @@ def candidate_next_step_text(candidate, applied_label, manifest_path):
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = validate_manifest(candidate, allow_blocked=True).blockers
     lines = [
         f"  remaining blockers after applying {applied_label}: {len(blockers)}",
+        f"  remaining blocked fields after applying {applied_label}: {len(blocked_fields)}",
         f"  readiness summary command after applying {applied_label}: {readiness_command}",
     ]
     if blockers:
