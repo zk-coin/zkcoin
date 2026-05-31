@@ -2031,6 +2031,12 @@ def readiness_summary_command(manifest_path):
     return f"{tool_path} --readiness-summary {manifest_path}"
 
 
+def network_readiness_summary_command(manifest_path, network):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --network-readiness-summary {network} {manifest_path}"
+
+
 def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -2313,6 +2319,10 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
     lines.append(f"  - next blocker fields: {next_group['field_count']}")
     append_blocker_field_lines(lines, next_group, "  - ", "    - ")
     append_blocker_command_lines(lines, next_group, "  - ")
+    lines.append(
+        "  - network readiness summary command: "
+        f"{network_readiness_summary_command(manifest_path, network)}"
+    )
     remaining_blockers = progress["unresolved_blockers"][1:]
     if remaining_blockers:
         lines.append("  - later blockers: " + ", ".join(remaining_blockers))

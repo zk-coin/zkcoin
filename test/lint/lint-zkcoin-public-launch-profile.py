@@ -606,6 +606,7 @@ def require_public_launch_manifest_current():
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - later blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds",
     ):
         if expected not in network_readiness_result.stdout:
@@ -1117,6 +1118,10 @@ def require_public_launch_manifest_current():
             )
         if f"  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
             return "{} --network-readiness-summary did not shell-quote a staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not shell-quote a staged network summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5451,6 +5456,7 @@ def main():
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
         ("readiness_summary_command", "manifest prints readiness-summary commands after read-only checks"),
+        ("network_readiness_summary_command", "manifest prints network readiness-summary commands after read-only checks"),
         ("auxpow_check_text", "manifest prints AuxPoW candidate check summaries"),
         ("candidate_next_step_text(candidate, \"candidate\", manifest_path, network)", "manifest reports AuxPoW candidate progress"),
         ("remaining blocked fields after applying", "manifest reports read-only candidate field-count progress"),
