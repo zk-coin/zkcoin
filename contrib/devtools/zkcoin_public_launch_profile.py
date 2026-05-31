@@ -2203,6 +2203,12 @@ def network_readiness_summary_command(manifest_path, network):
     return f"{tool_path} --network-readiness-summary {network} {manifest_path}"
 
 
+def blocker_type_readiness_summary_command(manifest_path, blocker_type):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --blocker-type-readiness-summary {blocker_type} {manifest_path}"
+
+
 def network_readiness_summary_commands(manifest_path):
     return {
         network: network_readiness_summary_command(manifest_path, network)
@@ -2210,9 +2216,24 @@ def network_readiness_summary_commands(manifest_path):
     }
 
 
+def blocker_type_readiness_summary_commands(manifest_path):
+    return {
+        blocker_type: blocker_type_readiness_summary_command(manifest_path, blocker_type)
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
 def network_readiness_summary_command_summary(manifest_path):
     commands = network_readiness_summary_commands(manifest_path)
     return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
+
+
+def blocker_type_readiness_summary_command_summary(manifest_path):
+    commands = blocker_type_readiness_summary_commands(manifest_path)
+    return "; ".join(
+        f"{blocker_type}={commands[blocker_type]}"
+        for blocker_type in BLOCKER_TYPES
+    )
 
 
 def blocker_action_commands(blocker_id, manifest_path):
@@ -2448,6 +2469,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
+        f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
     ]
 
     if blockers:
@@ -2508,6 +2530,45 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
     return "\n".join(lines)
 
 
+def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_type):
+    if blocker_type not in BLOCKER_TYPES:
+        raise ValueError("blocker type must be one of: " + ", ".join(BLOCKER_TYPES))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    blocker_type_progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
+    progress = blocker_type_progress[blocker_type]
+    next_action = progress["next_action"]
+    lines = [
+        "zkCoin public launch profile blocker-type readiness summary:",
+        f"  - blocker type: {blocker_type}",
+        f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
+        f"  - unresolved blockers: {progress['unresolved_blocker_count']}",
+        f"  - blocked fields: {progress['blocked_field_count']}",
+    ]
+    if next_action is None:
+        lines.append("  - next blocker: none")
+        return "\n".join(lines)
+
+    lines.append(f"  - next blocker: {next_action['id']}")
+    lines.append(f"  - next blocker fields: {next_action['field_count']}")
+    append_blocker_field_lines(lines, next_action, "  - ", "    - ")
+    append_blocker_command_lines(lines, next_action, "  - ")
+    lines.append(
+        "  - blocker type readiness summary command: "
+        f"{blocker_type_readiness_summary_command(manifest_path, blocker_type)}"
+    )
+    remaining_blockers = progress["unresolved_blockers"][1:]
+    if remaining_blockers:
+        lines.append("  - later blockers: " + ", ".join(remaining_blockers))
+    return "\n".join(lines)
+
+
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -2551,6 +2612,7 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_fields_by_blocker_type": blocked_fields_by_blocker_type(blocked_field_groups),
             "blocked_field_counts_by_blocker_type": blocked_field_counts_by_blocker_type(blocked_field_groups),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
+            "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
             "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),
@@ -2611,6 +2673,8 @@ def selected_primary_actions(args):
         actions.append("--readiness-summary")
     if args.network_readiness_summary is not None:
         actions.append("--network-readiness-summary")
+    if args.blocker_type_readiness_summary is not None:
+        actions.append("--blocker-type-readiness-summary")
     if args.status_json:
         actions.append("--status-json")
     if args.emit_chainparams:
@@ -2629,6 +2693,7 @@ def main():
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
+    parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
@@ -2896,6 +2961,8 @@ def main():
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
+    if args.blocker_type_readiness_summary is not None:
+        allow_blocked = True
     if args.status_json:
         allow_blocked = True
     check = validate_manifest(manifest, allow_blocked)
@@ -2953,6 +3020,24 @@ def main():
                     args.manifest,
                     check,
                     args.network_readiness_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.blocker_type_readiness_summary is not None:
+        if args.in_place:
+            print("error: --blocker-type-readiness-summary does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                blocker_type_readiness_summary_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.blocker_type_readiness_summary,
                 )
             )
         except ValueError as exc:
