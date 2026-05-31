@@ -147,6 +147,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocked_fields_by_network` and
   `next_blocked_field_counts_by_network` provide the same per-network field gap
   view without parsing `network_progress`.
+  `next_blockers_by_network` and `next_blocker_types_by_network` provide the
+  current per-network blocker ids and blocker classes directly for dashboards.
   It also exposes
   `blocked_networks`, `blocked_network_count`, `ready_networks`, and
   `ready_network_count` for a compact network readiness summary without parsing
