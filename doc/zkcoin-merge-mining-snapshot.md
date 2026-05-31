@@ -129,7 +129,7 @@ Both are intentionally present before behavior changes so tests and review can t
   commands, per-network next
   blocker-type summary commands, per-network next blocker-scoped summary
   commands, per-network scoped summary commands, the immediate blocker's exact field paths,
-  later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
+  earlier and later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   `apply command`, `readiness summary command`,
   `network readiness summary command`,
