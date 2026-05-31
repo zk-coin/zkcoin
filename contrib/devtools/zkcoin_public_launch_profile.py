@@ -1694,6 +1694,14 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network, b
             f"{commands['apply_command']}"
         )
         lines.append(
+            f"  next network readiness summary command after applying {applied_label}: "
+            f"{commands['network_readiness_summary_command']}"
+        )
+        lines.append(
+            f"  next blocker type readiness summary command after applying {applied_label}: "
+            f"{commands['blocker_type_readiness_summary_command']}"
+        )
+        lines.append(
             f"  next blocker readiness summary command after applying {applied_label}: "
             f"{blocker_readiness_summary_command(manifest_path, next_blocker)}"
         )
