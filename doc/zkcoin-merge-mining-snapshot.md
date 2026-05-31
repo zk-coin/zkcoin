@@ -141,7 +141,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
   launch readiness separately without parsing field paths, plus
   `network_readiness_summary_commands_by_network` so dashboards and operators
-  can jump directly to a scoped mainnet or testnet handoff. It also exposes
+  can jump directly to a scoped mainnet or testnet handoff. The payload also exposes
+  `next_commands_by_network`, which mirrors the current command fields for each
+  network's next blocker so automation can dispatch scoped handoffs directly.
+  It also exposes
   `blocked_networks`, `blocked_network_count`, `ready_networks`, and
   `ready_network_count` for a compact network readiness summary without parsing
   per-network progress entries. It also includes `network_progress`, which consolidates each network's ready flag,
