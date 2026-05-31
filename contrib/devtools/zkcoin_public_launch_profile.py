@@ -346,8 +346,8 @@ def network_next_blocker_command_summary(network_progress, command_key):
     entries = []
     for network in NETWORKS:
         next_group = network_progress[network]["next_blocked_field_group"]
-        command = next_group[command_key] if next_group else "none"
-        entries.append(f"{network}={command}")
+        command = next_group.get(command_key) if next_group else None
+        entries.append(f"{network}={command or 'none'}")
     return "; ".join(entries)
 
 
@@ -2260,6 +2260,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - blocked fields by network: {network_count_summary(item_counts_by_network(check.blockers))}",
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
+        f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
     ]
