@@ -1566,7 +1566,7 @@ def verified_snapshot_audit_for_network(network, audit_path):
 
 def candidate_next_step_text(candidate, applied_label, manifest_path, network):
     readiness_command = readiness_summary_command(manifest_path)
-    manifest_path = shell_quote(display_path(manifest_path))
+    manifest_path_arg = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(candidate)
     blocked_fields = validate_manifest(candidate, allow_blocked=True).blockers
@@ -1581,7 +1581,7 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network):
     ]
     if blockers:
         next_blocker = blockers[0]
-        commands = blocker_action_commands(next_blocker, manifest_path)
+        commands = blocker_action_commands(next_blocker, manifest_path_arg)
         lines.append(f"  next blocker after applying {applied_label}: {next_blocker}")
         if commands["template_command"] is not None:
             lines.append(
@@ -1596,6 +1596,10 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network):
             f"  next apply command after applying {applied_label}: "
             f"{commands['apply_command']}"
         )
+        lines.append(
+            f"  next blocker readiness summary command after applying {applied_label}: "
+            f"{blocker_readiness_summary_command(manifest_path, next_blocker)}"
+        )
         return "\n".join(lines)
     if candidate.get("status") == "blocked":
         lines.append(
@@ -1604,17 +1608,17 @@ def candidate_next_step_text(candidate, applied_label, manifest_path, network):
         )
         lines.append(
             f"  next command after applying {applied_label}: "
-            f"{tool_path} --mark-ready --in-place {manifest_path}"
+            f"{tool_path} --mark-ready --in-place {manifest_path_arg}"
         )
         return "\n".join(lines)
     lines.append(f"  next step after applying {applied_label}: emit and check chainparams")
     lines.append(
         f"  next emit command after applying {applied_label}: "
-        f"{tool_path} --emit-chainparams {manifest_path}"
+        f"{tool_path} --emit-chainparams {manifest_path_arg}"
     )
     lines.append(
         f"  next check command after applying {applied_label}: "
-        f"{tool_path} --check-chainparams src/chainparams.cpp {manifest_path}"
+        f"{tool_path} --check-chainparams src/chainparams.cpp {manifest_path_arg}"
     )
     return "\n".join(lines)
 
