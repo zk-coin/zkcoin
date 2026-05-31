@@ -1366,10 +1366,14 @@ def verified_snapshot_audit_for_network(network, audit_path):
 
 
 def candidate_next_step_text(candidate, applied_label, manifest_path):
+    readiness_command = readiness_summary_command(manifest_path)
     manifest_path = shell_quote(display_path(manifest_path))
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     blockers = ordered_unresolved_blocker_ids(candidate)
-    lines = [f"  remaining blockers after applying {applied_label}: {len(blockers)}"]
+    lines = [
+        f"  remaining blockers after applying {applied_label}: {len(blockers)}",
+        f"  readiness summary command after applying {applied_label}: {readiness_command}",
+    ]
     if blockers:
         next_blocker = blockers[0]
         commands = blocker_action_commands(next_blocker, manifest_path)
@@ -1980,6 +1984,12 @@ def display_path(path):
 
 def shell_quote(value):
     return shlex.quote(str(value))
+
+
+def readiness_summary_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --readiness-summary {manifest_path}"
 
 
 def blocker_action_commands(blocker_id, manifest_path):
