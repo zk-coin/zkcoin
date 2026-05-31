@@ -397,6 +397,10 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print a copyable snapshot apply command line".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main" not in next_action_result.stdout:
+        return "{} --next-action did not print a copyable network readiness-summary command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot" not in next_action_result.stdout:
         return "{} --next-action did not print a copyable blocker-type readiness-summary command line".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -523,6 +527,7 @@ def require_public_launch_manifest_current():
         "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
         "     readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "     network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds testnet <seed1.hostname>,<seed2.hostname>",
@@ -578,6 +583,7 @@ def require_public_launch_manifest_current():
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - later blockers: main.auxpow_chain_id",
@@ -622,9 +628,9 @@ def require_public_launch_manifest_current():
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
-        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - later blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds",
     ):
         if expected not in network_readiness_result.stdout:
@@ -667,6 +673,7 @@ def require_public_launch_manifest_current():
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - later blockers: testnet.litecoin_snapshot",
@@ -711,6 +718,7 @@ def require_public_launch_manifest_current():
         "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - later blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds, testnet.litecoin_snapshot",
@@ -1007,6 +1015,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose testnet next commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--network-readiness-summary main" not in next_commands_by_network.get("main", {}).get("network_readiness_summary_command", ""):
+        return "{} --status-json did not expose mainnet next network readiness command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--blocker-type-readiness-summary litecoin_snapshot" not in next_commands_by_network.get("main", {}).get("blocker_type_readiness_summary_command", ""):
         return "{} --status-json did not expose mainnet next blocker-type readiness command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1131,7 +1143,7 @@ def require_public_launch_manifest_current():
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
-        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
+        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
             if command_field not in group:
                 return "{} --status-json blocker group {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -1196,6 +1208,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[0].get("network_readiness_summary_command", ""):
+        return "{} --status-json did not include first action network readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[0].get("blocker_type_readiness_summary_command", ""):
         return "{} --status-json did not include first action blocker-type readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1209,7 +1225,7 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     for action in actions:
-        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
+        for command_field in ("template_command", "check_command", "apply_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
             if command_field not in action:
                 return "{} --status-json action {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -1235,6 +1251,10 @@ def require_public_launch_manifest_current():
         )
     if "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[-1].get("readiness_summary_command", ""):
         return "{} --status-json did not include final action readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[-1].get("network_readiness_summary_command", ""):
+        return "{} --status-json did not include final action network readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--blocker-type-readiness-summary dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[-1].get("blocker_type_readiness_summary_command", ""):
@@ -1281,6 +1301,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json next_action did not expose the current readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_action", {}).get("network_readiness_summary_command") != actions[0].get("network_readiness_summary_command"):
+        return "{} --status-json next_action did not expose the current network readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_action", {}).get("blocker_type_readiness_summary_command") != actions[0].get("blocker_type_readiness_summary_command"):
         return "{} --status-json next_action did not expose the current blocker-type readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1304,6 +1328,10 @@ def require_public_launch_manifest_current():
         )
     if next_commands.get("readiness_summary_command") != actions[0].get("readiness_summary_command"):
         return "{} --status-json next_commands did not expose the current readiness-summary command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("network_readiness_summary_command") != actions[0].get("network_readiness_summary_command"):
+        return "{} --status-json next_commands did not expose the current network readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if next_commands.get("blocker_type_readiness_summary_command") != actions[0].get("blocker_type_readiness_summary_command"):
@@ -1482,6 +1510,10 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote a copyable staged check command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged network summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged blocker-type summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1560,6 +1592,10 @@ def require_public_launch_manifest_current():
             return "{} --blocker-type-readiness-summary did not shell-quote a staged apply command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_blocker_type_readiness_result.stdout:
+            return "{} --blocker-type-readiness-summary did not shell-quote a staged network summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_type_readiness_result.stdout:
             return "{} --blocker-type-readiness-summary did not shell-quote a staged blocker-type summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1595,6 +1631,10 @@ def require_public_launch_manifest_current():
             )
         if f"  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
             return "{} --blocker-readiness-summary did not shell-quote a staged apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not shell-quote a staged network summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
@@ -1683,8 +1723,16 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged network next commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands_by_network", {}).get("main", {}).get("network_readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote staged network next network readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("next_commands_by_blocker_type", {}).get("litecoin_snapshot", {}).get("check_command", ""):
             return "{} --status-json did not shell-quote staged blocker-type next commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands_by_blocker_type", {}).get("litecoin_snapshot", {}).get("network_readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote staged blocker-type next network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("action", ""):
@@ -1709,6 +1757,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("readiness_summary_command", ""):
             return "{} --status-json did not shell-quote a staged blocker field group readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("network_readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged blocker field group network readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("blocker_type_readiness_summary_command", ""):
@@ -1739,6 +1791,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote a staged next_commands readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("next_commands", {}).get("network_readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged next_commands network readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("next_commands", {}).get("blocker_type_readiness_summary_command", ""):
             return "{} --status-json did not shell-quote a staged next_commands blocker-type readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1765,6 +1821,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("readiness_summary_command", ""):
             return "{} --status-json did not shell-quote a staged action readiness-summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("network_readiness_summary_command", ""):
+            return "{} --status-json did not shell-quote a staged action network readiness-summary command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("actions", [{}])[0].get("blocker_type_readiness_summary_command", ""):
