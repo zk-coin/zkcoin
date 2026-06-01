@@ -744,6 +744,17 @@ def network_blocker_type_count_summary(counts):
     )
 
 
+def network_blocker_type_value_summary(values):
+    return "; ".join(
+        f"{network}: "
+        + ", ".join(
+            f"{blocker_type}={values[network][blocker_type] or 'none'}"
+            for blocker_type in BLOCKER_TYPES
+        )
+        for network in NETWORKS
+    )
+
+
 def network_next_blocker_summary(network_progress):
     entries = []
     for network in NETWORKS:
@@ -2879,6 +2890,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - blocked fields by blocker type: {blocker_type_count_summary(blocked_field_counts_by_blocker_type(blocked_field_groups))}",
         f"  - blocked fields by network and blocker type: {network_blocker_type_count_summary(blocked_field_counts_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
+        f"  - next blockers by network and blocker type: {network_blocker_type_value_summary(next_blockers_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
         f"  - next blockers by blocker type: {blocker_type_next_blocker_summary(blocker_type_progress)}",
         f"  - next blocker networks by blocker type: {blocker_type_next_blocker_network_summary(blocker_type_progress)}",

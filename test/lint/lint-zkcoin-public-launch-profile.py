@@ -583,6 +583,7 @@ def require_public_launch_manifest_current():
         "  - blocked fields by blocker type: litecoin_snapshot=22, auxpow_chain_id=2, public_network_identity=20, dns_seeds=2",
         "  - blocked fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
+        "  - next blockers by network and blocker type: main: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds; testnet: litecoin_snapshot=testnet.litecoin_snapshot, auxpow_chain_id=testnet.auxpow_chain_id, public_network_identity=testnet.public_network_identity, dns_seeds=testnet.dns_seeds",
         "  - next blocker fields by network: main=11, testnet=11",
         "  - next blockers by blocker type: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds",
         "  - next blocker networks by blocker type: litecoin_snapshot=main, auxpow_chain_id=main, public_network_identity=main, dns_seeds=main",
@@ -7440,6 +7441,7 @@ def main():
         ("network_count_summary", "manifest formats network counts for readiness summaries"),
         ("blocker_type_count_summary", "manifest formats blocker-type counts for readiness summaries"),
         ("network_blocker_type_count_summary", "manifest formats network blocker-type matrices for readiness summaries"),
+        ("network_blocker_type_value_summary", "manifest formats network blocker-type value matrices for readiness summaries"),
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
@@ -8457,6 +8459,10 @@ def main():
         (
             "per-network/per-workstream blocker and field matrices",
             "public launch manifest readiness-summary matrix documentation",
+        ),
+        (
+            "per-network/per-workstream next blocker matrix",
+            "public launch manifest readiness-summary next blocker matrix documentation",
         ),
         (
             "per-network next\n  blocker-type summary commands",
