@@ -861,6 +861,29 @@ def require_public_launch_manifest_current():
         return "{} --status-json reported ready blocker types for a blocked manifest".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_blocker_types_by_network = {
+        "main": expected_blocker_type_order,
+        "testnet": expected_blocker_type_order,
+    }
+    empty_blocker_types_by_network = {"main": [], "testnet": []}
+    expected_blocker_type_counts_by_network = {"main": 4, "testnet": 4}
+    empty_blocker_type_counts_by_network = {"main": 0, "testnet": 0}
+    if status_json.get("blocked_blocker_types_by_network") != expected_blocker_types_by_network:
+        return "{} --status-json did not summarize blocked blocker types by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocked_blocker_type_counts_by_network") != expected_blocker_type_counts_by_network:
+        return "{} --status-json did not count blocked blocker types by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("ready_blocker_types_by_network") != empty_blocker_types_by_network:
+        return "{} --status-json reported ready blocker types by network for a blocked manifest".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("ready_blocker_type_counts_by_network") != empty_blocker_type_counts_by_network:
+        return "{} --status-json counted ready blocker types by network for a blocked manifest".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("unresolved_blocker_count") != 8:
         return "{} --status-json did not count unresolved blocker groups".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6199,6 +6222,22 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not summarize complete ready blocker types".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocked_blocker_types_by_network") != empty_blocker_types_by_network:
+            return "{} --status-json reported blocked blocker types by network for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("blocked_blocker_type_counts_by_network") != empty_blocker_type_counts_by_network:
+            return "{} --status-json counted blocked blocker types by network for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("ready_blocker_types_by_network") != expected_blocker_types_by_network:
+            return "{} --status-json did not summarize complete ready blocker types by network".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("ready_blocker_type_counts_by_network") != expected_blocker_type_counts_by_network:
+            return "{} --status-json did not count complete ready blocker types by network".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("action_count") != 1:
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6708,6 +6747,22 @@ def require_public_launch_manifest_current():
             or ready_status.get("ready_blocker_types") != expected_blocker_type_order
         ):
             return "{} --status-json did not summarize ready blocker types".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_blocker_types_by_network") != empty_blocker_types_by_network:
+            return "{} --status-json reported blocked blocker types by network for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_blocker_type_counts_by_network") != empty_blocker_type_counts_by_network:
+            return "{} --status-json counted blocked blocker types by network for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("ready_blocker_types_by_network") != expected_blocker_types_by_network:
+            return "{} --status-json did not summarize ready blocker types by network".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("ready_blocker_type_counts_by_network") != expected_blocker_type_counts_by_network:
+            return "{} --status-json did not count ready blocker types by network".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("blocked_fields") != []:
@@ -7683,6 +7738,10 @@ def main():
         ("blocked_field_group_counts_by_blocker_type", "manifest counts blocked field groups by blocker type"),
         ("blocked_field_groups_by_network_and_blocker_type", "manifest groups blocked field groups by network and blocker type"),
         ("blocked_field_group_counts_by_network_and_blocker_type", "manifest counts blocked field groups by network and blocker type"),
+        ("blocked_blocker_types_by_network", "manifest summarizes blocked blocker types by network"),
+        ("blocked_blocker_type_counts_by_network", "manifest counts blocked blocker types by network"),
+        ("ready_blocker_types_by_network", "manifest summarizes ready blocker types by network"),
+        ("ready_blocker_type_counts_by_network", "manifest counts ready blocker types by network"),
         ("next_blocked_field_groups_by_network_and_blocker_type", "manifest exposes next blocked field groups by network and blocker type"),
         ("next_blocker_field_groups_by_network_and_blocker_type", "manifest aliases next blocker field groups by network and blocker type"),
         ("next_blocked_fields_by_network_and_blocker_type", "manifest exposes next blocked fields by network and blocker type"),
@@ -7788,6 +7847,10 @@ def main():
         ("blocked_blocker_types", "manifest status JSON includes blocked blocker types"),
         ("ready_blocker_type_count", "manifest status JSON includes a ready blocker-type count"),
         ("ready_blocker_types", "manifest status JSON includes ready blocker types"),
+        ("blocked_blocker_type_counts_by_network", "manifest status JSON includes blocked blocker-type counts by network"),
+        ("blocked_blocker_types_by_network", "manifest status JSON includes blocked blocker types by network"),
+        ("ready_blocker_type_counts_by_network", "manifest status JSON includes ready blocker-type counts by network"),
+        ("ready_blocker_types_by_network", "manifest status JSON includes ready blocker types by network"),
         ("unresolved_blockers_by_network", "manifest status JSON groups blockers by network"),
         ("unresolved_blocker_counts_by_network", "manifest status JSON counts blockers by network"),
         ("unresolved_blockers_by_blocker_type", "manifest status JSON groups blockers by blocker type"),
@@ -9058,6 +9121,14 @@ def main():
         (
             "ready_blocker_types",
             "public launch manifest status-json ready blocker-type summary documentation",
+        ),
+        (
+            "blocked_blocker_types_by_network",
+            "public launch manifest status-json network blocked blocker-type summary documentation",
+        ),
+        (
+            "ready_blocker_types_by_network",
+            "public launch manifest status-json network ready blocker-type summary documentation",
         ),
         (
             "network_progress",
