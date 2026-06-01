@@ -484,6 +484,36 @@ def blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups)
     }
 
 
+def next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups):
+    return {
+        network: {
+            blocker_type: groups[0] if groups else None
+            for blocker_type, groups in groups_by_type.items()
+        }
+        for network, groups_by_type in blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
+def next_blocked_fields_by_network_and_blocker_type(blocked_field_groups):
+    return {
+        network: {
+            blocker_type: next_group["fields"] if next_group else []
+            for blocker_type, next_group in groups_by_type.items()
+        }
+        for network, groups_by_type in next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
+def next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups):
+    return {
+        network: {
+            blocker_type: next_group["field_count"] if next_group else 0
+            for blocker_type, next_group in groups_by_type.items()
+        }
+        for network, groups_by_type in next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
 def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     blockers_by_network = items_by_network(blockers)
     blocked_fields_by_network = items_by_network(blocked_fields)
@@ -3068,6 +3098,9 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),
             "next_blocked_field_counts_by_network": network_next_blocked_field_counts(network_progress),
+            "next_blocked_field_groups_by_network_and_blocker_type": next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups),
+            "next_blocked_fields_by_network_and_blocker_type": next_blocked_fields_by_network_and_blocker_type(blocked_field_groups),
+            "next_blocked_field_counts_by_network_and_blocker_type": next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups),
             "next_blockers_by_network": network_next_blockers(network_progress),
             "next_blocker_types_by_network": network_next_blocker_types(network_progress),
             "next_blocked_fields_by_blocker_type": blocker_type_next_blocked_fields(blocker_type_progress),
