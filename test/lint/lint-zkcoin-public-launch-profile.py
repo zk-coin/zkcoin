@@ -1890,6 +1890,15 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        actions[0].get("network_step") != 1
+        or actions[0].get("network_step_count") != 4
+        or actions[0].get("blocker_type_step") != 1
+        or actions[0].get("blocker_type_step_count") != 2
+    ):
+        return "{} --status-json did not include first action scoped order metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if actions[0].get("field_count") != blocked_field_groups[0].get("field_count"):
         return "{} --status-json did not include first action blocked field count".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1928,6 +1937,15 @@ def require_public_launch_manifest_current():
         )
     if actions[-1].get("network") != "testnet" or actions[-1].get("blocker_type") != "dns_seeds":
         return "{} --status-json did not include final action network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        actions[-1].get("network_step") != 4
+        or actions[-1].get("network_step_count") != 4
+        or actions[-1].get("blocker_type_step") != 2
+        or actions[-1].get("blocker_type_step_count") != 2
+    ):
+        return "{} --status-json did not include final action scoped order metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     for action in actions:
@@ -7825,6 +7843,10 @@ def main():
         ("action_counts_by_network", "manifest counts action entries by network"),
         ("actions_by_blocker_type", "manifest groups action entries by blocker type"),
         ("action_counts_by_blocker_type", "manifest counts action entries by blocker type"),
+        ("network_step", "manifest includes network-scoped action order"),
+        ("network_step_count", "manifest includes network-scoped action count"),
+        ("blocker_type_step", "manifest includes blocker-type-scoped action order"),
+        ("blocker_type_step_count", "manifest includes blocker-type-scoped action count"),
         ("actions_by_network_and_blocker_type", "manifest groups action entries by network and blocker type"),
         ("action_counts_by_network_and_blocker_type", "manifest counts action entries by network and blocker type"),
         ("next_actions_by_network_and_blocker_type", "manifest exposes next action entries by network and blocker type"),
@@ -9054,6 +9076,22 @@ def main():
         (
             "action entries expose `network` and `blocker_type`",
             "public launch manifest status-json action metadata documentation",
+        ),
+        (
+            "network_step",
+            "public launch manifest status-json action network order documentation",
+        ),
+        (
+            "network_step_count",
+            "public launch manifest status-json action network count documentation",
+        ),
+        (
+            "blocker_type_step",
+            "public launch manifest status-json action workstream order documentation",
+        ),
+        (
+            "blocker_type_step_count",
+            "public launch manifest status-json action workstream count documentation",
         ),
         (
             "blocker_readiness_summary_command",

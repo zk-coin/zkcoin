@@ -2887,10 +2887,16 @@ def next_action_text(manifest, manifest_path):
     return "\n".join(lines)
 
 
-def blocker_action_entry(index, blocker, manifest_path):
+def blocker_action_entry(index, blocker, blockers, manifest_path):
     network, blocker_type = blocker.split(".", 1)
+    network_blockers = items_by_network(blockers)[network]
+    blocker_type_blockers = blockers_by_blocker_type(blockers)[blocker_type]
     return {
         "step": index,
+        "network_step": network_blockers.index(blocker) + 1,
+        "network_step_count": len(network_blockers),
+        "blocker_type_step": blocker_type_blockers.index(blocker) + 1,
+        "blocker_type_step_count": len(blocker_type_blockers),
         "kind": "blocker",
         "id": blocker,
         "network": network,
@@ -2906,7 +2912,7 @@ def action_plan_entries(manifest, manifest_path):
     blockers = ordered_unresolved_blocker_ids(manifest)
     if blockers:
         return [
-            blocker_action_entry(index, blocker, manifest_path)
+            blocker_action_entry(index, blocker, blockers, manifest_path)
             for index, blocker in enumerate(blockers, 1)
         ]
 
