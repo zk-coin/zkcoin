@@ -261,8 +261,12 @@ Both are intentionally present before behavior changes so tests and review can t
   It also exposes
   `blocked_networks`, `blocked_network_count`, `ready_networks`, and
   `ready_network_count` for a compact network readiness summary without parsing
-  per-network progress entries. It also includes `network_progress`, which consolidates each network's ready flag,
-  unresolved blockers, blocked fields, and next blocker group for operator views.
+  per-network progress entries, plus `blocked_blocker_types`,
+  `blocked_blocker_type_count`, `ready_blocker_types`, and
+  `ready_blocker_type_count` for the same compact workstream readiness summary
+  without parsing `blocker_type_progress`. It also includes `network_progress`,
+  which consolidates each network's ready flag, unresolved blockers, blocked
+  fields, and next blocker group for operator views.
   The same payload
   includes ordered `blocked_field_groups`, `next_blocked_field_group`, and
   `next_blocked_fields` so dashboards can show the concrete fields and action

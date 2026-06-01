@@ -591,6 +591,22 @@ def ready_networks(network_progress):
     ]
 
 
+def blocked_blocker_types(blocker_type_progress):
+    return [
+        blocker_type
+        for blocker_type in BLOCKER_TYPES
+        if not blocker_type_progress[blocker_type]["ready_for_launch_profile"]
+    ]
+
+
+def ready_blocker_types(blocker_type_progress):
+    return [
+        blocker_type
+        for blocker_type in BLOCKER_TYPES
+        if blocker_type_progress[blocker_type]["ready_for_launch_profile"]
+    ]
+
+
 def action_command_fields(action):
     if action is None:
         return None
@@ -3083,6 +3099,8 @@ def status_json_text(manifest, manifest_path, check):
     )
     blocked_network_list = blocked_networks(network_progress)
     ready_network_list = ready_networks(network_progress)
+    blocked_blocker_type_list = blocked_blocker_types(blocker_type_progress)
+    ready_blocker_type_list = ready_blocker_types(blocker_type_progress)
     next_action = actions[0] if actions else None
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
@@ -3100,6 +3118,10 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_networks": blocked_network_list,
             "ready_network_count": len(ready_network_list),
             "ready_networks": ready_network_list,
+            "blocked_blocker_type_count": len(blocked_blocker_type_list),
+            "blocked_blocker_types": blocked_blocker_type_list,
+            "ready_blocker_type_count": len(ready_blocker_type_list),
+            "ready_blocker_types": ready_blocker_type_list,
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
             "unresolved_blockers_by_network": items_by_network(blockers),
