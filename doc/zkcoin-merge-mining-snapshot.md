@@ -268,7 +268,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_blocker_type_counts_by_network`, `ready_blocker_types_by_network`,
   and `ready_blocker_type_counts_by_network` provide the same compact
   workstream readiness summary per mainnet/testnet network without parsing the
-  network/workstream field-group matrix. It also includes `network_progress`,
+  network/workstream field-group matrix. `blocked_networks_by_blocker_type`,
+  `blocked_network_counts_by_blocker_type`, `ready_networks_by_blocker_type`,
+  and `ready_network_counts_by_blocker_type` expose the inverse workstream
+  readiness view for dashboards that route by snapshot, AuxPoW, public
+  identity, or DNS seed workstream. It also includes `network_progress`,
   which consolidates each network's ready flag, unresolved blockers, blocked
   fields, and next blocker group for operator views.
   The same payload
