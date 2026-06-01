@@ -1016,6 +1016,12 @@ def require_public_launch_manifest_current():
         }
         for blocker_type in expected_blockers_by_blocker_type
     }
+    expected_next_blocked_field_group_ids_by_blocker_type = {
+        "litecoin_snapshot": "main.litecoin_snapshot",
+        "auxpow_chain_id": "main.auxpow_chain_id",
+        "public_network_identity": "main.public_network_identity",
+        "dns_seeds": "main.dns_seeds",
+    }
     if status_json.get("action_counts_by_blocker_type") != expected_action_counts_by_blocker_type:
         return "{} --status-json did not count action-plan entries by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1128,6 +1134,18 @@ def require_public_launch_manifest_current():
         "dns_seeds": "main",
     }:
         return "{} --status-json did not expose next blocker networks by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_groups_by_blocker_type = status_json.get("next_blocked_field_groups_by_blocker_type", {})
+    if {
+        blocker_type: group.get("id") if group else None
+        for blocker_type, group in next_groups_by_blocker_type.items()
+    } != expected_next_blocked_field_group_ids_by_blocker_type:
+        return "{} --status-json did not expose next blocker groups by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_field_groups_by_blocker_type") != next_groups_by_blocker_type:
+        return "{} --status-json did not alias next blocker groups by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_blocked_field_counts_by_blocker_type") != {
@@ -2516,6 +2534,18 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("blocked_field_group_counts_by_blocker_type") != expected_blocked_field_group_counts_by_blocker_type:
             return "{} --status-json did not count staged blocker field groups by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        spaced_next_groups_by_blocker_type = spaced_status_json.get("next_blocked_field_groups_by_blocker_type", {})
+        if {
+            blocker_type: group.get("id") if group else None
+            for blocker_type, group in spaced_next_groups_by_blocker_type.items()
+        } != expected_next_blocked_field_group_ids_by_blocker_type:
+            return "{} --status-json did not expose staged next blocker groups by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_blocker_field_groups_by_blocker_type") != spaced_next_groups_by_blocker_type:
+            return "{} --status-json did not alias staged next blocker groups by blocker type".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         spaced_blocked_field_group_id_matrix = group_ids_by_network_and_blocker_type(
@@ -6275,6 +6305,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker-type next blocker command aliases for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_blocked_field_groups_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next groups for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_blocker_field_groups_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next group aliases for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocker_fields_by_blocker_type") != empty_blocked_fields_by_blocker_type:
             return "{} --status-json reported blocker-type next field aliases for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6707,6 +6745,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_blocker_commands_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next blocker command aliases for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocked_field_groups_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next groups for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocker_field_groups_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next group aliases for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocker_fields_by_blocker_type") != empty_blocked_fields_by_blocker_type:
@@ -7604,6 +7650,8 @@ def main():
         ("next_blocked_field_counts_by_network_and_blocker_type", "manifest counts next blocked fields by network and blocker type"),
         ("next_blocker_fields_by_network_and_blocker_type", "manifest aliases next blocker fields by network and blocker type"),
         ("next_blocker_field_counts_by_network_and_blocker_type", "manifest aliases next blocker field counts by network and blocker type"),
+        ("next_blocked_field_groups_by_blocker_type", "manifest exposes next blocked field groups by blocker type"),
+        ("next_blocker_field_groups_by_blocker_type", "manifest aliases next blocker field groups by blocker type"),
         ("next_blocker_fields_by_blocker_type", "manifest aliases next blocker fields by blocker type"),
         ("next_blocker_field_counts_by_blocker_type", "manifest aliases next blocker field counts by blocker type"),
         ("next_blockers_by_network_and_blocker_type", "manifest exposes next blockers by network and blocker type"),
@@ -7670,6 +7718,8 @@ def main():
         ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
         ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
         ("next_blocker_commands_by_blocker_type", "manifest status JSON aliases blocker-type next blocker commands"),
+        ("next_blocked_field_groups_by_blocker_type", "manifest status JSON includes blocker-type next blocked field groups"),
+        ("next_blocker_field_groups_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field groups"),
         ("next_blocked_fields_by_blocker_type", "manifest status JSON includes blocker-type next blocked fields"),
         ("next_blocked_field_counts_by_blocker_type", "manifest status JSON counts blocker-type next blocked fields"),
         ("next_blockers_by_blocker_type", "manifest status JSON includes blocker-type next blockers"),
@@ -7717,6 +7767,8 @@ def main():
         ("next_blocked_field_counts_by_network_and_blocker_type", "manifest status JSON counts next blocked fields by network and blocker type"),
         ("next_blocker_fields_by_network_and_blocker_type", "manifest status JSON aliases next blocker fields by network and blocker type"),
         ("next_blocker_field_counts_by_network_and_blocker_type", "manifest status JSON aliases next blocker field counts by network and blocker type"),
+        ("next_blocked_field_groups_by_blocker_type", "manifest status JSON includes blocker-type next blocked field groups"),
+        ("next_blocker_field_groups_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field groups"),
         ("next_blocker_fields_by_blocker_type", "manifest status JSON aliases blocker-type next blocker fields"),
         ("next_blocker_field_counts_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field counts"),
         ("next_blockers_by_network_and_blocker_type", "manifest status JSON includes next blockers by network and blocker type"),
@@ -8841,6 +8893,14 @@ def main():
         (
             "next_blocker_networks_by_blocker_type",
             "public launch manifest status-json blocker-type next network documentation",
+        ),
+        (
+            "next_blocked_field_groups_by_blocker_type",
+            "public launch manifest status-json blocker-type next field-group documentation",
+        ),
+        (
+            "next_blocker_field_groups_by_blocker_type",
+            "public launch manifest status-json blocker-type next blocker field-group alias documentation",
         ),
         (
             "next_blocked_fields_by_blocker_type",
