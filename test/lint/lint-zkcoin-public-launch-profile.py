@@ -656,6 +656,8 @@ def require_public_launch_manifest_current():
         "  - ready for launch profile: no",
         "  - unresolved blockers: 4",
         "  - blocked fields: 23",
+        "  - blocked blocker types: litecoin_snapshot, auxpow_chain_id, public_network_identity, dns_seeds",
+        "  - ready blocker types: none",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
         "  - blocked field paths:",
@@ -2317,6 +2319,14 @@ def require_public_launch_manifest_current():
             )
         if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
             return "{} --network-readiness-summary did not shell-quote a staged network summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - blocked blocker types: litecoin_snapshot, auxpow_chain_id, public_network_identity, dns_seeds" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not print staged blocked blocker types".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - ready blocker types: none" not in spaced_network_readiness_result.stdout:
+            return "{} --network-readiness-summary did not print staged ready blocker types".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"main.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds {quoted_manifest_path}" not in spaced_network_readiness_result.stdout:
@@ -7864,6 +7874,8 @@ def main():
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
+        ("blocked blocker types", "manifest prints blocked blocker types in network readiness summaries"),
+        ("ready blocker types", "manifest prints ready blocker types in network readiness summaries"),
         ("blocked networks by blocker type", "manifest prints blocked network lists by blocker type in readiness summaries"),
         ("ready networks by blocker type", "manifest prints ready network lists by blocker type in readiness summaries"),
         ("blocker_type_next_blocker_summary", "manifest formats blocker-type next blockers for readiness summaries"),
@@ -9252,6 +9264,14 @@ def main():
         (
             "ready networks by blocker type",
             "public launch manifest readiness summary blocker-type ready network documentation",
+        ),
+        (
+            "blocked blocker types",
+            "public launch manifest network readiness summary blocked blocker-type documentation",
+        ),
+        (
+            "ready blocker types",
+            "public launch manifest network readiness summary ready blocker-type documentation",
         ),
         (
             "network_progress",
