@@ -219,6 +219,9 @@ Both are intentionally present before behavior changes so tests and review can t
   same `next_blocker` wording used by the human-readable readiness summary.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
   objects by network without requiring clients to traverse `network_progress`.
+  `next_blocker_field_groups_by_network` mirrors those per-network group maps
+  with the same `next_blocker` wording used by the human-readable readiness
+  summary.
   `blocked_field_groups_by_network` and
   `blocked_field_group_counts_by_network` expose the full ordered blocker-group
   queue and group count per network without requiring clients to filter the
@@ -241,6 +244,9 @@ Both are intentionally present before behavior changes so tests and review can t
   field count without requiring clients to join the next-action and full
   blocker-group matrices. `next_blockers_by_network_and_blocker_type` exposes
   the same immediate blocker ids directly for matrix dashboards.
+  `next_blocker_field_groups_by_network_and_blocker_type` mirrors those matrix
+  group maps with the same `next_blocker` wording used by the human-readable
+  readiness summary.
   `next_blocker_fields_by_network`,
   `next_blocker_field_counts_by_network`,
   `next_blocker_fields_by_network_and_blocker_type`, and
@@ -258,12 +264,13 @@ Both are intentionally present before behavior changes so tests and review can t
   includes ordered `blocked_field_groups`, `next_blocked_field_group`, and
   `next_blocked_fields` so dashboards can show the concrete fields and action
   guidance for each unresolved blocker and the first unresolved blocker. The
-  top-level `next_blocker`, `next_blocker_network`, `next_blocker_type`, and
-  `next_blocker_commands` aliases expose the same current blocker handoff
-  directly, while `next_blocker_fields` and `next_blocker_field_count` mirror
-  its concrete field gap. The object aliases become `null` and the field aliases
-  become empty after the blocker queue is clear, even if `next_action` points at
-  the final chainparams handoff. Blocker
+  top-level `next_blocker_field_group`, `next_blocker`,
+  `next_blocker_network`, `next_blocker_type`, and `next_blocker_commands`
+  aliases expose the same current blocker handoff directly, while
+  `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
+  field gap. The object aliases become `null` and the field aliases become empty
+  after the blocker queue is clear, even if `next_action` points at the final
+  chainparams handoff. Blocker
   action entries expose `network` and `blocker_type` values directly in `actions`
   and `next_action`, include the same blocker `fields` and `field_count`, and
   always expose split command fields such as `template_command`, `check_command`,
