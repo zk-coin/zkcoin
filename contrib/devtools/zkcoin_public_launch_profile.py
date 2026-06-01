@@ -3166,6 +3166,7 @@ def status_json_text(manifest, manifest_path, check):
             "action_counts_by_network_and_blocker_type": action_counts_by_network_and_blocker_type(actions),
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
+            "next_blocker_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
             "next_actions_by_blocker_type": next_actions_by_blocker_type(actions),
             "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
             "next_blocker_commands_by_blocker_type": next_commands_by_blocker_type(actions),
