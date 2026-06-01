@@ -215,8 +215,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_action_kinds`, `later_action_steps`, `later_action_networks`,
   `later_action_blocker_types`, and `later_action_field_counts` expose the
   remaining global handoff queue after the current `next_action`;
-  `later_commands`, `later_command_count`, and `later_command_keys` mirror the
-  same queue as ordered command maps.
+  `later_commands`, `later_command_count`, `later_command_keys`, and
+  `later_command_key_counts` mirror the same queue as ordered command maps.
   Each blocker action entry includes the global `step` plus `network_step`,
   `network_step_count`, `blocker_type_step`, and `blocker_type_step_count` so
   dashboards can show the same network/workstream queue positions as the exact
@@ -333,8 +333,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocker_readiness_summary_command`; `next_commands` mirrors the command
   fields from the current `next_action` so automation can dispatch the immediate
   handoff and post-apply readiness check without parsing the full action entry;
-  `next_command_keys` lists the non-null command fields in the same order;
-  blocked field groups carry the same split command fields.
+  `next_command_keys` lists the non-null command fields in the same order, and
+  `next_command_key_count` exposes the list length directly; blocked field groups carry the same split command fields.
   `template_command` is `null` for blocker types that only need check/apply
   commands, so automation does not need to parse blocker ids, blocked field paths,
   or human-readable action prose;

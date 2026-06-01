@@ -1905,6 +1905,12 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose later command key aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("later_command_key_counts") != [
+        len(command_keys) for command_keys in expected_later_command_keys
+    ]:
+        return "{} --status-json did not count later command key aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
@@ -2224,6 +2230,10 @@ def require_public_launch_manifest_current():
     ]
     if status_json.get("next_command_keys") != expected_next_command_keys:
         return "{} --status-json did not expose current next command key aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_command_key_count") != len(expected_next_command_keys):
+        return "{} --status-json did not count current next command key aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
@@ -6542,6 +6552,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported later command keys for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("later_command_key_counts") != []:
+            return "{} --status-json reported later command key counts for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("action_counts_by_network") != {"main": 0, "testnet": 0}:
             return "{} --status-json counted network actions for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6835,6 +6849,10 @@ def require_public_launch_manifest_current():
             )
         if complete_status.get("next_command_keys") != ["command"]:
             return "{} --status-json did not expose the complete-manifest next command keys".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_command_key_count") != 1:
+            return "{} --status-json did not count the complete-manifest next command keys".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if complete_status.get("ready_for_chainparams") is not False:
@@ -7437,6 +7455,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose ready-manifest later command keys".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("later_command_key_counts") != [1]:
+            return "{} --status-json did not count ready-manifest later command keys".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("next_action", {}).get("id") != "emit-chainparams":
             return "{} --status-json did not expose ready-manifest next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7458,6 +7480,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_command_keys") != ["command"]:
             return "{} --status-json did not expose ready-manifest next command keys".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_command_key_count") != 1:
+            return "{} --status-json did not count ready-manifest next command keys".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -8249,6 +8275,7 @@ def main():
         ("later_commands", "manifest status JSON includes later command aliases"),
         ("later_command_count", "manifest status JSON counts later command aliases"),
         ("later_command_keys", "manifest status JSON includes later command key aliases"),
+        ("later_command_key_counts", "manifest status JSON counts later command key aliases"),
         ("actions_by_network", "manifest status JSON groups actions by network"),
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("actions_by_blocker_type", "manifest status JSON groups actions by blocker type"),
@@ -8281,6 +8308,7 @@ def main():
         ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("next_command_keys", "manifest status JSON includes current handoff command keys"),
+        ("next_command_key_count", "manifest status JSON counts current handoff command keys"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
         ("network_next_blocked_field_groups", "manifest status JSON includes network-scoped next blocked field groups"),
         ("network_next_blocked_fields", "manifest status JSON includes network-scoped next blocked fields"),
@@ -9445,6 +9473,10 @@ def main():
             "public launch manifest status-json next command key documentation",
         ),
         (
+            "next_command_key_count",
+            "public launch manifest status-json next command key count documentation",
+        ),
+        (
             "action entries expose `network` and `blocker_type`",
             "public launch manifest status-json action metadata documentation",
         ),
@@ -9483,6 +9515,10 @@ def main():
         (
             "later_command_keys",
             "public launch manifest status-json later command key documentation",
+        ),
+        (
+            "later_command_key_counts",
+            "public launch manifest status-json later command key count documentation",
         ),
         (
             "later_commands",
