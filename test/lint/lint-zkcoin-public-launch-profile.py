@@ -1758,6 +1758,15 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first blocker group network metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        blocked_field_groups[0].get("network_step") != 1
+        or blocked_field_groups[0].get("network_step_count") != 4
+        or blocked_field_groups[0].get("blocker_type_step") != 1
+        or blocked_field_groups[0].get("blocker_type_step_count") != 2
+    ):
+        return "{} --status-json did not include first blocker group scoped order metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in blocked_field_groups[0].get("action", ""):
         return "{} --status-json did not include first blocker group action guidance".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1772,6 +1781,15 @@ def require_public_launch_manifest_current():
         )
     if blocked_field_groups[-1].get("network") != "testnet" or blocked_field_groups[-1].get("blocker_type") != "dns_seeds":
         return "{} --status-json did not include final blocker group network metadata".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        blocked_field_groups[-1].get("network_step") != 4
+        or blocked_field_groups[-1].get("network_step_count") != 4
+        or blocked_field_groups[-1].get("blocker_type_step") != 2
+        or blocked_field_groups[-1].get("blocker_type_step_count") != 2
+    ):
+        return "{} --status-json did not include final blocker group scoped order metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     network_progress = status_json.get("network_progress", {})
