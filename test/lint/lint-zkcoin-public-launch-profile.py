@@ -1135,6 +1135,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose next blocked field counts by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_blocker_field_counts_by_blocker_type") != status_json.get("next_blocked_field_counts_by_blocker_type"):
+        return "{} --status-json did not alias next blocker field counts by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_fields_by_blocker_type = status_json.get("next_blocked_fields_by_blocker_type", {})
     if next_fields_by_blocker_type.get("litecoin_snapshot", [None])[0] != "main.litecoin_snapshot.height":
         return "{} --status-json did not expose snapshot next blocked fields by blocker type".format(
@@ -1142,6 +1146,10 @@ def require_public_launch_manifest_current():
         )
     if next_fields_by_blocker_type.get("dns_seeds") != ["main.public_network_identity.dns_seeds"]:
         return "{} --status-json did not expose DNS seed next blocked fields by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_fields_by_blocker_type") != next_fields_by_blocker_type:
+        return "{} --status-json did not alias next blocker fields by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     next_commands_by_blocker_type = status_json.get("next_commands_by_blocker_type", {})
@@ -6204,6 +6212,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker-type next commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_blocker_fields_by_blocker_type") != empty_blocked_fields_by_blocker_type:
+            return "{} --status-json reported blocker-type next field aliases for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_blocker_field_counts_by_blocker_type") != empty_blocked_field_counts_by_blocker_type:
+            return "{} --status-json counted blocker-type next field aliases for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("blocker_type_progress") != empty_blocker_type_progress:
             return "{} --status-json reported blocker-type progress for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6615,6 +6631,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_commands_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocker_fields_by_blocker_type") != empty_blocked_fields_by_blocker_type:
+            return "{} --status-json reported blocker-type next field aliases for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_blocker_field_counts_by_blocker_type") != empty_blocked_field_counts_by_blocker_type:
+            return "{} --status-json counted blocker-type next field aliases for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("blocker_type_progress") != empty_blocker_type_progress:
@@ -7487,6 +7511,8 @@ def main():
         ("next_blocked_field_counts_by_network_and_blocker_type", "manifest counts next blocked fields by network and blocker type"),
         ("next_blocker_fields_by_network_and_blocker_type", "manifest aliases next blocker fields by network and blocker type"),
         ("next_blocker_field_counts_by_network_and_blocker_type", "manifest aliases next blocker field counts by network and blocker type"),
+        ("next_blocker_fields_by_blocker_type", "manifest aliases next blocker fields by blocker type"),
+        ("next_blocker_field_counts_by_blocker_type", "manifest aliases next blocker field counts by blocker type"),
         ("next_blockers_by_network_and_blocker_type", "manifest exposes next blockers by network and blocker type"),
         ("blocker_type_progress_entries", "manifest builds blocker-type progress entries"),
         ("blocker_type_next_blocked_fields", "manifest builds blocker-type next blocked field aliases"),
@@ -7595,6 +7621,8 @@ def main():
         ("next_blocked_field_counts_by_network_and_blocker_type", "manifest status JSON counts next blocked fields by network and blocker type"),
         ("next_blocker_fields_by_network_and_blocker_type", "manifest status JSON aliases next blocker fields by network and blocker type"),
         ("next_blocker_field_counts_by_network_and_blocker_type", "manifest status JSON aliases next blocker field counts by network and blocker type"),
+        ("next_blocker_fields_by_blocker_type", "manifest status JSON aliases blocker-type next blocker fields"),
+        ("next_blocker_field_counts_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field counts"),
         ("next_blockers_by_network_and_blocker_type", "manifest status JSON includes next blockers by network and blocker type"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
         ("blocker_type_readiness_summary_commands_by_blocker_type", "manifest status JSON includes blocker-type readiness-summary commands"),
@@ -8714,6 +8742,14 @@ def main():
         (
             "next_blocked_field_counts_by_blocker_type",
             "public launch manifest status-json blocker-type next field count documentation",
+        ),
+        (
+            "next_blocker_fields_by_blocker_type",
+            "public launch manifest status-json blocker-type next blocker field alias documentation",
+        ),
+        (
+            "next_blocker_field_counts_by_blocker_type",
+            "public launch manifest status-json blocker-type next blocker field-count alias documentation",
         ),
         (
             "blocker_type_readiness_summary_commands_by_blocker_type",
