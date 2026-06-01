@@ -3218,6 +3218,12 @@ def status_json_text(manifest, manifest_path, check):
     next_blocker_type_step = next_blocked_field_group["blocker_type_step"] if next_blocked_field_group else None
     next_blocker_type_step_count = next_blocked_field_group["blocker_type_step_count"] if next_blocked_field_group else None
     later_blockers = blockers[1:] if blockers else []
+    later_blocker_field_groups = blocked_field_groups[1:] if blocked_field_groups else []
+    later_blocker_fields = [
+        field
+        for group in later_blocker_field_groups
+        for field in group["fields"]
+    ]
     status = manifest.get("status")
     return json.dumps(
         {
@@ -3316,6 +3322,10 @@ def status_json_text(manifest, manifest_path, check):
             "later_blockers": later_blockers,
             "later_blocker_count": len(later_blockers),
             "later_blocker_readiness_summary_commands_by_blocker": blocker_readiness_summary_commands(manifest_path, later_blockers),
+            "later_blocker_field_groups": later_blocker_field_groups,
+            "later_blocker_field_group_count": len(later_blocker_field_groups),
+            "later_blocker_fields": later_blocker_fields,
+            "later_blocker_field_count": len(later_blocker_fields),
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
