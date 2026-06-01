@@ -830,6 +830,13 @@ def blocker_type_count_summary(counts):
     )
 
 
+def blocker_type_list_summary(items_by_blocker_type):
+    return "; ".join(
+        f"{blocker_type}={list_summary(items_by_blocker_type[blocker_type])}"
+        for blocker_type in BLOCKER_TYPES
+    )
+
+
 def network_blocker_type_count_summary(counts):
     return "; ".join(
         f"{network}: "
@@ -2978,6 +2985,8 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - status JSON command: {status_json_command(manifest_path)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
+        f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
+        f"  - ready networks by blocker type: {blocker_type_list_summary(ready_networks_by_blocker_type(blocked_field_groups))}",
         f"  - unresolved blockers: {len(blockers)}",
         f"  - unresolved blockers by network: {network_count_summary(item_counts_by_network(blockers))}",
         f"  - unresolved blockers by blocker type: {blocker_type_count_summary(blocker_counts_by_blocker_type(blockers))}",
@@ -3090,6 +3099,8 @@ def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_
         f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
         f"  - unresolved blockers: {progress['unresolved_blocker_count']}",
         f"  - blocked fields: {progress['blocked_field_count']}",
+        f"  - blocked networks: {list_summary(blocked_networks_by_blocker_type(blocked_field_groups)[blocker_type])}",
+        f"  - ready networks: {list_summary(ready_networks_by_blocker_type(blocked_field_groups)[blocker_type])}",
     ]
     if next_action is None:
         lines.append("  - next blocker: none")
