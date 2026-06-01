@@ -2892,6 +2892,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
         f"  - next blockers by network and blocker type: {network_blocker_type_value_summary(next_blockers_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
+        f"  - next blocker fields by network and blocker type: {network_blocker_type_count_summary(next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blockers by blocker type: {blocker_type_next_blocker_summary(blocker_type_progress)}",
         f"  - next blocker networks by blocker type: {blocker_type_next_blocker_network_summary(blocker_type_progress)}",
         f"  - next blocker fields by blocker type: {blocker_type_next_blocker_field_count_summary(blocker_type_progress)}",

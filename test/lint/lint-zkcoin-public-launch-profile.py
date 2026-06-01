@@ -585,6 +585,7 @@ def require_public_launch_manifest_current():
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
         "  - next blockers by network and blocker type: main: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds; testnet: litecoin_snapshot=testnet.litecoin_snapshot, auxpow_chain_id=testnet.auxpow_chain_id, public_network_identity=testnet.public_network_identity, dns_seeds=testnet.dns_seeds",
         "  - next blocker fields by network: main=11, testnet=11",
+        "  - next blocker fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
         "  - next blockers by blocker type: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds",
         "  - next blocker networks by blocker type: litecoin_snapshot=main, auxpow_chain_id=main, public_network_identity=main, dns_seeds=main",
         "  - next blocker fields by blocker type: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
@@ -8463,6 +8464,10 @@ def main():
         (
             "per-network/per-workstream next blocker matrix",
             "public launch manifest readiness-summary next blocker matrix documentation",
+        ),
+        (
+            "per-network/per-workstream next blocker field-count matrix",
+            "public launch manifest readiness-summary next blocker field-count matrix documentation",
         ),
         (
             "per-network next\n  blocker-type summary commands",
