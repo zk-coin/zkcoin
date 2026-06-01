@@ -205,6 +205,8 @@ Both are intentionally present before behavior changes so tests and review can t
   global `actions` list. `actions_by_blocker_type` and
   `action_counts_by_blocker_type` also group and count remaining blocker
   handoffs by snapshot, AuxPoW, public identity, and DNS seed workstream.
+  `later_actions` and `later_action_count` expose the remaining global handoff
+  queue after the current `next_action`.
   Each blocker action entry includes the global `step` plus `network_step`,
   `network_step_count`, `blocker_type_step`, and `blocker_type_step_count` so
   dashboards can show the same network/workstream queue positions as the exact

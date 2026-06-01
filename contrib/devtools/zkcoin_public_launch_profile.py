@@ -3207,6 +3207,7 @@ def status_json_text(manifest, manifest_path, check):
     blocked_blocker_type_list = blocked_blocker_types(blocker_type_progress)
     ready_blocker_type_list = ready_blocker_types(blocker_type_progress)
     next_action = actions[0] if actions else None
+    later_actions = actions[1:] if actions else []
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
     next_blocker = next_blocked_field_group["id"] if next_blocked_field_group else None
@@ -3329,6 +3330,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
+            "later_actions": later_actions,
+            "later_action_count": len(later_actions),
             "actions_by_network": actions_by_network(actions),
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
