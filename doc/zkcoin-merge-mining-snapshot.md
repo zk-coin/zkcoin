@@ -204,6 +204,10 @@ Both are intentionally present before behavior changes so tests and review can t
   commands, so automation can dispatch scoped handoffs directly.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
   objects by network without requiring clients to traverse `network_progress`.
+  `blocked_field_groups_by_network` and
+  `blocked_field_group_counts_by_network` expose the full ordered blocker-group
+  queue and group count per network without requiring clients to filter the
+  global blocker-group list.
   `next_blocked_fields_by_network` and
   `next_blocked_field_counts_by_network` provide the same per-network field gap
   view without parsing `network_progress`.
