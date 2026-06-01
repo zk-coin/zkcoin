@@ -152,7 +152,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
-  single blocker without the surrounding network or workstream queue. Use
+  single blocker without the surrounding network or workstream queue. The exact
+  blocker summary prints the global launch order, network launch order, and
+  blocker-type launch order so operators can tell whether a blocker is first in
+  the whole launch queue, first for its public network, or first for its
+  workstream. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --status-json` when CI or
   release automation needs the same blocker order, field-level blockers, blocked
   field count, blocked field group count, action count, and action-plan guidance

@@ -751,6 +751,8 @@ def require_public_launch_manifest_current():
         "zkCoin public launch profile blocker readiness summary:",
         "  - blocker: main.litecoin_snapshot",
         "  - launch order: 1 of 8",
+        "  - network launch order: 1 of 4",
+        "  - blocker-type launch order: 1 of 2",
         "  - network: main",
         "  - blocker type: litecoin_snapshot",
         "  - blocked fields: 11",
@@ -797,6 +799,8 @@ def require_public_launch_manifest_current():
     for expected in (
         "  - blocker: testnet.dns_seeds",
         "  - launch order: 8 of 8",
+        "  - network launch order: 4 of 4",
+        "  - blocker-type launch order: 2 of 2",
         "  - earlier blockers: main.litecoin_snapshot, main.auxpow_chain_id, main.public_network_identity, main.dns_seeds, testnet.litecoin_snapshot, testnet.auxpow_chain_id, testnet.public_network_identity",
         "  - earlier blocker readiness summary commands: main.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "testnet.public_network_identity=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -2429,6 +2433,14 @@ def require_public_launch_manifest_current():
             )
         if f"  - blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
             return "{} --blocker-readiness-summary did not shell-quote a staged blocker summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - network launch order: 1 of 4" not in spaced_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not print staged network launch order".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - blocker-type launch order: 1 of 2" not in spaced_blocker_readiness_result.stdout:
+            return "{} --blocker-readiness-summary did not print staged blocker-type launch order".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"testnet.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds {quoted_manifest_path}" not in spaced_blocker_readiness_result.stdout:
@@ -7895,6 +7907,8 @@ def main():
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
         ("blocker_readiness_summary_command_summary", "manifest formats blocker readiness-summary command summaries"),
+        ("network launch order", "manifest prints blocker order within its network in blocker readiness summaries"),
+        ("blocker-type launch order", "manifest prints blocker order within its blocker type in blocker readiness summaries"),
         ("earlier blocker readiness summary commands", "manifest prints earlier blocker summary commands for blocker readiness summaries"),
         ("later blocker readiness summary commands", "manifest prints later blocker summary commands for readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
@@ -9536,6 +9550,14 @@ def main():
         (
             "exact next `--blocker-readiness-summary` command",
             "public launch snapshot operator post-apply blocker summary documentation",
+        ),
+        (
+            "network launch order",
+            "public launch exact blocker network order documentation",
+        ),
+        (
+            "blocker-type launch order",
+            "public launch exact blocker workstream order documentation",
         ),
         (
             "target profile derived from `source_chain`",

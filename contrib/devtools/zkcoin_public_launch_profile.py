@@ -3141,10 +3141,14 @@ def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
         raise ValueError("manifest has no unresolved blocker summaries")
 
     step = action["step"]
+    network_blockers = items_by_network(blockers)[action["network"]]
+    blocker_type_blockers = blockers_by_blocker_type(blockers)[action["blocker_type"]]
     lines = [
         "zkCoin public launch profile blocker readiness summary:",
         f"  - blocker: {blocker_id}",
         f"  - launch order: {step} of {len(blockers)}",
+        f"  - network launch order: {network_blockers.index(blocker_id) + 1} of {len(network_blockers)}",
+        f"  - blocker-type launch order: {blocker_type_blockers.index(blocker_id) + 1} of {len(blocker_type_blockers)}",
         f"  - network: {action['network']}",
         f"  - blocker type: {action['blocker_type']}",
         f"  - blocked fields: {action['field_count']}",
