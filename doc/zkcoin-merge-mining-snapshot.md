@@ -210,8 +210,9 @@ Both are intentionally present before behavior changes so tests and review can t
   global `actions` list. `actions_by_blocker_type` and
   `action_counts_by_blocker_type` also group and count remaining blocker
   handoffs by snapshot, AuxPoW, public identity, and DNS seed workstream.
-  `later_actions` and `later_action_count` expose the remaining global handoff
-  queue after the current `next_action`; `later_commands` and
+  `later_actions`, `later_action_count`, `later_action_ids`,
+  `later_action_kinds`, and `later_action_steps` expose the remaining global
+  handoff queue after the current `next_action`; `later_commands` and
   `later_command_count` mirror the same queue as ordered command maps.
   Each blocker action entry includes the global `step` plus `network_step`,
   `network_step_count`, `blocker_type_step`, and `blocker_type_step_count` so

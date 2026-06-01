@@ -1853,6 +1853,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later action aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        status_json.get("later_action_ids") != [action.get("id") for action in expected_later_actions]
+        or status_json.get("later_action_kinds") != [action.get("kind") for action in expected_later_actions]
+        or status_json.get("later_action_steps") != [action.get("step") for action in expected_later_actions]
+    ):
+        return "{} --status-json did not expose later action list aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if [action.get("id") for action in status_json.get("later_actions", [])] != status_json.get("later_blockers"):
         return "{} --status-json did not align later actions with later blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6485,6 +6493,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported later actions for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            complete_status.get("later_action_ids") != []
+            or complete_status.get("later_action_kinds") != []
+            or complete_status.get("later_action_steps") != []
+        ):
+            return "{} --status-json reported later action list aliases for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("later_commands") != [] or complete_status.get("later_command_count") != 0:
             return "{} --status-json reported later commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7358,6 +7374,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count ready-manifest later actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            ready_status.get("later_action_ids") != ["check-chainparams"]
+            or ready_status.get("later_action_kinds") != ["check-chainparams"]
+            or ready_status.get("later_action_steps") != [2]
+        ):
+            return "{} --status-json did not expose ready-manifest later action list aliases".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("later_command_count") != 1 or ready_status.get("later_commands", [{}])[0].get("command") != ready_status.get("later_actions", [{}])[0].get("command"):
             return "{} --status-json did not expose ready-manifest later commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8157,6 +8181,9 @@ def main():
         ("action_steps", "manifest status JSON includes action step aliases"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
+        ("later_action_ids", "manifest status JSON includes later action id aliases"),
+        ("later_action_kinds", "manifest status JSON includes later action kind aliases"),
+        ("later_action_steps", "manifest status JSON includes later action step aliases"),
         ("later_commands", "manifest status JSON includes later command aliases"),
         ("later_command_count", "manifest status JSON counts later command aliases"),
         ("actions_by_network", "manifest status JSON groups actions by network"),
@@ -9348,6 +9375,18 @@ def main():
         (
             "later_action_count",
             "public launch manifest status-json later action count documentation",
+        ),
+        (
+            "later_action_ids",
+            "public launch manifest status-json later action id documentation",
+        ),
+        (
+            "later_action_kinds",
+            "public launch manifest status-json later action kind documentation",
+        ),
+        (
+            "later_action_steps",
+            "public launch manifest status-json later action step documentation",
         ),
         (
             "later_commands",
