@@ -704,6 +704,17 @@ def action_command_fields(action):
     }
 
 
+def action_command_keys(action):
+    command_fields = action_command_fields(action)
+    if command_fields is None:
+        return []
+    return [
+        command_field
+        for command_field, command in command_fields.items()
+        if command is not None
+    ]
+
+
 def next_actions_by_blocker_type(actions):
     grouped = actions_by_blocker_type(actions)
     return {
@@ -3353,6 +3364,7 @@ def status_json_text(manifest, manifest_path, check):
             "later_action_field_counts": [action.get("field_count") for action in later_actions],
             "later_commands": later_commands,
             "later_command_count": len(later_commands),
+            "later_command_keys": [action_command_keys(action) for action in later_actions],
             "actions_by_network": actions_by_network(actions),
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
@@ -3374,6 +3386,7 @@ def status_json_text(manifest, manifest_path, check):
             "next_action_blocker_type": next_action_blocker_type,
             "next_action_field_count": next_action_field_count,
             "next_commands": action_command_fields(next_action),
+            "next_command_keys": action_command_keys(next_action),
             "actions": actions,
         },
         indent=2,
