@@ -167,6 +167,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_fields_by_blocker_type`, and
   `blocked_field_counts_by_blocker_type` so the same remaining gaps can be
   tracked by snapshot, AuxPoW, public identity, and DNS seed workstream, plus
+  `unresolved_blocker_counts_by_network_and_blocker_type` and
+  `blocked_field_counts_by_network_and_blocker_type` so dashboards can render
+  mainnet/testnet workstream gap matrices without joining separate payloads, plus
   `blocker_type_progress` so each workstream has its ready flag, remaining
   blockers, blocked fields, and next action in one object, plus
   `next_blockers_by_blocker_type`, `next_blocker_networks_by_blocker_type`,
