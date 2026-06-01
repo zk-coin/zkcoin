@@ -574,6 +574,8 @@ def require_public_launch_manifest_current():
         "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocked networks: main, testnet",
         "  - ready networks: none",
+        "  - blocked networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
+        "  - ready networks by blocker type: litecoin_snapshot=none; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
         "  - unresolved blockers: 8",
         "  - unresolved blockers by network: main=4, testnet=4",
         "  - unresolved blockers by blocker type: litecoin_snapshot=2, auxpow_chain_id=2, public_network_identity=2, dns_seeds=2",
@@ -701,6 +703,8 @@ def require_public_launch_manifest_current():
         "  - ready for launch profile: no",
         "  - unresolved blockers: 2",
         "  - blocked fields: 22",
+        "  - blocked networks: main, testnet",
+        "  - ready networks: none",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
         "  - blocked field paths:",
@@ -2162,6 +2166,14 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not print staged blocked networks".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "  - blocked networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not print staged blocked networks by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - ready networks by blocker type: litecoin_snapshot=none; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not print staged ready networks by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - action plan command: contrib/devtools/zkcoin_public_launch_profile.py --action-plan {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged action-plan commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2346,6 +2358,14 @@ def require_public_launch_manifest_current():
             )
         if f"  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_blocker_type_readiness_result.stdout:
             return "{} --blocker-type-readiness-summary did not shell-quote a staged network summary command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - blocked networks: main, testnet" not in spaced_blocker_type_readiness_result.stdout:
+            return "{} --blocker-type-readiness-summary did not print staged blocked networks".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - ready networks: none" not in spaced_blocker_type_readiness_result.stdout:
+            return "{} --blocker-type-readiness-summary did not print staged ready networks".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_type_readiness_result.stdout:
@@ -6162,6 +6182,8 @@ def require_public_launch_manifest_current():
             "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json",
             "  - blocked networks: none",
             "  - ready networks: main, testnet",
+            "  - blocked networks by blocker type: litecoin_snapshot=none; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
+            "  - ready networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
             "  - unresolved blockers: 0",
             "  - unresolved blockers by network: main=0, testnet=0",
             "  - blocked fields: 0",
@@ -6728,6 +6750,8 @@ def require_public_launch_manifest_current():
             "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json",
             "  - blocked networks: none",
             "  - ready networks: main, testnet",
+            "  - blocked networks by blocker type: litecoin_snapshot=none; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
+            "  - ready networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
             "  - unresolved blockers: 0",
             "  - unresolved blockers by network: main=0, testnet=0",
             "  - blocked fields: 0",
@@ -7836,9 +7860,12 @@ def main():
         ("blocker_type_count_summary", "manifest formats blocker-type counts for readiness summaries"),
         ("network_blocker_type_count_summary", "manifest formats network blocker-type matrices for readiness summaries"),
         ("network_blocker_type_value_summary", "manifest formats network blocker-type value matrices for readiness summaries"),
+        ("blocker_type_list_summary", "manifest formats blocker-type network lists for readiness summaries"),
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
+        ("blocked networks by blocker type", "manifest prints blocked network lists by blocker type in readiness summaries"),
+        ("ready networks by blocker type", "manifest prints ready network lists by blocker type in readiness summaries"),
         ("blocker_type_next_blocker_summary", "manifest formats blocker-type next blockers for readiness summaries"),
         ("blocker_type_next_blocker_network_summary", "manifest formats blocker-type next networks for readiness summaries"),
         ("blocker_type_next_blocker_field_count_summary", "manifest formats blocker-type next field counts for readiness summaries"),
@@ -9217,6 +9244,14 @@ def main():
         (
             "ready_network_counts_by_blocker_type",
             "public launch manifest status-json blocker-type ready network count documentation",
+        ),
+        (
+            "blocked networks by blocker type",
+            "public launch manifest readiness summary blocker-type blocked network documentation",
+        ),
+        (
+            "ready networks by blocker type",
+            "public launch manifest readiness summary blocker-type ready network documentation",
         ),
         (
             "network_progress",

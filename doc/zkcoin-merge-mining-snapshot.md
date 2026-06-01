@@ -272,7 +272,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_network_counts_by_blocker_type`, `ready_networks_by_blocker_type`,
   and `ready_network_counts_by_blocker_type` expose the inverse workstream
   readiness view for dashboards that route by snapshot, AuxPoW, public
-  identity, or DNS seed workstream. It also includes `network_progress`,
+  identity, or DNS seed workstream. The human-readable readiness summary prints
+  the same blocked networks by blocker type and ready networks by blocker type
+  lists so operators can see which public networks remain blocked for each
+  launch workstream without parsing JSON. It also includes `network_progress`,
   which consolidates each network's ready flag, unresolved blockers, blocked
   fields, and next blocker group for operator views.
   The same payload
