@@ -1840,6 +1840,9 @@ def require_public_launch_manifest_current():
         status_json.get("action_ids") != [action.get("id") for action in actions]
         or status_json.get("action_kinds") != [action.get("kind") for action in actions]
         or status_json.get("action_steps") != [action.get("step") for action in actions]
+        or status_json.get("action_networks") != [action.get("network") for action in actions]
+        or status_json.get("action_blocker_types") != [action.get("blocker_type") for action in actions]
+        or status_json.get("action_field_counts") != [action.get("field_count") for action in actions]
     ):
         return "{} --status-json did not expose action list aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6485,6 +6488,9 @@ def require_public_launch_manifest_current():
             complete_status.get("action_ids") != ["mark-ready"]
             or complete_status.get("action_kinds") != ["mark-ready"]
             or complete_status.get("action_steps") != [1]
+            or complete_status.get("action_networks") != [None]
+            or complete_status.get("action_blocker_types") != [None]
+            or complete_status.get("action_field_counts") != [None]
         ):
             return "{} --status-json did not expose complete blocked manifest action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7291,6 +7297,9 @@ def require_public_launch_manifest_current():
             ready_status.get("action_ids") != ["emit-chainparams", "check-chainparams"]
             or ready_status.get("action_kinds") != ["emit-chainparams", "check-chainparams"]
             or ready_status.get("action_steps") != [1, 2]
+            or ready_status.get("action_networks") != [None, None]
+            or ready_status.get("action_blocker_types") != [None, None]
+            or ready_status.get("action_field_counts") != [None, None]
         ):
             return "{} --status-json did not expose ready manifest action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8179,6 +8188,9 @@ def main():
         ("action_ids", "manifest status JSON includes action id aliases"),
         ("action_kinds", "manifest status JSON includes action kind aliases"),
         ("action_steps", "manifest status JSON includes action step aliases"),
+        ("action_networks", "manifest status JSON includes action network aliases"),
+        ("action_blocker_types", "manifest status JSON includes action blocker type aliases"),
+        ("action_field_counts", "manifest status JSON includes action field count aliases"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
         ("later_action_ids", "manifest status JSON includes later action id aliases"),
@@ -9263,6 +9275,18 @@ def main():
         (
             "action_steps",
             "public launch manifest status-json action step documentation",
+        ),
+        (
+            "action_networks",
+            "public launch manifest status-json action network documentation",
+        ),
+        (
+            "action_blocker_types",
+            "public launch manifest status-json action blocker type documentation",
+        ),
+        (
+            "action_field_counts",
+            "public launch manifest status-json action field count documentation",
         ),
         (
             "actions_by_network",
