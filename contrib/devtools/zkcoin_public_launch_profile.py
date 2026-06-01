@@ -461,6 +461,29 @@ def blocked_field_group_counts_by_blocker_type(blocked_field_groups):
     }
 
 
+def blocked_field_groups_by_network_and_blocker_type(blocked_field_groups):
+    grouped = {
+        network: {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+        for network in NETWORKS
+    }
+    for group in blocked_field_groups:
+        network = group.get("network")
+        blocker_type = group.get("blocker_type")
+        if network in grouped and blocker_type in grouped[network]:
+            grouped[network][blocker_type].append(group)
+    return grouped
+
+
+def blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups):
+    return {
+        network: {
+            blocker_type: len(groups)
+            for blocker_type, groups in groups_by_type.items()
+        }
+        for network, groups_by_type in blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
 def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
     blockers_by_network = items_by_network(blockers)
     blocked_fields_by_network = items_by_network(blocked_fields)
@@ -3059,6 +3082,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_group_counts_by_network": blocked_field_group_counts_by_network(blocked_field_groups),
             "blocked_field_groups_by_blocker_type": blocked_field_groups_by_blocker_type(blocked_field_groups),
             "blocked_field_group_counts_by_blocker_type": blocked_field_group_counts_by_blocker_type(blocked_field_groups),
+            "blocked_field_groups_by_network_and_blocker_type": blocked_field_groups_by_network_and_blocker_type(blocked_field_groups),
+            "blocked_field_group_counts_by_network_and_blocker_type": blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
             "next_blocker": next_blocker,
             "next_blocker_network": next_blocker_network,

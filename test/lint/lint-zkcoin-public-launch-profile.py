@@ -924,6 +924,14 @@ def require_public_launch_manifest_current():
             "dns_seeds": ["testnet.dns_seeds"],
         },
     }
+    expected_blocked_field_group_ids_by_network_and_blocker_type = expected_blockers_by_network_and_blocker_type
+    expected_blocked_field_group_counts_by_network_and_blocker_type = {
+        network: {
+            blocker_type: len(group_ids)
+            for blocker_type, group_ids in groups_by_type.items()
+        }
+        for network, groups_by_type in expected_blocked_field_group_ids_by_network_and_blocker_type.items()
+    }
     expected_action_counts_by_network_and_blocker_type = {
         network: {
             blocker_type: len(actions)
@@ -978,6 +986,18 @@ def require_public_launch_manifest_current():
                 blocker_type: (
                     groups.get(network, {}).get(blocker_type, {}) or {}
                 ).get("id")
+                for blocker_type in expected_blockers_by_blocker_type
+            }
+            for network in ("main", "testnet")
+        }
+
+    def group_ids_by_network_and_blocker_type(groups):
+        return {
+            network: {
+                blocker_type: [
+                    group.get("id")
+                    for group in groups.get(network, {}).get(blocker_type, [])
+                ]
                 for blocker_type in expected_blockers_by_blocker_type
             }
             for network in ("main", "testnet")
@@ -1544,6 +1564,17 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("blocked_field_group_counts_by_blocker_type") != expected_blocked_field_group_counts_by_blocker_type:
         return "{} --status-json did not count blocker field groups by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    blocked_field_group_id_matrix = group_ids_by_network_and_blocker_type(
+        status_json.get("blocked_field_groups_by_network_and_blocker_type", {})
+    )
+    if blocked_field_group_id_matrix != expected_blocked_field_group_ids_by_network_and_blocker_type:
+        return "{} --status-json did not group blocker field groups by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocked_field_group_counts_by_network_and_blocker_type") != expected_blocked_field_group_counts_by_network_and_blocker_type:
+        return "{} --status-json did not count blocker field groups by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if blocked_field_groups[0].get("id") != "main.litecoin_snapshot":
@@ -2368,6 +2399,17 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("blocked_field_group_counts_by_blocker_type") != expected_blocked_field_group_counts_by_blocker_type:
             return "{} --status-json did not count staged blocker field groups by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        spaced_blocked_field_group_id_matrix = group_ids_by_network_and_blocker_type(
+            spaced_status_json.get("blocked_field_groups_by_network_and_blocker_type", {})
+        )
+        if spaced_blocked_field_group_id_matrix != expected_blocked_field_group_ids_by_network_and_blocker_type:
+            return "{} --status-json did not group staged blocker field groups by network and blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("blocked_field_group_counts_by_network_and_blocker_type") != expected_blocked_field_group_counts_by_network_and_blocker_type:
+            return "{} --status-json did not count staged blocker field groups by network and blocker type".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("action_plan_command", ""):
@@ -6138,6 +6180,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json counted blocker-type blocker field groups for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocked_field_groups_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type:
+            return "{} --status-json reported network blocker-type blocker field groups for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("blocked_field_group_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type:
+            return "{} --status-json counted network blocker-type blocker field groups for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocked_field_group") is not None:
             return "{} --status-json reported a current blocker field group for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6533,6 +6583,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("blocked_field_group_counts_by_blocker_type") != empty_blocked_field_group_counts_by_blocker_type:
             return "{} --status-json counted blocker-type blocker field groups for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_field_groups_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type:
+            return "{} --status-json reported network blocker-type blocker field groups for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocked_field_group_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type:
+            return "{} --status-json counted network blocker-type blocker field groups for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_field_group") is not None:
@@ -7284,6 +7342,8 @@ def main():
         ("blocked_field_group_counts_by_network", "manifest counts blocked field groups by network"),
         ("blocked_field_groups_by_blocker_type", "manifest groups blocked field groups by blocker type"),
         ("blocked_field_group_counts_by_blocker_type", "manifest counts blocked field groups by blocker type"),
+        ("blocked_field_groups_by_network_and_blocker_type", "manifest groups blocked field groups by network and blocker type"),
+        ("blocked_field_group_counts_by_network_and_blocker_type", "manifest counts blocked field groups by network and blocker type"),
         ("blocker_type_progress_entries", "manifest builds blocker-type progress entries"),
         ("blocker_type_next_blocked_fields", "manifest builds blocker-type next blocked field aliases"),
         ("blocker_type_next_blocked_field_counts", "manifest builds blocker-type next blocked field count aliases"),
@@ -7383,6 +7443,8 @@ def main():
         ("blocked_field_group_counts_by_network", "manifest status JSON counts blocked field groups by network"),
         ("blocked_field_groups_by_blocker_type", "manifest status JSON groups blocked field groups by blocker type"),
         ("blocked_field_group_counts_by_blocker_type", "manifest status JSON counts blocked field groups by blocker type"),
+        ("blocked_field_groups_by_network_and_blocker_type", "manifest status JSON groups blocked field groups by network and blocker type"),
+        ("blocked_field_group_counts_by_network_and_blocker_type", "manifest status JSON counts blocked field groups by network and blocker type"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
         ("blocker_type_readiness_summary_commands_by_blocker_type", "manifest status JSON includes blocker-type readiness-summary commands"),
         ("blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes blocker readiness-summary commands"),
@@ -8559,6 +8621,14 @@ def main():
         (
             "blocked_field_group_counts_by_blocker_type",
             "public launch manifest status-json blocker-type blocked field group counts documentation",
+        ),
+        (
+            "blocked_field_groups_by_network_and_blocker_type",
+            "public launch manifest status-json network blocker-type blocked field groups documentation",
+        ),
+        (
+            "blocked_field_group_counts_by_network_and_blocker_type",
+            "public launch manifest status-json network blocker-type blocked field group counts documentation",
         ),
         (
             "blocked field groups carry the same split command fields",
