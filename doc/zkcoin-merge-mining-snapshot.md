@@ -212,6 +212,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_counts_by_blocker_type` expose the same ordered
   blocker-group queue and count by snapshot, AuxPoW, public identity, and DNS
   seed workstream without requiring clients to filter the global list.
+  `blocked_field_groups_by_network_and_blocker_type` and
+  `blocked_field_group_counts_by_network_and_blocker_type` expose the same
+  blocker-group queue and count as a mainnet/testnet workstream matrix without
+  requiring clients to join the network and workstream payloads.
   `next_blocked_fields_by_network` and
   `next_blocked_field_counts_by_network` provide the same per-network field gap
   view without parsing `network_progress`.
