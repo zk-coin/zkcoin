@@ -3225,6 +3225,7 @@ def status_json_text(manifest, manifest_path, check):
     next_action_blocker_type = next_action.get("blocker_type") if next_action else None
     next_action_field_count = next_action.get("field_count") if next_action else None
     later_actions = actions[1:] if actions else []
+    action_commands = [action_command_fields(action) for action in actions]
     later_commands = [action_command_fields(action) for action in later_actions]
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
@@ -3354,6 +3355,8 @@ def status_json_text(manifest, manifest_path, check):
             "action_networks": [action.get("network") for action in actions],
             "action_blocker_types": [action.get("blocker_type") for action in actions],
             "action_field_counts": [action.get("field_count") for action in actions],
+            "action_commands": action_commands,
+            "action_command_count": len(action_commands),
             "action_command_keys": [action_command_keys(action) for action in actions],
             "action_command_key_counts": [len(action_command_keys(action)) for action in actions],
             "later_actions": later_actions,

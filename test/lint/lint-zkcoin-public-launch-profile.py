@@ -1881,6 +1881,18 @@ def require_public_launch_manifest_current():
         "blocker_readiness_summary_command",
         "command",
     )
+    expected_action_commands = [
+        {command_field: action.get(command_field) for command_field in command_fields}
+        for action in actions
+    ]
+    if status_json.get("action_commands") != expected_action_commands:
+        return "{} --status-json did not expose action command aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("action_command_count") != len(expected_action_commands):
+        return "{} --status-json did not count action command aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_commands = [
         {command_field: action.get(command_field) for command_field in command_fields}
         for action in expected_later_actions
@@ -6536,6 +6548,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        complete_expected_action_commands = [
+            {command_field: action.get(command_field) for command_field in command_fields}
+            for action in complete_status.get("actions", [])
+        ]
         if (
             complete_status.get("action_ids") != ["mark-ready"]
             or complete_status.get("action_kinds") != ["mark-ready"]
@@ -6543,6 +6559,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("action_networks") != [None]
             or complete_status.get("action_blocker_types") != [None]
             or complete_status.get("action_field_counts") != [None]
+            or complete_status.get("action_commands") != complete_expected_action_commands
+            or complete_status.get("action_command_count") != 1
             or complete_status.get("action_command_keys") != [["command"]]
             or complete_status.get("action_command_key_counts") != [1]
         ):
@@ -7366,6 +7384,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count ready manifest handoff actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        ready_expected_action_commands = [
+            {command_field: action.get(command_field) for command_field in command_fields}
+            for action in ready_status.get("actions", [])
+        ]
         if (
             ready_status.get("action_ids") != ["emit-chainparams", "check-chainparams"]
             or ready_status.get("action_kinds") != ["emit-chainparams", "check-chainparams"]
@@ -7373,6 +7395,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("action_networks") != [None, None]
             or ready_status.get("action_blocker_types") != [None, None]
             or ready_status.get("action_field_counts") != [None, None]
+            or ready_status.get("action_commands") != ready_expected_action_commands
+            or ready_status.get("action_command_count") != 2
             or ready_status.get("action_command_keys") != [["command"], ["command"]]
             or ready_status.get("action_command_key_counts") != [1, 1]
         ):
@@ -8286,6 +8310,8 @@ def main():
         ("action_networks", "manifest status JSON includes action network aliases"),
         ("action_blocker_types", "manifest status JSON includes action blocker type aliases"),
         ("action_field_counts", "manifest status JSON includes action field count aliases"),
+        ("action_commands", "manifest status JSON includes action command aliases"),
+        ("action_command_count", "manifest status JSON counts action command aliases"),
         ("action_command_keys", "manifest status JSON includes action command key aliases"),
         ("action_command_key_counts", "manifest status JSON counts action command key aliases"),
         ("later_actions", "manifest status JSON includes later action aliases"),
@@ -9391,6 +9417,14 @@ def main():
         (
             "action_field_counts",
             "public launch manifest status-json action field count documentation",
+        ),
+        (
+            "action_commands",
+            "public launch manifest status-json action command documentation",
+        ),
+        (
+            "action_command_count",
+            "public launch manifest status-json action command count documentation",
         ),
         (
             "action_command_keys",
