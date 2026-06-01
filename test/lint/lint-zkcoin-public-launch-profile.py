@@ -1836,6 +1836,19 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     actions = status_json.get("actions", [])
+    expected_later_actions = actions[1:]
+    if status_json.get("later_actions") != expected_later_actions:
+        return "{} --status-json did not expose later action aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_action_count") != len(expected_later_actions):
+        return "{} --status-json did not count later action aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if [action.get("id") for action in status_json.get("later_actions", [])] != status_json.get("later_blockers"):
+        return "{} --status-json did not align later actions with later blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
@@ -6419,6 +6432,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("later_actions") != [] or complete_status.get("later_action_count") != 0:
+            return "{} --status-json reported later actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("action_counts_by_network") != {"main": 0, "testnet": 0}:
             return "{} --status-json counted network actions for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7261,6 +7278,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not report ready chainparams handoff actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("later_actions") != ready_status.get("actions", [])[1:]:
+            return "{} --status-json did not expose ready-manifest later actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("later_action_count") != 1 or ready_status.get("later_actions", [{}])[0].get("id") != "check-chainparams":
+            return "{} --status-json did not count ready-manifest later actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("next_action", {}).get("id") != "emit-chainparams":
             return "{} --status-json did not expose ready-manifest next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8040,6 +8065,8 @@ def main():
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
+        ("later_actions", "manifest status JSON includes later action aliases"),
+        ("later_action_count", "manifest status JSON counts later action aliases"),
         ("actions_by_network", "manifest status JSON groups actions by network"),
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("actions_by_blocker_type", "manifest status JSON groups actions by blocker type"),
@@ -9179,6 +9206,14 @@ def main():
         (
             "action entries expose `network` and `blocker_type`",
             "public launch manifest status-json action metadata documentation",
+        ),
+        (
+            "later_actions",
+            "public launch manifest status-json later action documentation",
+        ),
+        (
+            "later_action_count",
+            "public launch manifest status-json later action count documentation",
         ),
         (
             "network_step",
