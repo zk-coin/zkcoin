@@ -219,6 +219,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocked_fields_by_network` and
   `next_blocked_field_counts_by_network` provide the same per-network field gap
   view without parsing `network_progress`.
+  `next_blocked_field_groups_by_network_and_blocker_type`,
+  `next_blocked_fields_by_network_and_blocker_type`, and
+  `next_blocked_field_counts_by_network_and_blocker_type` expose each
+  mainnet/testnet workstream cell's immediate blocker group, field gap, and
+  field count without requiring clients to join the next-action and full
+  blocker-group matrices.
   `next_blockers_by_network` and `next_blocker_types_by_network` provide the
   current per-network blocker ids and blocker classes directly for dashboards.
   It also exposes
