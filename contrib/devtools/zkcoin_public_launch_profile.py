@@ -305,6 +305,29 @@ def action_counts_by_blocker_type(actions):
     }
 
 
+def actions_by_network_and_blocker_type(actions):
+    grouped = {
+        network: {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+        for network in NETWORKS
+    }
+    for action in actions:
+        network = action.get("network")
+        blocker_type = action.get("blocker_type")
+        if network in grouped and blocker_type in grouped[network]:
+            grouped[network][blocker_type].append(action)
+    return grouped
+
+
+def action_counts_by_network_and_blocker_type(actions):
+    return {
+        network: {
+            blocker_type: len(blocker_actions)
+            for blocker_type, blocker_actions in actions_by_type.items()
+        }
+        for network, actions_by_type in actions_by_network_and_blocker_type(actions).items()
+    }
+
+
 def blockers_by_blocker_type(blockers):
     grouped = {blocker_type: [] for blocker_type in BLOCKER_TYPES}
     for blocker in blockers:
@@ -2993,6 +3016,8 @@ def status_json_text(manifest, manifest_path, check):
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
             "action_counts_by_blocker_type": action_counts_by_blocker_type(actions),
+            "actions_by_network_and_blocker_type": actions_by_network_and_blocker_type(actions),
+            "action_counts_by_network_and_blocker_type": action_counts_by_network_and_blocker_type(actions),
             "next_actions_by_blocker_type": next_actions_by_blocker_type(actions),
             "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
             "next": next_action,

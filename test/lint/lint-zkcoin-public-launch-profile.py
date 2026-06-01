@@ -924,6 +924,13 @@ def require_public_launch_manifest_current():
             "dns_seeds": ["testnet.dns_seeds"],
         },
     }
+    expected_action_counts_by_network_and_blocker_type = {
+        network: {
+            blocker_type: len(actions)
+            for blocker_type, actions in actions_by_type.items()
+        }
+        for network, actions_by_type in expected_blockers_by_network_and_blocker_type.items()
+    }
     empty_counts_by_network_and_blocker_type = {
         network: {
             blocker_type: 0
@@ -938,6 +945,18 @@ def require_public_launch_manifest_current():
         }
         for network in ("main", "testnet")
     }
+    def action_ids_by_network_and_blocker_type(groups):
+        return {
+            network: {
+                blocker_type: [
+                    action.get("id")
+                    for action in groups.get(network, {}).get(blocker_type, [])
+                ]
+                for blocker_type in expected_blockers_by_blocker_type
+            }
+            for network in ("main", "testnet")
+        }
+
     empty_blocker_type_progress = {
         blocker_type: {
             "ready_for_launch_profile": True,
@@ -951,6 +970,18 @@ def require_public_launch_manifest_current():
     }
     if status_json.get("action_counts_by_blocker_type") != expected_action_counts_by_blocker_type:
         return "{} --status-json did not count action-plan entries by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    action_count_matrix = status_json.get("action_counts_by_network_and_blocker_type")
+    if action_count_matrix != expected_action_counts_by_network_and_blocker_type:
+        return "{} --status-json did not count action-plan entries by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    action_id_matrix = action_ids_by_network_and_blocker_type(
+        status_json.get("actions_by_network_and_blocker_type", {})
+    )
+    if action_id_matrix != expected_blockers_by_network_and_blocker_type:
+        return "{} --status-json did not group action-plan entries by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("unresolved_blockers_by_blocker_type") != expected_blockers_by_blocker_type:
@@ -2082,6 +2113,18 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("action_counts_by_blocker_type") != expected_action_counts_by_blocker_type:
             return "{} --status-json did not count staged action-plan entries by blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        spaced_action_count_matrix = spaced_status_json.get("action_counts_by_network_and_blocker_type")
+        if spaced_action_count_matrix != expected_action_counts_by_network_and_blocker_type:
+            return "{} --status-json did not count staged action-plan entries by network and blocker type".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        spaced_action_id_matrix = action_ids_by_network_and_blocker_type(
+            spaced_status_json.get("actions_by_network_and_blocker_type", {})
+        )
+        if spaced_action_id_matrix != expected_blockers_by_network_and_blocker_type:
+            return "{} --status-json did not group staged action-plan entries by network and blocker type".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if spaced_status_json.get("unresolved_blocker_counts_by_blocker_type") != expected_blocker_counts_by_blocker_type:
@@ -5752,6 +5795,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker-type actions for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("action_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type:
+            return "{} --status-json counted network blocker-type actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("actions_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type:
+            return "{} --status-json reported network blocker-type actions for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("blocked_field_count") != 0:
             return "{} --status-json reported field-level blockers for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6262,6 +6313,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("actions_by_blocker_type") != empty_actions_by_blocker_type:
             return "{} --status-json reported blocker-type actions for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("action_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type:
+            return "{} --status-json counted network blocker-type actions for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("actions_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type:
+            return "{} --status-json reported network blocker-type actions for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if [action.get("id") for action in ready_status.get("actions", [])] != [
@@ -6944,6 +7003,8 @@ def main():
         ("action_counts_by_network", "manifest counts action entries by network"),
         ("actions_by_blocker_type", "manifest groups action entries by blocker type"),
         ("action_counts_by_blocker_type", "manifest counts action entries by blocker type"),
+        ("actions_by_network_and_blocker_type", "manifest groups action entries by network and blocker type"),
+        ("action_counts_by_network_and_blocker_type", "manifest counts action entries by network and blocker type"),
         ("next_actions_by_blocker_type", "manifest exposes next action entries by blocker type"),
         ("next_commands_by_blocker_type", "manifest exposes next commands by blocker type"),
         ("blockers_by_blocker_type", "manifest groups blocker entries by blocker type"),
@@ -7008,6 +7069,8 @@ def main():
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("actions_by_blocker_type", "manifest status JSON groups actions by blocker type"),
         ("action_counts_by_blocker_type", "manifest status JSON counts actions by blocker type"),
+        ("actions_by_network_and_blocker_type", "manifest status JSON groups actions by network and blocker type"),
+        ("action_counts_by_network_and_blocker_type", "manifest status JSON counts actions by network and blocker type"),
         ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
         ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
         ("next_blocked_fields_by_blocker_type", "manifest status JSON includes blocker-type next blocked fields"),
@@ -8016,6 +8079,14 @@ def main():
         (
             "action_counts_by_blocker_type",
             "public launch manifest status-json blocker-type action count documentation",
+        ),
+        (
+            "actions_by_network_and_blocker_type",
+            "public launch manifest status-json network blocker-type action documentation",
+        ),
+        (
+            "action_counts_by_network_and_blocker_type",
+            "public launch manifest status-json network blocker-type action count documentation",
         ),
         (
             "next_actions_by_blocker_type",
