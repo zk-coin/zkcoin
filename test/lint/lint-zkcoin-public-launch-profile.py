@@ -1836,6 +1836,14 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     actions = status_json.get("actions", [])
+    if (
+        status_json.get("action_ids") != [action.get("id") for action in actions]
+        or status_json.get("action_kinds") != [action.get("kind") for action in actions]
+        or status_json.get("action_steps") != [action.get("step") for action in actions]
+    ):
+        return "{} --status-json did not expose action list aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_actions = actions[1:]
     if status_json.get("later_actions") != expected_later_actions:
         return "{} --status-json did not expose later action aliases".format(
@@ -6465,6 +6473,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest actions".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            complete_status.get("action_ids") != ["mark-ready"]
+            or complete_status.get("action_kinds") != ["mark-ready"]
+            or complete_status.get("action_steps") != [1]
+        ):
+            return "{} --status-json did not expose complete blocked manifest action aliases".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("later_actions") != [] or complete_status.get("later_action_count") != 0:
             return "{} --status-json reported later actions for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7253,6 +7269,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("action_count") != 2:
             return "{} --status-json did not count ready manifest handoff actions".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            ready_status.get("action_ids") != ["emit-chainparams", "check-chainparams"]
+            or ready_status.get("action_kinds") != ["emit-chainparams", "check-chainparams"]
+            or ready_status.get("action_steps") != [1, 2]
+        ):
+            return "{} --status-json did not expose ready manifest action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("action_counts_by_network") != {"main": 0, "testnet": 0}:
@@ -8128,6 +8152,9 @@ def main():
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
+        ("action_ids", "manifest status JSON includes action id aliases"),
+        ("action_kinds", "manifest status JSON includes action kind aliases"),
+        ("action_steps", "manifest status JSON includes action step aliases"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
         ("later_commands", "manifest status JSON includes later command aliases"),
@@ -9197,6 +9224,18 @@ def main():
         (
             "action_count",
             "public launch manifest status-json action count documentation",
+        ),
+        (
+            "action_ids",
+            "public launch manifest status-json action id documentation",
+        ),
+        (
+            "action_kinds",
+            "public launch manifest status-json action kind documentation",
+        ),
+        (
+            "action_steps",
+            "public launch manifest status-json action step documentation",
         ),
         (
             "actions_by_network",
