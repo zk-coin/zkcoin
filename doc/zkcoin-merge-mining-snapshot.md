@@ -182,7 +182,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blockers_by_blocker_type`, `next_blocker_networks_by_blocker_type`,
   `next_blocked_fields_by_blocker_type`, and
   `next_blocked_field_counts_by_blocker_type` so dashboards can read each
-  workstream's next blocker, target network, and field gap directly, plus
+  workstream's next blocker, target network, and field gap directly.
+  `next_blocker_fields_by_blocker_type` and
+  `next_blocker_field_counts_by_blocker_type` mirror the workstream field gaps
+  with the same `next_blocker` wording used by the human-readable readiness
+  summary.
   `blocker_type_readiness_summary_commands_by_blocker_type` so dashboards and
   operators can jump directly to a scoped workstream handoff, plus
   `blocker_readiness_summary_commands_by_blocker` so dashboards and operators

@@ -3133,6 +3133,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_types_by_network": network_next_blocker_types(network_progress),
             "next_blocked_fields_by_blocker_type": blocker_type_next_blocked_fields(blocker_type_progress),
             "next_blocked_field_counts_by_blocker_type": blocker_type_next_blocked_field_counts(blocker_type_progress),
+            "next_blocker_fields_by_blocker_type": blocker_type_next_blocked_fields(blocker_type_progress),
+            "next_blocker_field_counts_by_blocker_type": blocker_type_next_blocked_field_counts(blocker_type_progress),
             "next_blockers_by_blocker_type": blocker_type_next_blockers(blocker_type_progress),
             "next_blocker_networks_by_blocker_type": blocker_type_next_blocker_networks(blocker_type_progress),
             "network_progress": network_progress,
