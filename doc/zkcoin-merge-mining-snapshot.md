@@ -299,6 +299,10 @@ Both are intentionally present before behavior changes so tests and review can t
   top-level `next_blocker_field_group`, `next_blocker`,
   `next_blocker_network`, `next_blocker_type`, and `next_blocker_commands`
   aliases expose the same current blocker handoff directly, while
+  `next_blocker_step`, `next_blocker_network_step`,
+  `next_blocker_network_step_count`, `next_blocker_type_step`, and
+  `next_blocker_type_step_count` mirror its global, network, and workstream
+  queue position without requiring clients to dereference the field group.
   `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
   field gap. The object aliases become `null` and the field aliases become empty
   after the blocker queue is clear, even if `next_action` points at the final
