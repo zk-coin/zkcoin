@@ -2895,6 +2895,9 @@ def status_json_text(manifest, manifest_path, check):
     next_action = actions[0] if actions else None
     next_blocked_field_group = blocked_field_groups[0] if blocked_field_groups else None
     next_blocked_fields = blocked_field_groups[0]["fields"] if blocked_field_groups else []
+    next_blocker = next_blocked_field_group["id"] if next_blocked_field_group else None
+    next_blocker_network = next_blocked_field_group["network"] if next_blocked_field_group else None
+    next_blocker_type = next_blocked_field_group["blocker_type"] if next_blocked_field_group else None
     status = manifest.get("status")
     return json.dumps(
         {
@@ -2942,6 +2945,10 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
+            "next_blocker": next_blocker,
+            "next_blocker_network": next_blocker_network,
+            "next_blocker_type": next_blocker_type,
+            "next_blocker_commands": action_command_fields(next_blocked_field_group),
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),
