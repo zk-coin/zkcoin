@@ -264,7 +264,11 @@ Both are intentionally present before behavior changes so tests and review can t
   per-network progress entries, plus `blocked_blocker_types`,
   `blocked_blocker_type_count`, `ready_blocker_types`, and
   `ready_blocker_type_count` for the same compact workstream readiness summary
-  without parsing `blocker_type_progress`. It also includes `network_progress`,
+  without parsing `blocker_type_progress`. `blocked_blocker_types_by_network`,
+  `blocked_blocker_type_counts_by_network`, `ready_blocker_types_by_network`,
+  and `ready_blocker_type_counts_by_network` provide the same compact
+  workstream readiness summary per mainnet/testnet network without parsing the
+  network/workstream field-group matrix. It also includes `network_progress`,
   which consolidates each network's ready flag, unresolved blockers, blocked
   fields, and next blocker group for operator views.
   The same payload

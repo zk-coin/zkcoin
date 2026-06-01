@@ -491,6 +491,42 @@ def blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups)
     }
 
 
+def blocked_blocker_types_by_network(blocked_field_groups):
+    return {
+        network: [
+            blocker_type
+            for blocker_type, groups in groups_by_type.items()
+            if groups
+        ]
+        for network, groups_by_type in blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
+def ready_blocker_types_by_network(blocked_field_groups):
+    return {
+        network: [
+            blocker_type
+            for blocker_type, groups in groups_by_type.items()
+            if not groups
+        ]
+        for network, groups_by_type in blocked_field_groups_by_network_and_blocker_type(blocked_field_groups).items()
+    }
+
+
+def blocked_blocker_type_counts_by_network(blocked_field_groups):
+    return {
+        network: len(blocker_types)
+        for network, blocker_types in blocked_blocker_types_by_network(blocked_field_groups).items()
+    }
+
+
+def ready_blocker_type_counts_by_network(blocked_field_groups):
+    return {
+        network: len(blocker_types)
+        for network, blocker_types in ready_blocker_types_by_network(blocked_field_groups).items()
+    }
+
+
 def next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups):
     return {
         network: {
@@ -3122,6 +3158,10 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_blocker_types": blocked_blocker_type_list,
             "ready_blocker_type_count": len(ready_blocker_type_list),
             "ready_blocker_types": ready_blocker_type_list,
+            "blocked_blocker_type_counts_by_network": blocked_blocker_type_counts_by_network(blocked_field_groups),
+            "blocked_blocker_types_by_network": blocked_blocker_types_by_network(blocked_field_groups),
+            "ready_blocker_type_counts_by_network": ready_blocker_type_counts_by_network(blocked_field_groups),
+            "ready_blocker_types_by_network": ready_blocker_types_by_network(blocked_field_groups),
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
             "unresolved_blockers_by_network": items_by_network(blockers),
