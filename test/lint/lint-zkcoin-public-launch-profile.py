@@ -577,9 +577,11 @@ def require_public_launch_manifest_current():
         "  - unresolved blockers: 8",
         "  - unresolved blockers by network: main=4, testnet=4",
         "  - unresolved blockers by blocker type: litecoin_snapshot=2, auxpow_chain_id=2, public_network_identity=2, dns_seeds=2",
+        "  - unresolved blockers by network and blocker type: main: litecoin_snapshot=1, auxpow_chain_id=1, public_network_identity=1, dns_seeds=1; testnet: litecoin_snapshot=1, auxpow_chain_id=1, public_network_identity=1, dns_seeds=1",
         "  - blocked fields: 46",
         "  - blocked fields by network: main=23, testnet=23",
         "  - blocked fields by blocker type: litecoin_snapshot=22, auxpow_chain_id=2, public_network_identity=20, dns_seeds=2",
+        "  - blocked fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
         "  - next blocker fields by network: main=11, testnet=11",
         "  - next blockers by blocker type: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds",
@@ -6848,6 +6850,7 @@ def main():
         ("list_summary", "manifest formats compact readiness lists"),
         ("network_count_summary", "manifest formats network counts for readiness summaries"),
         ("blocker_type_count_summary", "manifest formats blocker-type counts for readiness summaries"),
+        ("network_blocker_type_count_summary", "manifest formats network blocker-type matrices for readiness summaries"),
         ("network_next_blocker_summary", "manifest formats network next blockers for readiness summaries"),
         ("network_next_blocker_field_count_summary", "manifest formats network next blocker field counts for readiness summaries"),
         ("network_next_blocker_command_summary", "manifest formats network next blocker commands for readiness summaries"),
@@ -7844,6 +7847,10 @@ def main():
         (
             "per-network next blocker-scoped summary\n  commands",
             "public launch manifest readiness-summary network blocker summary documentation",
+        ),
+        (
+            "per-network/per-workstream blocker and field matrices",
+            "public launch manifest readiness-summary matrix documentation",
         ),
         (
             "per-network next\n  blocker-type summary commands",

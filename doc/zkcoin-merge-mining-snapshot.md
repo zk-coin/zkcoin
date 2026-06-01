@@ -122,7 +122,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary` for a
   compact human-readable summary of blocked networks, ready networks, blocker
   counts, per-network and per-workstream blocker counts, blocked field counts,
-  per-network and per-workstream blocked field counts, per-network next blockers,
+  per-network and per-workstream blocked field counts,
+  per-network/per-workstream blocker and field matrices, per-network next blockers,
   per-network next blocker field counts, per-workstream next blockers,
   per-workstream next blocker networks, per-workstream next blocker field counts,
   per-network and per-workstream next template/check/apply commands,
