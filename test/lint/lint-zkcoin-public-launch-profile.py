@@ -1860,6 +1860,9 @@ def require_public_launch_manifest_current():
         status_json.get("later_action_ids") != [action.get("id") for action in expected_later_actions]
         or status_json.get("later_action_kinds") != [action.get("kind") for action in expected_later_actions]
         or status_json.get("later_action_steps") != [action.get("step") for action in expected_later_actions]
+        or status_json.get("later_action_networks") != [action.get("network") for action in expected_later_actions]
+        or status_json.get("later_action_blocker_types") != [action.get("blocker_type") for action in expected_later_actions]
+        or status_json.get("later_action_field_counts") != [action.get("field_count") for action in expected_later_actions]
     ):
         return "{} --status-json did not expose later action list aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6503,6 +6506,9 @@ def require_public_launch_manifest_current():
             complete_status.get("later_action_ids") != []
             or complete_status.get("later_action_kinds") != []
             or complete_status.get("later_action_steps") != []
+            or complete_status.get("later_action_networks") != []
+            or complete_status.get("later_action_blocker_types") != []
+            or complete_status.get("later_action_field_counts") != []
         ):
             return "{} --status-json reported later action list aliases for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7387,6 +7393,9 @@ def require_public_launch_manifest_current():
             ready_status.get("later_action_ids") != ["check-chainparams"]
             or ready_status.get("later_action_kinds") != ["check-chainparams"]
             or ready_status.get("later_action_steps") != [2]
+            or ready_status.get("later_action_networks") != [None]
+            or ready_status.get("later_action_blocker_types") != [None]
+            or ready_status.get("later_action_field_counts") != [None]
         ):
             return "{} --status-json did not expose ready-manifest later action list aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8196,6 +8205,9 @@ def main():
         ("later_action_ids", "manifest status JSON includes later action id aliases"),
         ("later_action_kinds", "manifest status JSON includes later action kind aliases"),
         ("later_action_steps", "manifest status JSON includes later action step aliases"),
+        ("later_action_networks", "manifest status JSON includes later action network aliases"),
+        ("later_action_blocker_types", "manifest status JSON includes later action blocker type aliases"),
+        ("later_action_field_counts", "manifest status JSON includes later action field count aliases"),
         ("later_commands", "manifest status JSON includes later command aliases"),
         ("later_command_count", "manifest status JSON counts later command aliases"),
         ("actions_by_network", "manifest status JSON groups actions by network"),
@@ -9411,6 +9423,18 @@ def main():
         (
             "later_action_steps",
             "public launch manifest status-json later action step documentation",
+        ),
+        (
+            "later_action_networks",
+            "public launch manifest status-json later action network documentation",
+        ),
+        (
+            "later_action_blocker_types",
+            "public launch manifest status-json later action blocker type documentation",
+        ),
+        (
+            "later_action_field_counts",
+            "public launch manifest status-json later action field count documentation",
         ),
         (
             "later_commands",
