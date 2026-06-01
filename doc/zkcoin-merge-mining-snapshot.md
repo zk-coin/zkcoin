@@ -209,6 +209,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_commands_by_network`, which mirrors the current command fields for each
   network's next blocker, including the network and blocker-type summary
   commands, so automation can dispatch scoped handoffs directly.
+  `next_blocker_commands_by_network` mirrors the same command maps with the
+  same `next_blocker` wording used by the human-readable readiness summary.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
   objects by network without requiring clients to traverse `network_progress`.
   `blocked_field_groups_by_network` and
