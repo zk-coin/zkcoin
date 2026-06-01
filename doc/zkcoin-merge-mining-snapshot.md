@@ -165,10 +165,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_count`, `action_count`, `action_plan_command`,
   `readiness_summary_command`, `status_json_command`, `next_action`,
   `next_action_id`, `next_action_kind`, `next_action_step`,
-  `next_action_command`, and a global `commands` map that groups the same
-  read-only action-plan, next-action, readiness-summary, and status-json entry
-  points; the next-action aliases mirror the current handoff routing fields
-  without forcing clients to dereference `next_action`; it also exposes
+  `next_action_network`, `next_action_blocker_type`,
+  `next_action_field_count`, `next_action_command`, and a global `commands` map
+  that groups the same read-only action-plan, next-action, readiness-summary,
+  and status-json entry points; the next-action aliases mirror the current
+  handoff routing fields without forcing clients to dereference `next_action`;
+  it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`,
   `blocked_fields_by_network`, and `blocked_field_counts_by_network` so
   dashboards can track mainnet and testnet launch readiness separately without
