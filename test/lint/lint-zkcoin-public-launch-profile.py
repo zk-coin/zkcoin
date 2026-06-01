@@ -2095,6 +2095,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose next_action as the current handoff entry".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        status_json.get("next_action_id") != status_json.get("next_action", {}).get("id")
+        or status_json.get("next_action_kind") != status_json.get("next_action", {}).get("kind")
+        or status_json.get("next_action_step") != status_json.get("next_action", {}).get("step")
+    ):
+        return "{} --status-json did not expose current next_action aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_action", {}).get("id") != "main.litecoin_snapshot":
         return "{} --status-json next_action did not preserve the current blocker id".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6738,6 +6746,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose the complete-manifest next_action".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            complete_status.get("next_action_id") != "mark-ready"
+            or complete_status.get("next_action_kind") != "mark-ready"
+            or complete_status.get("next_action_step") != 1
+        ):
+            return "{} --status-json did not expose complete-manifest next_action aliases".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_commands", {}).get("command") != complete_status.get("next_action", {}).get("command"):
             return "{} --status-json did not expose the complete-manifest next command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7318,6 +7334,14 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_action", {}).get("id") != "emit-chainparams":
             return "{} --status-json did not expose ready-manifest next_action".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            ready_status.get("next_action_id") != "emit-chainparams"
+            or ready_status.get("next_action_kind") != "emit-chainparams"
+            or ready_status.get("next_action_step") != 1
+        ):
+            return "{} --status-json did not expose ready-manifest next_action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_commands", {}).get("command") != ready_status.get("next_action", {}).get("command"):
@@ -8122,6 +8146,9 @@ def main():
         ("status_json_command", "manifest status JSON includes a copyable status-json command"),
         ("status_command_fields(manifest_path)", "manifest status JSON includes a copyable command map"),
         ("next_action", "manifest status JSON includes the current handoff action"),
+        ("next_action_id", "manifest status JSON includes current next action id alias"),
+        ("next_action_kind", "manifest status JSON includes current next action kind alias"),
+        ("next_action_step", "manifest status JSON includes current next action step alias"),
         ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
@@ -9226,6 +9253,18 @@ def main():
         (
             "next_action",
             "public launch manifest status-json next action documentation",
+        ),
+        (
+            "next_action_id",
+            "public launch manifest status-json next action id documentation",
+        ),
+        (
+            "next_action_kind",
+            "public launch manifest status-json next action kind documentation",
+        ),
+        (
+            "next_action_step",
+            "public launch manifest status-json next action step documentation",
         ),
         (
             "next_action_command",
