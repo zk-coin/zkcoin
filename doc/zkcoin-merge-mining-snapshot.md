@@ -306,9 +306,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
   field gap. `later_blockers`, `later_blocker_count`, and
   `later_blocker_readiness_summary_commands_by_blocker` expose the remaining
-  blocker queue after the current handoff. The object aliases become `null` and
-  the field aliases become empty after the blocker queue is clear, even if
-  `next_action` points at the final chainparams handoff. Blocker
+  blocker queue after the current handoff. `later_blocker_field_groups`,
+  `later_blocker_field_group_count`, `later_blocker_fields`, and
+  `later_blocker_field_count` mirror the later queue's concrete field gaps. The
+  object aliases become `null` and the field aliases become empty after the
+  blocker queue is clear, even if `next_action` points at the final chainparams
+  handoff. Blocker
   action entries expose `network` and `blocker_type` values directly in `actions`
   and `next_action`, include the same blocker `fields` and `field_count`, and
   always expose split command fields such as `template_command`, `check_command`,

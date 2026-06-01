@@ -1911,6 +1911,28 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose later blocker summary command aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_later_blocker_field_groups = blocked_field_groups[1:]
+    if status_json.get("later_blocker_field_groups") != expected_later_blocker_field_groups:
+        return "{} --status-json did not expose later blocker field group aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_group_count") != len(expected_later_blocker_field_groups):
+        return "{} --status-json did not count later blocker field group aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_fields = [
+        field
+        for group in expected_later_blocker_field_groups
+        for field in group.get("fields", [])
+    ]
+    if status_json.get("later_blocker_fields") != expected_later_blocker_fields:
+        return "{} --status-json did not expose later blocker field aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_count") != len(expected_later_blocker_fields):
+        return "{} --status-json did not count later blocker field aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocked_field_count") != 11:
         return "{} --status-json did not count next blocker field-level blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6657,6 +6679,10 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blockers") != []
             or complete_status.get("later_blocker_count") != 0
             or complete_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
+            or complete_status.get("later_blocker_field_groups") != []
+            or complete_status.get("later_blocker_field_group_count") != 0
+            or complete_status.get("later_blocker_fields") != []
+            or complete_status.get("later_blocker_field_count") != 0
         ):
             return "{} --status-json reported a current blocker alias for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7152,6 +7178,10 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blockers") != []
             or ready_status.get("later_blocker_count") != 0
             or ready_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
+            or ready_status.get("later_blocker_field_groups") != []
+            or ready_status.get("later_blocker_field_group_count") != 0
+            or ready_status.get("later_blocker_fields") != []
+            or ready_status.get("later_blocker_field_count") != 0
         ):
             return "{} --status-json reported a current blocker alias for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8119,6 +8149,10 @@ def main():
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
         ("later_blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes later blocker summary command aliases"),
+        ("later_blocker_field_groups", "manifest status JSON includes later blocker field group aliases"),
+        ("later_blocker_field_group_count", "manifest status JSON counts later blocker field group aliases"),
+        ("later_blocker_fields", "manifest status JSON includes later blocker field aliases"),
+        ("later_blocker_field_count", "manifest status JSON counts later blocker field aliases"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
         ("next_blocked_fields", "manifest status JSON includes next blocked fields"),
         ("blocked_fields", "manifest status JSON includes field-level blockers"),
@@ -9485,6 +9519,22 @@ def main():
         (
             "later_blocker_readiness_summary_commands_by_blocker",
             "public launch manifest status-json later blocker command documentation",
+        ),
+        (
+            "later_blocker_field_groups",
+            "public launch manifest status-json later blocker field group documentation",
+        ),
+        (
+            "later_blocker_field_group_count",
+            "public launch manifest status-json later blocker field group count documentation",
+        ),
+        (
+            "later_blocker_fields",
+            "public launch manifest status-json later blocker field documentation",
+        ),
+        (
+            "later_blocker_field_count",
+            "public launch manifest status-json later blocker field count documentation",
         ),
         (
             "next_blocked_fields",
