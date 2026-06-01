@@ -3212,6 +3212,11 @@ def status_json_text(manifest, manifest_path, check):
     next_blocker = next_blocked_field_group["id"] if next_blocked_field_group else None
     next_blocker_network = next_blocked_field_group["network"] if next_blocked_field_group else None
     next_blocker_type = next_blocked_field_group["blocker_type"] if next_blocked_field_group else None
+    next_blocker_step = next_blocked_field_group["step"] if next_blocked_field_group else None
+    next_blocker_network_step = next_blocked_field_group["network_step"] if next_blocked_field_group else None
+    next_blocker_network_step_count = next_blocked_field_group["network_step_count"] if next_blocked_field_group else None
+    next_blocker_type_step = next_blocked_field_group["blocker_type_step"] if next_blocked_field_group else None
+    next_blocker_type_step_count = next_blocked_field_group["blocker_type_step_count"] if next_blocked_field_group else None
     status = manifest.get("status")
     return json.dumps(
         {
@@ -3299,6 +3304,11 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker": next_blocker,
             "next_blocker_network": next_blocker_network,
             "next_blocker_type": next_blocker_type,
+            "next_blocker_step": next_blocker_step,
+            "next_blocker_network_step": next_blocker_network_step,
+            "next_blocker_network_step_count": next_blocker_network_step_count,
+            "next_blocker_type_step": next_blocker_type_step,
+            "next_blocker_type_step_count": next_blocker_type_step_count,
             "next_blocker_commands": action_command_fields(next_blocked_field_group),
             "next_blocker_fields": next_blocked_fields,
             "next_blocker_field_count": len(next_blocked_fields),

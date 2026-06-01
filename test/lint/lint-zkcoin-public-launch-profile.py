@@ -1872,6 +1872,16 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose the current blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        status_json.get("next_blocker_step") != blocked_field_groups[0].get("step")
+        or status_json.get("next_blocker_network_step") != blocked_field_groups[0].get("network_step")
+        or status_json.get("next_blocker_network_step_count") != blocked_field_groups[0].get("network_step_count")
+        or status_json.get("next_blocker_type_step") != blocked_field_groups[0].get("blocker_type_step")
+        or status_json.get("next_blocker_type_step_count") != blocked_field_groups[0].get("blocker_type_step_count")
+    ):
+        return "{} --status-json did not expose current blocker scoped order aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocker_commands") != status_json.get("next_commands"):
         return "{} --status-json did not expose current blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6619,6 +6629,11 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker") is not None
             or complete_status.get("next_blocker_network") is not None
             or complete_status.get("next_blocker_type") is not None
+            or complete_status.get("next_blocker_step") is not None
+            or complete_status.get("next_blocker_network_step") is not None
+            or complete_status.get("next_blocker_network_step_count") is not None
+            or complete_status.get("next_blocker_type_step") is not None
+            or complete_status.get("next_blocker_type_step_count") is not None
             or complete_status.get("next_blocker_commands") is not None
             or complete_status.get("next_blocker_fields") != []
             or complete_status.get("next_blocker_field_count") != 0
@@ -7106,6 +7121,11 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker") is not None
             or ready_status.get("next_blocker_network") is not None
             or ready_status.get("next_blocker_type") is not None
+            or ready_status.get("next_blocker_step") is not None
+            or ready_status.get("next_blocker_network_step") is not None
+            or ready_status.get("next_blocker_network_step_count") is not None
+            or ready_status.get("next_blocker_type_step") is not None
+            or ready_status.get("next_blocker_type_step_count") is not None
             or ready_status.get("next_blocker_commands") is not None
             or ready_status.get("next_blocker_fields") != []
             or ready_status.get("next_blocker_field_count") != 0
@@ -8066,6 +8086,11 @@ def main():
         ("next_blocked_field_group", "manifest status JSON includes current blocked field group"),
         ("next_blocker_field_group", "manifest status JSON aliases current blocker field group"),
         ("next_blocker", "manifest status JSON includes current blocker aliases"),
+        ("next_blocker_step", "manifest status JSON includes current blocker global order"),
+        ("next_blocker_network_step", "manifest status JSON includes current blocker network order"),
+        ("next_blocker_network_step_count", "manifest status JSON includes current blocker network count"),
+        ("next_blocker_type_step", "manifest status JSON includes current blocker type order"),
+        ("next_blocker_type_step_count", "manifest status JSON includes current blocker type count"),
         ("next_blocker_commands", "manifest status JSON includes current blocker command aliases"),
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
@@ -9394,6 +9419,26 @@ def main():
         (
             "next_blocker_field_group",
             "public launch manifest status-json current blocker field group alias documentation",
+        ),
+        (
+            "next_blocker_step",
+            "public launch manifest status-json current blocker global order documentation",
+        ),
+        (
+            "next_blocker_network_step",
+            "public launch manifest status-json current blocker network order documentation",
+        ),
+        (
+            "next_blocker_network_step_count",
+            "public launch manifest status-json current blocker network count documentation",
+        ),
+        (
+            "next_blocker_type_step",
+            "public launch manifest status-json current blocker type order documentation",
+        ),
+        (
+            "next_blocker_type_step_count",
+            "public launch manifest status-json current blocker type count documentation",
         ),
         (
             "next_blocker_commands",
