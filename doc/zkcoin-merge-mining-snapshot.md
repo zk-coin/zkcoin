@@ -208,6 +208,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_counts_by_network` expose the full ordered blocker-group
   queue and group count per network without requiring clients to filter the
   global blocker-group list.
+  `blocked_field_groups_by_blocker_type` and
+  `blocked_field_group_counts_by_blocker_type` expose the same ordered
+  blocker-group queue and count by snapshot, AuxPoW, public identity, and DNS
+  seed workstream without requiring clients to filter the global list.
   `next_blocked_fields_by_network` and
   `next_blocked_field_counts_by_network` provide the same per-network field gap
   view without parsing `network_progress`.
