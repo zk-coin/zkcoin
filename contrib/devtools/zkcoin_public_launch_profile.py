@@ -315,6 +315,21 @@ def blockers_by_blocker_type(blockers):
     return grouped
 
 
+def blockers_by_network_and_blocker_type(blockers):
+    grouped = {
+        network: {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+        for network in NETWORKS
+    }
+    for blocker in blockers:
+        blocker_parts = blocker.split(".", 1)
+        if len(blocker_parts) != 2:
+            continue
+        network, blocker_type = blocker_parts
+        if network in grouped and blocker_type in grouped[network]:
+            grouped[network][blocker_type].append(blocker)
+    return grouped
+
+
 def blocker_counts_by_blocker_type(blockers):
     return {
         blocker_type: len(blocker_ids)
@@ -323,18 +338,13 @@ def blocker_counts_by_blocker_type(blockers):
 
 
 def blocker_counts_by_network_and_blocker_type(blockers):
-    counts = {
-        network: {blocker_type: 0 for blocker_type in BLOCKER_TYPES}
-        for network in NETWORKS
+    return {
+        network: {
+            blocker_type: len(blocker_ids)
+            for blocker_type, blocker_ids in blockers_by_type.items()
+        }
+        for network, blockers_by_type in blockers_by_network_and_blocker_type(blockers).items()
     }
-    for blocker in blockers:
-        blocker_parts = blocker.split(".", 1)
-        if len(blocker_parts) != 2:
-            continue
-        network, blocker_type = blocker_parts
-        if network in counts and blocker_type in counts[network]:
-            counts[network][blocker_type] += 1
-    return counts
 
 
 def blocked_fields_by_blocker_type(blocked_field_groups):
@@ -346,6 +356,19 @@ def blocked_fields_by_blocker_type(blocked_field_groups):
     return grouped
 
 
+def blocked_fields_by_network_and_blocker_type(blocked_field_groups):
+    grouped = {
+        network: {blocker_type: [] for blocker_type in BLOCKER_TYPES}
+        for network in NETWORKS
+    }
+    for group in blocked_field_groups:
+        network = group.get("network")
+        blocker_type = group.get("blocker_type")
+        if network in grouped and blocker_type in grouped[network]:
+            grouped[network][blocker_type].extend(group.get("fields", []))
+    return grouped
+
+
 def blocked_field_counts_by_blocker_type(blocked_field_groups):
     return {
         blocker_type: len(fields)
@@ -354,16 +377,13 @@ def blocked_field_counts_by_blocker_type(blocked_field_groups):
 
 
 def blocked_field_counts_by_network_and_blocker_type(blocked_field_groups):
-    counts = {
-        network: {blocker_type: 0 for blocker_type in BLOCKER_TYPES}
-        for network in NETWORKS
+    return {
+        network: {
+            blocker_type: len(fields)
+            for blocker_type, fields in fields_by_type.items()
+        }
+        for network, fields_by_type in blocked_fields_by_network_and_blocker_type(blocked_field_groups).items()
     }
-    for group in blocked_field_groups:
-        network = group.get("network")
-        blocker_type = group.get("blocker_type")
-        if network in counts and blocker_type in counts[network]:
-            counts[network][blocker_type] += group.get("field_count", 0)
-    return counts
 
 
 def network_progress_entries(blockers, blocked_fields, blocked_field_groups):
@@ -2928,12 +2948,14 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blocker_counts_by_network": item_counts_by_network(blockers),
             "unresolved_blockers_by_blocker_type": blockers_by_blocker_type(blockers),
             "unresolved_blocker_counts_by_blocker_type": blocker_counts_by_blocker_type(blockers),
+            "unresolved_blockers_by_network_and_blocker_type": blockers_by_network_and_blocker_type(blockers),
             "unresolved_blocker_counts_by_network_and_blocker_type": blocker_counts_by_network_and_blocker_type(blockers),
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
             "blocked_fields_by_blocker_type": blocked_fields_by_blocker_type(blocked_field_groups),
             "blocked_field_counts_by_blocker_type": blocked_field_counts_by_blocker_type(blocked_field_groups),
+            "blocked_fields_by_network_and_blocker_type": blocked_fields_by_network_and_blocker_type(blocked_field_groups),
             "blocked_field_counts_by_network_and_blocker_type": blocked_field_counts_by_network_and_blocker_type(blocked_field_groups),
             "action_plan_command": action_plan_command(manifest_path),
             "readiness_summary_command": readiness_summary_command(manifest_path),
