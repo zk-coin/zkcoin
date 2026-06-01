@@ -2099,6 +2099,9 @@ def require_public_launch_manifest_current():
         status_json.get("next_action_id") != status_json.get("next_action", {}).get("id")
         or status_json.get("next_action_kind") != status_json.get("next_action", {}).get("kind")
         or status_json.get("next_action_step") != status_json.get("next_action", {}).get("step")
+        or status_json.get("next_action_network") != status_json.get("next_action", {}).get("network")
+        or status_json.get("next_action_blocker_type") != status_json.get("next_action", {}).get("blocker_type")
+        or status_json.get("next_action_field_count") != status_json.get("next_action", {}).get("field_count")
     ):
         return "{} --status-json did not expose current next_action aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6750,6 +6753,9 @@ def require_public_launch_manifest_current():
             complete_status.get("next_action_id") != "mark-ready"
             or complete_status.get("next_action_kind") != "mark-ready"
             or complete_status.get("next_action_step") != 1
+            or complete_status.get("next_action_network") is not None
+            or complete_status.get("next_action_blocker_type") is not None
+            or complete_status.get("next_action_field_count") is not None
         ):
             return "{} --status-json did not expose complete-manifest next_action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7340,6 +7346,9 @@ def require_public_launch_manifest_current():
             ready_status.get("next_action_id") != "emit-chainparams"
             or ready_status.get("next_action_kind") != "emit-chainparams"
             or ready_status.get("next_action_step") != 1
+            or ready_status.get("next_action_network") is not None
+            or ready_status.get("next_action_blocker_type") is not None
+            or ready_status.get("next_action_field_count") is not None
         ):
             return "{} --status-json did not expose ready-manifest next_action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8149,6 +8158,9 @@ def main():
         ("next_action_id", "manifest status JSON includes current next action id alias"),
         ("next_action_kind", "manifest status JSON includes current next action kind alias"),
         ("next_action_step", "manifest status JSON includes current next action step alias"),
+        ("next_action_network", "manifest status JSON includes current next action network alias"),
+        ("next_action_blocker_type", "manifest status JSON includes current next action blocker type alias"),
+        ("next_action_field_count", "manifest status JSON includes current next action field count alias"),
         ("next_action_command", "manifest status JSON includes a copyable next-action command"),
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
@@ -9265,6 +9277,18 @@ def main():
         (
             "next_action_step",
             "public launch manifest status-json next action step documentation",
+        ),
+        (
+            "next_action_network",
+            "public launch manifest status-json next action network documentation",
+        ),
+        (
+            "next_action_blocker_type",
+            "public launch manifest status-json next action blocker type documentation",
+        ),
+        (
+            "next_action_field_count",
+            "public launch manifest status-json next action field count documentation",
         ),
         (
             "next_action_command",
