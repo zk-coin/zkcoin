@@ -2949,6 +2949,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_network": next_blocker_network,
             "next_blocker_type": next_blocker_type,
             "next_blocker_commands": action_command_fields(next_blocked_field_group),
+            "next_blocker_fields": next_blocked_fields,
+            "next_blocker_field_count": len(next_blocked_fields),
             "next_blocked_fields": next_blocked_fields,
             "next_blocked_field_count": len(next_blocked_fields),
             "action_count": len(actions),

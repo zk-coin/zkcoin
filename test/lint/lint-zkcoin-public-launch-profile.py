@@ -1365,6 +1365,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose current blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_blocker_fields") != status_json.get("next_blocked_fields"):
+        return "{} --status-json did not expose current blocker fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_field_count") != status_json.get("next_blocked_field_count"):
+        return "{} --status-json did not expose current blocker field count".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocked_field_count") != 11:
         return "{} --status-json did not count next blocker field-level blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2094,6 +2102,14 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("next_blocker_commands", {}).get("check_command", ""):
             return "{} --status-json did not shell-quote a staged next blocker check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_blocker_fields", [None])[0] != "main.litecoin_snapshot.height":
+            return "{} --status-json did not expose staged current blocker fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_blocker_field_count") != 11:
+            return "{} --status-json did not expose staged current blocker field count".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("apply_command", ""):
@@ -5738,6 +5754,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_network") is not None
             or complete_status.get("next_blocker_type") is not None
             or complete_status.get("next_blocker_commands") is not None
+            or complete_status.get("next_blocker_fields") != []
+            or complete_status.get("next_blocker_field_count") != 0
         ):
             return "{} --status-json reported a current blocker alias for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6105,6 +6123,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_network") is not None
             or ready_status.get("next_blocker_type") is not None
             or ready_status.get("next_blocker_commands") is not None
+            or ready_status.get("next_blocker_fields") != []
+            or ready_status.get("next_blocker_field_count") != 0
         ):
             return "{} --status-json reported a current blocker alias for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -6921,6 +6941,7 @@ def main():
         ("next_blocked_field_group", "manifest status JSON includes current blocked field group"),
         ("next_blocker", "manifest status JSON includes current blocker aliases"),
         ("next_blocker_commands", "manifest status JSON includes current blocker command aliases"),
+        ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
         ("next_blocked_fields", "manifest status JSON includes next blocked fields"),
         ("blocked_fields", "manifest status JSON includes field-level blockers"),
@@ -8051,6 +8072,10 @@ def main():
         (
             "next_blocker_commands",
             "public launch manifest status-json current blocker command documentation",
+        ),
+        (
+            "next_blocker_fields",
+            "public launch manifest status-json current blocker field documentation",
         ),
         (
             "next_blocked_fields",
