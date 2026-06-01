@@ -3060,6 +3060,8 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
         f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
         f"  - unresolved blockers: {progress['unresolved_blocker_count']}",
         f"  - blocked fields: {progress['blocked_field_count']}",
+        f"  - blocked blocker types: {list_summary(blocked_blocker_types_by_network(blocked_field_groups)[network])}",
+        f"  - ready blocker types: {list_summary(ready_blocker_types_by_network(blocked_field_groups)[network])}",
     ]
     if next_group is None:
         lines.append("  - next blocker: none")
