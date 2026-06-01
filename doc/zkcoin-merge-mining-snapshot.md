@@ -203,9 +203,12 @@ Both are intentionally present before behavior changes so tests and review can t
   mainnet/testnet workstream matrix without joining the network and blocker-type
   payloads. `next_actions_by_network_and_blocker_type` and
   `next_commands_by_network_and_blocker_type` expose the first dispatchable
-  handoff and commands for each mainnet/testnet workstream cell, with
-  `next_actions_by_blocker_type` and `next_commands_by_blocker_type` exposing
-  the next dispatchable handoff for each workstream.
+  handoff and commands for each mainnet/testnet workstream cell.
+  `next_blocker_commands_by_network_and_blocker_type` mirrors those matrix
+  command maps with the same `next_blocker` wording used by the human-readable
+  readiness summary. `next_actions_by_blocker_type` and
+  `next_commands_by_blocker_type` expose the next dispatchable handoff for each
+  workstream.
   `next_blocker_commands_by_blocker_type` mirrors those workstream command maps
   with the same `next_blocker` wording used by the human-readable readiness
   summary. The payload also exposes
