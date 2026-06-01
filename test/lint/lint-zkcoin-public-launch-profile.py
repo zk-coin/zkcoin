@@ -1911,6 +1911,24 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later command key aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_action_command_keys = [
+        [
+            command_field
+            for command_field in command_fields
+            if action.get(command_field) is not None
+        ]
+        for action in actions
+    ]
+    if status_json.get("action_command_keys") != expected_action_command_keys:
+        return "{} --status-json did not expose action command key aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("action_command_key_counts") != [
+        len(command_keys) for command_keys in expected_action_command_keys
+    ]:
+        return "{} --status-json did not count action command key aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
@@ -6525,6 +6543,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("action_networks") != [None]
             or complete_status.get("action_blocker_types") != [None]
             or complete_status.get("action_field_counts") != [None]
+            or complete_status.get("action_command_keys") != [["command"]]
+            or complete_status.get("action_command_key_counts") != [1]
         ):
             return "{} --status-json did not expose complete blocked manifest action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7353,6 +7373,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("action_networks") != [None, None]
             or ready_status.get("action_blocker_types") != [None, None]
             or ready_status.get("action_field_counts") != [None, None]
+            or ready_status.get("action_command_keys") != [["command"], ["command"]]
+            or ready_status.get("action_command_key_counts") != [1, 1]
         ):
             return "{} --status-json did not expose ready manifest action aliases".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8264,6 +8286,8 @@ def main():
         ("action_networks", "manifest status JSON includes action network aliases"),
         ("action_blocker_types", "manifest status JSON includes action blocker type aliases"),
         ("action_field_counts", "manifest status JSON includes action field count aliases"),
+        ("action_command_keys", "manifest status JSON includes action command key aliases"),
+        ("action_command_key_counts", "manifest status JSON counts action command key aliases"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
         ("later_action_ids", "manifest status JSON includes later action id aliases"),
@@ -9367,6 +9391,14 @@ def main():
         (
             "action_field_counts",
             "public launch manifest status-json action field count documentation",
+        ),
+        (
+            "action_command_keys",
+            "public launch manifest status-json action command key documentation",
+        ),
+        (
+            "action_command_key_counts",
+            "public launch manifest status-json action command key count documentation",
         ),
         (
             "actions_by_network",
