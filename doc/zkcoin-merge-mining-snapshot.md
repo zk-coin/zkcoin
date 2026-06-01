@@ -160,9 +160,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_action_command`, and a global `commands` map that groups the same
   read-only action-plan, next-action, readiness-summary, and status-json entry
   points; it also exposes
-  `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`, and
-  `blocked_field_counts_by_network` so dashboards can track mainnet and testnet
-  launch readiness separately without parsing field paths, plus
+  `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`,
+  `blocked_fields_by_network`, and `blocked_field_counts_by_network` so
+  dashboards can track mainnet and testnet launch readiness separately without
+  parsing field paths, plus
   `unresolved_blockers_by_blocker_type`,
   `unresolved_blocker_counts_by_blocker_type`,
   `blocked_fields_by_blocker_type`, and
