@@ -3266,6 +3266,7 @@ def status_json_text(manifest, manifest_path, check):
     next_blocker_type_step = next_blocked_field_group["blocker_type_step"] if next_blocked_field_group else None
     next_blocker_type_step_count = next_blocked_field_group["blocker_type_step_count"] if next_blocked_field_group else None
     next_blocker_commands = action_command_fields(next_blocked_field_group)
+    next_blocker_command_count = len(next_blocker_commands) if next_blocker_commands is not None else 0
     next_blocker_command_keys = action_command_keys(next_blocked_field_group)
     next_blocker_command_values = action_command_values(next_blocked_field_group)
     next_blocker_command_pairs = action_command_pairs(next_blocked_field_group)
@@ -3395,6 +3396,7 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_type_step": next_blocker_type_step,
             "next_blocker_type_step_count": next_blocker_type_step_count,
             "next_blocker_commands": next_blocker_commands,
+            "next_blocker_command_count": next_blocker_command_count,
             "next_blocker_command_keys": next_blocker_command_keys,
             "next_blocker_command_key_count": len(next_blocker_command_keys),
             "next_blocker_command_values": next_blocker_command_values,

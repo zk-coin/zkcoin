@@ -2120,6 +2120,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose current blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_blocker_command_count") != len(status_json.get("next_blocker_commands") or {}):
+        return "{} --status-json did not count current blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocker_fields") != status_json.get("next_blocked_fields"):
         return "{} --status-json did not expose current blocker fields".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2388,6 +2392,10 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_blocker_commands") != next_commands:
         return "{} --status-json did not alias current next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_command_count") != len(next_commands):
+        return "{} --status-json did not count current next blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_next_command_keys = [
@@ -7065,6 +7073,7 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_type_step") is not None
             or complete_status.get("next_blocker_type_step_count") is not None
             or complete_status.get("next_blocker_commands") is not None
+            or complete_status.get("next_blocker_command_count") != 0
             or complete_status.get("next_blocker_command_keys") != []
             or complete_status.get("next_blocker_command_key_count") != 0
             or complete_status.get("next_blocker_command_values") != []
@@ -7665,6 +7674,7 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_type_step") is not None
             or ready_status.get("next_blocker_type_step_count") is not None
             or ready_status.get("next_blocker_commands") is not None
+            or ready_status.get("next_blocker_command_count") != 0
             or ready_status.get("next_blocker_command_keys") != []
             or ready_status.get("next_blocker_command_key_count") != 0
             or ready_status.get("next_blocker_command_values") != []
@@ -8789,6 +8799,7 @@ def main():
         ("next_command_key_count", "manifest status JSON counts current handoff command keys"),
         ("next_command_value_count", "manifest status JSON counts current handoff command values"),
         ("next_command_pair_count", "manifest status JSON counts current handoff command pairs"),
+        ("next_blocker_command_count", "manifest status JSON counts current blocker commands"),
         ("next_blocker_command_keys", "manifest status JSON includes current blocker command keys"),
         ("next_blocker_command_key_count", "manifest status JSON counts current blocker command keys"),
         ("next_blocker_command_values", "manifest status JSON includes current blocker command values"),
@@ -8878,6 +8889,7 @@ def main():
         ("next_blocker_type_step", "manifest status JSON includes current blocker type order"),
         ("next_blocker_type_step_count", "manifest status JSON includes current blocker type count"),
         ("next_blocker_commands", "manifest status JSON includes current blocker command aliases"),
+        ("next_blocker_command_count", "manifest status JSON counts current blocker command aliases"),
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
@@ -10445,6 +10457,10 @@ def main():
         (
             "next_blocker_commands",
             "public launch manifest status-json current blocker command documentation",
+        ),
+        (
+            "next_blocker_command_count",
+            "public launch manifest status-json current blocker command count documentation",
         ),
         (
             "next_blocker_command_keys",
