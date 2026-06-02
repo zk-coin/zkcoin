@@ -3279,6 +3279,7 @@ def status_json_text(manifest, manifest_path, check):
         manifest_path,
         later_blockers,
     )
+    commands = status_command_fields(manifest_path)
     status = manifest.get("status")
     return json.dumps(
         {
@@ -3323,7 +3324,8 @@ def status_json_text(manifest, manifest_path, check):
             "status_json_command": status_json_command(manifest_path),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
-            "commands": status_command_fields(manifest_path),
+            "commands": commands,
+            "command_count": len(commands),
             "network_readiness_summary_commands_by_network": network_readiness_commands,
             "network_readiness_summary_command_count": len(network_readiness_commands),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
