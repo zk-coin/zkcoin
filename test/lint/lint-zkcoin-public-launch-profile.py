@@ -2142,6 +2142,16 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_later_blocker_field_groups = blocked_field_groups[1:]
+    expected_later_blocker_networks = [group.get("network") for group in expected_later_blocker_field_groups]
+    if status_json.get("later_blocker_networks") != expected_later_blocker_networks:
+        return "{} --status-json did not expose later blocker network aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_types = [group.get("blocker_type") for group in expected_later_blocker_field_groups]
+    if status_json.get("later_blocker_types") != expected_later_blocker_types:
+        return "{} --status-json did not expose later blocker type aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_commands = [
         {command_field: group.get(command_field) for command_field in command_fields}
         for group in expected_later_blocker_field_groups
@@ -7150,6 +7160,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_field_count") != 0
             or complete_status.get("later_blockers") != []
             or complete_status.get("later_blocker_count") != 0
+            or complete_status.get("later_blocker_networks") != []
+            or complete_status.get("later_blocker_types") != []
             or complete_status.get("later_blocker_commands") != []
             or complete_status.get("later_blocker_command_count") != 0
             or complete_status.get("later_blocker_command_keys") != []
@@ -7759,6 +7771,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_field_count") != 0
             or ready_status.get("later_blockers") != []
             or ready_status.get("later_blocker_count") != 0
+            or ready_status.get("later_blocker_networks") != []
+            or ready_status.get("later_blocker_types") != []
             or ready_status.get("later_blocker_commands") != []
             or ready_status.get("later_blocker_command_count") != 0
             or ready_status.get("later_blocker_command_keys") != []
@@ -8975,6 +8989,8 @@ def main():
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
+        ("later_blocker_networks", "manifest status JSON includes later blocker network aliases"),
+        ("later_blocker_types", "manifest status JSON includes later blocker type aliases"),
         ("later_blocker_commands", "manifest status JSON includes later blocker command aliases"),
         ("later_blocker_command_count", "manifest status JSON counts later blocker command aliases"),
         ("later_blocker_command_keys", "manifest status JSON includes later blocker command keys"),
@@ -10587,6 +10603,14 @@ def main():
         (
             "later_blocker_count",
             "public launch manifest status-json later blocker count documentation",
+        ),
+        (
+            "later_blocker_networks",
+            "public launch manifest status-json later blocker network documentation",
+        ),
+        (
+            "later_blocker_types",
+            "public launch manifest status-json later blocker type documentation",
         ),
         (
             "later_blocker_commands",
