@@ -3272,6 +3272,13 @@ def status_json_text(manifest, manifest_path, check):
         for group in later_blocker_field_groups
         for field in group["fields"]
     ]
+    network_readiness_commands = network_readiness_summary_commands(manifest_path)
+    blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
+    blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
+    later_blocker_readiness_commands = blocker_readiness_summary_commands(
+        manifest_path,
+        later_blockers,
+    )
     status = manifest.get("status")
     return json.dumps(
         {
@@ -3317,9 +3324,12 @@ def status_json_text(manifest, manifest_path, check):
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": status_command_fields(manifest_path),
-            "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
-            "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),
-            "blocker_readiness_summary_commands_by_blocker": blocker_readiness_summary_commands(manifest_path, blockers),
+            "network_readiness_summary_commands_by_network": network_readiness_commands,
+            "network_readiness_summary_command_count": len(network_readiness_commands),
+            "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
+            "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
+            "blocker_readiness_summary_commands_by_blocker": blocker_readiness_commands,
+            "blocker_readiness_summary_command_count": len(blocker_readiness_commands),
             "next_action_command": next_action_command(manifest_path),
             "next_commands_by_network": network_next_command_fields(network_progress),
             "next_blocker_commands_by_network": network_next_command_fields(network_progress),
@@ -3371,7 +3381,8 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_field_count": len(next_blocked_fields),
             "later_blockers": later_blockers,
             "later_blocker_count": len(later_blockers),
-            "later_blocker_readiness_summary_commands_by_blocker": blocker_readiness_summary_commands(manifest_path, later_blockers),
+            "later_blocker_readiness_summary_commands_by_blocker": later_blocker_readiness_commands,
+            "later_blocker_readiness_summary_command_count": len(later_blocker_readiness_commands),
             "later_blocker_field_groups": later_blocker_field_groups,
             "later_blocker_field_group_count": len(later_blocker_field_groups),
             "later_blocker_fields": later_blocker_fields,

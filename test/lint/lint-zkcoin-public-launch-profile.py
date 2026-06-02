@@ -1569,6 +1569,12 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose network readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("network_readiness_summary_command_count") != len(
+        status_json.get("network_readiness_summary_commands_by_network", {})
+    ):
+        return "{} --status-json did not count network readiness-summary commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("blocker_type_readiness_summary_commands_by_blocker_type") != {
         "litecoin_snapshot": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "auxpow_chain_id": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -1576,6 +1582,12 @@ def require_public_launch_manifest_current():
         "dns_seeds": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     }:
         return "{} --status-json did not expose blocker-type readiness-summary commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocker_type_readiness_summary_command_count") != len(
+        status_json.get("blocker_type_readiness_summary_commands_by_blocker_type", {})
+    ):
+        return "{} --status-json did not count blocker-type readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("blocker_readiness_summary_commands_by_blocker") != {
@@ -1589,6 +1601,12 @@ def require_public_launch_manifest_current():
         "testnet.dns_seeds": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     }:
         return "{} --status-json did not expose blocker readiness-summary commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocker_readiness_summary_command_count") != len(
+        status_json.get("blocker_readiness_summary_commands_by_blocker", {})
+    ):
+        return "{} --status-json did not count blocker readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("next_action_command") != (
@@ -2094,6 +2112,10 @@ def require_public_launch_manifest_current():
     }
     if status_json.get("later_blocker_readiness_summary_commands_by_blocker") != expected_later_blocker_commands:
         return "{} --status-json did not expose later blocker summary command aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_readiness_summary_command_count") != len(expected_later_blocker_commands):
+        return "{} --status-json did not count later blocker summary command aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_later_blocker_field_groups = blocked_field_groups[1:]
@@ -6989,6 +7011,7 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blockers") != []
             or complete_status.get("later_blocker_count") != 0
             or complete_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
+            or complete_status.get("later_blocker_readiness_summary_command_count") != 0
             or complete_status.get("later_blocker_field_groups") != []
             or complete_status.get("later_blocker_field_group_count") != 0
             or complete_status.get("later_blocker_fields") != []
@@ -7052,6 +7075,24 @@ def require_public_launch_manifest_current():
             )
         if complete_status.get("command_field_count") != len(command_fields):
             return "{} --status-json did not count complete blocked manifest command fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("network_readiness_summary_command_count") != len(
+            complete_status.get("network_readiness_summary_commands_by_network", {})
+        ):
+            return "{} --status-json did not count complete blocked manifest network readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("blocker_type_readiness_summary_command_count") != len(
+            complete_status.get("blocker_type_readiness_summary_commands_by_blocker_type", {})
+        ):
+            return "{} --status-json did not count complete blocked manifest blocker-type readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("blocker_readiness_summary_command_count") != len(
+            complete_status.get("blocker_readiness_summary_commands_by_blocker", {})
+        ):
+            return "{} --status-json did not count complete blocked manifest blocker readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if complete_status.get("ready_for_chainparams") is not False:
@@ -7533,6 +7574,7 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blockers") != []
             or ready_status.get("later_blocker_count") != 0
             or ready_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
+            or ready_status.get("later_blocker_readiness_summary_command_count") != 0
             or ready_status.get("later_blocker_field_groups") != []
             or ready_status.get("later_blocker_field_group_count") != 0
             or ready_status.get("later_blocker_fields") != []
@@ -7745,6 +7787,24 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("command_field_count") != len(command_fields):
             return "{} --status-json did not count ready manifest command fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("network_readiness_summary_command_count") != len(
+            ready_status.get("network_readiness_summary_commands_by_network", {})
+        ):
+            return "{} --status-json did not count ready manifest network readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocker_type_readiness_summary_command_count") != len(
+            ready_status.get("blocker_type_readiness_summary_commands_by_blocker_type", {})
+        ):
+            return "{} --status-json did not count ready manifest blocker-type readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("blocker_readiness_summary_command_count") != len(
+            ready_status.get("blocker_readiness_summary_commands_by_blocker", {})
+        ):
+            return "{} --status-json did not count ready manifest blocker readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -8643,8 +8703,11 @@ def main():
         ("next_blocker_field_counts_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field counts"),
         ("next_blockers_by_network_and_blocker_type", "manifest status JSON includes next blockers by network and blocker type"),
         ("network_readiness_summary_commands_by_network", "manifest status JSON includes network readiness-summary commands"),
+        ("network_readiness_summary_command_count", "manifest status JSON counts network readiness-summary commands"),
         ("blocker_type_readiness_summary_commands_by_blocker_type", "manifest status JSON includes blocker-type readiness-summary commands"),
+        ("blocker_type_readiness_summary_command_count", "manifest status JSON counts blocker-type readiness-summary commands"),
         ("blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes blocker readiness-summary commands"),
+        ("blocker_readiness_summary_command_count", "manifest status JSON counts blocker readiness-summary commands"),
         ("blocker_type_progress", "manifest status JSON includes blocker-type progress entries"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
         ("next_blocker_commands_by_network", "manifest status JSON aliases per-network next blocker commands"),
@@ -8673,6 +8736,7 @@ def main():
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
         ("later_blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes later blocker summary command aliases"),
+        ("later_blocker_readiness_summary_command_count", "manifest status JSON counts later blocker summary command aliases"),
         ("later_blocker_field_groups", "manifest status JSON includes later blocker field group aliases"),
         ("later_blocker_field_group_count", "manifest status JSON counts later blocker field group aliases"),
         ("later_blocker_fields", "manifest status JSON includes later blocker field aliases"),
@@ -9997,12 +10061,24 @@ def main():
             "public launch manifest status-json blocker-type readiness-summary command documentation",
         ),
         (
+            "blocker_type_readiness_summary_command_count",
+            "public launch manifest status-json blocker-type readiness-summary command count documentation",
+        ),
+        (
             "blocker_readiness_summary_commands_by_blocker",
             "public launch manifest status-json blocker readiness-summary command documentation",
         ),
         (
+            "blocker_readiness_summary_command_count",
+            "public launch manifest status-json blocker readiness-summary command count documentation",
+        ),
+        (
             "network_readiness_summary_commands_by_network",
             "public launch manifest status-json network readiness-summary command documentation",
+        ),
+        (
+            "network_readiness_summary_command_count",
+            "public launch manifest status-json network readiness-summary command count documentation",
         ),
         (
             "next_commands_by_network",
@@ -10219,6 +10295,10 @@ def main():
         (
             "later_blocker_readiness_summary_commands_by_blocker",
             "public launch manifest status-json later blocker command documentation",
+        ),
+        (
+            "later_blocker_readiness_summary_command_count",
+            "public launch manifest status-json later blocker command count documentation",
         ),
         (
             "later_blocker_field_groups",
