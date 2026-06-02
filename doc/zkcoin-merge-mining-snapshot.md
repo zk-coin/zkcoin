@@ -173,9 +173,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
   `next_action_field_count`, `next_action_command`, a global `commands` map,
-  and `command_count`; the map groups the same read-only action-plan,
-  next-action, readiness-summary, and status-json entry points, while the count
-  exposes its size directly; the action list aliases mirror the handoff
+  `command_keys`, and `command_count`; the map groups the same read-only
+  action-plan, next-action, readiness-summary, and status-json entry points,
+  the key list exposes the map iteration order, and the count exposes its size
+  directly; the action list aliases mirror the handoff
   queue order, blocker metadata, command maps, and non-null command key/value
   availability; `command_field_order` declares the stable order used by command
   maps, key/value lists, and key/value pairs, while `command_field_count`
