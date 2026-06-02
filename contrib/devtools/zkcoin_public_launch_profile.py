@@ -3327,6 +3327,10 @@ def status_json_text(manifest, manifest_path, check):
             "commands": commands,
             "command_keys": list(commands),
             "command_values": list(commands.values()),
+            "command_pairs": [
+                {"key": command_key, "value": command}
+                for command_key, command in commands.items()
+            ],
             "command_count": len(commands),
             "network_readiness_summary_commands_by_network": network_readiness_commands,
             "network_readiness_summary_command_count": len(network_readiness_commands),
