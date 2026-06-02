@@ -208,12 +208,16 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocker_field_counts_by_blocker_type` mirror the workstream
   field-group and field-gap maps with the same `next_blocker` wording used by
   the human-readable readiness summary.
-  `blocker_type_readiness_summary_commands_by_blocker_type` so dashboards and
-  operators can jump directly to a scoped workstream handoff, plus
-  `blocker_readiness_summary_commands_by_blocker` so dashboards and operators
-  can deep-link directly to exact unresolved blocker handoffs, plus
-  `network_readiness_summary_commands_by_network` so dashboards and operators
-  can jump directly to a scoped mainnet or testnet handoff. `actions_by_network`
+  `blocker_type_readiness_summary_commands_by_blocker_type` and
+  `blocker_type_readiness_summary_command_count` so dashboards and operators
+  can jump directly to a scoped workstream handoff and validate the map size,
+  plus `blocker_readiness_summary_commands_by_blocker` and
+  `blocker_readiness_summary_command_count` so dashboards and operators can
+  deep-link directly to exact unresolved blocker handoffs and validate the map
+  size, plus `network_readiness_summary_commands_by_network` and
+  `network_readiness_summary_command_count` so dashboards and operators can jump
+  directly to a scoped mainnet or testnet handoff and validate the map size.
+  `actions_by_network`
   and `action_counts_by_network` group and count the remaining blocker handoffs
   by public network while non-network chainparams handoffs remain only in the
   global `actions` list. `actions_by_blocker_type` and
@@ -329,7 +333,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
   field gap. `later_blockers`, `later_blocker_count`, and
   `later_blocker_readiness_summary_commands_by_blocker` expose the remaining
-  blocker queue after the current handoff. `later_blocker_field_groups`,
+  blocker queue after the current handoff, while
+  `later_blocker_readiness_summary_command_count` validates the remaining
+  blocker command map size. `later_blocker_field_groups`,
   `later_blocker_field_group_count`, `later_blocker_fields`, and
   `later_blocker_field_count` mirror the later queue's concrete field gaps. The
   object aliases become `null` and the field aliases become empty after the
