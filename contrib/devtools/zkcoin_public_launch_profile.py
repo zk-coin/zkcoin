@@ -3315,6 +3315,7 @@ def status_json_text(manifest, manifest_path, check):
             "readiness_summary_command": readiness_summary_command(manifest_path),
             "status_json_command": status_json_command(manifest_path),
             "command_field_order": list(COMMAND_FIELDS),
+            "command_field_count": len(COMMAND_FIELDS),
             "commands": status_command_fields(manifest_path),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),
