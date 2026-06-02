@@ -726,6 +726,17 @@ def action_command_values(action):
     ]
 
 
+def action_command_pairs(action):
+    command_fields = action_command_fields(action)
+    if command_fields is None:
+        return []
+    return [
+        {"key": command_field, "value": command}
+        for command_field, command in command_fields.items()
+        if command is not None
+    ]
+
+
 def next_actions_by_blocker_type(actions):
     grouped = actions_by_blocker_type(actions)
     return {
@@ -3371,6 +3382,7 @@ def status_json_text(manifest, manifest_path, check):
             "action_command_keys": [action_command_keys(action) for action in actions],
             "action_command_key_counts": [len(action_command_keys(action)) for action in actions],
             "action_command_values": [action_command_values(action) for action in actions],
+            "action_command_pairs": [action_command_pairs(action) for action in actions],
             "later_actions": later_actions,
             "later_action_count": len(later_actions),
             "later_action_ids": [action["id"] for action in later_actions],
@@ -3384,6 +3396,7 @@ def status_json_text(manifest, manifest_path, check):
             "later_command_keys": [action_command_keys(action) for action in later_actions],
             "later_command_key_counts": [len(action_command_keys(action)) for action in later_actions],
             "later_command_values": [action_command_values(action) for action in later_actions],
+            "later_command_pairs": [action_command_pairs(action) for action in later_actions],
             "actions_by_network": actions_by_network(actions),
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
@@ -3408,6 +3421,7 @@ def status_json_text(manifest, manifest_path, check):
             "next_command_keys": action_command_keys(next_action),
             "next_command_key_count": len(action_command_keys(next_action)),
             "next_command_values": action_command_values(next_action),
+            "next_command_pairs": action_command_pairs(next_action),
             "actions": actions,
         },
         indent=2,
