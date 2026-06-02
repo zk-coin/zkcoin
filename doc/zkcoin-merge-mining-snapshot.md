@@ -330,7 +330,12 @@ Both are intentionally present before behavior changes so tests and review can t
   guidance for each unresolved blocker and the first unresolved blocker. The
   top-level `next_blocker_field_group`, `next_blocker`,
   `next_blocker_network`, `next_blocker_type`, and `next_blocker_commands`
-  aliases expose the same current blocker handoff directly, while
+  aliases expose the same current blocker handoff directly. The
+  `next_blocker_command_keys`, `next_blocker_command_key_count`,
+  `next_blocker_command_values`, `next_blocker_command_value_count`,
+  `next_blocker_command_pairs`, and `next_blocker_command_pair_count` aliases
+  expose the current blocker command fields as ordered dispatch lists and
+  lengths.
   `next_blocker_step`, `next_blocker_network_step`,
   `next_blocker_network_step_count`, `next_blocker_type_step`, and
   `next_blocker_type_step_count` mirror its global, network, and workstream
