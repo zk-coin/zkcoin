@@ -689,18 +689,24 @@ def ready_blocker_types(blocker_type_progress):
     ]
 
 
+COMMAND_FIELDS = (
+    "template_command",
+    "check_command",
+    "apply_command",
+    "readiness_summary_command",
+    "network_readiness_summary_command",
+    "blocker_type_readiness_summary_command",
+    "blocker_readiness_summary_command",
+    "command",
+)
+
+
 def action_command_fields(action):
     if action is None:
         return None
     return {
-        "template_command": action.get("template_command"),
-        "check_command": action.get("check_command"),
-        "apply_command": action.get("apply_command"),
-        "readiness_summary_command": action.get("readiness_summary_command"),
-        "network_readiness_summary_command": action.get("network_readiness_summary_command"),
-        "blocker_type_readiness_summary_command": action.get("blocker_type_readiness_summary_command"),
-        "blocker_readiness_summary_command": action.get("blocker_readiness_summary_command"),
-        "command": action.get("command"),
+        command_field: action.get(command_field)
+        for command_field in COMMAND_FIELDS
     }
 
 
@@ -3308,6 +3314,7 @@ def status_json_text(manifest, manifest_path, check):
             "action_plan_command": action_plan_command(manifest_path),
             "readiness_summary_command": readiness_summary_command(manifest_path),
             "status_json_command": status_json_command(manifest_path),
+            "command_field_order": list(COMMAND_FIELDS),
             "commands": status_command_fields(manifest_path),
             "network_readiness_summary_commands_by_network": network_readiness_summary_commands(manifest_path),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_summary_commands(manifest_path),

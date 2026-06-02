@@ -166,16 +166,17 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_steps`, `action_networks`, `action_blocker_types`,
   `action_field_counts`, `action_commands`, `action_command_count`,
   `action_command_keys`, `action_command_key_counts`, `action_command_values`,
-  `action_command_pairs`, `action_plan_command`, `readiness_summary_command`,
-  `status_json_command`, `next_action`, `next_action_id`,
+  `action_command_pairs`, `command_field_order`, `action_plan_command`,
+  `readiness_summary_command`, `status_json_command`, `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
   `next_action_field_count`, `next_action_command`, and a global `commands` map
   that groups the same read-only action-plan, next-action, readiness-summary,
   and status-json entry points; the action list aliases mirror the handoff
   queue order, blocker metadata, command maps, and non-null command key/value
-  availability, and the next-action aliases mirror the current handoff routing
-  fields without forcing clients to dereference
+  availability; `command_field_order` declares the stable order used by command
+  maps, key/value lists, and key/value pairs; and the next-action aliases mirror
+  the current handoff routing fields without forcing clients to dereference
   `actions` or `next_action`; it also exposes
   `unresolved_blockers_by_network`, `unresolved_blocker_counts_by_network`,
   `blocked_fields_by_network`, and `blocked_field_counts_by_network` so

@@ -1871,7 +1871,8 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not align later actions with later blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
-    command_fields = (
+    command_fields = tuple(status_json.get("command_field_order", []))
+    if command_fields != (
         "template_command",
         "check_command",
         "apply_command",
@@ -1880,7 +1881,10 @@ def require_public_launch_manifest_current():
         "blocker_type_readiness_summary_command",
         "blocker_readiness_summary_command",
         "command",
-    )
+    ):
+        return "{} --status-json did not expose the command field order".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_action_commands = [
         {command_field: action.get(command_field) for command_field in command_fields}
         for action in actions
@@ -6960,6 +6964,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count the complete-manifest next command keys".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if tuple(complete_status.get("command_field_order", [])) != command_fields:
+            return "{} --status-json did not expose complete blocked manifest command field order".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("ready_for_chainparams") is not False:
             return "{} --status-json treated complete blocked manifest as ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7625,6 +7633,10 @@ def require_public_launch_manifest_current():
             {"key": "command", "value": ready_status.get("next_commands", {}).get("command")}
         ]:
             return "{} --status-json did not expose ready-manifest next command pairs".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if tuple(ready_status.get("command_field_order", [])) != command_fields:
+            return "{} --status-json did not expose ready manifest command field order".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -8383,6 +8395,7 @@ def main():
         ("earlier blocker readiness summary commands", "manifest prints earlier blocker summary commands for blocker readiness summaries"),
         ("later blocker readiness summary commands", "manifest prints later blocker summary commands for readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
+        ("COMMAND_FIELDS", "manifest centralizes command field order"),
         ("action_command_fields", "manifest builds current action command aliases"),
         ("action_command_keys", "manifest builds current action command key aliases"),
         ("action_command_values", "manifest builds current action command value aliases"),
@@ -8413,6 +8426,7 @@ def main():
         ("action_command_key_counts", "manifest status JSON counts action command key aliases"),
         ("action_command_values", "manifest status JSON includes action command value aliases"),
         ("action_command_pairs", "manifest status JSON includes action command pair aliases"),
+        ("command_field_order", "manifest status JSON exposes command field order"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
         ("later_action_ids", "manifest status JSON includes later action id aliases"),
@@ -9542,6 +9556,10 @@ def main():
         (
             "action_command_pairs",
             "public launch manifest status-json action command pair documentation",
+        ),
+        (
+            "command_field_order",
+            "public launch manifest status-json command field order documentation",
         ),
         (
             "actions_by_network",
