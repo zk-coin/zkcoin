@@ -358,8 +358,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_readiness_summary_command_count` expose and count the
   remaining blocker summary command map. `later_blocker_field_groups`,
   `later_blocker_field_group_count`, `later_blocker_field_counts`,
-  `later_blocker_fields`, and `later_blocker_field_count` mirror and count the
-  later queue's concrete field gaps. The
+  `later_blocker_fields_by_blocker`,
+  `later_blocker_field_counts_by_blocker`, `later_blocker_fields`, and
+  `later_blocker_field_count` mirror and count the later queue's concrete field
+  gaps. The
   object aliases become `null` and the field aliases become empty after the
   blocker queue is clear, even if `next_action` points at the final chainparams
   handoff. Blocker
