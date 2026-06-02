@@ -3272,6 +3272,11 @@ def status_json_text(manifest, manifest_path, check):
     next_blocker_command_pairs = action_command_pairs(next_blocked_field_group)
     later_blockers = blockers[1:] if blockers else []
     later_blocker_field_groups = blocked_field_groups[1:] if blocked_field_groups else []
+    later_blocker_steps = [group.get("step") for group in later_blocker_field_groups]
+    later_blocker_network_steps = [group.get("network_step") for group in later_blocker_field_groups]
+    later_blocker_network_step_counts = [group.get("network_step_count") for group in later_blocker_field_groups]
+    later_blocker_type_steps = [group.get("blocker_type_step") for group in later_blocker_field_groups]
+    later_blocker_type_step_counts = [group.get("blocker_type_step_count") for group in later_blocker_field_groups]
     later_blocker_networks = [group.get("network") for group in later_blocker_field_groups]
     later_blocker_types = [group.get("blocker_type") for group in later_blocker_field_groups]
     later_blocker_commands = [action_command_fields(group) for group in later_blocker_field_groups]
@@ -3413,6 +3418,11 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_field_count": len(next_blocked_fields),
             "later_blockers": later_blockers,
             "later_blocker_count": len(later_blockers),
+            "later_blocker_steps": later_blocker_steps,
+            "later_blocker_network_steps": later_blocker_network_steps,
+            "later_blocker_network_step_counts": later_blocker_network_step_counts,
+            "later_blocker_type_steps": later_blocker_type_steps,
+            "later_blocker_type_step_counts": later_blocker_type_step_counts,
             "later_blocker_networks": later_blocker_networks,
             "later_blocker_types": later_blocker_types,
             "later_blocker_commands": later_blocker_commands,
