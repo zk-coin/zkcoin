@@ -1885,6 +1885,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose the command field order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("command_field_count") != len(command_fields):
+        return "{} --status-json did not count command fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_action_commands = [
         {command_field: action.get(command_field) for command_field in command_fields}
         for action in actions
@@ -6968,6 +6972,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose complete blocked manifest command field order".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("command_field_count") != len(command_fields):
+            return "{} --status-json did not count complete blocked manifest command fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("ready_for_chainparams") is not False:
             return "{} --status-json treated complete blocked manifest as ready".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7637,6 +7645,10 @@ def require_public_launch_manifest_current():
             )
         if tuple(ready_status.get("command_field_order", [])) != command_fields:
             return "{} --status-json did not expose ready manifest command field order".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("command_field_count") != len(command_fields):
+            return "{} --status-json did not count ready manifest command fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -8427,6 +8439,7 @@ def main():
         ("action_command_values", "manifest status JSON includes action command value aliases"),
         ("action_command_pairs", "manifest status JSON includes action command pair aliases"),
         ("command_field_order", "manifest status JSON exposes command field order"),
+        ("command_field_count", "manifest status JSON counts command fields"),
         ("later_actions", "manifest status JSON includes later action aliases"),
         ("later_action_count", "manifest status JSON counts later action aliases"),
         ("later_action_ids", "manifest status JSON includes later action id aliases"),
@@ -9560,6 +9573,10 @@ def main():
         (
             "command_field_order",
             "public launch manifest status-json command field order documentation",
+        ),
+        (
+            "command_field_count",
+            "public launch manifest status-json command field count documentation",
         ),
         (
             "actions_by_network",
