@@ -1566,6 +1566,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose command map keys".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("command_values") != list(status_json.get("commands", {}).values()):
+        return "{} --status-json did not expose command map values".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("command_count") != len(status_json.get("commands", {})):
         return "{} --status-json did not count the command map".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7093,6 +7097,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose complete blocked manifest command keys".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("command_values") != list(complete_status.get("commands", {}).values()):
+            return "{} --status-json did not expose complete blocked manifest command values".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("network_readiness_summary_command_count") != len(
             complete_status.get("network_readiness_summary_commands_by_network", {})
         ):
@@ -7811,6 +7819,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("command_keys") != list(ready_status.get("commands", {})):
             return "{} --status-json did not expose ready manifest command keys".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("command_values") != list(ready_status.get("commands", {}).values()):
+            return "{} --status-json did not expose ready manifest command values".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("network_readiness_summary_command_count") != len(
@@ -8661,6 +8673,7 @@ def main():
         ("status_json_command", "manifest status JSON includes a copyable status-json command"),
         ("status_command_fields(manifest_path)", "manifest status JSON includes a copyable command map"),
         ("\"command_keys\": list(commands)", "manifest status JSON includes copyable command map keys"),
+        ("\"command_values\": list(commands.values())", "manifest status JSON includes copyable command map values"),
         ("command_count", "manifest status JSON counts copyable commands"),
         ("next_action", "manifest status JSON includes the current handoff action"),
         ("next_action_id", "manifest status JSON includes current next action id alias"),
@@ -9753,6 +9766,10 @@ def main():
         (
             "the key list exposes the map iteration order",
             "public launch manifest status-json command map key documentation",
+        ),
+        (
+            "ordered command strings",
+            "public launch manifest status-json command map value documentation",
         ),
         (
             "action_command_keys",
