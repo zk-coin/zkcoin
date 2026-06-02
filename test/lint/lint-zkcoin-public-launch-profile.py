@@ -2142,6 +2142,39 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_later_blocker_field_groups = blocked_field_groups[1:]
+    expected_later_blocker_steps = [group.get("step") for group in expected_later_blocker_field_groups]
+    if status_json.get("later_blocker_steps") != expected_later_blocker_steps:
+        return "{} --status-json did not expose later blocker step aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_network_steps = [
+        group.get("network_step") for group in expected_later_blocker_field_groups
+    ]
+    if status_json.get("later_blocker_network_steps") != expected_later_blocker_network_steps:
+        return "{} --status-json did not expose later blocker network step aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_network_step_counts = [
+        group.get("network_step_count") for group in expected_later_blocker_field_groups
+    ]
+    if status_json.get("later_blocker_network_step_counts") != expected_later_blocker_network_step_counts:
+        return "{} --status-json did not expose later blocker network step count aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_type_steps = [
+        group.get("blocker_type_step") for group in expected_later_blocker_field_groups
+    ]
+    if status_json.get("later_blocker_type_steps") != expected_later_blocker_type_steps:
+        return "{} --status-json did not expose later blocker type step aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_type_step_counts = [
+        group.get("blocker_type_step_count") for group in expected_later_blocker_field_groups
+    ]
+    if status_json.get("later_blocker_type_step_counts") != expected_later_blocker_type_step_counts:
+        return "{} --status-json did not expose later blocker type step count aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_networks = [group.get("network") for group in expected_later_blocker_field_groups]
     if status_json.get("later_blocker_networks") != expected_later_blocker_networks:
         return "{} --status-json did not expose later blocker network aliases".format(
@@ -7160,6 +7193,11 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_field_count") != 0
             or complete_status.get("later_blockers") != []
             or complete_status.get("later_blocker_count") != 0
+            or complete_status.get("later_blocker_steps") != []
+            or complete_status.get("later_blocker_network_steps") != []
+            or complete_status.get("later_blocker_network_step_counts") != []
+            or complete_status.get("later_blocker_type_steps") != []
+            or complete_status.get("later_blocker_type_step_counts") != []
             or complete_status.get("later_blocker_networks") != []
             or complete_status.get("later_blocker_types") != []
             or complete_status.get("later_blocker_commands") != []
@@ -7771,6 +7809,11 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_field_count") != 0
             or ready_status.get("later_blockers") != []
             or ready_status.get("later_blocker_count") != 0
+            or ready_status.get("later_blocker_steps") != []
+            or ready_status.get("later_blocker_network_steps") != []
+            or ready_status.get("later_blocker_network_step_counts") != []
+            or ready_status.get("later_blocker_type_steps") != []
+            or ready_status.get("later_blocker_type_step_counts") != []
             or ready_status.get("later_blocker_networks") != []
             or ready_status.get("later_blocker_types") != []
             or ready_status.get("later_blocker_commands") != []
@@ -8989,6 +9032,11 @@ def main():
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
+        ("later_blocker_steps", "manifest status JSON includes later blocker global order aliases"),
+        ("later_blocker_network_steps", "manifest status JSON includes later blocker network order aliases"),
+        ("later_blocker_network_step_counts", "manifest status JSON includes later blocker network count aliases"),
+        ("later_blocker_type_steps", "manifest status JSON includes later blocker type order aliases"),
+        ("later_blocker_type_step_counts", "manifest status JSON includes later blocker type count aliases"),
         ("later_blocker_networks", "manifest status JSON includes later blocker network aliases"),
         ("later_blocker_types", "manifest status JSON includes later blocker type aliases"),
         ("later_blocker_commands", "manifest status JSON includes later blocker command aliases"),
@@ -10603,6 +10651,26 @@ def main():
         (
             "later_blocker_count",
             "public launch manifest status-json later blocker count documentation",
+        ),
+        (
+            "later_blocker_steps",
+            "public launch manifest status-json later blocker global order documentation",
+        ),
+        (
+            "later_blocker_network_steps",
+            "public launch manifest status-json later blocker network order documentation",
+        ),
+        (
+            "later_blocker_network_step_counts",
+            "public launch manifest status-json later blocker network count documentation",
+        ),
+        (
+            "later_blocker_type_steps",
+            "public launch manifest status-json later blocker type order documentation",
+        ),
+        (
+            "later_blocker_type_step_counts",
+            "public launch manifest status-json later blocker type count documentation",
         ),
         (
             "later_blocker_networks",

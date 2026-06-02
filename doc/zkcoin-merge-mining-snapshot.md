@@ -343,10 +343,12 @@ Both are intentionally present before behavior changes so tests and review can t
   queue position without requiring clients to dereference the field group.
   `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
   field gap. `later_blockers`, `later_blocker_count`,
-  `later_blocker_networks`, `later_blocker_types`, and
-  `later_blocker_commands` expose the remaining blocker queue, its network and
-  workstream scopes, and copyable blocker commands after the current handoff,
-  while
+  `later_blocker_steps`, `later_blocker_network_steps`,
+  `later_blocker_network_step_counts`, `later_blocker_type_steps`,
+  `later_blocker_type_step_counts`, `later_blocker_networks`,
+  `later_blocker_types`, and `later_blocker_commands` expose the remaining
+  blocker queue, its queue positions, network and workstream scopes, and
+  copyable blocker commands after the current handoff, while
   `later_blocker_command_count`, `later_blocker_command_keys`,
   `later_blocker_command_key_counts`, `later_blocker_command_values`,
   `later_blocker_command_value_counts`, `later_blocker_command_pairs`, and
