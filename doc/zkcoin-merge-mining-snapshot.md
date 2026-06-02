@@ -345,8 +345,12 @@ Both are intentionally present before behavior changes so tests and review can t
   field gap. `later_blockers`, `later_blocker_count`, and
   `later_blocker_commands` expose the remaining blocker queue and copyable
   blocker commands after the current handoff, while
-  `later_blocker_command_count` validates the remaining blocker command list
-  size. `later_blocker_readiness_summary_commands_by_blocker` and
+  `later_blocker_command_count`, `later_blocker_command_keys`,
+  `later_blocker_command_key_counts`, `later_blocker_command_values`,
+  `later_blocker_command_value_counts`, `later_blocker_command_pairs`, and
+  `later_blocker_command_pair_counts` expose and count compact command
+  dispatch lists for that remaining blocker queue.
+  `later_blocker_readiness_summary_commands_by_blocker` and
   `later_blocker_readiness_summary_command_count` expose and count the
   remaining blocker summary command map. `later_blocker_field_groups`,
   `later_blocker_field_group_count`, `later_blocker_fields`, and
