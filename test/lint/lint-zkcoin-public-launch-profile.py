@@ -1961,6 +1961,12 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose action command value aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("action_command_value_counts") != [
+        len(command_values) for command_values in expected_action_command_values
+    ]:
+        return "{} --status-json did not count action command value aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_command_values = [
         [
             action.get(command_field)
@@ -1971,6 +1977,12 @@ def require_public_launch_manifest_current():
     ]
     if status_json.get("later_command_values") != expected_later_command_values:
         return "{} --status-json did not expose later command value aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_command_value_counts") != [
+        len(command_values) for command_values in expected_later_command_values
+    ]:
+        return "{} --status-json did not count later command value aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_action_command_pairs = [
@@ -2320,6 +2332,19 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_command_key_count") != len(expected_next_command_keys):
         return "{} --status-json did not count current next command key aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_command_values = [
+        actions[0].get(command_field)
+        for command_field in command_fields
+        if actions[0].get(command_field) is not None
+    ]
+    if status_json.get("next_command_values") != expected_next_command_values:
+        return "{} --status-json did not expose current next command value aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_command_value_count") != len(expected_next_command_values):
+        return "{} --status-json did not count current next command value aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in status_json.get("next", {}).get("action", ""):
@@ -6622,6 +6647,7 @@ def require_public_launch_manifest_current():
             or complete_status.get("action_command_values") != [
                 [complete_status.get("action_commands", [{}])[0].get("command")]
             ]
+            or complete_status.get("action_command_value_counts") != [1]
             or complete_status.get("action_command_pairs") != [
                 [
                     {
@@ -6663,6 +6689,10 @@ def require_public_launch_manifest_current():
             )
         if complete_status.get("later_command_values") != []:
             return "{} --status-json reported later command values for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("later_command_value_counts") != []:
+            return "{} --status-json reported later command value counts for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if complete_status.get("later_command_pairs") != []:
@@ -6966,6 +6996,14 @@ def require_public_launch_manifest_current():
             )
         if complete_status.get("next_command_key_count") != 1:
             return "{} --status-json did not count the complete-manifest next command keys".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_command_values") != [complete_status.get("next_commands", {}).get("command")]:
+            return "{} --status-json did not expose the complete-manifest next command values".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_command_value_count") != 1:
+            return "{} --status-json did not count the complete-manifest next command values".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if tuple(complete_status.get("command_field_order", [])) != command_fields:
@@ -7486,6 +7524,7 @@ def require_public_launch_manifest_current():
                 [command.get("command")]
                 for command in ready_expected_action_commands
             ]
+            or ready_status.get("action_command_value_counts") != [1, 1]
             or ready_status.get("action_command_pairs") != [
                 [{"key": "command", "value": command.get("command")}]
                 for command in ready_expected_action_commands
@@ -7600,6 +7639,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not expose ready-manifest later command values".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("later_command_value_counts") != [1]:
+            return "{} --status-json did not count ready-manifest later command values".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("later_command_pairs") != [
             [{"key": "command", "value": ready_status.get("later_commands", [{}])[0].get("command")}]
         ]:
@@ -7635,6 +7678,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_command_values") != [ready_status.get("next_commands", {}).get("command")]:
             return "{} --status-json did not expose ready-manifest next command values".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_command_value_count") != 1:
+            return "{} --status-json did not count ready-manifest next command values".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_command_pairs") != [
@@ -8437,6 +8484,7 @@ def main():
         ("action_command_keys", "manifest status JSON includes action command key aliases"),
         ("action_command_key_counts", "manifest status JSON counts action command key aliases"),
         ("action_command_values", "manifest status JSON includes action command value aliases"),
+        ("action_command_value_counts", "manifest status JSON counts action command value aliases"),
         ("action_command_pairs", "manifest status JSON includes action command pair aliases"),
         ("command_field_order", "manifest status JSON exposes command field order"),
         ("command_field_count", "manifest status JSON counts command fields"),
@@ -8453,6 +8501,7 @@ def main():
         ("later_command_keys", "manifest status JSON includes later command key aliases"),
         ("later_command_key_counts", "manifest status JSON counts later command key aliases"),
         ("later_command_values", "manifest status JSON includes later command value aliases"),
+        ("later_command_value_counts", "manifest status JSON counts later command value aliases"),
         ("later_command_pairs", "manifest status JSON includes later command pair aliases"),
         ("actions_by_network", "manifest status JSON groups actions by network"),
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
@@ -8487,6 +8536,7 @@ def main():
         ("next_commands", "manifest status JSON includes current handoff commands"),
         ("next_command_keys", "manifest status JSON includes current handoff command keys"),
         ("next_command_key_count", "manifest status JSON counts current handoff command keys"),
+        ("next_command_value_count", "manifest status JSON counts current handoff command values"),
         ("network_next_command_fields", "manifest status JSON includes network-scoped current handoff commands"),
         ("network_next_blocked_field_groups", "manifest status JSON includes network-scoped next blocked field groups"),
         ("network_next_blocked_fields", "manifest status JSON includes network-scoped next blocked fields"),
@@ -9567,6 +9617,10 @@ def main():
             "public launch manifest status-json action command value documentation",
         ),
         (
+            "action_command_value_counts",
+            "public launch manifest status-json action command value count documentation",
+        ),
+        (
             "action_command_pairs",
             "public launch manifest status-json action command pair documentation",
         ),
@@ -9691,6 +9745,10 @@ def main():
             "public launch manifest status-json next command value documentation",
         ),
         (
+            "next_command_value_count",
+            "public launch manifest status-json next command value count documentation",
+        ),
+        (
             "next_command_pairs",
             "public launch manifest status-json next command pair documentation",
         ),
@@ -9741,6 +9799,10 @@ def main():
         (
             "later_command_values",
             "public launch manifest status-json later command value documentation",
+        ),
+        (
+            "later_command_value_counts",
+            "public launch manifest status-json later command value count documentation",
         ),
         (
             "later_command_pairs",

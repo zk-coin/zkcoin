@@ -166,9 +166,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_steps`, `action_networks`, `action_blocker_types`,
   `action_field_counts`, `action_commands`, `action_command_count`,
   `action_command_keys`, `action_command_key_counts`, `action_command_values`,
-  `action_command_pairs`, `command_field_order`, `command_field_count`,
-  `action_plan_command`, `readiness_summary_command`, `status_json_command`,
-  `next_action`, `next_action_id`,
+  `action_command_value_counts`, `action_command_pairs`,
+  `command_field_order`, `command_field_count`, `action_plan_command`,
+  `readiness_summary_command`, `status_json_command`, `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
   `next_action_field_count`, `next_action_command`, and a global `commands` map
@@ -223,9 +223,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_action_blocker_types`, and `later_action_field_counts` expose the
   remaining global handoff queue after the current `next_action`;
   `later_commands`, `later_command_count`, `later_command_keys`,
-  `later_command_key_counts`, `later_command_values`, and
-  `later_command_pairs` mirror the same queue as ordered command maps, compact
-  non-null command values, and explicit key/value pairs.
+  `later_command_key_counts`, `later_command_values`,
+  `later_command_value_counts`, and `later_command_pairs` mirror the same queue
+  as ordered command maps, compact non-null command values, their counts, and
+  explicit key/value pairs.
   Each blocker action entry includes the global `step` plus `network_step`,
   `network_step_count`, `blocker_type_step`, and `blocker_type_step_count` so
   dashboards can show the same network/workstream queue positions as the exact
@@ -344,8 +345,9 @@ Both are intentionally present before behavior changes so tests and review can t
   handoff and post-apply readiness check without parsing the full action entry;
   `next_command_keys` lists the non-null command fields in the same order,
   `next_command_values` lists the matching non-null command strings,
+  `next_command_value_count` exposes the value list length directly,
   `next_command_pairs` lists the same key/value pairs directly, and
-  `next_command_key_count` exposes the list length directly; blocked field groups carry the same split command fields.
+  `next_command_key_count` exposes the key list length directly; blocked field groups carry the same split command fields.
   `template_command` is `null` for blocker types that only need check/apply
   commands, so automation does not need to parse blocker ids, blocked field paths,
   or human-readable action prose;
