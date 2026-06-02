@@ -3297,6 +3297,8 @@ def status_json_text(manifest, manifest_path, check):
         for group in later_blocker_field_groups
         for field in group["fields"]
     ]
+    later_blocker_fields_by_network = items_by_network(later_blocker_fields)
+    later_blocker_field_counts_by_network = item_counts_by_network(later_blocker_fields)
     network_readiness_commands = network_readiness_summary_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
@@ -3449,6 +3451,8 @@ def status_json_text(manifest, manifest_path, check):
             "later_blocker_field_counts": later_blocker_field_counts,
             "later_blocker_fields_by_blocker": later_blocker_fields_by_blocker,
             "later_blocker_field_counts_by_blocker": later_blocker_field_counts_by_blocker,
+            "later_blocker_fields_by_network": later_blocker_fields_by_network,
+            "later_blocker_field_counts_by_network": later_blocker_field_counts_by_network,
             "later_blocker_fields": later_blocker_fields,
             "later_blocker_field_count": len(later_blocker_fields),
             "next_blocked_fields": next_blocked_fields,

@@ -2299,6 +2299,26 @@ def require_public_launch_manifest_current():
         for group in expected_later_blocker_field_groups
         for field in group.get("fields", [])
     ]
+    expected_later_blocker_fields_by_network = {
+        network: [
+            field
+            for field in expected_later_blocker_fields
+            if field.startswith("{}.".format(network))
+        ]
+        for network in ("main", "testnet")
+    }
+    if status_json.get("later_blocker_fields_by_network") != expected_later_blocker_fields_by_network:
+        return "{} --status-json did not expose later blocker fields by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_field_counts_by_network = {
+        network: len(fields)
+        for network, fields in expected_later_blocker_fields_by_network.items()
+    }
+    if status_json.get("later_blocker_field_counts_by_network") != expected_later_blocker_field_counts_by_network:
+        return "{} --status-json did not count later blocker fields by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("later_blocker_fields") != expected_later_blocker_fields:
         return "{} --status-json did not expose later blocker field aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7238,6 +7258,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_field_counts") != []
             or complete_status.get("later_blocker_fields_by_blocker") != {}
             or complete_status.get("later_blocker_field_counts_by_blocker") != {}
+            or complete_status.get("later_blocker_fields_by_network") != {"main": [], "testnet": []}
+            or complete_status.get("later_blocker_field_counts_by_network") != {"main": 0, "testnet": 0}
             or complete_status.get("later_blocker_fields") != []
             or complete_status.get("later_blocker_field_count") != 0
         ):
@@ -7857,6 +7879,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_field_counts") != []
             or ready_status.get("later_blocker_fields_by_blocker") != {}
             or ready_status.get("later_blocker_field_counts_by_blocker") != {}
+            or ready_status.get("later_blocker_fields_by_network") != {"main": [], "testnet": []}
+            or ready_status.get("later_blocker_field_counts_by_network") != {"main": 0, "testnet": 0}
             or ready_status.get("later_blocker_fields") != []
             or ready_status.get("later_blocker_field_count") != 0
         ):
@@ -9083,6 +9107,8 @@ def main():
         ("later_blocker_field_counts", "manifest status JSON includes later blocker field count aliases"),
         ("later_blocker_fields_by_blocker", "manifest status JSON includes later blocker fields by blocker"),
         ("later_blocker_field_counts_by_blocker", "manifest status JSON counts later blocker fields by blocker"),
+        ("later_blocker_fields_by_network", "manifest status JSON includes later blocker fields by network"),
+        ("later_blocker_field_counts_by_network", "manifest status JSON counts later blocker fields by network"),
         ("later_blocker_fields", "manifest status JSON includes later blocker field aliases"),
         ("later_blocker_field_count", "manifest status JSON counts later blocker field aliases"),
         ("next_blocked_field_count", "manifest status JSON includes a next blocked field count"),
@@ -10771,6 +10797,14 @@ def main():
         (
             "later_blocker_field_counts_by_blocker",
             "public launch manifest status-json later blocker field counts by blocker documentation",
+        ),
+        (
+            "later_blocker_fields_by_network",
+            "public launch manifest status-json later blocker fields by network documentation",
+        ),
+        (
+            "later_blocker_field_counts_by_network",
+            "public launch manifest status-json later blocker field counts by network documentation",
         ),
         (
             "later_blocker_fields",
