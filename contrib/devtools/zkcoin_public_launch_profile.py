@@ -3280,6 +3280,12 @@ def status_json_text(manifest, manifest_path, check):
         later_blockers,
     )
     commands = status_command_fields(manifest_path)
+    command_keys = list(commands)
+    command_values = list(commands.values())
+    command_pairs = [
+        {"key": command_key, "value": command}
+        for command_key, command in commands.items()
+    ]
     status = manifest.get("status")
     return json.dumps(
         {
@@ -3325,12 +3331,12 @@ def status_json_text(manifest, manifest_path, check):
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
-            "command_keys": list(commands),
-            "command_values": list(commands.values()),
-            "command_pairs": [
-                {"key": command_key, "value": command}
-                for command_key, command in commands.items()
-            ],
+            "command_keys": command_keys,
+            "command_key_count": len(command_keys),
+            "command_values": command_values,
+            "command_value_count": len(command_values),
+            "command_pairs": command_pairs,
+            "command_pair_count": len(command_pairs),
             "command_count": len(commands),
             "network_readiness_summary_commands_by_network": network_readiness_commands,
             "network_readiness_summary_command_count": len(network_readiness_commands),
