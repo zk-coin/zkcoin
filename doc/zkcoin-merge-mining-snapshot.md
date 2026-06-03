@@ -345,10 +345,11 @@ Both are intentionally present before behavior changes so tests and review can t
   field gap. `later_blockers`, `later_blocker_count`,
   `later_blocker_steps`, `later_blocker_network_steps`,
   `later_blocker_network_step_counts`, `later_blocker_type_steps`,
-  `later_blocker_type_step_counts`, `later_blocker_networks`,
-  `later_blocker_types`, and `later_blocker_commands` expose the remaining
-  blocker queue, its queue positions, network and workstream scopes, and
-  copyable blocker commands after the current handoff, while
+  `later_blocker_type_step_counts`, `later_blockers_by_network`,
+  `later_blocker_counts_by_network`, `later_blocker_networks`,
+  `later_blocker_types`, and `later_blocker_commands` expose and count the
+  remaining blocker queue, its queue positions, network and workstream scopes,
+  and copyable blocker commands after the current handoff, while
   `later_blocker_command_count`, `later_blocker_command_keys`,
   `later_blocker_command_key_counts`, `later_blocker_command_values`,
   `later_blocker_command_value_counts`, `later_blocker_command_pairs`, and
