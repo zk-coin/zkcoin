@@ -3265,6 +3265,15 @@ def status_json_text(manifest, manifest_path, check):
     next_blocker_network_step_count = next_blocked_field_group["network_step_count"] if next_blocked_field_group else None
     next_blocker_type_step = next_blocked_field_group["blocker_type_step"] if next_blocked_field_group else None
     next_blocker_type_step_count = next_blocked_field_group["blocker_type_step_count"] if next_blocked_field_group else None
+    next_blocker_field_groups_by_blocker = (
+        {next_blocker: next_blocked_field_group}
+        if next_blocker
+        else {}
+    )
+    next_blocker_field_group_counts_by_blocker = {
+        blocker: 1
+        for blocker in next_blocker_field_groups_by_blocker
+    }
     next_blocker_commands = action_command_fields(next_blocked_field_group)
     next_blocker_command_count = len(next_blocker_commands) if next_blocker_commands is not None else 0
     next_blocker_command_keys = action_command_keys(next_blocked_field_group)
@@ -3459,6 +3468,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_group_counts_by_network_and_blocker_type": blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
             "next_blocker_field_group": next_blocked_field_group,
+            "next_blocker_field_groups_by_blocker": next_blocker_field_groups_by_blocker,
+            "next_blocker_field_group_counts_by_blocker": next_blocker_field_group_counts_by_blocker,
             "next_blocker": next_blocker,
             "next_blocker_network": next_blocker_network,
             "next_blocker_type": next_blocker_type,

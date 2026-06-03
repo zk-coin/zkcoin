@@ -2094,6 +2094,21 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not alias the current blocker field group".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_next_blocker_field_groups_by_blocker = {
+        status_json.get("next_blocker"): status_json.get("next_blocker_field_group")
+    }
+    if status_json.get("next_blocker_field_groups_by_blocker") != expected_next_blocker_field_groups_by_blocker:
+        return "{} --status-json did not expose current blocker field groups by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_blocker_field_group_counts_by_blocker = {
+        blocker: 1
+        for blocker in expected_next_blocker_field_groups_by_blocker
+    }
+    if status_json.get("next_blocker_field_group_counts_by_blocker") != expected_next_blocker_field_group_counts_by_blocker:
+        return "{} --status-json did not count current blocker field groups by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocker") != "main.litecoin_snapshot":
         return "{} --status-json did not expose the current blocker id".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7458,6 +7473,8 @@ def require_public_launch_manifest_current():
             )
         if (
             complete_status.get("next_blocker_field_group") is not None
+            or complete_status.get("next_blocker_field_groups_by_blocker") != {}
+            or complete_status.get("next_blocker_field_group_counts_by_blocker") != {}
             or complete_status.get("next_blocker") is not None
             or complete_status.get("next_blocker_network") is not None
             or complete_status.get("next_blocker_type") is not None
@@ -8103,6 +8120,8 @@ def require_public_launch_manifest_current():
             )
         if (
             ready_status.get("next_blocker_field_group") is not None
+            or ready_status.get("next_blocker_field_groups_by_blocker") != {}
+            or ready_status.get("next_blocker_field_group_counts_by_blocker") != {}
             or ready_status.get("next_blocker") is not None
             or ready_status.get("next_blocker_network") is not None
             or ready_status.get("next_blocker_type") is not None
@@ -9364,6 +9383,8 @@ def main():
         ("blocker_type", "manifest status JSON includes blocked field group blocker type"),
         ("next_blocked_field_group", "manifest status JSON includes current blocked field group"),
         ("next_blocker_field_group", "manifest status JSON aliases current blocker field group"),
+        ("next_blocker_field_groups_by_blocker", "manifest status JSON includes current blocker field groups by blocker"),
+        ("next_blocker_field_group_counts_by_blocker", "manifest status JSON counts current blocker field groups by blocker"),
         ("next_blocker", "manifest status JSON includes current blocker aliases"),
         ("next_blocker_step", "manifest status JSON includes current blocker global order"),
         ("next_blocker_network_step", "manifest status JSON includes current blocker network order"),
@@ -10959,6 +10980,14 @@ def main():
         (
             "next_blocker_field_group",
             "public launch manifest status-json current blocker field group alias documentation",
+        ),
+        (
+            "next_blocker_field_groups_by_blocker",
+            "public launch manifest status-json current blocker field group map documentation",
+        ),
+        (
+            "next_blocker_field_group_counts_by_blocker",
+            "public launch manifest status-json current blocker field group-count map documentation",
         ),
         (
             "next_blocker_step",

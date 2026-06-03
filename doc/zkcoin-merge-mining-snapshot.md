@@ -328,7 +328,9 @@ Both are intentionally present before behavior changes so tests and review can t
   includes ordered `blocked_field_groups`, `next_blocked_field_group`, and
   `next_blocked_fields` so dashboards can show the concrete fields and action
   guidance for each unresolved blocker and the first unresolved blocker. The
-  top-level `next_blocker_field_group`, `next_blocker`,
+  top-level `next_blocker_field_group`,
+  `next_blocker_field_groups_by_blocker`,
+  `next_blocker_field_group_counts_by_blocker`, `next_blocker`,
   `next_blocker_network`, `next_blocker_type`, and `next_blocker_commands`
   aliases expose the same current blocker handoff directly. The
   `next_blocker_command_count`, `next_blocker_commands_by_blocker`,
