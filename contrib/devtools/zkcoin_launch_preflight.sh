@@ -44,6 +44,7 @@ import re
 import sys
 
 PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
+FORBIDDEN_PARENT_VERSION_CHAIN_IDS = range(0x2000, 0x4000)
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 NULL_UINT256 = "0" * 64
 KNOWN_CHAIN_NAMES = {"main", "test", "signet", "regtest"}
@@ -387,6 +388,24 @@ if auxpow_detail is not None:
         and not (0 < auxpow_detail["chain_id"] < 0x8000)
     ):
         schema_errors.append("getblockchaininfo.auxpow.chain_id must be non-zero and AuxPoW-version encodable when launch_readiness.chain_id_configured is true")
+    if (
+        "chain_id" in auxpow_detail
+        and "chain_id_configured" in readiness
+        and type(auxpow_detail.get("chain_id")) is int
+        and type(readiness.get("chain_id_configured")) is bool
+        and readiness["chain_id_configured"] is True
+        and auxpow_detail["chain_id"] == PLACEHOLDER_AUXPOW_CHAIN_ID
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.chain_id must not use the launch placeholder when launch_readiness.chain_id_configured is true")
+    if (
+        "chain_id" in auxpow_detail
+        and "chain_id_configured" in readiness
+        and type(auxpow_detail.get("chain_id")) is int
+        and type(readiness.get("chain_id_configured")) is bool
+        and readiness["chain_id_configured"] is True
+        and auxpow_detail["chain_id"] in FORBIDDEN_PARENT_VERSION_CHAIN_IDS
+    ):
+        schema_errors.append("getblockchaininfo.auxpow.chain_id must avoid Litecoin parent versionbits chain-id range when launch_readiness.chain_id_configured is true")
     if (
         "strict_chain_id" in auxpow_detail
         and "chain_id_configured" in readiness
