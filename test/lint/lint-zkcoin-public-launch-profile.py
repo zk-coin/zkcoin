@@ -2271,6 +2271,26 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blocker field group aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_later_blocker_field_groups_by_network = {
+        network: [
+            group
+            for group in expected_later_blocker_field_groups
+            if group.get("network") == network
+        ]
+        for network in ("main", "testnet")
+    }
+    if status_json.get("later_blocker_field_groups_by_network") != expected_later_blocker_field_groups_by_network:
+        return "{} --status-json did not expose later blocker field groups by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_field_group_counts_by_network = {
+        network: len(groups)
+        for network, groups in expected_later_blocker_field_groups_by_network.items()
+    }
+    if status_json.get("later_blocker_field_group_counts_by_network") != expected_later_blocker_field_group_counts_by_network:
+        return "{} --status-json did not count later blocker field groups by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_field_counts = [
         group.get("field_count") for group in expected_later_blocker_field_groups
     ]
@@ -7303,6 +7323,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_readiness_summary_command_count") != 0
             or complete_status.get("later_blocker_field_groups") != []
             or complete_status.get("later_blocker_field_group_count") != 0
+            or complete_status.get("later_blocker_field_groups_by_network") != {"main": [], "testnet": []}
+            or complete_status.get("later_blocker_field_group_counts_by_network") != {"main": 0, "testnet": 0}
             or complete_status.get("later_blocker_field_counts") != []
             or complete_status.get("later_blocker_fields_by_blocker") != {}
             or complete_status.get("later_blocker_field_counts_by_blocker") != {}
@@ -7928,6 +7950,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_readiness_summary_command_count") != 0
             or ready_status.get("later_blocker_field_groups") != []
             or ready_status.get("later_blocker_field_group_count") != 0
+            or ready_status.get("later_blocker_field_groups_by_network") != {"main": [], "testnet": []}
+            or ready_status.get("later_blocker_field_group_counts_by_network") != {"main": 0, "testnet": 0}
             or ready_status.get("later_blocker_field_counts") != []
             or ready_status.get("later_blocker_fields_by_blocker") != {}
             or ready_status.get("later_blocker_field_counts_by_blocker") != {}
@@ -9160,6 +9184,8 @@ def main():
         ("later_blocker_readiness_summary_command_count", "manifest status JSON counts later blocker summary command aliases"),
         ("later_blocker_field_groups", "manifest status JSON includes later blocker field group aliases"),
         ("later_blocker_field_group_count", "manifest status JSON counts later blocker field group aliases"),
+        ("later_blocker_field_groups_by_network", "manifest status JSON includes later blocker field groups by network"),
+        ("later_blocker_field_group_counts_by_network", "manifest status JSON counts later blocker field groups by network"),
         ("later_blocker_field_counts", "manifest status JSON includes later blocker field count aliases"),
         ("later_blocker_fields_by_blocker", "manifest status JSON includes later blocker fields by blocker"),
         ("later_blocker_field_counts_by_blocker", "manifest status JSON counts later blocker fields by blocker"),
@@ -10845,6 +10871,14 @@ def main():
         (
             "later_blocker_field_group_count",
             "public launch manifest status-json later blocker field group count documentation",
+        ),
+        (
+            "later_blocker_field_groups_by_network",
+            "public launch manifest status-json later blocker field groups by network documentation",
+        ),
+        (
+            "later_blocker_field_group_counts_by_network",
+            "public launch manifest status-json later blocker field group counts by network documentation",
         ),
         (
             "later_blocker_field_counts",
