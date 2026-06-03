@@ -6845,6 +6845,45 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_identity_manifest_path = Path(temp_dir) / "read-only-identity-manifest.json"
+        readonly_identity_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_identity_manifest_path.write_bytes(readonly_identity_manifest_bytes)
+        readonly_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                str(readonly_identity_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_identity_result.returncode != 0:
+            return "{} --check-identity failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_identity_result.stderr.strip()
+                or readonly_identity_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_identity_manifest_path.read_bytes() != readonly_identity_manifest_bytes:
+            return "{} --check-identity modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     check_identity_in_place_result = subprocess.run(
         [
             sys.executable,
