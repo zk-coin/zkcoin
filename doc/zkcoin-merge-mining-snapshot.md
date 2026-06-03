@@ -366,7 +366,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_readiness_summary_commands_by_blocker` and
   `later_blocker_readiness_summary_command_count` expose and count the
   remaining blocker summary command map. `later_blocker_field_groups`,
-  `later_blocker_field_group_count`, `later_blocker_field_groups_by_network`,
+  `later_blocker_field_group_count`,
+  `later_blocker_field_groups_by_blocker`,
+  `later_blocker_field_group_counts_by_blocker`,
+  `later_blocker_field_groups_by_network`,
   `later_blocker_field_group_counts_by_network`,
   `later_blocker_field_groups_by_blocker_type`,
   `later_blocker_field_group_counts_by_blocker_type`,
