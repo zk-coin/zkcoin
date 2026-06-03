@@ -6512,6 +6512,36 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_dns_manifest_path = Path(temp_dir) / "read-only-dns-manifest.json"
+        readonly_dns_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_dns_manifest_path.write_bytes(readonly_dns_manifest_bytes)
+        readonly_dns_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-dns-seeds",
+                "main",
+                "seed1.zkcoin.net,seed2.zkcoin.net",
+                str(readonly_dns_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_dns_result.returncode != 0:
+            return "{} --check-dns-seeds failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_dns_result.stderr.strip()
+                or readonly_dns_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_dns_manifest_path.read_bytes() != readonly_dns_manifest_bytes:
+            return "{} --check-dns-seeds modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     check_dns_in_place_result = subprocess.run(
         [
             sys.executable,
