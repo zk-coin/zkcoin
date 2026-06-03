@@ -475,6 +475,35 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_template_manifest_path = Path(temp_dir) / "read-only-template-manifest.json"
+        readonly_template_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_template_manifest_path.write_bytes(readonly_template_manifest_bytes)
+        readonly_template_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-template",
+                "main",
+                str(readonly_template_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_template_result.returncode != 0:
+            return "{} --snapshot-audit-template failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_template_result.stderr.strip()
+                or readonly_template_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_template_manifest_path.read_bytes() != readonly_template_manifest_bytes:
+            return "{} --snapshot-audit-template modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     testnet_snapshot_template_result = subprocess.run(
         [
             sys.executable,
