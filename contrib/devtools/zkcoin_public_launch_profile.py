@@ -3285,6 +3285,8 @@ def status_json_text(manifest, manifest_path, check):
     later_blocker_command_pairs = [action_command_pairs(group) for group in later_blocker_field_groups]
     later_blocker_field_groups_by_network = blocked_field_groups_by_network(later_blocker_field_groups)
     later_blocker_field_group_counts_by_network = blocked_field_group_counts_by_network(later_blocker_field_groups)
+    later_blocker_field_groups_by_blocker_type = blocked_field_groups_by_blocker_type(later_blocker_field_groups)
+    later_blocker_field_group_counts_by_blocker_type = blocked_field_group_counts_by_blocker_type(later_blocker_field_groups)
     later_blocker_field_counts = [group.get("field_count") for group in later_blocker_field_groups]
     later_blocker_fields_by_blocker = {
         group["id"]: group.get("fields", [])
@@ -3456,6 +3458,8 @@ def status_json_text(manifest, manifest_path, check):
             "later_blocker_field_group_count": len(later_blocker_field_groups),
             "later_blocker_field_groups_by_network": later_blocker_field_groups_by_network,
             "later_blocker_field_group_counts_by_network": later_blocker_field_group_counts_by_network,
+            "later_blocker_field_groups_by_blocker_type": later_blocker_field_groups_by_blocker_type,
+            "later_blocker_field_group_counts_by_blocker_type": later_blocker_field_group_counts_by_blocker_type,
             "later_blocker_field_counts": later_blocker_field_counts,
             "later_blocker_fields_by_blocker": later_blocker_fields_by_blocker,
             "later_blocker_field_counts_by_blocker": later_blocker_field_counts_by_blocker,
