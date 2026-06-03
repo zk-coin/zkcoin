@@ -361,6 +361,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_field_group_counts_by_network`,
   `later_blocker_field_groups_by_blocker_type`,
   `later_blocker_field_group_counts_by_blocker_type`,
+  `later_blocker_field_groups_by_network_and_blocker_type`,
+  `later_blocker_field_group_counts_by_network_and_blocker_type`,
   `later_blocker_field_counts`,
   `later_blocker_fields_by_blocker`,
   `later_blocker_field_counts_by_blocker`,
