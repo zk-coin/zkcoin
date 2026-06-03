@@ -195,6 +195,13 @@ if (
     and readiness["snapshot_configured"] is not True
 ):
     schema_errors.append("launch_readiness.snapshot_imported requires snapshot_configured")
+if (
+    type(readiness.get("chain_id_configured")) is bool
+    and type(readiness.get("chain_id_parent_version_safe")) is bool
+    and readiness["chain_id_configured"] is True
+    and readiness["chain_id_parent_version_safe"] is not True
+):
+    schema_errors.append("launch_readiness.chain_id_configured requires chain_id_parent_version_safe")
 
 failures = readiness.get("failures")
 if "failures" in readiness:
