@@ -357,7 +357,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_types`, and `later_blocker_commands` expose and count the
   remaining blocker queue, its queue positions, network and workstream scopes,
   and copyable blocker commands after the current handoff, while
-  `later_blocker_command_count`, `later_blocker_command_keys`,
+  `later_blocker_command_count`, `later_blocker_commands_by_blocker`,
+  `later_blocker_command_counts_by_blocker`, `later_blocker_command_keys`,
   `later_blocker_command_key_counts`, `later_blocker_command_values`,
   `later_blocker_command_value_counts`, `later_blocker_command_pairs`, and
   `later_blocker_command_pair_counts` expose and count compact command

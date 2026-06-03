@@ -2293,6 +2293,22 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blocker command aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_later_blocker_commands_by_blocker = {
+        group.get("id"): {command_field: group.get(command_field) for command_field in command_fields}
+        for group in expected_later_blocker_field_groups
+    }
+    if status_json.get("later_blocker_commands_by_blocker") != expected_later_blocker_commands_by_blocker:
+        return "{} --status-json did not expose later blocker commands by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_command_counts_by_blocker = {
+        blocker: len(commands)
+        for blocker, commands in expected_later_blocker_commands_by_blocker.items()
+    }
+    if status_json.get("later_blocker_command_counts_by_blocker") != expected_later_blocker_command_counts_by_blocker:
+        return "{} --status-json did not count later blocker commands by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_command_keys = [
         [
             command_field
@@ -7465,6 +7481,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_types") != []
             or complete_status.get("later_blocker_commands") != []
             or complete_status.get("later_blocker_command_count") != 0
+            or complete_status.get("later_blocker_commands_by_blocker") != {}
+            or complete_status.get("later_blocker_command_counts_by_blocker") != {}
             or complete_status.get("later_blocker_command_keys") != []
             or complete_status.get("later_blocker_command_key_counts") != []
             or complete_status.get("later_blocker_command_values") != []
@@ -8106,6 +8124,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_types") != []
             or ready_status.get("later_blocker_commands") != []
             or ready_status.get("later_blocker_command_count") != 0
+            or ready_status.get("later_blocker_commands_by_blocker") != {}
+            or ready_status.get("later_blocker_command_counts_by_blocker") != {}
             or ready_status.get("later_blocker_command_keys") != []
             or ready_status.get("later_blocker_command_key_counts") != []
             or ready_status.get("later_blocker_command_values") != []
@@ -9354,6 +9374,8 @@ def main():
         ("later_blocker_types", "manifest status JSON includes later blocker type aliases"),
         ("later_blocker_commands", "manifest status JSON includes later blocker command aliases"),
         ("later_blocker_command_count", "manifest status JSON counts later blocker command aliases"),
+        ("later_blocker_commands_by_blocker", "manifest status JSON includes later blocker commands by blocker"),
+        ("later_blocker_command_counts_by_blocker", "manifest status JSON counts later blocker commands by blocker"),
         ("later_blocker_command_keys", "manifest status JSON includes later blocker command keys"),
         ("later_blocker_command_key_counts", "manifest status JSON counts later blocker command keys"),
         ("later_blocker_command_values", "manifest status JSON includes later blocker command values"),
@@ -11055,6 +11077,14 @@ def main():
         (
             "later_blocker_command_count",
             "public launch manifest status-json later blocker command count documentation",
+        ),
+        (
+            "later_blocker_commands_by_blocker",
+            "public launch manifest status-json later blocker command map documentation",
+        ),
+        (
+            "later_blocker_command_counts_by_blocker",
+            "public launch manifest status-json later blocker command-count map documentation",
         ),
         (
             "later_blocker_command_keys",
