@@ -5226,6 +5226,46 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        testnet_audit_path = Path(temp_dir) / "testnet-snapshot-audit.json"
+        testnet_audit = dict(audit)
+        testnet_audit["source_chain"] = "test"
+        testnet_audit_path.write_text(json.dumps(testnet_audit), encoding="utf8")
+        testnet_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "testnet",
+                str(testnet_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if testnet_check_result.returncode != 0:
+            return "{} --check-snapshot-audit failed for testnet source_chain=test: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                testnet_check_result.stderr.strip()
+                or testnet_check_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "Snapshot audit verified for testnet.",
+            "source chain: test",
+            "remaining blockers on testnet after applying audit: 3",
+            "remaining blocked fields on testnet after applying audit: 12",
+            "next blocker after applying audit: main.litecoin_snapshot",
+            "next template command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "next check command after applying audit: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        ):
+            if expected not in testnet_check_result.stdout:
+                return "{} --check-snapshot-audit testnet did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
         spaced_audit_path = Path(temp_dir) / "snapshot audit.json"
         spaced_audit_path.write_text(json.dumps(audit), encoding="utf8")
         spaced_check_audit_result = subprocess.run(
