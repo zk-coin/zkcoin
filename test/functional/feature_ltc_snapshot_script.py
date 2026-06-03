@@ -545,6 +545,29 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in no_audit_result.stdout
 
+        self.log.info("Print testnet placeholder audit handoff when no audit summary path is configured")
+        testnet_no_audit_result, _, _ = self.assert_snapshot(
+            "testnet-no-audit-handoff",
+            self.scenario(source_chain="test"),
+            0,
+            "Set ZKCOIN_SNAPSHOT_AUDIT_JSON=<path> and rerun before updating the public profile.",
+        )
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--check-snapshot-audit testnet <snapshot_audit.json> "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_no_audit_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--set-snapshot-audit testnet <snapshot_audit.json> "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_no_audit_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--blocker-readiness-summary testnet.litecoin_snapshot "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_no_audit_result.stdout
+
         self.log.info("Quote snapshot and audit paths in printed handoff commands")
         quoted_result, calls, quoted_snapshot_path = self.assert_snapshot(
             "quoted-handoff",
