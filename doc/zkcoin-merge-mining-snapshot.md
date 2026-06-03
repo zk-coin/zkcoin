@@ -341,8 +341,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_blocker_network_step_count`, `next_blocker_type_step`, and
   `next_blocker_type_step_count` mirror its global, network, and workstream
   queue position without requiring clients to dereference the field group.
-  `next_blocker_fields` and `next_blocker_field_count` mirror its concrete
-  field gap. `later_blockers`, `later_blocker_count`,
+  `next_blocker_fields`, `next_blocker_field_count`,
+  `next_blocker_fields_by_blocker`, and
+  `next_blocker_field_counts_by_blocker` mirror and count its concrete field
+  gap. `later_blockers`, `later_blocker_count`,
   `later_blocker_steps`, `later_blocker_network_steps`,
   `later_blocker_network_step_counts`, `later_blocker_type_steps`,
   `later_blocker_type_step_counts`, `later_blockers_by_network`,
