@@ -10051,6 +10051,14 @@ def main():
             "preflight cross-checks strict AuxPoW chain-id detail",
         ),
         (
+            "getblockchaininfo.auxpow.chain_id must avoid Litecoin parent versionbits chain-id range",
+            "preflight rejects configured AuxPoW chain ids in the Litecoin parent-version range",
+        ),
+        (
+            "getblockchaininfo.auxpow.chain_id must not use the launch placeholder",
+            "preflight rejects configured placeholder AuxPoW chain ids",
+        ),
+        (
             "AuxPoW chain id is still the local launch placeholder 0x5a4b",
             "preflight rejects placeholder AuxPoW chain id",
         ),
