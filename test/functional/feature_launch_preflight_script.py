@@ -400,6 +400,14 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject inconsistent snapshot import detail")
+        inconsistent_snapshot_enabled = self.valid_info()
+        inconsistent_snapshot_enabled["ltc_snapshot"]["enabled"] = False
+        self.assert_preflight(
+            fake_cli,
+            inconsistent_snapshot_enabled,
+            1,
+            "getblockchaininfo.ltc_snapshot.enabled must match launch_readiness.snapshot_configured",
+        )
         inconsistent_snapshot_detail = self.valid_info()
         inconsistent_snapshot_detail["ltc_snapshot"]["imported"] = False
         self.assert_preflight(
