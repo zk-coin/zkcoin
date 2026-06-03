@@ -541,6 +541,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         ) in no_audit_result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--set-snapshot-audit main <snapshot_audit.json> "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in no_audit_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in no_audit_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
             "--blocker-readiness-summary main.litecoin_snapshot "
             "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in no_audit_result.stdout
@@ -561,6 +570,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "contrib/devtools/zkcoin_public_launch_profile.py "
             "--set-snapshot-audit testnet <snapshot_audit.json> "
             "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ) in testnet_no_audit_result.stdout
+        assert (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in testnet_no_audit_result.stdout
         assert (
             "contrib/devtools/zkcoin_public_launch_profile.py "
