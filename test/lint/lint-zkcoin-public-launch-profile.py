@@ -6298,6 +6298,36 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_auxpow_manifest_path = Path(temp_dir) / "read-only-auxpow-manifest.json"
+        readonly_auxpow_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_auxpow_manifest_path.write_bytes(readonly_auxpow_manifest_bytes)
+        readonly_auxpow_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-auxpow",
+                "main",
+                "0x5001",
+                str(readonly_auxpow_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_auxpow_result.returncode != 0:
+            return "{} --check-auxpow failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_auxpow_result.stderr.strip()
+                or readonly_auxpow_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_auxpow_manifest_path.read_bytes() != readonly_auxpow_manifest_bytes:
+            return "{} --check-auxpow modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     check_auxpow_in_place_result = subprocess.run(
         [
             sys.executable,
