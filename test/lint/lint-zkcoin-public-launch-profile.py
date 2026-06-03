@@ -2132,6 +2132,21 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose current blocker field count".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_next_blocker_fields_by_blocker = {
+        status_json.get("next_blocker"): status_json.get("next_blocker_fields")
+    }
+    if status_json.get("next_blocker_fields_by_blocker") != expected_next_blocker_fields_by_blocker:
+        return "{} --status-json did not expose current blocker fields by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_blocker_field_counts_by_blocker = {
+        blocker: len(fields)
+        for blocker, fields in expected_next_blocker_fields_by_blocker.items()
+    }
+    if status_json.get("next_blocker_field_counts_by_blocker") != expected_next_blocker_field_counts_by_blocker:
+        return "{} --status-json did not count current blocker fields by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blockers = status_json.get("unresolved_blockers", [])[1:]
     if status_json.get("later_blockers") != expected_later_blockers:
         return "{} --status-json did not expose later blocker aliases".format(
@@ -7414,6 +7429,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_command_pair_count") != 0
             or complete_status.get("next_blocker_fields") != []
             or complete_status.get("next_blocker_field_count") != 0
+            or complete_status.get("next_blocker_fields_by_blocker") != {}
+            or complete_status.get("next_blocker_field_counts_by_blocker") != {}
             or complete_status.get("later_blockers") != []
             or complete_status.get("later_blocker_count") != 0
             or complete_status.get("later_blocker_steps") != []
@@ -8051,6 +8068,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_command_pair_count") != 0
             or ready_status.get("next_blocker_fields") != []
             or ready_status.get("next_blocker_field_count") != 0
+            or ready_status.get("next_blocker_fields_by_blocker") != {}
+            or ready_status.get("next_blocker_field_counts_by_blocker") != {}
             or ready_status.get("later_blockers") != []
             or ready_status.get("later_blocker_count") != 0
             or ready_status.get("later_blocker_steps") != []
@@ -9295,6 +9314,8 @@ def main():
         ("next_blocker_commands", "manifest status JSON includes current blocker command aliases"),
         ("next_blocker_command_count", "manifest status JSON counts current blocker command aliases"),
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
+        ("next_blocker_fields_by_blocker", "manifest status JSON includes current blocker fields by blocker"),
+        ("next_blocker_field_counts_by_blocker", "manifest status JSON counts current blocker fields by blocker"),
         ("later_blockers", "manifest status JSON includes later blocker aliases"),
         ("later_blocker_count", "manifest status JSON counts later blocker aliases"),
         ("later_blocker_steps", "manifest status JSON includes later blocker global order aliases"),
@@ -10929,6 +10950,14 @@ def main():
         (
             "next_blocker_fields",
             "public launch manifest status-json current blocker field documentation",
+        ),
+        (
+            "next_blocker_fields_by_blocker",
+            "public launch manifest status-json current blocker field map documentation",
+        ),
+        (
+            "next_blocker_field_counts_by_blocker",
+            "public launch manifest status-json current blocker field-count map documentation",
         ),
         (
             "later_blockers",
