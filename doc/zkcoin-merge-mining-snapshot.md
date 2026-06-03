@@ -347,7 +347,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_network_step_counts`, `later_blocker_type_steps`,
   `later_blocker_type_step_counts`, `later_blockers_by_network`,
   `later_blocker_counts_by_network`, `later_blockers_by_blocker_type`,
-  `later_blocker_counts_by_blocker_type`, `later_blocker_networks`,
+  `later_blocker_counts_by_blocker_type`,
+  `later_blockers_by_network_and_blocker_type`,
+  `later_blocker_counts_by_network_and_blocker_type`,
+  `later_blocker_networks`,
   `later_blocker_types`, and `later_blocker_commands` expose and count the
   remaining blocker queue, its queue positions, network and workstream scopes,
   and copyable blocker commands after the current handoff, while
