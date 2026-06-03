@@ -385,6 +385,19 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "required readiness fields are false: chain_history_clean",
         )
 
+        self.log.info("Reject imported snapshot readiness without configured snapshot constants")
+        imported_without_config = self.valid_info(readiness_overrides={
+            "ready": False,
+            "snapshot_configured": False,
+        })
+        imported_without_config["ltc_snapshot"]["enabled"] = False
+        self.assert_preflight(
+            fake_cli,
+            imported_without_config,
+            1,
+            "launch_readiness.snapshot_imported requires snapshot_configured",
+        )
+
         self.log.info("Reject missing snapshot detail fields")
         missing_snapshot_detail = self.valid_info()
         missing_snapshot_detail["ltc_snapshot"] = {
