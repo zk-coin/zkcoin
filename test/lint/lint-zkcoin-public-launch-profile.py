@@ -531,8 +531,20 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
             exc,
         )
+    if list(testnet_snapshot_template) != expected_snapshot_audit_template_fields:
+        return "{} --snapshot-audit-template testnet did not emit the expected field order".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if testnet_snapshot_template.get("source_chain") != "test":
         return "{} --snapshot-audit-template did not prefill testnet source_chain".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if any(
+        value is not None
+        for field, value in testnet_snapshot_template.items()
+        if field != "source_chain"
+    ):
+        return "{} --snapshot-audit-template guessed testnet snapshot values".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
