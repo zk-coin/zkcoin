@@ -362,6 +362,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_field_counts_by_blocker`,
   `later_blocker_fields_by_blocker_type`,
   `later_blocker_field_counts_by_blocker_type`,
+  `later_blocker_fields_by_network_and_blocker_type`,
+  `later_blocker_field_counts_by_network_and_blocker_type`,
   `later_blocker_fields_by_network`,
   `later_blocker_field_counts_by_network`, `later_blocker_fields`, and
   `later_blocker_field_count` mirror and count the later queue's concrete field
