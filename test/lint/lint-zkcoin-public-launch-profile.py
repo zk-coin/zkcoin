@@ -4036,6 +4036,28 @@ def require_public_launch_manifest_current():
         if readonly_action_error:
             return readonly_action_error
 
+    next_action_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--next-action",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if next_action_in_place_result.returncode == 0:
+        return "{} --next-action accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--next-action does not write the manifest" not in next_action_in_place_result.stderr:
+        return "{} --next-action did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     action_plan_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -4077,6 +4099,29 @@ def require_public_launch_manifest_current():
         )
     if "--readiness-summary does not write the manifest" not in readiness_summary_in_place_result.stderr:
         return "{} --readiness-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    network_readiness_summary_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--network-readiness-summary",
+            "main",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_readiness_summary_in_place_result.returncode == 0:
+        return "{} --network-readiness-summary accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--network-readiness-summary does not write the manifest" not in network_readiness_summary_in_place_result.stderr:
+        return "{} --network-readiness-summary did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
