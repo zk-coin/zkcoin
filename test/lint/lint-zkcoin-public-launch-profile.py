@@ -10033,6 +10033,10 @@ def main():
             "preflight validates node warning shape",
         ),
         ("launch node reports warnings", "preflight rejects node warnings"),
+        (
+            "getblockchaininfo.ltc_snapshot.import_in_progress must be false when launch_readiness.snapshot_imported is true",
+            "preflight rejects contradictory imported snapshot progress state",
+        ),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
