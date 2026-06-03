@@ -3988,6 +3988,54 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    def require_readonly_manifest_action_preserves_bytes(action_name, action_args):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            readonly_manifest_path = Path(temp_dir) / f"{action_name}-manifest.json"
+            readonly_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+            readonly_manifest_path.write_bytes(readonly_manifest_bytes)
+            readonly_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    *action_args,
+                    str(readonly_manifest_path),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if readonly_result.returncode != 0:
+                return "{} {} failed against a writable manifest copy: {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    " ".join(action_args),
+                    readonly_result.stderr.strip()
+                    or readonly_result.stdout.strip()
+                    or "no output",
+                )
+            if readonly_manifest_path.read_bytes() != readonly_manifest_bytes:
+                return "{} {} modified the manifest during a read-only action".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    " ".join(action_args),
+                )
+        return None
+
+    for action_name, action_args in (
+        ("next-action", ["--next-action"]),
+        ("action-plan", ["--action-plan"]),
+        ("readiness-summary", ["--readiness-summary"]),
+        ("network-readiness-summary", ["--network-readiness-summary", "main"]),
+        ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
+        ("blocker-readiness-summary", ["--blocker-readiness-summary", "main.litecoin_snapshot"]),
+        ("status-json", ["--status-json"]),
+    ):
+        readonly_action_error = require_readonly_manifest_action_preserves_bytes(
+            action_name,
+            action_args,
+        )
+        if readonly_action_error:
+            return readonly_action_error
+
     action_plan_in_place_result = subprocess.run(
         [
             sys.executable,
