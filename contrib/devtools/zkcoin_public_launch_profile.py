@@ -453,6 +453,20 @@ def blocked_field_group_counts_by_network(blocked_field_groups):
     }
 
 
+def blocked_field_groups_by_blocker(blocked_field_groups):
+    return {
+        group["id"]: group
+        for group in blocked_field_groups
+    }
+
+
+def blocked_field_group_counts_by_blocker(blocked_field_groups):
+    return {
+        blocker: 1
+        for blocker in blocked_field_groups_by_blocker(blocked_field_groups)
+    }
+
+
 def blocked_field_groups_by_blocker_type(blocked_field_groups):
     grouped = {blocker_type: [] for blocker_type in BLOCKER_TYPES}
     for group in blocked_field_groups:
@@ -3460,6 +3474,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocker_type_progress": blocker_type_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
+            "blocked_field_groups_by_blocker": blocked_field_groups_by_blocker(blocked_field_groups),
+            "blocked_field_group_counts_by_blocker": blocked_field_group_counts_by_blocker(blocked_field_groups),
             "blocked_field_groups_by_network": blocked_field_groups_by_network(blocked_field_groups),
             "blocked_field_group_counts_by_network": blocked_field_group_counts_by_network(blocked_field_groups),
             "blocked_field_groups_by_blocker_type": blocked_field_groups_by_blocker_type(blocked_field_groups),
