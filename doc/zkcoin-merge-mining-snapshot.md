@@ -268,7 +268,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_groups_by_network` and
   `blocked_field_group_counts_by_network` expose the full ordered blocker-group
   queue and group count per network without requiring clients to filter the
-  global blocker-group list. Each blocked field group also includes
+  global blocker-group list. `blocked_field_groups_by_blocker` and
+  `blocked_field_group_counts_by_blocker` expose the same group queue keyed by
+  blocker id for direct lookup. Each blocked field group also includes
   `network_step`, `network_step_count`, `blocker_type_step`, and
   `blocker_type_step_count` so dashboards can display the field gap with its
   network/workstream queue position.
