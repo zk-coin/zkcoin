@@ -117,6 +117,25 @@ REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS = (
     "hrps_unique",
 )
 REQUIRED_PUBLIC_IDENTITY_FIELDS = REQUIRED_PUBLIC_IDENTITY_BOOL_FIELDS + ("failures",)
+PUBLIC_IDENTITY_CONFIGURED_TRUE_FIELDS = (
+    "message_start_shape_valid",
+    "default_port_shape_valid",
+    "dns_seeds_shape_valid",
+    "base58_prefixes_shape_valid",
+    "base58_prefixes_unique",
+    "bech32_hrp_shape_valid",
+    "mweb_hrp_shape_valid",
+    "hrps_unique",
+)
+PUBLIC_IDENTITY_CONFIGURED_FALSE_FIELDS = (
+    "inherited_litecoin_message_start",
+    "inherited_litecoin_default_port",
+    "inherited_litecoin_dns_seed",
+    "fixed_seeds_present",
+    "inherited_litecoin_base58_prefixes",
+    "inherited_litecoin_bech32_hrp",
+    "inherited_litecoin_mweb_hrp",
+)
 REQUIRED_DETAIL_FIELDS = {
     "ltc_snapshot": ("enabled", "height", "block_hash", "import_hash", "imported", "import_in_progress"),
     "auxpow": ("next_block_active", "start_height", "chain_id", "strict_chain_id", "parent_version_safe"),
@@ -240,6 +259,25 @@ else:
         and public_identity["configured"] != readiness["public_network_identity_configured"]
     ):
         schema_errors.append("launch_readiness.public_network_identity.configured must match public_network_identity_configured")
+    if "configured" in public_identity and public_identity.get("configured") is True:
+        false_required_identity_fields = [
+            field for field in PUBLIC_IDENTITY_CONFIGURED_TRUE_FIELDS
+            if type(public_identity.get(field)) is bool and public_identity[field] is not True
+        ]
+        if false_required_identity_fields:
+            schema_errors.append(
+                "launch_readiness.public_network_identity.configured requires passing detail fields: "
+                + ", ".join(false_required_identity_fields)
+            )
+        unsafe_identity_fields = [
+            field for field in PUBLIC_IDENTITY_CONFIGURED_FALSE_FIELDS
+            if type(public_identity.get(field)) is bool and public_identity[field] is not False
+        ]
+        if unsafe_identity_fields:
+            schema_errors.append(
+                "launch_readiness.public_network_identity.configured requires no inherited or fixed-seed detail fields: "
+                + ", ".join(unsafe_identity_fields)
+            )
 
 if (
     type(blocks) is int

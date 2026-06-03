@@ -612,6 +612,26 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "P2P message start still matches Litecoin",
         )
 
+        self.log.info("Reject configured public identity with inherited detail flags")
+        configured_with_inherited_identity = self.valid_info()
+        configured_with_inherited_identity["launch_readiness"]["public_network_identity"]["inherited_litecoin_dns_seed"] = True
+        self.assert_preflight(
+            fake_cli,
+            configured_with_inherited_identity,
+            1,
+            "launch_readiness.public_network_identity.configured requires no inherited or fixed-seed detail fields: inherited_litecoin_dns_seed",
+        )
+
+        self.log.info("Reject configured public identity with failed detail flags")
+        configured_with_failed_identity_detail = self.valid_info()
+        configured_with_failed_identity_detail["launch_readiness"]["public_network_identity"]["base58_prefixes_unique"] = False
+        self.assert_preflight(
+            fake_cli,
+            configured_with_failed_identity_detail,
+            1,
+            "launch_readiness.public_network_identity.configured requires passing detail fields: base58_prefixes_unique",
+        )
+
         self.log.info("Reject missing public network identity detail")
         missing_public_identity = self.valid_info()
         del missing_public_identity["launch_readiness"]["public_network_identity"]
