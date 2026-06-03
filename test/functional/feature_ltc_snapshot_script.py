@@ -584,7 +584,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         self.assert_command(calls, "zkcoin", "verifysnapshotmanifest", [quoted_snapshot_path])
 
         self.log.info("Print the testnet snapshot audit manifest handoff for a Litecoin test source")
-        testnet_result, _, _ = self.assert_snapshot(
+        testnet_result, _, testnet_snapshot_path = self.assert_snapshot(
             "testnet-handoff",
             self.scenario(source_chain="test"),
             0,
@@ -616,6 +616,26 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "--blocker-readiness-summary testnet.litecoin_snapshot "
             "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         ) in testnet_result.stdout
+        with open(testnet_audit_path, encoding="utf8") as testnet_audit_file:
+            testnet_audit_pairs = json.load(
+                testnet_audit_file,
+                object_pairs_hook=lambda pairs: pairs,
+            )
+        testnet_audit = dict(testnet_audit_pairs)
+        assert_equal([field for field, _ in testnet_audit_pairs], AUDIT_SUMMARY_FIELDS)
+        assert_equal(testnet_audit["height"], HEIGHT)
+        assert_equal(testnet_audit["source_chain"], "test")
+        assert_equal(testnet_audit["block_hash"], BLOCK_HASH)
+        assert_equal(testnet_audit["import_hash"], IMPORT_HASH)
+        assert_equal(testnet_audit["snapshot_hash"], SNAPSHOT_HASH)
+        assert_equal(testnet_audit["snapshot_file"], testnet_snapshot_path)
+        with open(testnet_snapshot_path, "rb") as testnet_snapshot_file:
+            testnet_snapshot_bytes = testnet_snapshot_file.read()
+        assert_equal(testnet_audit["snapshot_file_size"], len(testnet_snapshot_bytes))
+        assert_equal(
+            testnet_audit["snapshot_file_sha256"],
+            hashlib.sha256(testnet_snapshot_bytes).hexdigest(),
+        )
 
         self.log.info("Reject a pre-existing audit summary output path before calling either CLI")
         _, calls, _ = self.assert_snapshot(
