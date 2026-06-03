@@ -2195,6 +2195,26 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blockers by network".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_later_blockers_by_blocker_type = {
+        blocker_type: [
+            blocker
+            for blocker in expected_later_blockers
+            if blocker.endswith(".{}".format(blocker_type))
+        ]
+        for blocker_type in expected_blockers_by_blocker_type
+    }
+    if status_json.get("later_blockers_by_blocker_type") != expected_later_blockers_by_blocker_type:
+        return "{} --status-json did not expose later blockers by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_later_blocker_counts_by_blocker_type = {
+        blocker_type: len(blockers)
+        for blocker_type, blockers in expected_later_blockers_by_blocker_type.items()
+    }
+    if status_json.get("later_blocker_counts_by_blocker_type") != expected_later_blocker_counts_by_blocker_type:
+        return "{} --status-json did not count later blockers by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_networks = [group.get("network") for group in expected_later_blocker_field_groups]
     if status_json.get("later_blocker_networks") != expected_later_blocker_networks:
         return "{} --status-json did not expose later blocker network aliases".format(
@@ -7377,6 +7397,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_type_step_counts") != []
             or complete_status.get("later_blockers_by_network") != {"main": [], "testnet": []}
             or complete_status.get("later_blocker_counts_by_network") != {"main": 0, "testnet": 0}
+            or complete_status.get("later_blockers_by_blocker_type") != empty_blockers_by_blocker_type
+            or complete_status.get("later_blocker_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type
             or complete_status.get("later_blocker_networks") != []
             or complete_status.get("later_blocker_types") != []
             or complete_status.get("later_blocker_commands") != []
@@ -8010,6 +8032,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_type_step_counts") != []
             or ready_status.get("later_blockers_by_network") != {"main": [], "testnet": []}
             or ready_status.get("later_blocker_counts_by_network") != {"main": 0, "testnet": 0}
+            or ready_status.get("later_blockers_by_blocker_type") != empty_blockers_by_blocker_type
+            or ready_status.get("later_blocker_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type
             or ready_status.get("later_blocker_networks") != []
             or ready_status.get("later_blocker_types") != []
             or ready_status.get("later_blocker_commands") != []
@@ -9250,6 +9274,8 @@ def main():
         ("later_blocker_type_step_counts", "manifest status JSON includes later blocker type count aliases"),
         ("later_blockers_by_network", "manifest status JSON includes later blockers by network"),
         ("later_blocker_counts_by_network", "manifest status JSON counts later blockers by network"),
+        ("later_blockers_by_blocker_type", "manifest status JSON includes later blockers by blocker type"),
+        ("later_blocker_counts_by_blocker_type", "manifest status JSON counts later blockers by blocker type"),
         ("later_blocker_networks", "manifest status JSON includes later blocker network aliases"),
         ("later_blocker_types", "manifest status JSON includes later blocker type aliases"),
         ("later_blocker_commands", "manifest status JSON includes later blocker command aliases"),
@@ -10907,6 +10933,14 @@ def main():
         (
             "later_blocker_counts_by_network",
             "public launch manifest status-json later blocker counts by network documentation",
+        ),
+        (
+            "later_blockers_by_blocker_type",
+            "public launch manifest status-json later blockers by blocker type documentation",
+        ),
+        (
+            "later_blocker_counts_by_blocker_type",
+            "public launch manifest status-json later blocker counts by blocker type documentation",
         ),
         (
             "later_blocker_networks",
