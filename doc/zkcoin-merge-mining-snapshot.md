@@ -331,7 +331,8 @@ Both are intentionally present before behavior changes so tests and review can t
   top-level `next_blocker_field_group`, `next_blocker`,
   `next_blocker_network`, `next_blocker_type`, and `next_blocker_commands`
   aliases expose the same current blocker handoff directly. The
-  `next_blocker_command_count`, `next_blocker_command_keys`,
+  `next_blocker_command_count`, `next_blocker_commands_by_blocker`,
+  `next_blocker_command_counts_by_blocker`, `next_blocker_command_keys`,
   `next_blocker_command_key_count`,
   `next_blocker_command_values`, `next_blocker_command_value_count`,
   `next_blocker_command_pairs`, and `next_blocker_command_pair_count` aliases

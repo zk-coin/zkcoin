@@ -2124,6 +2124,21 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count current blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_next_blocker_commands_by_blocker = {
+        status_json.get("next_blocker"): status_json.get("next_blocker_commands")
+    }
+    if status_json.get("next_blocker_commands_by_blocker") != expected_next_blocker_commands_by_blocker:
+        return "{} --status-json did not expose current blocker commands by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_blocker_command_counts_by_blocker = {
+        blocker: len(commands)
+        for blocker, commands in expected_next_blocker_commands_by_blocker.items()
+    }
+    if status_json.get("next_blocker_command_counts_by_blocker") != expected_next_blocker_command_counts_by_blocker:
+        return "{} --status-json did not count current blocker commands by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_blocker_fields") != status_json.get("next_blocked_fields"):
         return "{} --status-json did not expose current blocker fields".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7421,6 +7436,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("next_blocker_type_step_count") is not None
             or complete_status.get("next_blocker_commands") is not None
             or complete_status.get("next_blocker_command_count") != 0
+            or complete_status.get("next_blocker_commands_by_blocker") != {}
+            or complete_status.get("next_blocker_command_counts_by_blocker") != {}
             or complete_status.get("next_blocker_command_keys") != []
             or complete_status.get("next_blocker_command_key_count") != 0
             or complete_status.get("next_blocker_command_values") != []
@@ -8060,6 +8077,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("next_blocker_type_step_count") is not None
             or ready_status.get("next_blocker_commands") is not None
             or ready_status.get("next_blocker_command_count") != 0
+            or ready_status.get("next_blocker_commands_by_blocker") != {}
+            or ready_status.get("next_blocker_command_counts_by_blocker") != {}
             or ready_status.get("next_blocker_command_keys") != []
             or ready_status.get("next_blocker_command_key_count") != 0
             or ready_status.get("next_blocker_command_values") != []
@@ -9313,6 +9332,8 @@ def main():
         ("next_blocker_type_step_count", "manifest status JSON includes current blocker type count"),
         ("next_blocker_commands", "manifest status JSON includes current blocker command aliases"),
         ("next_blocker_command_count", "manifest status JSON counts current blocker command aliases"),
+        ("next_blocker_commands_by_blocker", "manifest status JSON includes current blocker commands by blocker"),
+        ("next_blocker_command_counts_by_blocker", "manifest status JSON counts current blocker commands by blocker"),
         ("next_blocker_fields", "manifest status JSON includes current blocker field aliases"),
         ("next_blocker_fields_by_blocker", "manifest status JSON includes current blocker fields by blocker"),
         ("next_blocker_field_counts_by_blocker", "manifest status JSON counts current blocker fields by blocker"),
@@ -10922,6 +10943,14 @@ def main():
         (
             "next_blocker_command_count",
             "public launch manifest status-json current blocker command count documentation",
+        ),
+        (
+            "next_blocker_commands_by_blocker",
+            "public launch manifest status-json current blocker command map documentation",
+        ),
+        (
+            "next_blocker_command_counts_by_blocker",
+            "public launch manifest status-json current blocker command-count map documentation",
         ),
         (
             "next_blocker_command_keys",
