@@ -5197,6 +5197,35 @@ def require_public_launch_manifest_current():
                     expected,
                 )
 
+        readonly_check_manifest_path = Path(temp_dir) / "read-only-check-manifest.json"
+        readonly_check_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_check_manifest_path.write_bytes(readonly_check_manifest_bytes)
+        readonly_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(audit_path),
+                str(readonly_check_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_check_result.returncode != 0:
+            return "{} --check-snapshot-audit failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_check_result.stderr.strip()
+                or readonly_check_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_check_manifest_path.read_bytes() != readonly_check_manifest_bytes:
+            return "{} --check-snapshot-audit modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         spaced_audit_path = Path(temp_dir) / "snapshot audit.json"
         spaced_audit_path.write_text(json.dumps(audit), encoding="utf8")
         spaced_check_audit_result = subprocess.run(
