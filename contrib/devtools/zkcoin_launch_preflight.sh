@@ -337,6 +337,15 @@ if snapshot_detail is not None:
         and snapshot_detail["imported"] != readiness["snapshot_imported"]
     ):
         schema_errors.append("getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported")
+    if (
+        "import_in_progress" in snapshot_detail
+        and "snapshot_imported" in readiness
+        and type(snapshot_detail.get("import_in_progress")) is bool
+        and type(readiness.get("snapshot_imported")) is bool
+        and readiness["snapshot_imported"] is True
+        and snapshot_detail["import_in_progress"] is not False
+    ):
+        schema_errors.append("getblockchaininfo.ltc_snapshot.import_in_progress must be false when launch_readiness.snapshot_imported is true")
 
 auxpow_detail = detail_sections.get("auxpow")
 if auxpow_detail is not None:

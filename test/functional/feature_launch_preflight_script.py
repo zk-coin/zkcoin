@@ -463,6 +463,19 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             fake_cli,
             snapshot_import_in_progress,
             1,
+            "getblockchaininfo.ltc_snapshot.import_in_progress must be false when launch_readiness.snapshot_imported is true",
+        )
+        non_imported_snapshot_import_in_progress = self.valid_info(readiness_overrides={
+            "ready": False,
+            "snapshot_imported": False,
+            "failures": ["configured snapshot has not been imported"],
+        })
+        non_imported_snapshot_import_in_progress["ltc_snapshot"]["imported"] = False
+        non_imported_snapshot_import_in_progress["ltc_snapshot"]["import_in_progress"] = True
+        self.assert_preflight(
+            fake_cli,
+            non_imported_snapshot_import_in_progress,
+            1,
             "snapshot import is still in progress",
         )
 
