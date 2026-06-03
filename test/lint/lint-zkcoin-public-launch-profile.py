@@ -10037,6 +10037,14 @@ def main():
             "getblockchaininfo.ltc_snapshot.import_in_progress must be false when launch_readiness.snapshot_imported is true",
             "preflight rejects contradictory imported snapshot progress state",
         ),
+        (
+            "launch_readiness.ready requires launch_readiness.failures to be empty",
+            "preflight rejects ready status with top-level failure reasons",
+        ),
+        (
+            "launch_readiness.ready requires launch_readiness.public_network_identity.failures to be empty",
+            "preflight rejects ready status with public identity failure reasons",
+        ),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",

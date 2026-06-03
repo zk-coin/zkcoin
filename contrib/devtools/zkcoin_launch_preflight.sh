@@ -229,6 +229,13 @@ if "failures" in readiness:
         schema_errors.append("launch_readiness.failures must be an array")
     elif not all(isinstance(failure, str) for failure in failures):
         schema_errors.append("launch_readiness.failures entries must be strings")
+if (
+    type(readiness.get("ready")) is bool
+    and readiness["ready"] is True
+    and isinstance(failures, list)
+    and failures
+):
+    schema_errors.append("launch_readiness.ready requires launch_readiness.failures to be empty")
 
 public_identity = readiness.get("public_network_identity")
 if not isinstance(public_identity, dict):
@@ -252,6 +259,15 @@ else:
             schema_errors.append("launch_readiness.public_network_identity.failures must be an array")
         elif not all(isinstance(failure, str) for failure in public_identity_failures):
             schema_errors.append("launch_readiness.public_network_identity.failures entries must be strings")
+    if (
+        type(readiness.get("ready")) is bool
+        and readiness["ready"] is True
+        and isinstance(public_identity_failures, list)
+        and public_identity_failures
+    ):
+        schema_errors.append(
+            "launch_readiness.ready requires launch_readiness.public_network_identity.failures to be empty"
+        )
     if (
         "configured" in public_identity
         and "public_network_identity_configured" in readiness
