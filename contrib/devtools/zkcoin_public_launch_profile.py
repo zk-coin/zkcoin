@@ -3294,6 +3294,8 @@ def status_json_text(manifest, manifest_path, check):
     }
     later_blocker_fields_by_blocker_type = blocked_fields_by_blocker_type(later_blocker_field_groups)
     later_blocker_field_counts_by_blocker_type = blocked_field_counts_by_blocker_type(later_blocker_field_groups)
+    later_blocker_fields_by_network_and_blocker_type = blocked_fields_by_network_and_blocker_type(later_blocker_field_groups)
+    later_blocker_field_counts_by_network_and_blocker_type = blocked_field_counts_by_network_and_blocker_type(later_blocker_field_groups)
     later_blocker_fields = [
         field
         for group in later_blocker_field_groups
@@ -3455,6 +3457,8 @@ def status_json_text(manifest, manifest_path, check):
             "later_blocker_field_counts_by_blocker": later_blocker_field_counts_by_blocker,
             "later_blocker_fields_by_blocker_type": later_blocker_fields_by_blocker_type,
             "later_blocker_field_counts_by_blocker_type": later_blocker_field_counts_by_blocker_type,
+            "later_blocker_fields_by_network_and_blocker_type": later_blocker_fields_by_network_and_blocker_type,
+            "later_blocker_field_counts_by_network_and_blocker_type": later_blocker_field_counts_by_network_and_blocker_type,
             "later_blocker_fields_by_network": later_blocker_fields_by_network,
             "later_blocker_field_counts_by_network": later_blocker_field_counts_by_network,
             "later_blocker_fields": later_blocker_fields,
