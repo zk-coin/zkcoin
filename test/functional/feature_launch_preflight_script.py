@@ -189,6 +189,28 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "launch_readiness.ready must be a boolean",
         )
 
+        self.log.info("Reject ready launch readiness with returned failures")
+        ready_with_failures = self.valid_info()
+        ready_with_failures["launch_readiness"]["failures"] = ["unexpected launch readiness failure"]
+        self.assert_preflight(
+            fake_cli,
+            ready_with_failures,
+            1,
+            "launch_readiness.ready requires launch_readiness.failures to be empty",
+        )
+
+        self.log.info("Reject ready public identity readiness with returned failures")
+        ready_with_public_identity_failures = self.valid_info()
+        ready_with_public_identity_failures["launch_readiness"]["public_network_identity"]["failures"] = [
+            "unexpected public identity failure"
+        ]
+        self.assert_preflight(
+            fake_cli,
+            ready_with_public_identity_failures,
+            1,
+            "launch_readiness.ready requires launch_readiness.public_network_identity.failures to be empty",
+        )
+
         self.log.info("Reject malformed chain name in launch preflight")
         malformed_chain = self.valid_info()
         malformed_chain["chain"] = "unknown"
@@ -622,6 +644,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         self.assert_preflight(
             fake_cli,
             self.valid_info(readiness_overrides={
+                "ready": False,
                 "public_network_identity_configured": False,
                 "public_network_identity": {
                     "configured": False,
