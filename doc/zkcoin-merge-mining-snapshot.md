@@ -674,6 +674,9 @@ snapshot and audit paths are shell-quoted when needed, so copy the generated
 commands exactly. The operator creates the audit summary with an
 exclusive final-path write, fsyncs the file and parent directory, and rejects final-path or
 parent-directory symlink replacement before writing the handoff artifact.
+Snapshot output and audit summary output paths must be lexically normalized
+before the operator calls either node CLI, so the generated audit summary stores
+the same normalized artifact path the manifest handoff requires.
 The audit summary path itself must also be a direct file, not a symlink, when
 it is applied to the launch profile. The manifest update opens the audit summary
 and referenced snapshot artifact as regular files without following symlinks,
