@@ -1529,10 +1529,27 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert not any(call["role"] == "zkcoin" for call in calls)
 
+        self.log.info("Reject string-typed snapshot dump heights")
+        _, calls, _ = self.assert_snapshot(
+            "string-dump-height",
+            self.scenario(dump_json=self.dump_json(base_height=str(HEIGHT))),
+            1,
+            "dumptxoutset.base_height must be an integer",
+        )
+        assert not any(call["role"] == "zkcoin" for call in calls)
+
         self.log.info("Reject fractional verifier coin counts")
         self.assert_snapshot(
             "fractional-verify-coins",
             self.scenario(verify_json=self.verify_json(coins=4.5)),
+            1,
+            "verifysnapshotmanifest.coins must be an integer",
+        )
+
+        self.log.info("Reject string-typed verifier coin counts")
+        self.assert_snapshot(
+            "string-verify-coins",
+            self.scenario(verify_json=self.verify_json(coins="4")),
             1,
             "verifysnapshotmanifest.coins must be an integer",
         )
