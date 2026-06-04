@@ -5453,6 +5453,33 @@ def require_public_launch_manifest_current():
                     expected,
                 )
 
+        mismatched_source_chain_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(testnet_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_source_chain_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a testnet source audit for main".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit source_chain test does not match main; expected main" not in mismatched_source_chain_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain source-chain mismatch rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in mismatched_source_chain_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a mismatched source chain".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         spaced_audit_path = Path(temp_dir) / "snapshot audit.json"
         spaced_audit_path.write_text(json.dumps(audit), encoding="utf8")
         spaced_check_audit_result = subprocess.run(
