@@ -7451,6 +7451,61 @@ def require_public_launch_manifest_current():
                 description,
             )
 
+    malformed_check_identity_byte_cases = (
+        (
+            ("fa,bf,b5", "19445", "75", "76", "77", "178", "04202431", "04202432"),
+            "short message-start byte sequence",
+            "message_start must contain 4 byte value(s)",
+        ),
+        (
+            ("fa,,b5,d9", "19445", "75", "76", "77", "178", "04202431", "04202432"),
+            "empty message-start byte token",
+            "message_start contains an empty byte",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "300", "76", "77", "178", "04202431", "04202432"),
+            "out-of-range Base58 byte",
+            "pubkey_address byte is outside 0..255",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "75", "gg", "77", "178", "04202431", "04202432"),
+            "invalid Base58 byte",
+            "script_address contains an invalid byte",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "75", "76", "77", "178", "04,20,24", "04202432"),
+            "short extended public key byte sequence",
+            "ext_public_key must contain 4 byte value(s)",
+        ),
+    )
+    for byte_args, description, expected_error in malformed_check_identity_byte_cases:
+        malformed_check_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                *byte_args,
+                "zk",
+                "zkmweb",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_identity_result.returncode == 0:
+            return "{} --check-identity accepted a {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_identity_result.stderr:
+            return "{} --check-identity did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_check_identity_result = subprocess.run(
         [
             sys.executable,
@@ -9855,6 +9910,10 @@ def main():
         ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
         ("len(label) <= 63", "manifest rejects overlong DNS seed labels"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
+        ("contains an empty byte", "manifest rejects empty public identity byte tokens"),
+        ("contains an invalid byte", "manifest rejects invalid public identity byte tokens"),
+        ("byte is outside 0..255", "manifest rejects out-of-range public identity byte tokens"),
+        ("must contain {expected_len} byte value(s)", "manifest rejects wrong-length public identity byte sequences"),
         ("parse_default_port", "manifest parses public identity default port"),
         ("default_port must be an integer", "manifest rejects non-integer public identity ports"),
         ("default_port must be in the public TCP port range 1025-65535", "manifest rejects non-public public identity ports"),
