@@ -7410,6 +7410,47 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    malformed_check_identity_port_cases = (
+        ("not-a-port", "non-integer default port", "default_port must be an integer"),
+        ("1024", "reserved default port", "default_port must be in the public TCP port range 1025-65535"),
+        ("65536", "out-of-range default port", "default_port must be in the public TCP port range 1025-65535"),
+        ("9333", "Litecoin default port", "default_port must not reuse a Litecoin default port"),
+    )
+    for default_port, description, expected_error in malformed_check_identity_port_cases:
+        malformed_check_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                "fa,bf,b5,d9",
+                default_port,
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_identity_result.returncode == 0:
+            return "{} --check-identity accepted a {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_identity_result.stderr:
+            return "{} --check-identity did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_check_identity_result = subprocess.run(
         [
             sys.executable,
@@ -9815,6 +9856,9 @@ def main():
         ("len(label) <= 63", "manifest rejects overlong DNS seed labels"),
         ("parse_byte_sequence", "manifest parses public identity byte fields"),
         ("parse_default_port", "manifest parses public identity default port"),
+        ("default_port must be an integer", "manifest rejects non-integer public identity ports"),
+        ("default_port must be in the public TCP port range 1025-65535", "manifest rejects non-public public identity ports"),
+        ("default_port must not reuse a Litecoin default port", "manifest rejects inherited Litecoin public identity ports"),
         ("display_path", "manifest guidance preserves non-default manifest paths"),
         ("shell_quote", "manifest guidance shell-quotes handoff paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
