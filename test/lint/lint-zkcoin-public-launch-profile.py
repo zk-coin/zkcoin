@@ -5810,32 +5810,39 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
-        string_integer_audit_path = Path(temp_dir) / "string-integer-audit.json"
-        string_integer_audit = dict(audit)
-        string_integer_audit["coins"] = "4"
-        string_integer_audit_path.write_text(json.dumps(string_integer_audit), encoding="utf8")
-        string_integer_audit_result = subprocess.run(
-            [
-                sys.executable,
-                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
-                "--check-snapshot-audit",
-                "main",
-                str(string_integer_audit_path),
-                str(PUBLIC_LAUNCH_MANIFEST),
-            ],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
+        malformed_integer_audits = (
+            ("string-integer-audit", "4", "string-typed"),
+            ("boolean-integer-audit", True, "boolean-typed"),
         )
-        if string_integer_audit_result.returncode == 0:
-            return "{} --check-snapshot-audit accepted a string-typed audit integer".format(
-                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        for audit_name, audit_value, audit_description in malformed_integer_audits:
+            malformed_integer_audit_path = Path(temp_dir) / f"{audit_name}.json"
+            malformed_integer_audit = dict(audit)
+            malformed_integer_audit["coins"] = audit_value
+            malformed_integer_audit_path.write_text(json.dumps(malformed_integer_audit), encoding="utf8")
+            malformed_integer_audit_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--check-snapshot-audit",
+                    "main",
+                    str(malformed_integer_audit_path),
+                    str(PUBLIC_LAUNCH_MANIFEST),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
             )
-        if "snapshot audit coins must be an integer" not in string_integer_audit_result.stderr:
-            return "{} --check-snapshot-audit did not explain string audit integer rejection".format(
-                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
-            )
+            if malformed_integer_audit_result.returncode == 0:
+                return "{} --check-snapshot-audit accepted a {} audit integer".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    audit_description,
+                )
+            if "snapshot audit coins must be an integer" not in malformed_integer_audit_result.stderr:
+                return "{} --check-snapshot-audit did not explain {} audit integer rejection".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    audit_description,
+                )
 
         uppercase_hash_audit_path = Path(temp_dir) / "uppercase-hash-audit.json"
         uppercase_hash_audit = dict(audit)
