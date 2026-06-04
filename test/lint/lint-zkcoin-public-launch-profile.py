@@ -5556,6 +5556,39 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        malformed_set_manifest_bytes = malformed_check_manifest_path.read_bytes()
+        malformed_set_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(audit_path),
+                "--in-place",
+                str(malformed_check_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_set_result.returncode == 0:
+            return "{} --set-snapshot-audit --in-place accepted a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "zkCoin public launch profile manifest failed validation:" not in malformed_set_result.stderr:
+            return "{} --set-snapshot-audit --in-place did not report manifest validation failure".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.auxpow: must be an object" not in malformed_set_result.stderr:
+            return "{} --set-snapshot-audit --in-place did not validate the staged manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if malformed_check_manifest_path.read_bytes() != malformed_set_manifest_bytes:
+            return "{} --set-snapshot-audit --in-place wrote a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         check_audit_in_place_result = subprocess.run(
             [
                 sys.executable,
