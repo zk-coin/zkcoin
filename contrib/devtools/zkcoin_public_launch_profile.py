@@ -1445,6 +1445,13 @@ def validate_manifest(manifest, allow_blocked):
     stale_blockers = sorted(blocker_ids - expected_blockers)
     if status == "blocked" and stale_blockers:
         check.error("blockers", "contains resolved or unknown blocker ids: " + ", ".join(stale_blockers))
+    if status == "ready-for-chainparams" and expected_blockers:
+        unresolved_blockers = [blocker for blocker in BLOCKER_ORDER if blocker in expected_blockers]
+        check.error(
+            "status",
+            "must be blocked until required blocker ids are resolved: "
+            + ", ".join(unresolved_blockers),
+        )
     if status == "ready-for-chainparams" and blockers:
         check.error("blockers", "must be empty when status is ready-for-chainparams")
     if status == "blocked" and not allow_blocked:
