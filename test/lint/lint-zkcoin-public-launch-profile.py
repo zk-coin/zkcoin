@@ -5773,6 +5773,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        directory_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(directory_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if directory_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a directory audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must be a regular file" not in directory_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain directory audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in directory_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a directory audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         oversized_audit_path = Path(temp_dir) / "oversized-audit.json"
         oversized_audit_path.write_text(" " * (64 * 1024 + 1), encoding="utf8")
         oversized_audit_result = subprocess.run(
@@ -5795,6 +5822,33 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit summary must not exceed 65536 bytes" not in oversized_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain oversized audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        oversized_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(oversized_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if oversized_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an oversized audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must not exceed 65536 bytes" not in oversized_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain oversized audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in oversized_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an oversized audit summary".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5894,6 +5948,37 @@ def require_public_launch_manifest_current():
             )
         if "codec can't decode" in invalid_utf8_audit_result.stderr:
             return "{} --set-snapshot-audit leaked a codec-specific UTF-8 decode error".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        invalid_utf8_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(invalid_utf8_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if invalid_utf8_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an invalid UTF-8 audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary is not valid UTF-8" not in invalid_utf8_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain invalid UTF-8 audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "codec can't decode" in invalid_utf8_audit_check_result.stderr:
+            return "{} --check-snapshot-audit leaked a codec-specific UTF-8 decode error".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in invalid_utf8_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an invalid UTF-8 audit summary".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
