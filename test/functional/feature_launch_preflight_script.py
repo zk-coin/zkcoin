@@ -374,11 +374,12 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         )
         warned_node = self.valid_info()
         warned_node["warnings"] = "Unknown block versions being mined"
-        self.assert_preflight(
-            fake_cli,
-            warned_node,
-            1,
-            "launch node reports warnings",
+        warned_node_result = self.run_preflight(fake_cli, warned_node)
+        assert_equal(warned_node_result.returncode, 1)
+        warned_node_output = warned_node_result.stdout + warned_node_result.stderr
+        assert "launch node reports warnings" in warned_node_output
+        assert "readiness flag is true but failure reasons were returned" not in (
+            warned_node_output
         )
 
         self.log.info("Reject launch-tip readiness away from genesis height")
@@ -641,33 +642,37 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         )
 
         self.log.info("Reject inherited public network identity in launch readiness")
-        self.assert_preflight(
-            fake_cli,
-            self.valid_info(readiness_overrides={
-                "ready": False,
-                "public_network_identity_configured": False,
-                "public_network_identity": {
-                    "configured": False,
-                    "inherited_litecoin_message_start": True,
-                    "message_start_shape_valid": True,
-                    "inherited_litecoin_default_port": True,
-                    "default_port_shape_valid": True,
-                    "inherited_litecoin_dns_seed": True,
-                    "dns_seeds_shape_valid": True,
-                    "fixed_seeds_present": True,
-                    "inherited_litecoin_base58_prefixes": True,
-                    "base58_prefixes_shape_valid": True,
-                    "base58_prefixes_unique": True,
-                    "inherited_litecoin_bech32_hrp": True,
-                    "bech32_hrp_shape_valid": True,
-                    "inherited_litecoin_mweb_hrp": True,
-                    "mweb_hrp_shape_valid": True,
-                    "hrps_unique": True,
-                    "failures": ["P2P message start still matches Litecoin"],
-                },
-            }),
-            1,
-            "P2P message start still matches Litecoin",
+        inherited_public_identity = self.valid_info(readiness_overrides={
+            "ready": False,
+            "public_network_identity_configured": False,
+            "public_network_identity": {
+                "configured": False,
+                "inherited_litecoin_message_start": True,
+                "message_start_shape_valid": True,
+                "inherited_litecoin_default_port": True,
+                "default_port_shape_valid": True,
+                "inherited_litecoin_dns_seed": True,
+                "dns_seeds_shape_valid": True,
+                "fixed_seeds_present": True,
+                "inherited_litecoin_base58_prefixes": True,
+                "base58_prefixes_shape_valid": True,
+                "base58_prefixes_unique": True,
+                "inherited_litecoin_bech32_hrp": True,
+                "bech32_hrp_shape_valid": True,
+                "inherited_litecoin_mweb_hrp": True,
+                "mweb_hrp_shape_valid": True,
+                "hrps_unique": True,
+                "failures": ["P2P message start still matches Litecoin"],
+            },
+        })
+        inherited_public_identity_result = self.run_preflight(fake_cli, inherited_public_identity)
+        assert_equal(inherited_public_identity_result.returncode, 1)
+        inherited_public_identity_output = (
+            inherited_public_identity_result.stdout + inherited_public_identity_result.stderr
+        )
+        assert "P2P message start still matches Litecoin" in inherited_public_identity_output
+        assert "readiness flag is false but no failure reason was returned" not in (
+            inherited_public_identity_output
         )
 
         self.log.info("Reject configured public identity with inherited detail flags")
