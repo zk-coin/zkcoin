@@ -6247,6 +6247,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain self-referential snapshot artifact rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        self_reference_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(self_reference_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if self_reference_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an audit summary as the snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must differ from audit summary" not in self_reference_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain self-referential snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in self_reference_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a self-referential snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         directory_artifact_path = Path(temp_dir) / "ltc-block-x-dir.dat"
         directory_artifact_path.mkdir()
