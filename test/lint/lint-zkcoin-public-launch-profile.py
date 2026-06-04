@@ -6009,6 +6009,64 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        malformed_json_audit_path = Path(temp_dir) / "malformed-json-audit.json"
+        malformed_json_audit_path.write_text('{"height": ', encoding="utf8")
+        malformed_json_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(malformed_json_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_json_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a malformed JSON audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary is not valid JSON" not in malformed_json_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain malformed JSON audit rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in malformed_json_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a malformed JSON audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        non_object_audit_path = Path(temp_dir) / "non-object-audit.json"
+        non_object_audit_path.write_text(json.dumps(["not", "an", "audit"]), encoding="utf8")
+        non_object_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(non_object_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if non_object_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a non-object audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must be a JSON object" not in non_object_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain non-object audit rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in non_object_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a non-object audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         malformed_integer_audits = (
             ("string-integer-audit", "4", "string-typed", "snapshot audit coins must be an integer"),
             ("boolean-integer-audit", True, "boolean-typed", "snapshot audit coins must be an integer"),
@@ -6138,6 +6196,33 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit summary contains duplicate field: block_hash" not in duplicate_field_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain duplicate audit field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        duplicate_field_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(duplicate_field_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if duplicate_field_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an audit summary with duplicate JSON fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary contains duplicate field: block_hash" not in duplicate_field_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain duplicate audit field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in duplicate_field_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a duplicate-field audit summary".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
