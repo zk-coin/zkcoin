@@ -7972,6 +7972,36 @@ def require_public_launch_manifest_current():
                         expected_error,
                     )
 
+            collision_update_path = Path(temp_dir) / "collision-update-{}.json".format(
+                description.lower().replace(" ", "-")
+            )
+            collision_update_text = json.dumps(complete_manifest)
+            collision_update_path.write_text(collision_update_text, encoding="utf8")
+            collision_update_in_place_result = subprocess.run(
+                command[:-1] + ["--in-place", str(collision_update_path)],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if collision_update_in_place_result.returncode == 0:
+                return "{} --set-{} --in-place accepted cross-network launch value collisions".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    description.lower(),
+                )
+            for expected_error in expected_errors:
+                if expected_error not in collision_update_in_place_result.stderr:
+                    return "{} --set-{} --in-place did not report {}".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                        description.lower(),
+                        expected_error,
+                    )
+            if collision_update_path.read_text(encoding="utf8") != collision_update_text:
+                return "{} --set-{} --in-place wrote a colliding manifest update".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    description.lower(),
+                )
+
         complete_next_result = subprocess.run(
             [
                 sys.executable,
