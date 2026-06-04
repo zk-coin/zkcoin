@@ -5951,6 +5951,35 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        non_normalized_file_audit_path = Path(temp_dir) / "non-normalized-file-audit.json"
+        non_normalized_file_audit = dict(audit)
+        non_normalized_file_audit["snapshot_file"] = str(
+            snapshot_artifact_path.parent / "nested" / ".." / snapshot_artifact_path.name
+        )
+        non_normalized_file_audit_path.write_text(json.dumps(non_normalized_file_audit), encoding="utf8")
+        non_normalized_file_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-snapshot-audit",
+                "main",
+                str(non_normalized_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if non_normalized_file_audit_result.returncode == 0:
+            return "{} --set-snapshot-audit accepted a non-normalized snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "normalized without control characters" not in non_normalized_file_audit_result.stderr:
+            return "{} --set-snapshot-audit did not explain non-normalized snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         control_file_audit_path = Path(temp_dir) / "control-file-audit.json"
         control_file_audit = dict(audit)
         control_file_audit["snapshot_file"] = str(snapshot_artifact_path) + "\ntruncated"
@@ -9482,6 +9511,7 @@ def main():
             "manifest rejects ready status while blocker fields remain unresolved",
         ),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
+        ("os.path.normpath(value) == value", "manifest rejects non-normalized snapshot audit file paths"),
         ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
@@ -11910,8 +11940,12 @@ def main():
             "public launch manifest snapshot audit lowercase hash documentation",
         ),
         (
-            "absolute snapshot file path",
+            "absolute normalized snapshot file path",
             "public launch manifest snapshot audit file-path documentation",
+        ),
+        (
+            "must be lexically normalized",
+            "public launch manifest snapshot audit normalized-path documentation",
         ),
         (
             "must not contain control characters",
