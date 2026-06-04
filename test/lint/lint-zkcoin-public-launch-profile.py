@@ -6795,6 +6795,29 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    placeholder_check_auxpow_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-auxpow",
+            "main",
+            "0x5a4b",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if placeholder_check_auxpow_result.returncode == 0:
+        return "{} --check-auxpow accepted the launch placeholder chain id".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "placeholder chain id 0x5a4b" not in placeholder_check_auxpow_result.stderr:
+        return "{} --check-auxpow did not explain placeholder chain-id rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     placeholder_auxpow_result = subprocess.run(
         [
             sys.executable,
