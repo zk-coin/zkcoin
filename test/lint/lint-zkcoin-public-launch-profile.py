@@ -6782,6 +6782,44 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        malformed_auxpow_manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
+        malformed_auxpow_manifest["networks"]["main"]["public_network_identity"] = "not-an-object"
+        malformed_auxpow_manifest_path = Path(temp_dir) / "malformed-auxpow-manifest.json"
+        malformed_auxpow_manifest_path.write_text(json.dumps(malformed_auxpow_manifest), encoding="utf8")
+        malformed_auxpow_manifest_bytes = malformed_auxpow_manifest_path.read_bytes()
+        malformed_auxpow_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-auxpow",
+                "main",
+                "0x5001",
+                "--in-place",
+                str(malformed_auxpow_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_auxpow_result.returncode == 0:
+            return "{} --set-auxpow --in-place accepted a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "zkCoin public launch profile manifest failed validation:" not in malformed_auxpow_result.stderr:
+            return "{} --set-auxpow --in-place did not report manifest validation failure".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.public_network_identity: must be an object" not in malformed_auxpow_result.stderr:
+            return "{} --set-auxpow --in-place did not validate the staged manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if malformed_auxpow_manifest_path.read_bytes() != malformed_auxpow_manifest_bytes:
+            return "{} --set-auxpow --in-place wrote a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     malformed_check_auxpow_cases = (
         ("not-a-chain-id", "non-integer", "chain_id must be an integer"),
         ("0", "zero", "chain_id must be non-zero and below 0x8000"),
