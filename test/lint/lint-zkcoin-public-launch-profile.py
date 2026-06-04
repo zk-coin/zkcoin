@@ -6392,6 +6392,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain symlink snapshot artifact parent rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        parent_symlink_artifact_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(parent_symlink_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_artifact_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a snapshot artifact through a symlinked parent".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact parent directory must not be a symlink" not in parent_symlink_artifact_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain symlink snapshot artifact parent rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in parent_symlink_artifact_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a snapshot artifact through a symlinked parent".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         def reject_changed_artifact_case(name, mutate_path):
             changed_artifact_path = Path(temp_dir) / f"{name}.dat"
