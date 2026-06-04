@@ -6749,6 +6749,37 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    malformed_check_auxpow_cases = (
+        ("not-a-chain-id", "non-integer", "chain_id must be an integer"),
+        ("0", "zero", "chain_id must be non-zero and below 0x8000"),
+        ("0x8000", "out-of-range", "chain_id must be non-zero and below 0x8000"),
+    )
+    for chain_id_value, description, expected_error in malformed_check_auxpow_cases:
+        malformed_check_auxpow_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-auxpow",
+                "main",
+                chain_id_value,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_auxpow_result.returncode == 0:
+            return "{} --check-auxpow accepted a {} chain id".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_auxpow_result.stderr:
+            return "{} --check-auxpow did not explain {} chain-id rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_check_auxpow_result = subprocess.run(
         [
             sys.executable,
@@ -9649,6 +9680,8 @@ def main():
         ("--set-identity", "manifest public identity update flag"),
         ("--check-identity", "manifest public identity read-only check flag"),
         ("parse_chain_id", "manifest parses AuxPoW chain id"),
+        ("chain_id must be an integer", "manifest rejects non-integer AuxPoW chain ids"),
+        ("chain_id must be non-zero and below 0x8000", "manifest rejects non-encodable AuxPoW chain ids"),
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
