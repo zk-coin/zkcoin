@@ -5810,6 +5810,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        string_integer_audit_path = Path(temp_dir) / "string-integer-audit.json"
+        string_integer_audit = dict(audit)
+        string_integer_audit["coins"] = "4"
+        string_integer_audit_path.write_text(json.dumps(string_integer_audit), encoding="utf8")
+        string_integer_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(string_integer_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if string_integer_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a string-typed audit integer".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit coins must be an integer" not in string_integer_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain string audit integer rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         uppercase_hash_audit_path = Path(temp_dir) / "uppercase-hash-audit.json"
         uppercase_hash_audit = dict(audit)
         uppercase_hash_audit["block_hash"] = ("aa" * 32).upper()
@@ -9491,6 +9518,7 @@ def main():
         ("SNAPSHOT_MAX_MONEY", "manifest caps snapshot audit total amount at inherited Litecoin supply"),
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
+        ("snapshot audit {field} must be an integer", "manifest rejects string snapshot audit integer fields"),
         ("snapshot audit summary has unexpected field", "manifest rejects extra snapshot audit summary fields"),
         ("snapshot audit summary field order must match --snapshot-audit-template output", "manifest rejects reordered snapshot audit summary fields"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
