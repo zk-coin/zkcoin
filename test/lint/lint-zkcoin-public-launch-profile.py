@@ -7519,6 +7519,53 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        malformed_identity_manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
+        malformed_identity_manifest["networks"]["main"]["auxpow"] = "not-an-object"
+        malformed_identity_manifest_path = Path(temp_dir) / "malformed-identity-manifest.json"
+        malformed_identity_manifest_path.write_text(json.dumps(malformed_identity_manifest), encoding="utf8")
+        malformed_identity_manifest_bytes = malformed_identity_manifest_path.read_bytes()
+        malformed_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                "--in-place",
+                str(malformed_identity_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_identity_result.returncode == 0:
+            return "{} --set-identity --in-place accepted a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "zkCoin public launch profile manifest failed validation:" not in malformed_identity_result.stderr:
+            return "{} --set-identity --in-place did not report manifest validation failure".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.auxpow: must be an object" not in malformed_identity_result.stderr:
+            return "{} --set-identity --in-place did not validate the staged manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if malformed_identity_manifest_path.read_bytes() != malformed_identity_manifest_bytes:
+            return "{} --set-identity --in-place wrote a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     malformed_check_identity_port_cases = (
         ("not-a-port", "non-integer default port", "default_port must be an integer"),
         ("1024", "reserved default port", "default_port must be in the public TCP port range 1025-65535"),
