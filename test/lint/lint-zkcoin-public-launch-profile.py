@@ -6245,6 +6245,33 @@ def require_public_launch_manifest_current():
         if truncated_artifact_error:
             return truncated_artifact_error
 
+        zero_amount_audit_path = Path(temp_dir) / "zero-amount-audit.json"
+        zero_amount_audit = dict(audit)
+        zero_amount_audit["total_amount"] = "0.00000000"
+        zero_amount_audit_path.write_text(json.dumps(zero_amount_audit), encoding="utf8")
+        zero_amount_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(zero_amount_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if zero_amount_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a zero snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit total_amount must be a positive decimal amount with 8 fractional digits" not in zero_amount_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain zero total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         malformed_amount_audit_path = Path(temp_dir) / "malformed-amount-audit.json"
         malformed_amount_audit = dict(audit)
         malformed_amount_audit["total_amount"] = "50"
@@ -9579,6 +9606,7 @@ def main():
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("os.path.normpath(value) == value", "manifest rejects non-normalized snapshot audit file paths"),
         ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
+        ("value == \"0.00000000\"", "manifest rejects zero snapshot audit amounts"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
         ("SNAPSHOT_TOTAL_AMOUNT_RE", "manifest requires fixed-scale snapshot audit amount strings"),
         ("must not exceed {SNAPSHOT_MAX_MONEY_TEXT}", "manifest rejects over-maximum snapshot audit amounts"),
