@@ -1425,6 +1425,7 @@ def validate_manifest(manifest, allow_blocked):
         check.error("status", "must be blocked or ready-for-chainparams")
     blockers = check.require_list(manifest.get("blockers"), "blockers")
     blocker_ids = set()
+    blocker_ids_in_order = []
     for index, blocker in enumerate(blockers):
         blocker = check.require_object(blocker, f"blockers[{index}]")
         check.require_known_fields(blocker, f"blockers[{index}]", BLOCKER_FIELDS)
@@ -1437,6 +1438,7 @@ def validate_manifest(manifest, allow_blocked):
         if blocker_id not in REQUIRED_BLOCKERS:
             check.error(f"blockers[{index}].id", "unknown blocker id")
         blocker_ids.add(blocker_id)
+        blocker_ids_in_order.append(blocker_id)
         check.require_string(blocker.get("description"), f"blockers[{index}].description")
     expected_blockers = unresolved_blocker_ids(manifest)
     missing_blockers = sorted(expected_blockers - blocker_ids)
@@ -1445,12 +1447,23 @@ def validate_manifest(manifest, allow_blocked):
     stale_blockers = sorted(blocker_ids - expected_blockers)
     if status == "blocked" and stale_blockers:
         check.error("blockers", "contains resolved or unknown blocker ids: " + ", ".join(stale_blockers))
+    expected_blocker_order = [blocker for blocker in BLOCKER_ORDER if blocker in expected_blockers]
+    if (
+        status == "blocked"
+        and not missing_blockers
+        and not stale_blockers
+        and len(blocker_ids_in_order) == len(blocker_ids)
+        and blocker_ids_in_order != expected_blocker_order
+    ):
+        check.error(
+            "blockers",
+            "must match unresolved blocker order: " + ", ".join(expected_blocker_order),
+        )
     if status == "ready-for-chainparams" and expected_blockers:
-        unresolved_blockers = [blocker for blocker in BLOCKER_ORDER if blocker in expected_blockers]
         check.error(
             "status",
             "must be blocked until required blocker ids are resolved: "
-            + ", ".join(unresolved_blockers),
+            + ", ".join(expected_blocker_order),
         )
     if status == "ready-for-chainparams" and blockers:
         check.error("blockers", "must be empty when status is ready-for-chainparams")
