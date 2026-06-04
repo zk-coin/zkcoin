@@ -6530,6 +6530,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain snapshot file size mismatch".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        mismatched_size_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(mismatched_size_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_size_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a mismatched snapshot file size".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file size mismatch" not in mismatched_size_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain snapshot file size mismatch".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in mismatched_size_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a mismatched snapshot file size".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         mismatched_sha_audit_path = Path(temp_dir) / "mismatched-sha-audit.json"
         mismatched_sha_audit = dict(audit)
