@@ -312,6 +312,31 @@ def require_public_launch_manifest_current():
             ", ".join(missing_blockers),
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ready_with_unresolved = json.loads(json.dumps(manifest))
+        ready_with_unresolved["status"] = "ready-for-chainparams"
+        ready_with_unresolved["blockers"] = []
+        ready_with_unresolved_path = Path(temp_dir) / "ready-with-unresolved-fields.json"
+        ready_with_unresolved_path.write_text(json.dumps(ready_with_unresolved), encoding="utf8")
+        ready_with_unresolved_result = subprocess.run(
+            [sys.executable, str(PUBLIC_LAUNCH_MANIFEST_TOOL), str(ready_with_unresolved_path)],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if ready_with_unresolved_result.returncode == 0:
+            return "{} accepted ready status with unresolved blocker fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "status: must be blocked until required blocker ids are resolved: main.litecoin_snapshot"
+            not in ready_with_unresolved_result.stderr
+        ):
+            return "{} did not explain ready status with unresolved blocker fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     for network in ("main", "testnet"):
         profile = manifest.get("networks", {}).get(network, {})
         if profile.get("auxpow", {}).get("start_height") != 1:
@@ -9423,6 +9448,10 @@ def main():
         ("require_snapshot_audit_artifact_stable", "manifest rechecks snapshot audit artifacts after hashing"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
+        (
+            "must be blocked until required blocker ids are resolved",
+            "manifest rejects ready status while blocker fields remain unresolved",
+        ),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
         ("snapshot_total_amount_valid", "manifest rejects malformed snapshot audit amounts"),
