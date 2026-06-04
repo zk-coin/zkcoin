@@ -595,13 +595,14 @@ if public_identity["failures"]:
     print("Public network identity failures:", file=sys.stderr)
     for failure in public_identity["failures"]:
         print(f"  - {failure}", file=sys.stderr)
+reported_failure_sections = bool(posture_failures or public_identity["failures"] or failures)
 if failures:
     print("Failures:", file=sys.stderr)
     for failure in failures:
         print(f"  - {failure}", file=sys.stderr)
-elif readiness["ready"] is not True:
+elif readiness["ready"] is not True and not reported_failure_sections:
     print("  - readiness flag is false but no failure reason was returned", file=sys.stderr)
-elif not false_ready_fields:
+elif not false_ready_fields and not reported_failure_sections:
     print("  - readiness flag is true but failure reasons were returned", file=sys.stderr)
 sys.exit(1)
 PY

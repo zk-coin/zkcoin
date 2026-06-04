@@ -10078,6 +10078,10 @@ def main():
             "launch_readiness.ready requires launch_readiness.public_network_identity.failures to be empty",
             "preflight rejects ready status with public identity failure reasons",
         ),
+        (
+            "reported_failure_sections",
+            "preflight suppresses fallback messages when specific failure sections are present",
+        ),
         ("snapshot import is still in progress", "preflight rejects in-progress snapshot imports"),
         (
             "getblockchaininfo.auxpow.next_block_active must match launch_readiness.auxpow_active_at_launch at the launch tip",
