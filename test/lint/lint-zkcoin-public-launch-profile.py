@@ -6331,6 +6331,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain symlink snapshot artifact rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        symlink_artifact_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(symlink_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_artifact_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a symlinked snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must not be a symlink" not in symlink_artifact_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain symlink snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in symlink_artifact_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a symlinked snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         parent_symlink_artifact_target = Path(temp_dir) / "artifact-parent-target"
         parent_symlink_artifact_target.mkdir()
