@@ -10067,6 +10067,10 @@ def main():
             "preflight rejects contradictory imported snapshot progress state",
         ),
         (
+            "launch_readiness.ready requires true readiness fields",
+            "preflight rejects ready status with false readiness booleans",
+        ),
+        (
             "launch_readiness.ready requires launch_readiness.failures to be empty",
             "preflight rejects ready status with top-level failure reasons",
         ),
