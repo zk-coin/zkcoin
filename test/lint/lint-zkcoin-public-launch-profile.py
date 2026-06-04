@@ -10339,6 +10339,7 @@ def main():
         ("AUDIT_CANONICAL_PATH", "snapshot script canonicalizes audit output paths before collision checks"),
         ("snapshot audit summary path must differ from snapshot incomplete output path", "snapshot script rejects audit path collisions with dump work files"),
         ("path must not contain control characters", "snapshot script rejects control-character output paths"),
+        ("reject_non_normalized_path", "snapshot script rejects non-normalized output paths"),
         ("snapshot audit summary path must not be a symlink", "snapshot script rejects symlink audit output paths"),
         ("snapshot audit summary directory does not exist", "snapshot script rejects missing audit output directories"),
         ("snapshot audit summary directory is not writable", "snapshot script rejects unwritable audit output directories"),
@@ -11766,6 +11767,10 @@ def main():
         (
             "exclusive final-path write, fsyncs the file and parent directory",
             "public launch snapshot audit durable write documentation",
+        ),
+        (
+            "Snapshot output and audit summary output paths must be lexically normalized",
+            "public launch snapshot operator normalized-path documentation",
         ),
         (
             "audit summary directories are also rechecked",

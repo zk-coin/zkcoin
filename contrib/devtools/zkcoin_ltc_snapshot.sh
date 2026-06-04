@@ -58,6 +58,19 @@ if any(ord(char) < 0x20 or ord(char) == 0x7f for char in path):
 PY
 }
 
+reject_non_normalized_path() {
+  python3 - "$1" "$2" <<'PY'
+import os
+import sys
+
+path = sys.argv[1]
+label = sys.argv[2]
+if path == "/" or path.startswith("//") or os.path.normpath(path) != path:
+    print(f"error: {label} path must be normalized: {path}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
 if (( $# < 6 )); then
   usage
   exit 1
@@ -105,6 +118,7 @@ case "$SNAPSHOT_PATH" in
 esac
 
 reject_control_path "$SNAPSHOT_PATH" "snapshot output"
+reject_non_normalized_path "$SNAPSHOT_PATH" "snapshot output"
 if [[ -L "$SNAPSHOT_PATH" ]]; then
   die "snapshot output path must not be a symlink: $SNAPSHOT_PATH"
 fi
@@ -176,6 +190,7 @@ if [[ -n "${ZKCOIN_SNAPSHOT_AUDIT_JSON:-}" ]]; then
     *) AUDIT_JSON_PATH="$(pwd -P)/$AUDIT_JSON_PATH" ;;
   esac
   reject_control_path "$AUDIT_JSON_PATH" "snapshot audit summary"
+  reject_non_normalized_path "$AUDIT_JSON_PATH" "snapshot audit summary"
   if [[ "$AUDIT_JSON_PATH" == "$SNAPSHOT_PATH" ]]; then
     die "snapshot audit summary path must differ from snapshot output path: $AUDIT_JSON_PATH"
   fi

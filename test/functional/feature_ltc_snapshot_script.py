@@ -276,6 +276,8 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         audit_path_has_space=False,
         snapshot_path_has_control=False,
         audit_path_has_control=False,
+        snapshot_path_non_normalized=False,
+        audit_path_non_normalized=False,
         precreate_snapshot_incomplete=False,
         snapshot_incomplete_symlink=False,
     ):
@@ -291,6 +293,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             snapshot_path = os.path.join(self.options.tmpdir, f"{name}\ncontrol.dat")
         if audit_path_has_control:
             audit_path = os.path.join(self.options.tmpdir, f"{name}\ncontrol.audit.json")
+        if snapshot_path_non_normalized:
+            alias_dir = os.path.join(self.options.tmpdir, f"{name}-snapshot-alias")
+            os.makedirs(alias_dir, exist_ok=True)
+            snapshot_path = os.path.join(alias_dir, "..", f"{name}.dat")
         if snapshot_path_parent_missing:
             snapshot_path = os.path.join(self.options.tmpdir, "missing-snapshot-dir", f"{name}.dat")
         elif snapshot_path_parent_unwritable:
@@ -352,6 +358,10 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             audit_dir = os.path.join(self.options.tmpdir, f"{name}-audit-dir")
             os.makedirs(audit_dir, exist_ok=True)
             audit_path = os.path.join(audit_dir, f"{name}.audit.json")
+        if audit_path_non_normalized:
+            alias_dir = os.path.join(self.options.tmpdir, f"{name}-audit-alias")
+            os.makedirs(alias_dir, exist_ok=True)
+            audit_path = os.path.join(alias_dir, "..", f"{name}.audit.json")
         if snapshot_path_symlink:
             os.symlink(os.path.join(self.options.tmpdir, f"{name}.target"), snapshot_path)
         if audit_path_symlink:
@@ -388,6 +398,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             or audit_path_symlink
             or audit_path_has_space
             or audit_path_has_control
+            or audit_path_non_normalized
         ):
             env["ZKCOIN_SNAPSHOT_AUDIT_JSON"] = audit_path
         else:
@@ -698,7 +709,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "audit-path-aliases-snapshot",
             self.scenario(),
             1,
-            "snapshot audit summary path must differ from snapshot output path",
+            "snapshot audit summary path must be normalized",
             audit_path_aliases_snapshot=True,
         )
         assert_equal(calls, [])
@@ -724,7 +735,7 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "audit-path-aliases-incomplete",
             self.scenario(),
             1,
-            "snapshot audit summary path must differ from snapshot incomplete output path",
+            "snapshot audit summary path must be normalized",
             audit_path_aliases_snapshot_incomplete=True,
         )
         assert_equal(calls, [])
@@ -762,6 +773,24 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             1,
             "snapshot audit summary path must not contain control characters",
             audit_path_has_control=True,
+        )
+        assert_equal(calls, [])
+
+        self.log.info("Reject non-normalized snapshot and audit output paths before calling either CLI")
+        _, calls, _ = self.assert_snapshot(
+            "non-normalized-snapshot-path",
+            self.scenario(),
+            1,
+            "snapshot output path must be normalized",
+            snapshot_path_non_normalized=True,
+        )
+        assert_equal(calls, [])
+        _, calls, _ = self.assert_snapshot(
+            "non-normalized-audit-path",
+            self.scenario(),
+            1,
+            "snapshot audit summary path must be normalized",
+            audit_path_non_normalized=True,
         )
         assert_equal(calls, [])
 
