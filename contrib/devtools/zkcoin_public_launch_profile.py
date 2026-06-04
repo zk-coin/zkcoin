@@ -1069,7 +1069,7 @@ class Validation:
             self.blockers.append(path)
             return
         if not snapshot_file_valid(value):
-            self.error(path, "must be an absolute non-placeholder path")
+            self.error(path, "must be an absolute non-placeholder path, normalized without control characters")
 
     def require_snapshot_total_amount(self, value, path, *, allow_null):
         if value is None and allow_null:
@@ -1146,14 +1146,16 @@ def message_start_valid(value):
 
 
 def snapshot_file_valid(value):
-    return (
-        isinstance(value, str)
-        and value.startswith("/")
-        and value not in ("", "TODO", "TBD", "CHANGE_ME")
-        and not value.startswith("<")
-        and "\0" not in value
-        and all(ord(char) >= 0x20 and ord(char) != 0x7f for char in value)
-    )
+    if (
+        not isinstance(value, str)
+        or not value.startswith("/")
+        or value in ("", "TODO", "TBD", "CHANGE_ME")
+        or value.startswith("<")
+        or "\0" in value
+        or any(ord(char) < 0x20 or ord(char) == 0x7f for char in value)
+    ):
+        return False
+    return value != "/" and not value.startswith("//") and os.path.normpath(value) == value
 
 
 def snapshot_total_amount_atoms(value):
@@ -1540,7 +1542,7 @@ def require_snapshot_audit_file(audit, field):
     value = require_snapshot_audit_string(audit, field)
     if not snapshot_file_valid(value):
         raise ValueError(
-            f"snapshot audit {field} must be an absolute non-placeholder path without control characters"
+            f"snapshot audit {field} must be an absolute non-placeholder path, normalized without control characters"
         )
     return value
 

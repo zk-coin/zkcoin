@@ -688,14 +688,14 @@ with a stable operator-facing error before JSON parsing.
 The manifest validator reads the verified `height`, `block_hash`, and `import_hash`
 from the audit summary. It requires the audit-only `snapshot_hash`, coin count,
 transaction count, `source_chain`, snapshot file byte size, snapshot file SHA-256,
-an absolute snapshot file path, and positive decimal total amount with 8 fractional digits
+an absolute normalized snapshot file path, and positive decimal total amount with 8 fractional digits
 that does not exceed `84000000.00000000`. The snapshot operator rejects verifier
 `snapshot_hash` and `import_hash` values that are the null uint256 before writing
 an audit summary. Hash fields must be exact 64-character lowercase hex strings;
 the handoff does not silently normalize operator-edited uppercase hashes. The manifest update rejects audit
 summaries with unexpected extra fields, so hand-edited or stale summaries do not
 silently carry ignored launch values.
-The stored snapshot file path must not contain control characters, preventing
+The stored snapshot file path must be lexically normalized and must not contain control characters, preventing
 operator-edited summaries from carrying multi-line or terminal-control paths into
 the launch profile.
 The snapshot operator and manifest handoff only accept positive coin and transaction counts
