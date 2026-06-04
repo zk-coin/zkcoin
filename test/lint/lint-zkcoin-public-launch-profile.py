@@ -7506,6 +7506,54 @@ def require_public_launch_manifest_current():
                 description,
             )
 
+    malformed_check_identity_base58_cases = (
+        (
+            ("fa,bf,b5,d9", "19445", "48", "76", "77", "178", "04202431", "04202432", "zk", "zkmweb"),
+            "inherited Litecoin pubkey Base58 prefix",
+            "pubkey_address: must not reuse a Litecoin Base58 prefix",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "75", "75", "77", "178", "04202431", "04202432", "zk", "zkmweb"),
+            "duplicate one-byte Base58 prefix",
+            "script_address: must be unique",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "75", "76", "77", "178", "0488b21e", "04202432", "zk", "zkmweb"),
+            "inherited Litecoin extended public key prefix",
+            "ext_public_key: must not reuse a Litecoin Base58 prefix",
+        ),
+        (
+            ("fa,bf,b5,d9", "19445", "75", "76", "77", "178", "04202431", "04202431", "zk", "zkmweb"),
+            "duplicate extended Base58 prefix",
+            "ext_secret_key: must be unique",
+        ),
+    )
+    for identity_args, description, expected_error in malformed_check_identity_base58_cases:
+        malformed_check_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                *identity_args,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_identity_result.returncode == 0:
+            return "{} --check-identity accepted a {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_identity_result.stderr:
+            return "{} --check-identity did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_check_identity_result = subprocess.run(
         [
             sys.executable,
@@ -9960,6 +10008,10 @@ def main():
         ("default_port must be an integer", "manifest rejects non-integer public identity ports"),
         ("default_port must be in the public TCP port range 1025-65535", "manifest rejects non-public public identity ports"),
         ("default_port must not reuse a Litecoin default port", "manifest rejects inherited Litecoin public identity ports"),
+        ("validate_base58_prefixes", "manifest validates public identity Base58 prefixes"),
+        ("LITECOIN_BASE58_PREFIXES", "manifest tracks inherited Litecoin Base58 prefixes"),
+        ("must be unique", "manifest rejects duplicate public identity Base58 prefixes"),
+        ("must not reuse a Litecoin Base58 prefix", "manifest rejects inherited Litecoin Base58 prefixes"),
         ("hrp_valid", "manifest validates public identity HRPs"),
         ("bech32_hrp must be lowercase printable ASCII at most 83 characters", "manifest rejects malformed Bech32 HRPs"),
         ("mweb_hrp must be lowercase printable ASCII at most 83 characters", "manifest rejects malformed MWEB HRPs"),
