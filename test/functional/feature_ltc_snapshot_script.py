@@ -937,6 +937,15 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         )
         assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
 
+        self.log.info("Reject string-typed Litecoin source chain heights")
+        _, calls, _ = self.assert_snapshot(
+            "string-chaininfo-blocks",
+            self.scenario(chaininfo_overrides={"blocks": str(HEIGHT)}),
+            1,
+            "litecoin-cli getblockchaininfo.blocks must be a non-negative integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+
         self.log.info("Reject malformed Litecoin source header height")
         _, calls, _ = self.assert_snapshot(
             "fractional-chaininfo-headers",
@@ -1002,6 +1011,13 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
         _, calls, _ = self.assert_snapshot(
             "source-malformed-size-on-disk",
             self.scenario(source_size_on_disk=0),
+            1,
+            "litecoin-cli getblockchaininfo.size_on_disk must be a positive integer",
+        )
+        assert_equal(calls, [{"role": "litecoin", "cmd": "getblockchaininfo", "args": []}])
+        _, calls, _ = self.assert_snapshot(
+            "source-string-size-on-disk",
+            self.scenario(chaininfo_overrides={"size_on_disk": "1024"}),
             1,
             "litecoin-cli getblockchaininfo.size_on_disk must be a positive integer",
         )

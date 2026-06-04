@@ -10326,6 +10326,7 @@ def main():
         ('require_nonnegative_int("headers")', "snapshot script validates source header height shape"),
         ('require_nonnegative_int("time")', "snapshot script validates source tip time shape"),
         ('require_nonnegative_int("mediantime")', "snapshot script validates source median time shape"),
+        ("type(value) is not int", "snapshot script rejects string-typed source integer fields"),
         (
             "litecoin-cli getblockchaininfo.mediantime must be less than or equal to time",
             "snapshot script validates source median time ordering",
@@ -10431,6 +10432,8 @@ def main():
         ("Reject duplicate Litecoin source chain info fields", "snapshot script test rejects duplicate source chain info fields"),
         ("Reject malformed Litecoin source chain name", "snapshot script test validates source chain name shape"),
         ("Reject fractional Litecoin source chain heights", "snapshot script test rejects fractional source heights"),
+        ("Reject string-typed Litecoin source chain heights", "snapshot script test rejects string source heights"),
+        ("source-string-size-on-disk", "snapshot script test rejects string source disk footprint"),
         ("Reject malformed Litecoin source header height", "snapshot script test validates source header height shape"),
         (
             "Reject malformed Litecoin source best block hash",

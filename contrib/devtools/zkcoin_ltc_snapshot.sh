@@ -329,7 +329,6 @@ raw = sys.argv[1]
 expected_height = int(sys.argv[2])
 expected_hash = sys.argv[3]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
-INT_RE = re.compile(r"^[0-9]+$")
 NULL_UINT256 = "0" * 64
 
 class DuplicateJSONFieldError(ValueError):
@@ -366,33 +365,17 @@ def require_nonnegative_int(field):
     if field not in chaininfo:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
     value = chaininfo[field]
-    if isinstance(value, bool):
+    if type(value) is not int or value < 0:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    if isinstance(value, int):
-        parsed = value
-    elif isinstance(value, str) and INT_RE.fullmatch(value):
-        parsed = int(value)
-    else:
-        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    if parsed < 0:
-        fail(f"litecoin-cli getblockchaininfo.{field} must be a non-negative integer")
-    return parsed
+    return value
 
 def require_positive_int(field):
     if field not in chaininfo:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
     value = chaininfo[field]
-    if isinstance(value, bool):
+    if type(value) is not int or value <= 0:
         fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
-    if isinstance(value, int):
-        parsed = value
-    elif isinstance(value, str) and INT_RE.fullmatch(value):
-        parsed = int(value)
-    else:
-        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
-    if parsed <= 0:
-        fail(f"litecoin-cli getblockchaininfo.{field} must be a positive integer")
-    return parsed
+    return value
 
 def require_string(field):
     if field not in chaininfo or not isinstance(chaininfo[field], str) or not chaininfo[field]:
