@@ -334,6 +334,9 @@ for section, required_fields in REQUIRED_DETAIL_FIELDS.items():
     missing_fields = [field for field in required_fields if field not in value]
     if missing_fields:
         schema_errors.append(f"missing getblockchaininfo.{section} fields: " + ", ".join(missing_fields))
+    unexpected_fields = sorted(set(value) - set(required_fields))
+    if unexpected_fields:
+        schema_errors.append(f"unexpected getblockchaininfo.{section} fields: " + ", ".join(unexpected_fields))
     detail_sections[section] = value
 
 snapshot_detail = detail_sections.get("ltc_snapshot")

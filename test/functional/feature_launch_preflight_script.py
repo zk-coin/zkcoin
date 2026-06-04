@@ -435,6 +435,16 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             "missing getblockchaininfo.ltc_snapshot fields: enabled, imported, import_in_progress",
         )
 
+        self.log.info("Reject unexpected detail section fields")
+        unexpected_snapshot_detail = self.valid_info()
+        unexpected_snapshot_detail["ltc_snapshot"]["unexpected_launch_value"] = "ignored"
+        self.assert_preflight(
+            fake_cli,
+            unexpected_snapshot_detail,
+            1,
+            "unexpected getblockchaininfo.ltc_snapshot fields: unexpected_launch_value",
+        )
+
         self.log.info("Reject inconsistent snapshot import detail")
         inconsistent_snapshot_enabled = self.valid_info()
         inconsistent_snapshot_enabled["ltc_snapshot"]["enabled"] = False
