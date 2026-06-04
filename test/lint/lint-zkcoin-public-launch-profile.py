@@ -337,6 +337,34 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        reordered_blockers = json.loads(json.dumps(manifest))
+        reordered_blockers["blockers"] = list(reversed(reordered_blockers["blockers"]))
+        reordered_blockers_path = Path(temp_dir) / "reordered-blockers.json"
+        reordered_blockers_path.write_text(json.dumps(reordered_blockers), encoding="utf8")
+        reordered_blockers_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--allow-blocked",
+                str(reordered_blockers_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if reordered_blockers_result.returncode == 0:
+            return "{} accepted reordered launch blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "blockers: must match unresolved blocker order: main.litecoin_snapshot"
+            not in reordered_blockers_result.stderr
+        ):
+            return "{} did not explain reordered launch blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     for network in ("main", "testnet"):
         profile = manifest.get("networks", {}).get(network, {})
         if profile.get("auxpow", {}).get("start_height") != 1:
@@ -9340,6 +9368,7 @@ def main():
         ("BLOCKER_TYPES", "manifest defines stable blocker type order"),
         ("CHAINPARAMS_CLASS_BOUNDS", "manifest maps public networks to chainparams classes"),
         ("contains resolved or unknown blocker ids", "manifest rejects stale or unknown blocker ids"),
+        ("must match unresolved blocker order", "manifest rejects reordered blocker ids"),
         ("DuplicateJSONFieldError", "manifest rejects duplicate JSON fields"),
         ("is not valid UTF-8", "manifest rejects invalid UTF-8 JSON"),
         ("LAUNCH_MANIFEST_MAX_BYTES", "manifest caps launch manifest input size"),
