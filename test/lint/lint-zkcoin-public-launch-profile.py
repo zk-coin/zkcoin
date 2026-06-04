@@ -7017,6 +7017,48 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    malformed_check_dns_cases = (
+        (
+            "seed1.zkcoin.net,,seed2.zkcoin.net",
+            "empty DNS seed entry",
+            "dns_seeds must be a comma-separated list of non-empty hostnames",
+        ),
+        (
+            "seed1.zkcoin.net,seed1.zkcoin.net",
+            "duplicate DNS seed hostname",
+            "duplicate DNS seed hostname",
+        ),
+        ("zkcoinseed", "single-label DNS seed hostname", "invalid DNS seed hostname"),
+        ("seed.zkcoin.123", "numeric final-label DNS seed hostname", "invalid DNS seed hostname"),
+        ("seed.zkcoin.example", "reserved DNS seed suffix", "invalid DNS seed hostname"),
+        ("a" * 64 + ".zkcoin.net", "overlong DNS seed label", "invalid DNS seed hostname"),
+    )
+    for seed_value, description, expected_error in malformed_check_dns_cases:
+        malformed_check_dns_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-dns-seeds",
+                "main",
+                seed_value,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_dns_result.returncode == 0:
+            return "{} --check-dns-seeds accepted a {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_dns_result.stderr:
+            return "{} --check-dns-seeds did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_check_dns_result = subprocess.run(
         [
             sys.executable,
@@ -9764,6 +9806,9 @@ def main():
         ("snapshot_hash", "manifest preserves snapshot audit hash metadata"),
         ("base_nchaintx", "manifest preserves snapshot audit transaction-count metadata"),
         ("parse_dns_seeds", "manifest parses DNS seed hostnames"),
+        ("dns_seeds must be a comma-separated list of non-empty hostnames", "manifest rejects empty DNS seed entries"),
+        ("duplicate DNS seed hostname", "manifest rejects duplicate DNS seed hostnames"),
+        ("invalid DNS seed hostname", "manifest rejects malformed DNS seed hostnames"),
         ("dns_seeds_apply_command", "manifest prints DNS seed apply commands after read-only checks"),
         ("len(labels) < 2", "manifest rejects single-label DNS seed hostnames"),
         ("re.search(r\"[a-z]\", labels[-1]) is None", "manifest rejects numeric final-label DNS seed hostnames"),
