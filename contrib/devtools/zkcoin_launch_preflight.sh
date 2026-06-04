@@ -208,6 +208,18 @@ if unexpected_readiness:
 for field in REQUIRED_READINESS_BOOL_FIELDS:
     if field in readiness and type(readiness[field]) is not bool:
         schema_errors.append(f"launch_readiness.{field} must be a boolean")
+if type(readiness.get("ready")) is bool and readiness["ready"] is True:
+    false_required_readiness = [
+        field for field in REQUIRED_READINESS_BOOL_FIELDS
+        if field != "ready"
+        and type(readiness.get(field)) is bool
+        and readiness[field] is not True
+    ]
+    if false_required_readiness:
+        schema_errors.append(
+            "launch_readiness.ready requires true readiness fields: "
+            + ", ".join(false_required_readiness)
+        )
 if (
     type(readiness.get("snapshot_configured")) is bool
     and type(readiness.get("snapshot_imported")) is bool

@@ -404,7 +404,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             fake_cli,
             self.valid_info(readiness_overrides={"chain_history_clean": False}),
             1,
-            "required readiness fields are false: chain_history_clean",
+            "launch_readiness.ready requires true readiness fields: chain_history_clean",
         )
 
         self.log.info("Reject imported snapshot readiness without configured snapshot constants")
@@ -506,7 +506,7 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
             fake_cli,
             self.valid_info(readiness_overrides={"script_rules_active_at_launch": False}),
             1,
-            "required readiness fields are false: script_rules_active_at_launch",
+            "launch_readiness.ready requires true readiness fields: script_rules_active_at_launch",
         )
 
         self.log.info("Reject inconsistent AuxPoW next-block activation detail")
@@ -568,8 +568,8 @@ class LaunchPreflightScriptTest(BitcoinTestFramework):
         result = self.run_preflight(fake_cli, false_parent_version_detail)
         assert_equal(result.returncode, 1)
         combined_output = result.stdout + result.stderr
-        assert "auxpow parent version safe: false" in combined_output
-        assert "required readiness fields are false:" in combined_output
+        assert "launch_readiness.ready requires true readiness fields:" in combined_output
+        assert "chain_id_configured, chain_id_parent_version_safe" in combined_output
         assert "chain_id_parent_version_safe" in combined_output
 
         self.log.info("Reject parent-version-unsafe AuxPoW chain id")
