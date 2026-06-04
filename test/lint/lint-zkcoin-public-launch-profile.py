@@ -5665,6 +5665,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        symlink_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(symlink_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if symlink_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a symlinked audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary must not be a symlink" not in symlink_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain symlink audit summary rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in symlink_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a symlinked audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         parent_symlink_audit_target = Path(temp_dir) / "snapshot-audit-parent-target"
         parent_symlink_audit_target.mkdir()
         parent_symlink_audit_file = parent_symlink_audit_target / "snapshot-audit.json"
@@ -5691,6 +5718,33 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit summary parent directory must not be a symlink" not in parent_symlink_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain symlink audit summary parent rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        parent_symlink_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(parent_symlink_audit_parent / parent_symlink_audit_file.name),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if parent_symlink_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an audit summary through a symlinked parent".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary parent directory must not be a symlink" not in parent_symlink_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain symlink audit summary parent rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in parent_symlink_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an audit summary through a symlinked parent".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
