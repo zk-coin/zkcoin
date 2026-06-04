@@ -6276,6 +6276,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain directory snapshot artifact rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        directory_artifact_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(directory_artifact_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if directory_artifact_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a directory snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file artifact must be a regular file" not in directory_artifact_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain directory snapshot artifact rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in directory_artifact_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a directory snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         symlink_artifact_path = Path(temp_dir) / "ltc-block-x-link.dat"
         symlink_artifact_path.symlink_to(snapshot_artifact_path)
