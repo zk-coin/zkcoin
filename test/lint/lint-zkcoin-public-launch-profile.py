@@ -7088,6 +7088,44 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        malformed_dns_manifest = json.loads(PUBLIC_LAUNCH_MANIFEST.read_text(encoding="utf8"))
+        malformed_dns_manifest["networks"]["main"]["auxpow"] = "not-an-object"
+        malformed_dns_manifest_path = Path(temp_dir) / "malformed-dns-manifest.json"
+        malformed_dns_manifest_path.write_text(json.dumps(malformed_dns_manifest), encoding="utf8")
+        malformed_dns_manifest_bytes = malformed_dns_manifest_path.read_bytes()
+        malformed_dns_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--set-dns-seeds",
+                "main",
+                "seed1.zkcoin.net,seed2.zkcoin.net",
+                "--in-place",
+                str(malformed_dns_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_dns_result.returncode == 0:
+            return "{} --set-dns-seeds --in-place accepted a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "zkCoin public launch profile manifest failed validation:" not in malformed_dns_result.stderr:
+            return "{} --set-dns-seeds --in-place did not report manifest validation failure".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "main.auxpow: must be an object" not in malformed_dns_result.stderr:
+            return "{} --set-dns-seeds --in-place did not validate the staged manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if malformed_dns_manifest_path.read_bytes() != malformed_dns_manifest_bytes:
+            return "{} --set-dns-seeds --in-place wrote a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     malformed_check_dns_cases = (
         (
             "seed1.zkcoin.net,,seed2.zkcoin.net",
