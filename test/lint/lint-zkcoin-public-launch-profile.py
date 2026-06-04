@@ -6024,6 +6024,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        root_file_audit_path = Path(temp_dir) / "root-file-audit.json"
+        root_file_audit = dict(audit)
+        root_file_audit["snapshot_file"] = "/"
+        root_file_audit_path.write_text(json.dumps(root_file_audit), encoding="utf8")
+        root_file_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(root_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if root_file_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted the root directory as a snapshot artifact".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in root_file_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain root snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         relative_file_audit_path = Path(temp_dir) / "relative-file-audit.json"
         relative_file_audit = dict(audit)
         relative_file_audit["snapshot_file"] = "snapshots/ltc-block-x.dat"
@@ -9642,6 +9669,7 @@ def main():
             "manifest rejects ready status while blocker fields remain unresolved",
         ),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
+        ("value != \"/\"", "manifest rejects root snapshot audit file paths"),
         ("os.path.normpath(value) == value", "manifest rejects non-normalized snapshot audit file paths"),
         ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
         ("value == \"0.00000000\"", "manifest rejects zero snapshot audit amounts"),
