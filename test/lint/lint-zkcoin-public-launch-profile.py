@@ -10059,6 +10059,10 @@ def main():
             "preflight validates chain name shape",
         ),
         (
+            "unexpected getblockchaininfo.{section} fields",
+            "preflight rejects unexpected detail section fields",
+        ),
+        (
             "getblockchaininfo.ltc_snapshot.imported must match launch_readiness.snapshot_imported",
             "preflight cross-checks snapshot import detail",
         ),
@@ -10260,6 +10264,10 @@ def main():
         (
             "Reject malformed configured snapshot detail shape",
             "preflight fake-CLI snapshot detail shape coverage",
+        ),
+        (
+            "Reject unexpected detail section fields",
+            "preflight fake-CLI unexpected detail field coverage",
         ),
         (
             "Reject malformed or non-launch AuxPoW start height",
