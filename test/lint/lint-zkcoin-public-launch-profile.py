@@ -10387,7 +10387,7 @@ def main():
         ("snapshot output changed during verification", "snapshot script rejects artifact mutation during verification"),
         ("dumptxoutset base_height mismatch", "snapshot script rejects dump metadata before verifier handoff"),
         ("dumptxoutset.path must match requested snapshot output path", "snapshot script rejects dump output path mismatches"),
-        ("INT_RE", "snapshot script rejects fractional audit heights and counts"),
+        ("type(value) is not int", "snapshot script requires native JSON integer metadata"),
         ("require_positive_int", "snapshot script requires positive audit counts"),
         ("MAX_MONEY", "snapshot script caps verifier total amount at inherited Litecoin supply"),
         ("positive decimal amount with 8 fractional digits", "snapshot script validates verifier total amount"),
@@ -10482,6 +10482,8 @@ def main():
             "Reject malformed post-rewind source tip",
             "snapshot script test rejects malformed post-rewind tips",
         ),
+        ("Reject string-typed snapshot dump heights", "snapshot script test rejects string dump heights"),
+        ("Reject string-typed verifier coin counts", "snapshot script test rejects string verifier counts"),
         (
             "Reject a pre-existing audit summary output path before calling either CLI",
             "snapshot script test rejects pre-existing audit output before RPC",

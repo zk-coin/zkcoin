@@ -510,7 +510,6 @@ expected_hash = sys.argv[2].lower()
 snapshot_path = sys.argv[3]
 dump_json = sys.argv[4]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
-INT_RE = re.compile(r"^[0-9]+$")
 NULL_UINT256 = "0" * 64
 
 class DuplicateJSONFieldError(ValueError):
@@ -546,17 +545,11 @@ def require_field(obj, source, field):
 
 def require_int(obj, source, field):
     value = require_field(obj, source, field)
-    if isinstance(value, bool):
+    if type(value) is not int:
         fail(f"{source}.{field} must be an integer")
-    if isinstance(value, int):
-        parsed = value
-    elif isinstance(value, str) and INT_RE.fullmatch(value):
-        parsed = int(value)
-    else:
-        fail(f"{source}.{field} must be an integer")
-    if parsed < 0:
+    if value < 0:
         fail(f"{source}.{field} must be a non-negative integer")
-    return parsed
+    return value
 
 def require_positive_int(obj, source, field):
     parsed = require_int(obj, source, field)
@@ -628,7 +621,6 @@ snapshot_file_sha256 = sys.argv[6]
 dump_json = sys.argv[7]
 verify_json = sys.argv[8]
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
-INT_RE = re.compile(r"^[0-9]+$")
 AMOUNT_RE = re.compile(r"^(0|[1-9][0-9]*)\.[0-9]{8}$")
 COIN = 100000000
 MAX_MONEY = 84000000 * COIN
@@ -681,17 +673,11 @@ def require_field(obj, source, field):
 
 def require_int(obj, source, field):
     value = require_field(obj, source, field)
-    if isinstance(value, bool):
+    if type(value) is not int:
         fail(f"{source}.{field} must be an integer")
-    if isinstance(value, int):
-        parsed = value
-    elif isinstance(value, str) and INT_RE.fullmatch(value):
-        parsed = int(value)
-    else:
-        fail(f"{source}.{field} must be an integer")
-    if parsed < 0:
+    if value < 0:
         fail(f"{source}.{field} must be a non-negative integer")
-    return parsed
+    return value
 
 def require_positive_int(obj, source, field):
     parsed = require_int(obj, source, field)
