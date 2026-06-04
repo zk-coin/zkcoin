@@ -7891,6 +7891,87 @@ def require_public_launch_manifest_current():
                         expected_error,
                     )
 
+        cross_network_update_checks = (
+            (
+                "AuxPoW",
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--set-auxpow",
+                    "main",
+                    "0x5002",
+                    str(complete_path),
+                ],
+                (
+                    "zkCoin public launch profile manifest failed validation:",
+                    "testnet.auxpow.chain_id: must differ from main.auxpow.chain_id",
+                ),
+            ),
+            (
+                "DNS seed",
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--set-dns-seeds",
+                    "main",
+                    "seed1.test.zkcoin.net",
+                    str(complete_path),
+                ],
+                (
+                    "zkCoin public launch profile manifest failed validation:",
+                    "testnet.public_network_identity.dns_seeds[0]: must differ from main.public_network_identity.dns_seeds[0]",
+                ),
+            ),
+            (
+                "public identity",
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--set-identity",
+                    "main",
+                    "250,191,181,218",
+                    "29445",
+                    "85",
+                    "86",
+                    "87",
+                    "188",
+                    "04202433",
+                    "04202434",
+                    "tzk",
+                    "tzkmweb",
+                    str(complete_path),
+                ],
+                (
+                    "zkCoin public launch profile manifest failed validation:",
+                    "testnet.public_network_identity.message_start: must differ from main.public_network_identity.message_start",
+                    "testnet.public_network_identity.default_port: must differ from main.public_network_identity.default_port",
+                    "testnet.public_network_identity.base58_prefixes.pubkey_address: must differ from main.public_network_identity.base58_prefixes.pubkey_address",
+                    "testnet.public_network_identity.bech32_hrp: must differ from main.public_network_identity.bech32_hrp",
+                    "testnet.public_network_identity.mweb_hrp: must differ from main.public_network_identity.mweb_hrp",
+                ),
+            ),
+        )
+        for description, command, expected_errors in cross_network_update_checks:
+            collision_update_result = subprocess.run(
+                command,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if collision_update_result.returncode == 0:
+                return "{} --set-{} emitted cross-network launch value collisions".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    description.lower(),
+                )
+            for expected_error in expected_errors:
+                if expected_error not in collision_update_result.stderr:
+                    return "{} --set-{} did not report {}".format(
+                        PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                        description.lower(),
+                        expected_error,
+                    )
+
         complete_next_result = subprocess.run(
             [
                 sys.executable,
