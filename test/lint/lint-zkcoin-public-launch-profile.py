@@ -6583,6 +6583,32 @@ def require_public_launch_manifest_current():
             return "{} --set-snapshot-audit did not explain snapshot file SHA-256 mismatch".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        mismatched_sha_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(mismatched_sha_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if mismatched_sha_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a mismatched snapshot file SHA-256".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit file SHA-256 mismatch" not in mismatched_sha_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain snapshot file SHA-256 mismatch".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in mismatched_sha_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a mismatched snapshot file SHA-256".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         mismatched_source_chain_audit_path = Path(temp_dir) / "mismatched-source-chain-audit.json"
         mismatched_source_chain_audit = dict(audit)
