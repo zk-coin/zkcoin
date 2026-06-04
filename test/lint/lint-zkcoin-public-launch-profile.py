@@ -7538,6 +7538,48 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    malformed_check_identity_hrp_cases = (
+        ("z" * 84, "zkmweb", "overlong Bech32 HRP", "bech32_hrp must be lowercase printable ASCII at most 83 characters"),
+        ("zk", "m" * 84, "overlong MWEB HRP", "mweb_hrp must be lowercase printable ASCII at most 83 characters"),
+        ("ltc", "zkmweb", "inherited Litecoin Bech32 HRP", "bech32_hrp must be lowercase printable ASCII at most 83 characters"),
+        ("zk", "ltcmweb", "inherited Litecoin MWEB HRP", "mweb_hrp must be lowercase printable ASCII at most 83 characters"),
+        ("zk", "zk", "duplicate Bech32/MWEB HRP pair", "mweb_hrp must differ from bech32_hrp"),
+    )
+    for bech32_hrp, mweb_hrp, description, expected_error in malformed_check_identity_hrp_cases:
+        malformed_check_identity_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                bech32_hrp,
+                mweb_hrp,
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_check_identity_result.returncode == 0:
+            return "{} --check-identity accepted an {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+        if expected_error not in malformed_check_identity_result.stderr:
+            return "{} --check-identity did not explain {} rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                description,
+            )
+
     unsafe_identity_result = subprocess.run(
         [
             sys.executable,
@@ -9918,6 +9960,10 @@ def main():
         ("default_port must be an integer", "manifest rejects non-integer public identity ports"),
         ("default_port must be in the public TCP port range 1025-65535", "manifest rejects non-public public identity ports"),
         ("default_port must not reuse a Litecoin default port", "manifest rejects inherited Litecoin public identity ports"),
+        ("hrp_valid", "manifest validates public identity HRPs"),
+        ("bech32_hrp must be lowercase printable ASCII at most 83 characters", "manifest rejects malformed Bech32 HRPs"),
+        ("mweb_hrp must be lowercase printable ASCII at most 83 characters", "manifest rejects malformed MWEB HRPs"),
+        ("mweb_hrp must differ from bech32_hrp", "manifest rejects duplicate public identity HRPs"),
         ("display_path", "manifest guidance preserves non-default manifest paths"),
         ("shell_quote", "manifest guidance shell-quotes handoff paths"),
         ("ordered_unresolved_blocker_ids", "manifest orders unresolved blocker guidance"),
