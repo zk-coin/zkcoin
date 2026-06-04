@@ -5873,6 +5873,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        null_snapshot_hash_audit_path = Path(temp_dir) / "null-snapshot-hash-audit.json"
+        null_snapshot_hash_audit = dict(audit)
+        null_snapshot_hash_audit["snapshot_hash"] = "00" * 32
+        null_snapshot_hash_audit_path.write_text(json.dumps(null_snapshot_hash_audit), encoding="utf8")
+        null_snapshot_hash_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(null_snapshot_hash_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if null_snapshot_hash_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a null snapshot audit hash".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit snapshot_hash must not be the null uint256" not in null_snapshot_hash_result.stderr:
+            return "{} --check-snapshot-audit did not explain null snapshot hash rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         duplicate_field_audit_path = Path(temp_dir) / "duplicate-field-audit.json"
         duplicate_field_audit_path.write_text(
             json.dumps(audit).replace(
@@ -9588,6 +9615,7 @@ def main():
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
         ("snapshot audit source_chain must be main or test", "manifest rejects non-public snapshot audit source chains"),
         ("64-character lowercase hex string", "manifest rejects non-lowercase snapshot audit hashes"),
+        ("must not be the null uint256", "manifest rejects null snapshot audit hashes"),
         ("source_chain", "manifest preserves snapshot source-chain audit metadata"),
         ("snapshot_file_size", "manifest preserves snapshot file byte-size metadata"),
         ("snapshot_file_sha256", "manifest preserves snapshot file SHA-256 metadata"),
