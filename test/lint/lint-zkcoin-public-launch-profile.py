@@ -6051,6 +6051,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        double_slash_file_audit_path = Path(temp_dir) / "double-slash-file-audit.json"
+        double_slash_file_audit = dict(audit)
+        double_slash_file_audit["snapshot_file"] = "//tmp/ltc-block-x.dat"
+        double_slash_file_audit_path.write_text(json.dumps(double_slash_file_audit), encoding="utf8")
+        double_slash_file_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(double_slash_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if double_slash_file_audit_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a double-slash snapshot artifact path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in double_slash_file_audit_result.stderr:
+            return "{} --check-snapshot-audit did not explain double-slash snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         relative_file_audit_path = Path(temp_dir) / "relative-file-audit.json"
         relative_file_audit = dict(audit)
         relative_file_audit["snapshot_file"] = "snapshots/ltc-block-x.dat"
@@ -9670,6 +9697,7 @@ def main():
         ),
         ("snapshot_file_valid", "manifest rejects malformed snapshot audit file paths"),
         ("value != \"/\"", "manifest rejects root snapshot audit file paths"),
+        ("not value.startswith(\"//\")", "manifest rejects double-slash snapshot audit file paths"),
         ("os.path.normpath(value) == value", "manifest rejects non-normalized snapshot audit file paths"),
         ("without control characters", "manifest rejects control characters in snapshot audit file paths"),
         ("value == \"0.00000000\"", "manifest rejects zero snapshot audit amounts"),
