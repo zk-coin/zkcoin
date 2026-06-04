@@ -5873,32 +5873,42 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
-        null_snapshot_hash_audit_path = Path(temp_dir) / "null-snapshot-hash-audit.json"
-        null_snapshot_hash_audit = dict(audit)
-        null_snapshot_hash_audit["snapshot_hash"] = "00" * 32
-        null_snapshot_hash_audit_path.write_text(json.dumps(null_snapshot_hash_audit), encoding="utf8")
-        null_snapshot_hash_result = subprocess.run(
-            [
-                sys.executable,
-                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
-                "--check-snapshot-audit",
-                "main",
-                str(null_snapshot_hash_audit_path),
-                str(PUBLIC_LAUNCH_MANIFEST),
-            ],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
+        null_hash_audit_fields = (
+            ("block_hash", "snapshot block hash"),
+            ("import_hash", "snapshot import hash"),
+            ("snapshot_hash", "snapshot audit hash"),
+            ("snapshot_file_sha256", "snapshot file hash"),
         )
-        if null_snapshot_hash_result.returncode == 0:
-            return "{} --check-snapshot-audit accepted a null snapshot audit hash".format(
-                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        for null_hash_field, null_hash_description in null_hash_audit_fields:
+            null_hash_audit_path = Path(temp_dir) / f"null-{null_hash_field.replace('_', '-')}-audit.json"
+            null_hash_audit = dict(audit)
+            null_hash_audit[null_hash_field] = "00" * 32
+            null_hash_audit_path.write_text(json.dumps(null_hash_audit), encoding="utf8")
+            null_hash_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--check-snapshot-audit",
+                    "main",
+                    str(null_hash_audit_path),
+                    str(PUBLIC_LAUNCH_MANIFEST),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
             )
-        if "snapshot audit snapshot_hash must not be the null uint256" not in null_snapshot_hash_result.stderr:
-            return "{} --check-snapshot-audit did not explain null snapshot hash rejection".format(
-                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
-            )
+            if null_hash_result.returncode == 0:
+                return "{} --check-snapshot-audit accepted a null {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    null_hash_description,
+                )
+            expected_null_hash_error = f"snapshot audit {null_hash_field} must not be the null uint256"
+            if expected_null_hash_error not in null_hash_result.stderr:
+                return "{} --check-snapshot-audit did not explain null {} rejection".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    null_hash_description,
+                )
 
         duplicate_field_audit_path = Path(temp_dir) / "duplicate-field-audit.json"
         duplicate_field_audit_path.write_text(
