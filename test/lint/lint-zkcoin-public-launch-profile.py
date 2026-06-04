@@ -5811,10 +5811,12 @@ def require_public_launch_manifest_current():
             )
 
         malformed_integer_audits = (
-            ("string-integer-audit", "4", "string-typed"),
-            ("boolean-integer-audit", True, "boolean-typed"),
+            ("string-integer-audit", "4", "string-typed", "snapshot audit coins must be an integer"),
+            ("boolean-integer-audit", True, "boolean-typed", "snapshot audit coins must be an integer"),
+            ("zero-integer-audit", 0, "zero-valued", "snapshot audit coins must be positive"),
+            ("negative-integer-audit", -1, "negative-valued", "snapshot audit coins must be positive"),
         )
-        for audit_name, audit_value, audit_description in malformed_integer_audits:
+        for audit_name, audit_value, audit_description, expected_error in malformed_integer_audits:
             malformed_integer_audit_path = Path(temp_dir) / f"{audit_name}.json"
             malformed_integer_audit = dict(audit)
             malformed_integer_audit["coins"] = audit_value
@@ -5838,7 +5840,7 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     audit_description,
                 )
-            if "snapshot audit coins must be an integer" not in malformed_integer_audit_result.stderr:
+            if expected_error not in malformed_integer_audit_result.stderr:
                 return "{} --check-snapshot-audit did not explain {} audit integer rejection".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     audit_description,
@@ -9526,6 +9528,7 @@ def main():
         ("snapshot audit summary must not be a symlink", "manifest rejects symlinked snapshot audit summaries"),
         ("snapshot audit missing field", "manifest rejects incomplete snapshot audit summaries"),
         ("snapshot audit {field} must be an integer", "manifest rejects string snapshot audit integer fields"),
+        ("snapshot audit {field} must be positive", "manifest rejects non-positive snapshot audit integer fields"),
         ("snapshot audit summary has unexpected field", "manifest rejects extra snapshot audit summary fields"),
         ("snapshot audit summary field order must match --snapshot-audit-template output", "manifest rejects reordered snapshot audit summary fields"),
         ("SNAPSHOT_SOURCE_CHAINS", "manifest maps public profiles to Litecoin source chains"),
