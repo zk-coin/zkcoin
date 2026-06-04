@@ -685,6 +685,22 @@ def require_positive_int(obj, source, field):
         fail(f"{source}.{field} must be positive")
     return parsed
 
+def require_optional_bool(obj, source, field):
+    if field not in obj:
+        return None
+    value = obj[field]
+    if type(value) is not bool:
+        fail(f"{source}.{field} must be a boolean")
+    return value
+
+def require_optional_nonnegative_int(obj, source, field):
+    if field not in obj:
+        return None
+    value = obj[field]
+    if type(value) is not int or value < 0:
+        fail(f"{source}.{field} must be a non-negative integer")
+    return value
+
 def require_hash(obj, source, field):
     value = require_field(obj, source, field)
     if not isinstance(value, str):
@@ -726,6 +742,8 @@ verify_base_nchaintx = require_positive_int(verify, "verifysnapshotmanifest", "b
 snapshot_hash = require_hash(verify, "verifysnapshotmanifest", "snapshot_hash")
 import_hash = require_hash(verify, "verifysnapshotmanifest", "import_hash")
 total_amount = require_amount(verify, "verifysnapshotmanifest", "total_amount")
+require_optional_bool(verify, "verifysnapshotmanifest", "matches_configured_snapshot")
+require_optional_nonnegative_int(verify, "verifysnapshotmanifest", "configured_height")
 
 def shell_quote(value):
     return shlex.quote(value)

@@ -1504,6 +1504,20 @@ class LtcSnapshotScriptTest(BitcoinTestFramework):
             "verifysnapshotmanifest.import_hash must not be the null uint256",
         )
 
+        self.log.info("Reject malformed optional verifier configured-snapshot fields")
+        self.assert_snapshot(
+            "malformed-verify-matches-configured",
+            self.scenario(verify_json=self.verify_json(matches_configured_snapshot="false")),
+            1,
+            "verifysnapshotmanifest.matches_configured_snapshot must be a boolean",
+        )
+        self.assert_snapshot(
+            "malformed-verify-configured-height",
+            self.scenario(verify_json=self.verify_json(configured_height="7")),
+            1,
+            "verifysnapshotmanifest.configured_height must be a non-negative integer",
+        )
+
         self.log.info("Reject malformed verifier total amount")
         self.assert_snapshot(
             "malformed-total-amount",
