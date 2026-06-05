@@ -252,7 +252,15 @@ Both are intentionally present before behavior changes so tests and review can t
   `candidate_constraint_counts_by_network_and_blocker_type` expose the
   machine-readable candidate constraint metadata as blocker-id, workstream, and
   mainnet/testnet workstream indexes without requiring dashboards to scan every
-  action entry. `next_actions_by_network_and_blocker_type` and
+  action entry. `external_artifacts_by_blocker`,
+  `external_artifact_counts_by_blocker`, `external_artifacts_by_blocker_type`,
+  `external_artifact_counts_by_blocker_type`,
+  `external_artifacts_by_network_and_blocker_type`, and
+  `external_artifact_counts_by_network_and_blocker_type` similarly expose the
+  required external handoff artifacts, starting with the Litecoin snapshot audit
+  JSON argument and the snapshot file referenced from that audit, while blocker
+  types that do not require external files report empty artifact lists.
+  `next_actions_by_network_and_blocker_type` and
   `next_commands_by_network_and_blocker_type` expose the first dispatchable
   handoff and commands for each mainnet/testnet workstream cell.
   `next_blocker_commands_by_network_and_blocker_type` mirrors those matrix

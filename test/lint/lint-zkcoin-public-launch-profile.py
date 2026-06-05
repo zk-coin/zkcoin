@@ -2199,6 +2199,84 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count candidate constraints by blocker".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_snapshot_external_artifacts = [
+        {
+            "id": "snapshot_audit_json",
+            "argument": "<snapshot_audit.json>",
+            "required_for_commands": ["check_command", "apply_command"],
+            "source": "operator-generated snapshot audit summary",
+            "must_be_utf8_json_object": True,
+            "must_match_template_fields": snapshot_audit_template_fields,
+            "max_bytes": 65536,
+        },
+        {
+            "id": "snapshot_file",
+            "path_field": "snapshot_file",
+            "source": "snapshot audit JSON field",
+            "required_for_commands": ["check_command", "apply_command"],
+            "must_be_local_regular_file": True,
+            "must_not_be_symlink": True,
+            "parent_must_not_be_symlink": True,
+            "size_field": "snapshot_file_size",
+            "sha256_field": "snapshot_file_sha256",
+            "must_remain_stable_during_verification": True,
+        },
+    ]
+    expected_external_artifacts_by_blocker_type = {
+        "litecoin_snapshot": expected_snapshot_external_artifacts,
+        "auxpow_chain_id": [],
+        "public_network_identity": [],
+        "dns_seeds": [],
+    }
+    expected_external_artifact_counts_by_blocker_type = {
+        blocker_type: len(artifacts)
+        for blocker_type, artifacts in expected_external_artifacts_by_blocker_type.items()
+    }
+    expected_external_artifacts_by_network_and_blocker_type = {
+        network: {
+            blocker_type: artifacts
+            for blocker_type, artifacts in expected_external_artifacts_by_blocker_type.items()
+        }
+        for network in ("main", "testnet")
+    }
+    expected_external_artifact_counts_by_network_and_blocker_type = {
+        network: dict(expected_external_artifact_counts_by_blocker_type)
+        for network in ("main", "testnet")
+    }
+    expected_external_artifacts_by_blocker = {
+        "{}.{}".format(network, blocker_type): artifacts
+        for network in ("main", "testnet")
+        for blocker_type, artifacts in expected_external_artifacts_by_blocker_type.items()
+    }
+    expected_external_artifact_counts_by_blocker = {
+        "{}.{}".format(network, blocker_type): count
+        for network in ("main", "testnet")
+        for blocker_type, count in expected_external_artifact_counts_by_blocker_type.items()
+    }
+    if status_json.get("external_artifacts_by_blocker_type") != expected_external_artifacts_by_blocker_type:
+        return "{} --status-json did not expose external artifacts by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("external_artifact_counts_by_blocker_type") != expected_external_artifact_counts_by_blocker_type:
+        return "{} --status-json did not count external artifacts by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("external_artifacts_by_network_and_blocker_type") != expected_external_artifacts_by_network_and_blocker_type:
+        return "{} --status-json did not expose external artifacts by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("external_artifact_counts_by_network_and_blocker_type") != expected_external_artifact_counts_by_network_and_blocker_type:
+        return "{} --status-json did not count external artifacts by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("external_artifacts_by_blocker") != expected_external_artifacts_by_blocker:
+        return "{} --status-json did not expose external artifacts by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("external_artifact_counts_by_blocker") != expected_external_artifact_counts_by_blocker:
+        return "{} --status-json did not count external artifacts by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -11482,6 +11560,12 @@ def main():
         ("candidate_constraint_counts_by_blocker_type", "manifest status JSON counts candidate constraints by blocker type"),
         ("candidate_constraints_by_network_and_blocker_type", "manifest status JSON indexes candidate constraints by network and blocker type"),
         ("candidate_constraint_counts_by_network_and_blocker_type", "manifest status JSON counts candidate constraints by network and blocker type"),
+        ("external_artifacts_by_blocker", "manifest status JSON indexes external artifacts by blocker"),
+        ("external_artifact_counts_by_blocker", "manifest status JSON counts external artifacts by blocker"),
+        ("external_artifacts_by_blocker_type", "manifest status JSON indexes external artifacts by blocker type"),
+        ("external_artifact_counts_by_blocker_type", "manifest status JSON counts external artifacts by blocker type"),
+        ("external_artifacts_by_network_and_blocker_type", "manifest status JSON indexes external artifacts by network and blocker type"),
+        ("external_artifact_counts_by_network_and_blocker_type", "manifest status JSON counts external artifacts by network and blocker type"),
         ("next_actions_by_network_and_blocker_type", "manifest status JSON includes next actions by network and blocker type"),
         ("next_commands_by_network_and_blocker_type", "manifest status JSON includes next commands by network and blocker type"),
         ("next_blocker_commands_by_network_and_blocker_type", "manifest status JSON aliases network blocker-type next blocker commands"),
