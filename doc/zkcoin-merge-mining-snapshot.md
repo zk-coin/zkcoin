@@ -410,7 +410,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `next_command_key_count` exposes the key list length directly; blocked field groups carry the same split command fields.
   `template_command` is `null` for blocker types that only need check/apply
   commands, so automation does not need to parse blocker ids, blocked field paths,
-  or human-readable action prose;
+  or human-readable action prose. Litecoin snapshot action entries and blocked
+  field groups also expose `template_fields` and `template_field_count`, listing
+  the required snapshot audit JSON field order for the matching
+  `template_command`;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.

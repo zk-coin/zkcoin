@@ -245,6 +245,8 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "network_readiness_summary_command": action["network_readiness_summary_command"],
                 "blocker_type_readiness_summary_command": action["blocker_type_readiness_summary_command"],
                 "blocker_readiness_summary_command": action["blocker_readiness_summary_command"],
+                "template_fields": action.get("template_fields"),
+                "template_field_count": action.get("template_field_count", 0),
                 "field_count": len(fields),
                 "fields": fields,
             }
@@ -2873,6 +2875,12 @@ def blocker_action_commands(blocker_id, manifest_path):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
+def blocker_template_fields(blocker_type):
+    if blocker_type == "litecoin_snapshot":
+        return list(SNAPSHOT_AUDIT_SUMMARY_FIELDS)
+    return None
+
+
 def next_blocker_command(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     commands = blocker_action_commands(blocker_id, manifest_path)
@@ -2974,6 +2982,7 @@ def blocker_action_entry(index, blocker, blockers, manifest_path):
     network, blocker_type = blocker.split(".", 1)
     network_blockers = items_by_network(blockers)[network]
     blocker_type_blockers = blockers_by_blocker_type(blockers)[blocker_type]
+    template_fields = blocker_template_fields(blocker_type)
     return {
         "step": index,
         "network_step": network_blockers.index(blocker) + 1,
@@ -2985,6 +2994,8 @@ def blocker_action_entry(index, blocker, blockers, manifest_path):
         "network": network,
         "blocker_type": blocker_type,
         "action": next_blocker_command(blocker, manifest_path),
+        "template_fields": template_fields,
+        "template_field_count": len(template_fields) if template_fields is not None else 0,
         **blocker_action_commands(blocker, manifest_path),
     }
 
