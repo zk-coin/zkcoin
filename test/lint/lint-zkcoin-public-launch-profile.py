@@ -6157,6 +6157,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        uppercase_hash_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(uppercase_hash_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if uppercase_hash_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an uppercase audit hash".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit block_hash must be a 64-character lowercase hex string" not in uppercase_hash_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain uppercase audit hash rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in uppercase_hash_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an uppercase audit hash".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         null_hash_audit_fields = (
             ("block_hash", "snapshot block hash"),
             ("import_hash", "snapshot import hash"),
