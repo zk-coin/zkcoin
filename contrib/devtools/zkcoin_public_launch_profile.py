@@ -986,6 +986,35 @@ def blocker_type_progress_entries(actions, blockers, blocked_field_groups):
     }
 
 
+def readiness_gate_progress_entries(actions, blockers, blocked_field_groups):
+    blocker_types_by_gate = blocker_types_by_readiness_gate()
+    blockers_by_gate = blockers_by_readiness_gate(blockers)
+    groups_by_gate = blocked_field_groups_by_readiness_gate(blocked_field_groups)
+    fields_by_gate = blocked_fields_by_readiness_gate(blocked_field_groups)
+    next_actions_by_gate = next_actions_by_readiness_gate(actions)
+    return {
+        gate: {
+            "ready_for_launch_profile": (
+                len(blockers_by_gate[gate]) == 0
+                and len(fields_by_gate[gate]) == 0
+            ),
+            "blocker_type_count": len(blocker_types_by_gate[gate]),
+            "blocker_types": blocker_types_by_gate[gate],
+            "unresolved_blocker_count": len(blockers_by_gate[gate]),
+            "unresolved_blockers": blockers_by_gate[gate],
+            "blocked_field_group_count": len(groups_by_gate[gate]),
+            "blocked_field_groups": groups_by_gate[gate],
+            "blocked_field_count": len(fields_by_gate[gate]),
+            "blocked_fields": fields_by_gate[gate],
+            "next_action": next_actions_by_gate[gate],
+            "next_blocked_field_group": (
+                groups_by_gate[gate][0] if groups_by_gate[gate] else None
+            ),
+        }
+        for gate in READINESS_GATES
+    }
+
+
 def blocked_networks(network_progress):
     return [
         network
@@ -3723,6 +3752,11 @@ def status_json_text(manifest, manifest_path, check):
         blockers,
         blocked_field_groups,
     )
+    readiness_gate_progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
     blocked_network_list = blocked_networks(network_progress)
     ready_network_list = ready_networks(network_progress)
     blocked_blocker_type_list = blocked_blocker_types(blocker_type_progress)
@@ -3960,6 +3994,7 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_networks_by_blocker_type": blocker_type_next_blocker_networks(blocker_type_progress),
             "network_progress": network_progress,
             "blocker_type_progress": blocker_type_progress,
+            "readiness_gate_progress": readiness_gate_progress,
             "blocked_field_groups": blocked_field_groups,
             "blocked_field_group_count": len(blocked_field_groups),
             "blocked_field_groups_by_blocker": blocked_field_groups_by_blocker(blocked_field_groups),

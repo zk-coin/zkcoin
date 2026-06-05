@@ -202,6 +202,9 @@ Both are intentionally present before behavior changes so tests and review can t
   mainnet/testnet workstream gap matrices without joining separate payloads, plus
   `blocker_type_progress` so each workstream has its ready flag, remaining
   blockers, blocked fields, and next action in one object, plus
+  `readiness_gate_progress` so external-artifact and value-selection gates have
+  ready flags, blocker types, remaining blockers, blocked field groups, blocked
+  fields, and next handoff pointers in one object, plus
   `next_blockers_by_blocker_type`, `next_blocker_networks_by_blocker_type`,
   `next_blocked_field_groups_by_blocker_type`,
   `next_blocked_fields_by_blocker_type`, and
@@ -269,7 +272,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_field_group_counts_by_readiness_gate`,
   `blocked_fields_by_readiness_gate`, and
   `blocked_field_counts_by_readiness_gate` split unresolved work into
-  external-artifact handoffs and value-selection handoffs for launch planning.
+  external-artifact handoffs and value-selection handoffs for launch planning,
+  while `readiness_gate_progress` packages those gate-level counts, groups,
+  fields, and next handoff objects into one progress map.
   `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
   `next_actions_by_readiness_gate`, `next_commands_by_readiness_gate`,
   `next_blocker_commands_by_readiness_gate`,

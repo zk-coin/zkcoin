@@ -2466,6 +2466,45 @@ def require_public_launch_manifest_current():
         gate: len(fields)
         for gate, fields in expected_blocked_fields_by_readiness_gate.items()
     }
+    empty_readiness_gate_progress = {
+        gate: {
+            "ready_for_launch_profile": True,
+            "blocker_type_count": len(expected_blocker_types_by_readiness_gate[gate]),
+            "blocker_types": expected_blocker_types_by_readiness_gate[gate],
+            "unresolved_blocker_count": 0,
+            "unresolved_blockers": [],
+            "blocked_field_group_count": 0,
+            "blocked_field_groups": [],
+            "blocked_field_count": 0,
+            "blocked_fields": [],
+            "next_action": None,
+            "next_blocked_field_group": None,
+        }
+        for gate in expected_readiness_gates
+    }
+    expected_readiness_gate_progress = {
+        gate: {
+            "ready_for_launch_profile": (
+                len(expected_unresolved_blockers_by_readiness_gate[gate]) == 0
+                and len(expected_blocked_fields_by_readiness_gate[gate]) == 0
+            ),
+            "blocker_type_count": len(expected_blocker_types_by_readiness_gate[gate]),
+            "blocker_types": expected_blocker_types_by_readiness_gate[gate],
+            "unresolved_blocker_count": expected_unresolved_blocker_counts_by_readiness_gate[gate],
+            "unresolved_blockers": expected_unresolved_blockers_by_readiness_gate[gate],
+            "blocked_field_group_count": expected_blocked_field_group_counts_by_readiness_gate[gate],
+            "blocked_field_groups": expected_blocked_field_groups_by_readiness_gate[gate],
+            "blocked_field_count": expected_blocked_field_counts_by_readiness_gate[gate],
+            "blocked_fields": expected_blocked_fields_by_readiness_gate[gate],
+            "next_action": next_actions_by_readiness_gate.get(gate),
+            "next_blocked_field_group": (
+                expected_blocked_field_groups_by_readiness_gate[gate][0]
+                if expected_blocked_field_groups_by_readiness_gate[gate]
+                else None
+            ),
+        }
+        for gate in expected_readiness_gates
+    }
     if status_json.get("readiness_gates") != expected_readiness_gates:
         return "{} --status-json did not expose readiness gates".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2516,6 +2555,10 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("blocked_field_counts_by_readiness_gate") != expected_blocked_field_counts_by_readiness_gate:
         return "{} --status-json did not count blocked fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("readiness_gate_progress") != expected_readiness_gate_progress:
+        return "{} --status-json did not expose readiness-gate progress entries".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     command_fields = tuple(status_json.get("command_field_order", []))
@@ -9857,6 +9900,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported blocker-type progress for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("readiness_gate_progress") != empty_readiness_gate_progress:
+            return "{} --status-json reported readiness-gate progress for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
             return "{} --status-json reported per-network next fields for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -10510,6 +10557,10 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("blocker_type_progress") != empty_blocker_type_progress:
             return "{} --status-json reported blocker-type progress for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("readiness_gate_progress") != empty_readiness_gate_progress:
+            return "{} --status-json reported readiness-gate progress for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_fields_by_network") != {"main": [], "testnet": []}:
@@ -11720,6 +11771,7 @@ def main():
         ("next_blocker_field_counts_by_blocker_type", "manifest aliases next blocker field counts by blocker type"),
         ("next_blockers_by_network_and_blocker_type", "manifest exposes next blockers by network and blocker type"),
         ("blocker_type_progress_entries", "manifest builds blocker-type progress entries"),
+        ("readiness_gate_progress_entries", "manifest builds readiness-gate progress entries"),
         ("blocker_type_next_blocked_fields", "manifest builds blocker-type next blocked field aliases"),
         ("blocker_type_next_blocked_field_counts", "manifest builds blocker-type next blocked field count aliases"),
         ("blocker_type_next_blockers", "manifest builds blocker-type next blocker aliases"),
@@ -11980,6 +12032,7 @@ def main():
         ("blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes blocker readiness-summary commands"),
         ("blocker_readiness_summary_command_count", "manifest status JSON counts blocker readiness-summary commands"),
         ("blocker_type_progress", "manifest status JSON includes blocker-type progress entries"),
+        ("readiness_gate_progress", "manifest status JSON includes readiness-gate progress entries"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
         ("next_blocker_commands_by_network", "manifest status JSON aliases per-network next blocker commands"),
         ("next_blocked_field_groups_by_network", "manifest status JSON includes per-network next blocked field groups"),
@@ -13433,6 +13486,10 @@ def main():
         (
             "blocker_type_progress",
             "public launch manifest status-json blocker-type progress documentation",
+        ),
+        (
+            "readiness_gate_progress",
+            "public launch manifest status-json readiness-gate progress documentation",
         ),
         (
             "next_blockers_by_blocker_type",
