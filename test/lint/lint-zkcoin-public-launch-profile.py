@@ -6129,6 +6129,11 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     audit_description,
                 )
+            if "--set-snapshot-audit main" in malformed_integer_audit_result.stdout:
+                return "{} --check-snapshot-audit printed an apply command for a {} audit integer".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    audit_description,
+                )
 
         uppercase_hash_audit_path = Path(temp_dir) / "uppercase-hash-audit.json"
         uppercase_hash_audit = dict(audit)
