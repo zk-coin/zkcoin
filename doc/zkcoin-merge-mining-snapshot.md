@@ -150,8 +150,9 @@ Both are intentionally present before behavior changes so tests and review can t
   network summary prints its own copyable rerun command after the handoff commands. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle NETWORK`
   when release operators need one compact handoff with the current blocker
-  summary command, the network readiness summary command, and the queued
-  value-selection command for that public network. Use
+  template/check/preflight/apply commands, the current blocker summary command,
+  the network readiness summary command, and the queued value-selection command
+  for that public network. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary BLOCKER_TYPE`
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or

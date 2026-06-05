@@ -829,6 +829,10 @@ def require_public_launch_manifest_current():
         "  - ready for launch profile: no",
         "  - current blocker: main.litecoin_snapshot",
         "  - current blocker fields: 11",
+        "  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - preflight command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - current blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network value-selection later blockers command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -4254,6 +4258,22 @@ def require_public_launch_manifest_current():
                 spaced_network_handoff_result.stderr.strip()
                 or spaced_network_handoff_result.stdout.strip()
                 or "no output",
+            )
+        if f"  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}" not in spaced_network_handoff_result.stdout:
+            return "{} --network-handoff-bundle did not shell-quote staged current blocker template command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_network_handoff_result.stdout:
+            return "{} --network-handoff-bundle did not shell-quote staged current blocker check command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - preflight command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> {quoted_manifest_path}" not in spaced_network_handoff_result.stdout:
+            return "{} --network-handoff-bundle did not shell-quote staged current blocker preflight command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place {quoted_manifest_path}" not in spaced_network_handoff_result.stdout:
+            return "{} --network-handoff-bundle did not shell-quote staged current blocker apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - current blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot {quoted_manifest_path}" not in spaced_network_handoff_result.stdout:
             return "{} --network-handoff-bundle did not shell-quote staged current blocker summary command".format(
