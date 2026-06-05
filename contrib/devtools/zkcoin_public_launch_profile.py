@@ -1134,10 +1134,21 @@ def blocker_type_count_summary(counts):
     )
 
 
+def readiness_gate_count_summary(counts):
+    return ", ".join(f"{gate}={counts[gate]}" for gate in READINESS_GATES)
+
+
 def blocker_type_list_summary(items_by_blocker_type):
     return "; ".join(
         f"{blocker_type}={list_summary(items_by_blocker_type[blocker_type])}"
         for blocker_type in BLOCKER_TYPES
+    )
+
+
+def readiness_gate_list_summary(items_by_gate):
+    return "; ".join(
+        f"{gate}={list_summary(items_by_gate[gate])}"
+        for gate in READINESS_GATES
     )
 
 
@@ -3426,13 +3437,17 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
         f"  - ready networks by blocker type: {blocker_type_list_summary(ready_networks_by_blocker_type(blocked_field_groups))}",
+        f"  - blocker types by readiness gate: {readiness_gate_list_summary(blocker_types_by_readiness_gate())}",
         f"  - unresolved blockers: {len(blockers)}",
         f"  - unresolved blockers by network: {network_count_summary(item_counts_by_network(blockers))}",
         f"  - unresolved blockers by blocker type: {blocker_type_count_summary(blocker_counts_by_blocker_type(blockers))}",
+        f"  - unresolved blockers by readiness gate: {readiness_gate_count_summary(blocker_counts_by_readiness_gate(blockers))}",
         f"  - unresolved blockers by network and blocker type: {network_blocker_type_count_summary(blocker_counts_by_network_and_blocker_type(blockers))}",
         f"  - blocked fields: {len(check.blockers)}",
         f"  - blocked fields by network: {network_count_summary(item_counts_by_network(check.blockers))}",
         f"  - blocked fields by blocker type: {blocker_type_count_summary(blocked_field_counts_by_blocker_type(blocked_field_groups))}",
+        f"  - blocked field groups by readiness gate: {readiness_gate_count_summary(blocked_field_group_counts_by_readiness_gate(blocked_field_groups))}",
+        f"  - blocked fields by readiness gate: {readiness_gate_count_summary(blocked_field_counts_by_readiness_gate(blocked_field_groups))}",
         f"  - blocked fields by network and blocker type: {network_blocker_type_count_summary(blocked_field_counts_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
         f"  - next blockers by network and blocker type: {network_blocker_type_value_summary(next_blockers_by_network_and_blocker_type(blocked_field_groups))}",
