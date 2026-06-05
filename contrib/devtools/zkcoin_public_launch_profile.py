@@ -341,6 +341,60 @@ def action_counts_by_network_and_blocker_type(actions):
     }
 
 
+def candidate_constraints_by_blocker_type():
+    return {
+        blocker_type: blocker_candidate_constraints(blocker_type)
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def candidate_constraint_counts_by_blocker_type():
+    return {
+        blocker_type: len(constraints) if constraints is not None else 0
+        for blocker_type, constraints in candidate_constraints_by_blocker_type().items()
+    }
+
+
+def candidate_constraints_by_network_and_blocker_type():
+    constraints_by_type = candidate_constraints_by_blocker_type()
+    return {
+        network: {
+            blocker_type: constraints_by_type[blocker_type]
+            for blocker_type in BLOCKER_TYPES
+        }
+        for network in NETWORKS
+    }
+
+
+def candidate_constraint_counts_by_network_and_blocker_type():
+    counts_by_type = candidate_constraint_counts_by_blocker_type()
+    return {
+        network: {
+            blocker_type: counts_by_type[blocker_type]
+            for blocker_type in BLOCKER_TYPES
+        }
+        for network in NETWORKS
+    }
+
+
+def candidate_constraints_by_blocker():
+    constraints_by_type = candidate_constraints_by_blocker_type()
+    return {
+        f"{network}.{blocker_type}": constraints_by_type[blocker_type]
+        for network in NETWORKS
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def candidate_constraint_counts_by_blocker():
+    counts_by_type = candidate_constraint_counts_by_blocker_type()
+    return {
+        f"{network}.{blocker_type}": counts_by_type[blocker_type]
+        for network in NETWORKS
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
 def next_actions_by_network_and_blocker_type(actions):
     return {
         network: {
@@ -3729,6 +3783,12 @@ def status_json_text(manifest, manifest_path, check):
             "action_counts_by_blocker_type": action_counts_by_blocker_type(actions),
             "actions_by_network_and_blocker_type": actions_by_network_and_blocker_type(actions),
             "action_counts_by_network_and_blocker_type": action_counts_by_network_and_blocker_type(actions),
+            "candidate_constraints_by_blocker": candidate_constraints_by_blocker(),
+            "candidate_constraint_counts_by_blocker": candidate_constraint_counts_by_blocker(),
+            "candidate_constraints_by_blocker_type": candidate_constraints_by_blocker_type(),
+            "candidate_constraint_counts_by_blocker_type": candidate_constraint_counts_by_blocker_type(),
+            "candidate_constraints_by_network_and_blocker_type": candidate_constraints_by_network_and_blocker_type(),
+            "candidate_constraint_counts_by_network_and_blocker_type": candidate_constraint_counts_by_network_and_blocker_type(),
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
             "next_blocker_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
