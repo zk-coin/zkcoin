@@ -156,7 +156,9 @@ Both are intentionally present before behavior changes so tests and review can t
   when release operators need one compact handoff with the current blocker
   template/check/preflight/apply commands, the current blocker summary command,
   the network readiness summary command, and the queued value-selection command
-  for that public network. The top-level readiness summary prints copyable
+  for that public network. When the current blocker is a Litecoin snapshot, the
+  bundle also links to the snapshot audit handoff checklist. The top-level
+  readiness summary prints copyable
   `network handoff bundle commands by network` and
   `network later blocker commands by network` maps plus
   `network value-selection later blocker commands by network` maps for the same

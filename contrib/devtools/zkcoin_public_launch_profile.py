@@ -4247,6 +4247,11 @@ def network_handoff_bundle_text(manifest, manifest_path, check, network):
     ]
     if next_group is not None:
         append_blocker_handoff_command_lines(lines, next_group, "  - ")
+        if next_group["blocker_type"] == "litecoin_snapshot":
+            lines.append(
+                "  - current snapshot audit handoff command: "
+                + snapshot_audit_handoff_command(manifest_path, network)
+            )
     lines.extend([
         (
             "  - current blocker readiness summary command: "
