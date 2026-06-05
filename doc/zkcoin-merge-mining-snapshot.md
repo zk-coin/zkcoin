@@ -421,6 +421,10 @@ Both are intentionally present before behavior changes so tests and review can t
   candidate-constraint fields to expose message-start shape, public port bounds,
   inherited Litecoin message-start, port, Base58, and HRP exclusions, Base58
   prefix lengths, HRP shape, and the fixed-seed empty-state requirement;
+  DNS seed action entries and blocked field groups expose hostname count,
+  hostname and label length bounds, lowercase label syntax, reserved suffix and
+  inherited Litecoin marker exclusions, duplicate rejection, and cross-network
+  distinctness requirements with the same fields;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.

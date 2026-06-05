@@ -2092,6 +2092,20 @@ def require_public_launch_manifest_current():
         "mweb_hrp_must_differ_from_bech32_hrp": True,
         "fixed_seeds_must_remain_empty": True,
     }
+    expected_dns_seed_constraints = {
+        "dns_seed_count_min": 1,
+        "dns_seed_host_max_length": 253,
+        "dns_seed_label_max_length": 63,
+        "dns_seed_min_labels": 2,
+        "dns_seed_must_be_lowercase": True,
+        "dns_seed_allowed_label_pattern": "[a-z0-9-]+",
+        "dns_seed_must_not_start_or_end_with_hyphen_or_dot": True,
+        "dns_seed_final_label_must_contain_letter": True,
+        "reserved_dns_seed_suffixes": ["example", "invalid", "local", "localhost", "test"],
+        "forbidden_litecoin_dns_seed_markers": ["koin-project.com", "litecoin", "thrasher.io"],
+        "dns_seed_hostnames_must_be_unique": True,
+        "dns_seed_hostnames_must_differ_across_networks": True,
+    }
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -2914,6 +2928,17 @@ def require_public_launch_manifest_current():
                 )
             if action.get("candidate_constraint_count") != len(expected_public_identity_constraints):
                 return "{} --status-json action {} did not count public identity constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+        elif action.get("blocker_type") == "dns_seeds":
+            if action.get("candidate_constraints") != expected_dns_seed_constraints:
+                return "{} --status-json action {} did not report DNS seed constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+            if action.get("candidate_constraint_count") != len(expected_dns_seed_constraints):
+                return "{} --status-json action {} did not count DNS seed constraints".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     action.get("id"),
                 )

@@ -54,6 +54,7 @@ LITECOIN_BASE58_PREFIXES = {
     (0x04, 0x35, 0x83, 0x94),
 }
 LITECOIN_HRPS = {"ltc", "tltc", "ltcmweb", "tmweb"}
+LITECOIN_DNS_SEED_MARKERS = ("koin-project.com", "litecoin", "thrasher.io")
 RESERVED_DNS_SEED_SUFFIXES = {"example", "invalid", "local", "localhost", "test"}
 MAX_BECH32_HRP_LENGTH = 83
 PLACEHOLDER_AUXPOW_CHAIN_ID = 0x5A4B
@@ -1104,7 +1105,7 @@ def dns_seed_valid(seed):
         or seed != seed.lower()
     ):
         return False
-    if any(marker in seed for marker in ("litecoin", "thrasher.io", "koin-project.com")):
+    if any(marker in seed for marker in LITECOIN_DNS_SEED_MARKERS):
         return False
     labels = seed.split(".")
     if len(labels) < 2:
@@ -2923,6 +2924,21 @@ def blocker_candidate_constraints(blocker_type):
             "forbidden_litecoin_hrps": sorted(LITECOIN_HRPS),
             "mweb_hrp_must_differ_from_bech32_hrp": True,
             "fixed_seeds_must_remain_empty": True,
+        }
+    if blocker_type == "dns_seeds":
+        return {
+            "dns_seed_count_min": 1,
+            "dns_seed_host_max_length": 253,
+            "dns_seed_label_max_length": 63,
+            "dns_seed_min_labels": 2,
+            "dns_seed_must_be_lowercase": True,
+            "dns_seed_allowed_label_pattern": "[a-z0-9-]+",
+            "dns_seed_must_not_start_or_end_with_hyphen_or_dot": True,
+            "dns_seed_final_label_must_contain_letter": True,
+            "reserved_dns_seed_suffixes": sorted(RESERVED_DNS_SEED_SUFFIXES),
+            "forbidden_litecoin_dns_seed_markers": sorted(LITECOIN_DNS_SEED_MARKERS),
+            "dns_seed_hostnames_must_be_unique": True,
+            "dns_seed_hostnames_must_differ_across_networks": True,
         }
     return None
 
