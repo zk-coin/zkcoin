@@ -3242,6 +3242,20 @@ def network_readiness_summary_commands(manifest_path):
     }
 
 
+def network_handoff_bundle_commands(manifest_path):
+    return {
+        network: network_handoff_bundle_command(manifest_path, network)
+        for network in NETWORKS
+    }
+
+
+def network_value_selection_later_blockers_commands(manifest_path):
+    return {
+        network: network_value_selection_later_blockers_command(manifest_path, network)
+        for network in NETWORKS
+    }
+
+
 def blocker_type_readiness_summary_commands(manifest_path):
     return {
         blocker_type: blocker_type_readiness_summary_command(manifest_path, blocker_type)
@@ -4247,6 +4261,8 @@ def status_json_text(manifest, manifest_path, check):
     later_blocker_fields_by_network = items_by_network(later_blocker_fields)
     later_blocker_field_counts_by_network = item_counts_by_network(later_blocker_fields)
     network_readiness_commands = network_readiness_summary_commands(manifest_path)
+    network_handoff_commands = network_handoff_bundle_commands(manifest_path)
+    network_value_selection_later_commands = network_value_selection_later_blockers_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
     blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
@@ -4334,6 +4350,10 @@ def status_json_text(manifest, manifest_path, check):
             "command_count": len(commands),
             "network_readiness_summary_commands_by_network": network_readiness_commands,
             "network_readiness_summary_command_count": len(network_readiness_commands),
+            "network_handoff_bundle_commands_by_network": network_handoff_commands,
+            "network_handoff_bundle_command_count": len(network_handoff_commands),
+            "network_value_selection_later_blockers_commands_by_network": network_value_selection_later_commands,
+            "network_value_selection_later_blockers_command_count": len(network_value_selection_later_commands),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
             "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
             "readiness_gate_summary_commands_by_readiness_gate": readiness_gate_summary_commands_by_gate,

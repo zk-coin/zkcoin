@@ -1978,6 +1978,32 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count network readiness-summary commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("network_handoff_bundle_commands_by_network") != {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose network handoff-bundle commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_handoff_bundle_command_count") != len(
+        status_json.get("network_handoff_bundle_commands_by_network", {})
+    ):
+        return "{} --status-json did not count network handoff-bundle commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_value_selection_later_blockers_commands_by_network") != {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose network value-selection later-blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_value_selection_later_blockers_command_count") != len(
+        status_json.get("network_value_selection_later_blockers_commands_by_network", {})
+    ):
+        return "{} --status-json did not count network value-selection later-blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("blocker_type_readiness_summary_commands_by_blocker_type") != {
         "litecoin_snapshot": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "auxpow_chain_id": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -4707,6 +4733,14 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("network_handoff_bundle_commands_by_network", {}).get("main", ""):
+            return "{} --status-json did not shell-quote staged network handoff-bundle commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("network_value_selection_later_blockers_commands_by_network", {}).get("main", ""):
+            return "{} --status-json did not shell-quote staged network value-selection later-blocker commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("blocker_type_readiness_summary_commands_by_blocker_type", {}).get("litecoin_snapshot", ""):
@@ -12523,6 +12557,8 @@ def main():
         ("readiness summary command:", "manifest prints rerun commands in readiness summaries"),
         ("status JSON command:", "manifest prints status-json commands in readiness summaries"),
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
+        ("network_handoff_bundle_commands", "manifest builds network handoff-bundle command maps"),
+        ("network_value_selection_later_blockers_commands", "manifest builds network value-selection later-blocker command maps"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
         ("later_blocker_readiness_summary_commands_by_readiness_gate", "manifest builds later blocker readiness-summary command maps by readiness gate"),
@@ -14302,6 +14338,22 @@ def main():
         (
             "network_readiness_summary_command_count",
             "public launch manifest status-json network readiness-summary command count documentation",
+        ),
+        (
+            "network_handoff_bundle_commands_by_network",
+            "public launch manifest status-json network handoff-bundle command documentation",
+        ),
+        (
+            "network_handoff_bundle_command_count",
+            "public launch manifest status-json network handoff-bundle command count documentation",
+        ),
+        (
+            "network_value_selection_later_blockers_commands_by_network",
+            "public launch manifest status-json network value-selection later-blocker command documentation",
+        ),
+        (
+            "network_value_selection_later_blockers_command_count",
+            "public launch manifest status-json network value-selection later-blocker command count documentation",
         ),
         (
             "next_commands_by_network",
