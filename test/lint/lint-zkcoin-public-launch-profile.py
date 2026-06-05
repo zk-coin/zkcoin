@@ -2043,6 +2043,44 @@ def require_public_launch_manifest_current():
         "snapshot_file",
         "total_amount",
     ]
+    expected_snapshot_audit_constraints = {
+        "audit_summary_fields": snapshot_audit_template_fields,
+        "audit_summary_max_bytes": 65536,
+        "audit_summary_must_be_utf8_json_object": True,
+        "audit_summary_rejects_duplicate_fields": True,
+        "audit_summary_field_order_must_match_template": True,
+        "positive_integer_fields": [
+            "height",
+            "coins",
+            "base_nchaintx",
+            "snapshot_file_size",
+        ],
+        "hex256_fields": [
+            "block_hash",
+            "import_hash",
+            "snapshot_hash",
+            "snapshot_file_sha256",
+        ],
+        "hex256_length": 64,
+        "hex256_must_be_lowercase": True,
+        "hex256_must_not_be_null_uint256": True,
+        "source_chain_by_network": {
+            "main": "main",
+            "testnet": "test",
+        },
+        "snapshot_file_must_be_absolute_normalized_path": True,
+        "snapshot_file_must_not_be_placeholder": True,
+        "snapshot_file_must_not_contain_control_characters": True,
+        "snapshot_file_must_be_regular_file": True,
+        "snapshot_file_must_not_be_symlink": True,
+        "snapshot_file_parent_must_not_be_symlink": True,
+        "snapshot_file_must_differ_from_audit_summary": True,
+        "snapshot_file_must_remain_stable_during_verification": True,
+        "snapshot_file_size_must_match_artifact": True,
+        "snapshot_file_sha256_must_match_artifact": True,
+        "total_amount_must_be_positive_decimal_8_places": True,
+        "total_amount_max": "84000000.00000000",
+    }
     expected_auxpow_chain_id_constraints = {
         "chain_id_min": 1,
         "chain_id_max": 32767,
@@ -2904,12 +2942,24 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     action.get("id"),
                 )
+            if action.get("candidate_constraints") != expected_snapshot_audit_constraints:
+                return "{} --status-json action {} did not report snapshot audit constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+            if action.get("candidate_constraint_count") != len(expected_snapshot_audit_constraints):
+                return "{} --status-json action {} did not count snapshot audit constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
         elif action.get("template_fields") is not None or action.get("template_field_count") != 0:
             return "{} --status-json action {} reported snapshot audit template fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 action.get("id"),
             )
-        if action.get("blocker_type") == "auxpow_chain_id":
+        if action.get("blocker_type") == "litecoin_snapshot":
+            pass
+        elif action.get("blocker_type") == "auxpow_chain_id":
             if action.get("candidate_constraints") != expected_auxpow_chain_id_constraints:
                 return "{} --status-json action {} did not report AuxPoW chain-id constraints".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),

@@ -417,6 +417,12 @@ Both are intentionally present before behavior changes so tests and review can t
   expose `candidate_constraints` and `candidate_constraint_count`, including the
   encodable chain-id bounds, forbidden Litecoin parent-version range, placeholder
   chain id, required launch start height, and strict-chain-id requirement.
+  Litecoin snapshot action entries and blocked field groups use the same
+  candidate-constraint fields to expose the snapshot audit handoff field order,
+  bounded UTF-8 JSON object requirement, duplicate-field rejection, positive
+  integer fields, lowercase non-null hash fields, source-chain mapping,
+  normalized artifact path, stable regular-file checks, artifact size/SHA-256
+  matching, and total amount cap.
   Public identity action entries and blocked field groups use the same
   candidate-constraint fields to expose message-start shape, public port bounds,
   inherited Litecoin message-start, port, Base58, and HRP exclusions, Base58
