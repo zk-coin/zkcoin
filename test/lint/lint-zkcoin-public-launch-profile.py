@@ -791,6 +791,43 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    network_value_selection_later_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--network-value-selection-later-blockers",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_value_selection_later_result.returncode != 0:
+        return "{} --network-value-selection-later-blockers failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            network_value_selection_later_result.stderr.strip()
+            or network_value_selection_later_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile network value-selection later blockers:",
+        "  - network: main",
+        "  - current blocker: main.litecoin_snapshot",
+        "  - value-selection blocker types: auxpow_chain_id, public_network_identity, dns_seeds",
+        "  - later value-selection blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds",
+        "  - later value-selection blocker count: 3",
+        "  - later value-selection blocker fields: 12",
+        "  - later value-selection blocker readiness summary commands: main.auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "main.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in network_value_selection_later_result.stdout:
+            return "{} --network-value-selection-later-blockers did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     blocker_type_readiness_result = subprocess.run(
         [
             sys.executable,
@@ -4116,6 +4153,39 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_network_value_selection_later_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--network-value-selection-later-blockers",
+                "main",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_network_value_selection_later_result.returncode != 0:
+            return "{} --network-value-selection-later-blockers failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_network_value_selection_later_result.stderr.strip()
+                or spaced_network_value_selection_later_result.stdout.strip()
+                or "no output",
+            )
+        if "  - current blocker: main.litecoin_snapshot" not in spaced_network_value_selection_later_result.stdout:
+            return "{} --network-value-selection-later-blockers did not print staged current blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - later value-selection blocker fields: 12" not in spaced_network_value_selection_later_result.stdout:
+            return "{} --network-value-selection-later-blockers did not print staged field count".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"main.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds {quoted_manifest_path}" not in spaced_network_value_selection_later_result.stdout:
+            return "{} --network-value-selection-later-blockers did not shell-quote staged later blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         spaced_blocker_type_readiness_result = subprocess.run(
             [
                 sys.executable,
@@ -4973,6 +5043,7 @@ def require_public_launch_manifest_current():
         ("action-plan", ["--action-plan"]),
         ("readiness-summary", ["--readiness-summary"]),
         ("network-readiness-summary", ["--network-readiness-summary", "main"]),
+        ("network-value-selection-later-blockers", ["--network-value-selection-later-blockers", "main"]),
         ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
         ("readiness-gate-summary", ["--readiness-gate-summary", "external_artifact"]),
         ("readiness-gate-later-blockers", ["--readiness-gate-later-blockers", "external_artifact"]),
@@ -5072,6 +5143,29 @@ def require_public_launch_manifest_current():
         )
     if "--network-readiness-summary does not write the manifest" not in network_readiness_summary_in_place_result.stderr:
         return "{} --network-readiness-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    network_value_selection_later_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--network-value-selection-later-blockers",
+            "main",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_value_selection_later_in_place_result.returncode == 0:
+        return "{} --network-value-selection-later-blockers accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--network-value-selection-later-blockers does not write the manifest" not in network_value_selection_later_in_place_result.stderr:
+        return "{} --network-value-selection-later-blockers did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -11853,6 +11947,7 @@ def main():
         ("--action-plan", "manifest full action-plan guidance flag"),
         ("--readiness-summary", "manifest readiness summary flag"),
         ("--network-readiness-summary", "manifest network readiness summary flag"),
+        ("--network-value-selection-later-blockers", "manifest network value-selection later blockers flag"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
         ("--readiness-gate-summary", "manifest readiness-gate summary flag"),
         ("--readiness-gate-later-blockers", "manifest readiness-gate later blockers flag"),
@@ -12155,6 +12250,7 @@ def main():
         ("action_plan_text", "manifest prints full action-plan guidance"),
         ("readiness_summary_text", "manifest prints compact readiness guidance"),
         ("network_readiness_summary_text", "manifest prints network-scoped readiness guidance"),
+        ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("blocker_type_readiness_summary_text", "manifest prints blocker-type-scoped readiness guidance"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate-scoped readiness guidance"),
         ("readiness_gate_later_blockers_text", "manifest prints readiness-gate later blocker guidance"),
@@ -13382,6 +13478,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --readiness-gate-later-blockers READINESS_GATE",
             "public launch manifest readiness-gate later blockers documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --network-value-selection-later-blockers NETWORK",
+            "public launch manifest network value-selection later blockers documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

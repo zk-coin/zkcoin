@@ -3882,6 +3882,46 @@ def readiness_gate_later_blockers_text(manifest, manifest_path, check, readiness
     return "\n".join(lines)
 
 
+def network_value_selection_later_blockers_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    value_selection_types = set(blocker_types_by_readiness_gate()["value_selection"])
+    later_blockers = [
+        blocker
+        for blocker in network_progress["unresolved_blockers"][1:]
+        if blocker.split(".", 1)[1] in value_selection_types
+    ]
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_fields = [
+        field
+        for blocker in later_blockers
+        for field in groups_by_blocker[blocker].get("fields", [])
+    ]
+    next_group = network_progress["next_blocked_field_group"]
+    lines = [
+        "zkCoin public launch profile network value-selection later blockers:",
+        f"  - network: {network}",
+        f"  - current blocker: {next_group['id'] if next_group is not None else 'none'}",
+        f"  - value-selection blocker types: {list_summary(blocker_types_by_readiness_gate()['value_selection'])}",
+        f"  - later value-selection blockers: {list_summary(later_blockers)}",
+        f"  - later value-selection blocker count: {len(later_blockers)}",
+        f"  - later value-selection blocker fields: {len(later_fields)}",
+        (
+            "  - later value-selection blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        ),
+    ]
+    return "\n".join(lines)
+
+
 def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -4422,6 +4462,8 @@ def selected_primary_actions(args):
         actions.append("--readiness-gate-summary")
     if args.readiness_gate_later_blockers is not None:
         actions.append("--readiness-gate-later-blockers")
+    if args.network_value_selection_later_blockers is not None:
+        actions.append("--network-value-selection-later-blockers")
     if args.blocker_readiness_summary is not None:
         actions.append("--blocker-readiness-summary")
     if args.status_json:
@@ -4445,6 +4487,7 @@ def main():
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
     parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
+    parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
@@ -4719,6 +4762,8 @@ def main():
         allow_blocked = True
     if args.readiness_gate_later_blockers is not None:
         allow_blocked = True
+    if args.network_value_selection_later_blockers is not None:
+        allow_blocked = True
     if args.blocker_readiness_summary is not None:
         allow_blocked = True
     if args.status_json:
@@ -4832,6 +4877,24 @@ def main():
                     args.manifest,
                     check,
                     args.readiness_gate_later_blockers,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.network_value_selection_later_blockers is not None:
+        if args.in_place:
+            print("error: --network-value-selection-later-blockers does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                network_value_selection_later_blockers_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.network_value_selection_later_blockers,
                 )
             )
         except ValueError as exc:
