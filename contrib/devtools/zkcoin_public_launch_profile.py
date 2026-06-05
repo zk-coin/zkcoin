@@ -3211,6 +3211,12 @@ def network_handoff_bundle_command(manifest_path, network):
     return f"{tool_path} --network-handoff-bundle {network} {manifest_path}"
 
 
+def network_later_blockers_command(manifest_path, network):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --network-later-blockers {network} {manifest_path}"
+
+
 def network_value_selection_later_blockers_command(manifest_path, network):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -3257,6 +3263,13 @@ def network_readiness_summary_commands(manifest_path):
 def network_handoff_bundle_commands(manifest_path):
     return {
         network: network_handoff_bundle_command(manifest_path, network)
+        for network in NETWORKS
+    }
+
+
+def network_later_blockers_commands(manifest_path):
+    return {
+        network: network_later_blockers_command(manifest_path, network)
         for network in NETWORKS
     }
 
@@ -3336,6 +3349,11 @@ def network_readiness_summary_command_summary(manifest_path):
 
 def network_handoff_bundle_command_summary(manifest_path):
     commands = network_handoff_bundle_commands(manifest_path)
+    return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
+
+
+def network_later_blockers_command_summary(manifest_path):
+    commands = network_later_blockers_commands(manifest_path)
     return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
 
 
@@ -3834,6 +3852,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
         f"  - network handoff bundle commands by network: {network_handoff_bundle_command_summary(manifest_path)}",
+        f"  - network later blocker commands by network: {network_later_blockers_command_summary(manifest_path)}",
         f"  - network value-selection later blocker commands by network: {network_value_selection_later_blockers_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
         f"  - blocker type later blocker commands by blocker type: {blocker_type_later_blockers_command_summary(manifest_path)}",
@@ -3902,6 +3921,40 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
             "  - later blocker readiness summary commands: "
             + blocker_readiness_summary_command_summary(manifest_path, remaining_blockers)
         )
+    return "\n".join(lines)
+
+
+def network_later_blockers_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    later_blockers = network_progress["unresolved_blockers"][1:]
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_fields = [
+        field
+        for blocker in later_blockers
+        for field in groups_by_blocker.get(blocker, {}).get("fields", [])
+    ]
+    next_group = network_progress["next_blocked_field_group"]
+    lines = [
+        "zkCoin public launch profile network later blockers:",
+        f"  - network: {network}",
+        f"  - current blocker: {next_group['id'] if next_group is not None else 'none'}",
+        f"  - later blockers: {list_summary(later_blockers)}",
+        f"  - later blocker count: {len(later_blockers)}",
+        f"  - later blocker fields: {len(later_fields)}",
+        (
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        ),
+    ]
     return "\n".join(lines)
 
 
@@ -4350,6 +4403,7 @@ def status_json_text(manifest, manifest_path, check):
     later_blocker_field_counts_by_network = item_counts_by_network(later_blocker_fields)
     network_readiness_commands = network_readiness_summary_commands(manifest_path)
     network_handoff_commands = network_handoff_bundle_commands(manifest_path)
+    network_later_commands = network_later_blockers_commands(manifest_path)
     network_value_selection_later_commands = network_value_selection_later_blockers_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     blocker_type_later_blockers_commands_by_type = blocker_type_later_blockers_commands(manifest_path)
@@ -4442,6 +4496,8 @@ def status_json_text(manifest, manifest_path, check):
             "network_readiness_summary_command_count": len(network_readiness_commands),
             "network_handoff_bundle_commands_by_network": network_handoff_commands,
             "network_handoff_bundle_command_count": len(network_handoff_commands),
+            "network_later_blockers_commands_by_network": network_later_commands,
+            "network_later_blockers_command_count": len(network_later_commands),
             "network_value_selection_later_blockers_commands_by_network": network_value_selection_later_commands,
             "network_value_selection_later_blockers_command_count": len(network_value_selection_later_commands),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
@@ -4704,6 +4760,8 @@ def selected_primary_actions(args):
         actions.append("--network-readiness-summary")
     if args.network_handoff_bundle is not None:
         actions.append("--network-handoff-bundle")
+    if args.network_later_blockers is not None:
+        actions.append("--network-later-blockers")
     if args.blocker_type_readiness_summary is not None:
         actions.append("--blocker-type-readiness-summary")
     if args.blocker_type_later_blockers is not None:
@@ -4735,6 +4793,7 @@ def main():
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
+    parser.add_argument("--network-later-blockers", metavar="NETWORK", help="print the queued later blockers for one public network")
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
     parser.add_argument("--blocker-type-later-blockers", metavar="BLOCKER_TYPE", help="print the queued later blockers for one launch blocker type")
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
@@ -5039,6 +5098,8 @@ def main():
         allow_blocked = True
     if args.network_handoff_bundle is not None:
         allow_blocked = True
+    if args.network_later_blockers is not None:
+        allow_blocked = True
     if args.blocker_type_readiness_summary is not None:
         allow_blocked = True
     if args.blocker_type_later_blockers is not None:
@@ -5126,6 +5187,24 @@ def main():
                     args.manifest,
                     check,
                     args.network_handoff_bundle,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.network_later_blockers is not None:
+        if args.in_place:
+            print("error: --network-later-blockers does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                network_later_blockers_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.network_later_blockers,
                 )
             )
         except ValueError as exc:
