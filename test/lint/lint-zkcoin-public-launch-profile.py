@@ -733,6 +733,7 @@ def require_public_launch_manifest_current():
         "  - network value-selection later blocker commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness gate summary commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - readiness gate later blocker commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
         "  - next blocker fields: 11",
         "  - blocked field paths:",
@@ -2032,6 +2033,19 @@ def require_public_launch_manifest_current():
         status_json.get("readiness_gate_summary_commands_by_readiness_gate", {})
     ):
         return "{} --status-json did not count readiness-gate summary commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("readiness_gate_later_blockers_commands_by_readiness_gate") != {
+        "external_artifact": "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "value_selection": "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose readiness-gate later-blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("readiness_gate_later_blockers_command_count") != len(
+        status_json.get("readiness_gate_later_blockers_commands_by_readiness_gate", {})
+    ):
+        return "{} --status-json did not count readiness-gate later-blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("blocker_readiness_summary_commands_by_blocker") != {
@@ -4195,6 +4209,10 @@ def require_public_launch_manifest_current():
             )
         if f"  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged blocker-type summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - readiness gate later blocker commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact {quoted_manifest_path}; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged readiness-gate later-blocker commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if "    - main.litecoin_snapshot.audit.total_amount" not in spaced_readiness_result.stdout:
@@ -10910,6 +10928,12 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest blocker-type readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("readiness_gate_later_blockers_command_count") != len(
+            complete_status.get("readiness_gate_later_blockers_commands_by_readiness_gate", {})
+        ):
+            return "{} --status-json did not count complete blocked manifest readiness-gate later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("blocker_readiness_summary_command_count") != len(
             complete_status.get("blocker_readiness_summary_commands_by_blocker", {})
         ):
@@ -11726,6 +11750,12 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count ready manifest blocker-type readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("readiness_gate_later_blockers_command_count") != len(
+            ready_status.get("readiness_gate_later_blockers_commands_by_readiness_gate", {})
+        ):
+            return "{} --status-json did not count ready manifest readiness-gate later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("blocker_readiness_summary_command_count") != len(
             ready_status.get("blocker_readiness_summary_commands_by_blocker", {})
         ):
@@ -12519,6 +12549,8 @@ def main():
         ("readiness_gate_progress_entries", "manifest builds readiness-gate progress entries"),
         ("readiness_gate_summary_command", "manifest builds readiness-gate summary commands"),
         ("readiness_gate_summary_commands", "manifest builds readiness-gate summary command maps"),
+        ("readiness_gate_later_blockers_command", "manifest builds readiness-gate later-blocker commands"),
+        ("readiness_gate_later_blockers_commands", "manifest builds readiness-gate later-blocker command maps"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate summaries"),
         ("readiness_gate_next_action_command_summary", "manifest formats readiness-gate next commands"),
         ("blocker_type_next_blocked_fields", "manifest builds blocker-type next blocked field aliases"),
@@ -12577,6 +12609,7 @@ def main():
         ("later_blocker_readiness_summary_command_counts_by_readiness_gate", "manifest counts later blocker readiness-summary command maps by readiness gate"),
         ("blocker_readiness_summary_command_summary", "manifest formats blocker readiness-summary command summaries"),
         ("readiness_gate_summary_command_summary", "manifest formats readiness-gate summary command summaries"),
+        ("readiness_gate_later_blockers_command_summary", "manifest formats readiness-gate later-blocker command summaries"),
         ("network launch order", "manifest prints blocker order within its network in blocker readiness summaries"),
         ("blocker-type launch order", "manifest prints blocker order within its blocker type in blocker readiness summaries"),
         ("earlier blocker readiness summary commands", "manifest prints earlier blocker summary commands for blocker readiness summaries"),
@@ -14334,6 +14367,14 @@ def main():
         (
             "readiness_gate_summary_command_count",
             "public launch manifest status-json readiness-gate summary command count documentation",
+        ),
+        (
+            "readiness_gate_later_blockers_commands_by_readiness_gate",
+            "public launch manifest status-json readiness-gate later-blocker command documentation",
+        ),
+        (
+            "readiness_gate_later_blockers_command_count",
+            "public launch manifest status-json readiness-gate later-blocker command count documentation",
         ),
         (
             "blocker_readiness_summary_commands_by_blocker",

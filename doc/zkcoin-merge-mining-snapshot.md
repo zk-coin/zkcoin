@@ -246,6 +246,10 @@ Both are intentionally present before behavior changes so tests and review can t
   plus `readiness_gate_summary_commands_by_readiness_gate` and
   `readiness_gate_summary_command_count` so external-artifact and value-selection
   handoffs have the same scoped command discovery, plus
+  `readiness_gate_later_blockers_commands_by_readiness_gate` and
+  `readiness_gate_later_blockers_command_count` so launch dashboards can jump
+  directly to each gate's queued later-blocker handoff and validate the map size,
+  plus
   `blocker_readiness_summary_commands_by_blocker` and
   `blocker_readiness_summary_command_count` so dashboards and operators can
   deep-link directly to exact unresolved blocker handoffs and validate the map
@@ -317,7 +321,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_readiness_summary_commands_by_readiness_gate`, and
   `later_blocker_readiness_summary_command_counts_by_readiness_gate` expose the
   queued blocker ids, fields, and blocker-scoped summary commands after each
-  readiness gate's current handoff.
+  readiness gate's current handoff. The human-readable readiness summary also
+  prints `readiness gate later blocker commands by readiness gate` so operators
+  can copy those gate-scoped queue handoffs without parsing JSON.
   `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
   `next_actions_by_readiness_gate`, `next_commands_by_readiness_gate`,
   `next_blocker_commands_by_readiness_gate`,
