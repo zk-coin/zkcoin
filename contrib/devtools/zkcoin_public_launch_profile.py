@@ -3534,13 +3534,17 @@ def next_blocker_command(blocker_id, manifest_path):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
-def append_blocker_command_lines(lines, commands, prefix):
+def append_blocker_handoff_command_lines(lines, commands, prefix):
     if commands["template_command"] is not None:
         lines.append(f"{prefix}template command: {commands['template_command']}")
     lines.append(f"{prefix}check command: {commands['check_command']}")
     if commands["preflight_command"] is not None:
         lines.append(f"{prefix}preflight command: {commands['preflight_command']}")
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
+
+
+def append_blocker_command_lines(lines, commands, prefix):
+    append_blocker_handoff_command_lines(lines, commands, prefix)
     lines.append(
         f"{prefix}readiness summary command: {commands['readiness_summary_command']}"
     )
@@ -4020,6 +4024,10 @@ def network_handoff_bundle_text(manifest, manifest_path, check, network):
         f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
         f"  - current blocker: {next_group['id'] if next_group is not None else 'none'}",
         f"  - current blocker fields: {next_group['field_count'] if next_group is not None else 0}",
+    ]
+    if next_group is not None:
+        append_blocker_handoff_command_lines(lines, next_group, "  - ")
+    lines.extend([
         (
             "  - current blocker readiness summary command: "
             + (
@@ -4040,7 +4048,7 @@ def network_handoff_bundle_text(manifest, manifest_path, check, network):
             "  - queued value-selection blocker readiness summary commands: "
             + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
         ),
-    ]
+    ])
     return "\n".join(lines)
 
 
