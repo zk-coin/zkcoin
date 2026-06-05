@@ -3190,6 +3190,12 @@ def next_action_command(manifest_path):
     return f"{tool_path} --next-action {manifest_path}"
 
 
+def snapshot_audit_handoff_command(manifest_path, network):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --snapshot-audit-handoff {network} {manifest_path}"
+
+
 def status_command_fields(manifest_path):
     return {
         "action_plan": action_plan_command(manifest_path),
@@ -3256,6 +3262,13 @@ def blocker_readiness_summary_command(manifest_path, blocker_id):
 def network_readiness_summary_commands(manifest_path):
     return {
         network: network_readiness_summary_command(manifest_path, network)
+        for network in NETWORKS
+    }
+
+
+def snapshot_audit_handoff_commands(manifest_path):
+    return {
+        network: snapshot_audit_handoff_command(manifest_path, network)
         for network in NETWORKS
     }
 
@@ -3344,6 +3357,11 @@ def blocker_readiness_summary_command_summary(manifest_path, blockers):
 
 def network_readiness_summary_command_summary(manifest_path):
     commands = network_readiness_summary_commands(manifest_path)
+    return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
+
+
+def snapshot_audit_handoff_command_summary(manifest_path):
+    commands = snapshot_audit_handoff_commands(manifest_path)
     return "; ".join(f"{network}={commands[network]}" for network in NETWORKS)
 
 
@@ -3850,6 +3868,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - later blocker readiness summary commands by readiness gate: {readiness_gate_blocker_command_summary(manifest_path, later_blockers_by_readiness_gate(blockers))}",
         f"  - next blocker type readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
+        f"  - snapshot audit handoff commands by network: {snapshot_audit_handoff_command_summary(manifest_path)}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
         f"  - network handoff bundle commands by network: {network_handoff_bundle_command_summary(manifest_path)}",
         f"  - network later blocker commands by network: {network_later_blockers_command_summary(manifest_path)}",
@@ -3881,6 +3900,52 @@ def readiness_summary_text(manifest, manifest_path, check):
     lines.append("  - next step: apply ready manifest to chainparams and verify sync")
     for action in actions:
         lines.append(f"  - {action['id']}: {action['command']}")
+    return "\n".join(lines)
+
+
+def snapshot_audit_handoff_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blocker_id = f"{network}.litecoin_snapshot"
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    blocked_group = groups_by_blocker.get(blocker_id)
+    commands = blocker_action_commands(
+        blocker_id,
+        shell_quote(display_path(manifest_path)),
+    )
+    constraints = blocker_candidate_constraints("litecoin_snapshot")
+    external_artifacts = blocker_external_artifacts("litecoin_snapshot")
+    lines = [
+        "zkCoin public launch profile snapshot audit handoff:",
+        f"  - network: {network}",
+        f"  - blocker: {blocker_id}",
+        f"  - unresolved: {yes_no(blocker_id in blockers)}",
+        f"  - source chain: {SNAPSHOT_SOURCE_CHAINS[network]}",
+        f"  - audit summary fields: {list_summary(SNAPSHOT_AUDIT_SUMMARY_FIELDS)}",
+        f"  - audit summary field count: {len(SNAPSHOT_AUDIT_SUMMARY_FIELDS)}",
+        (
+            "  - audit summary requirements: UTF-8 JSON object, exact template "
+            f"field order, no duplicate fields, max {SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES} bytes"
+        ),
+        (
+            "  - snapshot artifact requirements: absolute normalized regular file, "
+            "not a symlink, stable during verification, size and SHA-256 must match audit"
+        ),
+        f"  - candidate constraint count: {len(constraints)}",
+        f"  - external artifacts: {list_summary(artifact['id'] for artifact in external_artifacts)}",
+        f"  - external artifact count: {len(external_artifacts)}",
+        f"  - blocked fields: {blocked_group['field_count'] if blocked_group is not None else 0}",
+    ]
+    if blocked_group is not None:
+        append_blocker_field_lines(lines, blocked_group, "  - ", "    - ")
+    append_blocker_handoff_command_lines(lines, commands, "  - ")
+    lines.extend([
+        f"  - network handoff bundle command: {network_handoff_bundle_command(manifest_path, network)}",
+        f"  - blocker readiness summary command: {blocker_readiness_summary_command(manifest_path, blocker_id)}",
+    ])
     return "\n".join(lines)
 
 
@@ -4401,6 +4466,7 @@ def status_json_text(manifest, manifest_path, check):
     ]
     later_blocker_fields_by_network = items_by_network(later_blocker_fields)
     later_blocker_field_counts_by_network = item_counts_by_network(later_blocker_fields)
+    snapshot_audit_handoff_commands_by_network = snapshot_audit_handoff_commands(manifest_path)
     network_readiness_commands = network_readiness_summary_commands(manifest_path)
     network_handoff_commands = network_handoff_bundle_commands(manifest_path)
     network_later_commands = network_later_blockers_commands(manifest_path)
@@ -4492,6 +4558,8 @@ def status_json_text(manifest, manifest_path, check):
             "command_pairs": command_pairs,
             "command_pair_count": len(command_pairs),
             "command_count": len(commands),
+            "snapshot_audit_handoff_commands_by_network": snapshot_audit_handoff_commands_by_network,
+            "snapshot_audit_handoff_command_count": len(snapshot_audit_handoff_commands_by_network),
             "network_readiness_summary_commands_by_network": network_readiness_commands,
             "network_readiness_summary_command_count": len(network_readiness_commands),
             "network_handoff_bundle_commands_by_network": network_handoff_commands,
@@ -4736,6 +4804,8 @@ def selected_primary_actions(args):
         actions.append("--snapshot-audit-preflight")
     if args.check_snapshot_audit is not None:
         actions.append("--check-snapshot-audit")
+    if args.snapshot_audit_handoff is not None:
+        actions.append("--snapshot-audit-handoff")
     if args.set_auxpow is not None:
         actions.append("--set-auxpow")
     if args.check_auxpow is not None:
@@ -4836,6 +4906,11 @@ def main():
         nargs=2,
         metavar=("NETWORK", "AUDIT_JSON"),
         help="verify a snapshot audit summary and artifact without updating the manifest",
+    )
+    parser.add_argument(
+        "--snapshot-audit-handoff",
+        metavar="NETWORK",
+        help="print the snapshot audit field, artifact, and command checklist for one public network",
     )
     parser.add_argument(
         "--set-auxpow",
@@ -5004,6 +5079,11 @@ def main():
         )
         return 0
 
+    if args.snapshot_audit_handoff is not None:
+        if args.in_place:
+            print("error: --snapshot-audit-handoff does not write the manifest", file=sys.stderr)
+            return 1
+
     if args.set_auxpow is not None:
         try:
             set_auxpow(manifest, *args.set_auxpow)
@@ -5096,6 +5176,8 @@ def main():
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
+    if args.snapshot_audit_handoff is not None:
+        allow_blocked = True
     if args.network_handoff_bundle is not None:
         allow_blocked = True
     if args.network_later_blockers is not None:
@@ -5156,6 +5238,21 @@ def main():
             print("error: --readiness-summary does not write the manifest", file=sys.stderr)
             return 1
         print(readiness_summary_text(manifest, args.manifest, check))
+        return 0
+
+    if args.snapshot_audit_handoff is not None:
+        try:
+            print(
+                snapshot_audit_handoff_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.snapshot_audit_handoff,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
         return 0
 
     if args.network_readiness_summary is not None:

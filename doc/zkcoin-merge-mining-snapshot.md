@@ -135,6 +135,7 @@ Both are intentionally present before behavior changes so tests and review can t
   blocker-type summary commands, per-readiness-gate next readiness-gate summary
   commands, per-network next blocker-scoped summary
   commands, copyable action-plan, next-action, status-json, and rerun commands,
+  per-network snapshot audit handoff commands,
   per-network scoped summary commands, per-network handoff bundle commands,
   per-network queued later-blocker commands, per-network queued value-selection
   commands, the immediate blocker's exact field paths,
@@ -269,6 +270,9 @@ Both are intentionally present before behavior changes so tests and review can t
   size, plus `network_readiness_summary_commands_by_network` and
   `network_readiness_summary_command_count` so dashboards and operators can jump
   directly to a scoped mainnet or testnet handoff and validate the map size.
+  `snapshot_audit_handoff_commands_by_network` and
+  `snapshot_audit_handoff_command_count` expose the per-network snapshot audit
+  field/artifact checklist commands and their map size.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -551,6 +555,12 @@ Both are intentionally present before behavior changes so tests and review can t
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
+  Run
+  `contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff NETWORK`
+  to print the snapshot audit field order, source-chain expectation, summary and
+  artifact validation checklist, blocked snapshot fields, and copyable
+  template/check/preflight/apply commands for one public network without
+  writing the manifest.
   Before collecting final snapshot constants, run
   `contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK`
   to print the exact JSON summary shape expected by the snapshot audit handoff;
@@ -763,6 +773,10 @@ artifact against the expected handoff shape without key reordering noise. Use
 that verified audit summary for the public launch-profile manifest handoff:
 
 ```bash
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --snapshot-audit-handoff NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
 contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
