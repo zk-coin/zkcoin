@@ -247,6 +247,12 @@ Both are intentionally present before behavior changes so tests and review can t
   size, plus `network_readiness_summary_commands_by_network` and
   `network_readiness_summary_command_count` so dashboards and operators can jump
   directly to a scoped mainnet or testnet handoff and validate the map size.
+  `network_handoff_bundle_commands_by_network` and
+  `network_handoff_bundle_command_count` expose the compact per-network handoff
+  bundles and their map size, while
+  `network_value_selection_later_blockers_commands_by_network` and
+  `network_value_selection_later_blockers_command_count` expose the queued
+  per-network value-selection handoff commands and their map size.
   `actions_by_network`
   and `action_counts_by_network` group and count the remaining blocker handoffs
   by public network while non-network chainparams handoffs remain only in the
