@@ -136,7 +136,8 @@ Both are intentionally present before behavior changes so tests and review can t
   commands, per-network next blocker-scoped summary
   commands, copyable action-plan, next-action, status-json, and rerun commands,
   per-network scoped summary commands, per-network handoff bundle commands,
-  per-network queued value-selection commands, the immediate blocker's exact field paths,
+  per-network queued later-blocker commands, per-network queued value-selection
+  commands, the immediate blocker's exact field paths,
   earlier and later blocker ids, per-readiness-gate later blockers, later blocker
   field counts, and blocker-scoped summary commands, and the immediate handoff
   commands. These
@@ -156,8 +157,13 @@ Both are intentionally present before behavior changes so tests and review can t
   the network readiness summary command, and the queued value-selection command
   for that public network. The top-level readiness summary prints copyable
   `network handoff bundle commands by network` and
+  `network later blocker commands by network` maps plus
   `network value-selection later blocker commands by network` maps for the same
   per-network handoffs. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --network-later-blockers NETWORK`
+  when release operators need only the queued later blockers, field count, and
+  blocker-scoped summary commands for one public network after its current
+  blocker. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary BLOCKER_TYPE`
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or
@@ -265,7 +271,10 @@ Both are intentionally present before behavior changes so tests and review can t
   directly to a scoped mainnet or testnet handoff and validate the map size.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
-  bundles and their map size, while
+  bundles and their map size,
+  `network_later_blockers_commands_by_network` and
+  `network_later_blockers_command_count` expose the queued per-network
+  later-blocker handoff commands and their map size, while
   `network_value_selection_later_blockers_commands_by_network` and
   `network_value_selection_later_blockers_command_count` expose the queued
   per-network value-selection handoff commands and their map size.
@@ -329,7 +338,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_readiness_summary_command_counts_by_readiness_gate` expose the
   queued blocker ids, fields, and blocker-scoped summary commands after each
   readiness gate's current handoff. The human-readable readiness summary also
-  prints `blocker type later blocker commands by blocker type` and
+  prints `network later blocker commands by network`,
+  `blocker type later blocker commands by blocker type`, and
   `readiness gate later blocker commands by readiness gate` so operators can
   copy workstream- or gate-scoped queue handoffs without parsing JSON.
   `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
@@ -774,6 +784,10 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --network-handoff-bundle NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --network-later-blockers NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
