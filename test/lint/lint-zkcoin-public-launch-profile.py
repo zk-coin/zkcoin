@@ -888,6 +888,41 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    readiness_gate_later_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--readiness-gate-later-blockers",
+            "external_artifact",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if readiness_gate_later_result.returncode != 0:
+        return "{} --readiness-gate-later-blockers failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            readiness_gate_later_result.stderr.strip()
+            or readiness_gate_later_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile readiness-gate later blockers:",
+        "  - readiness gate: external_artifact",
+        "  - current blocker: main.litecoin_snapshot",
+        "  - later blockers: testnet.litecoin_snapshot",
+        "  - later blocker count: 1",
+        "  - later blocker fields: 11",
+        "  - later blocker readiness summary commands: testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in readiness_gate_later_result.stdout:
+            return "{} --readiness-gate-later-blockers did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
     blocker_readiness_result = subprocess.run(
         [
             sys.executable,
@@ -4134,6 +4169,39 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        spaced_readiness_gate_later_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--readiness-gate-later-blockers",
+                "external_artifact",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_readiness_gate_later_result.returncode != 0:
+            return "{} --readiness-gate-later-blockers failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_readiness_gate_later_result.stderr.strip()
+                or spaced_readiness_gate_later_result.stdout.strip()
+                or "no output",
+            )
+        if "  - current blocker: main.litecoin_snapshot" not in spaced_readiness_gate_later_result.stdout:
+            return "{} --readiness-gate-later-blockers did not print staged current blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - later blocker fields: 11" not in spaced_readiness_gate_later_result.stdout:
+            return "{} --readiness-gate-later-blockers did not print staged later field count".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - later blocker readiness summary commands: testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot {quoted_manifest_path}" not in spaced_readiness_gate_later_result.stdout:
+            return "{} --readiness-gate-later-blockers did not shell-quote staged later blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         spaced_blocker_readiness_result = subprocess.run(
             [
                 sys.executable,
@@ -4906,6 +4974,8 @@ def require_public_launch_manifest_current():
         ("readiness-summary", ["--readiness-summary"]),
         ("network-readiness-summary", ["--network-readiness-summary", "main"]),
         ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
+        ("readiness-gate-summary", ["--readiness-gate-summary", "external_artifact"]),
+        ("readiness-gate-later-blockers", ["--readiness-gate-later-blockers", "external_artifact"]),
         ("blocker-readiness-summary", ["--blocker-readiness-summary", "main.litecoin_snapshot"]),
         ("status-json", ["--status-json"]),
     ):
@@ -5025,6 +5095,29 @@ def require_public_launch_manifest_current():
         )
     if "--blocker-type-readiness-summary does not write the manifest" not in blocker_type_summary_in_place_result.stderr:
         return "{} --blocker-type-readiness-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    readiness_gate_later_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--readiness-gate-later-blockers",
+            "external_artifact",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if readiness_gate_later_in_place_result.returncode == 0:
+        return "{} --readiness-gate-later-blockers accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--readiness-gate-later-blockers does not write the manifest" not in readiness_gate_later_in_place_result.stderr:
+        return "{} --readiness-gate-later-blockers did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -11762,6 +11855,7 @@ def main():
         ("--network-readiness-summary", "manifest network readiness summary flag"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
         ("--readiness-gate-summary", "manifest readiness-gate summary flag"),
+        ("--readiness-gate-later-blockers", "manifest readiness-gate later blockers flag"),
         ("--blocker-readiness-summary", "manifest blocker readiness summary flag"),
         ("--status-json", "manifest machine-readable status guidance flag"),
         ("STATUS_JSON_SCHEMA_VERSION = 2", "manifest status JSON schema version"),
@@ -12063,6 +12157,7 @@ def main():
         ("network_readiness_summary_text", "manifest prints network-scoped readiness guidance"),
         ("blocker_type_readiness_summary_text", "manifest prints blocker-type-scoped readiness guidance"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate-scoped readiness guidance"),
+        ("readiness_gate_later_blockers_text", "manifest prints readiness-gate later blocker guidance"),
         ("blocker_readiness_summary_text", "manifest prints blocker-scoped readiness guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -13283,6 +13378,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --readiness-gate-summary READINESS_GATE",
             "public launch manifest readiness-gate summary documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --readiness-gate-later-blockers READINESS_GATE",
+            "public launch manifest readiness-gate later blockers documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

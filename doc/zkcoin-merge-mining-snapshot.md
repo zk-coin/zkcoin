@@ -155,6 +155,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary READINESS_GATE`
   for the same read-only next-blocker detail scoped to `external_artifact` or
   `value_selection` launch gates. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers READINESS_GATE`
+  when release operators need only the queued later blockers, field count, and
+  blocker-scoped summary commands after a gate's current blocker. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -732,6 +735,10 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --readiness-gate-summary external_artifact \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --readiness-gate-later-blockers external_artifact \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \

@@ -3847,6 +3847,41 @@ def readiness_gate_summary_text(manifest, manifest_path, check, readiness_gate):
     return "\n".join(lines)
 
 
+def readiness_gate_later_blockers_text(manifest, manifest_path, check, readiness_gate):
+    if readiness_gate not in READINESS_GATES:
+        raise ValueError("readiness gate must be one of: " + ", ".join(READINESS_GATES))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )[readiness_gate]
+    later_blockers = progress["unresolved_blockers"][1:]
+    later_groups = later_blocked_field_groups_by_readiness_gate(blocked_field_groups)[readiness_gate]
+    later_fields = [
+        field
+        for group in later_groups
+        for field in group.get("fields", [])
+    ]
+    next_action = progress["next_action"]
+    lines = [
+        "zkCoin public launch profile readiness-gate later blockers:",
+        f"  - readiness gate: {readiness_gate}",
+        f"  - current blocker: {next_action['id'] if next_action is not None else 'none'}",
+        f"  - later blockers: {list_summary(later_blockers)}",
+        f"  - later blocker count: {len(later_blockers)}",
+        f"  - later blocker fields: {len(later_fields)}",
+        (
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        ),
+    ]
+    return "\n".join(lines)
+
+
 def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -4385,6 +4420,8 @@ def selected_primary_actions(args):
         actions.append("--blocker-type-readiness-summary")
     if args.readiness_gate_summary is not None:
         actions.append("--readiness-gate-summary")
+    if args.readiness_gate_later_blockers is not None:
+        actions.append("--readiness-gate-later-blockers")
     if args.blocker_readiness_summary is not None:
         actions.append("--blocker-readiness-summary")
     if args.status_json:
@@ -4407,6 +4444,7 @@ def main():
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
+    parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
@@ -4679,6 +4717,8 @@ def main():
         allow_blocked = True
     if args.readiness_gate_summary is not None:
         allow_blocked = True
+    if args.readiness_gate_later_blockers is not None:
+        allow_blocked = True
     if args.blocker_readiness_summary is not None:
         allow_blocked = True
     if args.status_json:
@@ -4774,6 +4814,24 @@ def main():
                     args.manifest,
                     check,
                     args.readiness_gate_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.readiness_gate_later_blockers is not None:
+        if args.in_place:
+            print("error: --readiness-gate-later-blockers does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                readiness_gate_later_blockers_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.readiness_gate_later_blockers,
                 )
             )
         except ValueError as exc:
