@@ -5582,6 +5582,10 @@ def require_public_launch_manifest_current():
             return "{} --check-snapshot-audit did not validate the staged manifest candidate".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "--set-snapshot-audit main" in malformed_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a malformed manifest candidate".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         malformed_set_manifest_bytes = malformed_check_manifest_path.read_bytes()
         malformed_set_result = subprocess.run(
@@ -5637,6 +5641,10 @@ def require_public_launch_manifest_current():
             )
         if "--check-snapshot-audit does not write the manifest" not in check_audit_in_place_result.stderr:
             return "{} --check-snapshot-audit did not explain --in-place rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in check_audit_in_place_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for --in-place".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
