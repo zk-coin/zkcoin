@@ -2144,6 +2144,61 @@ def require_public_launch_manifest_current():
         "dns_seed_hostnames_must_be_unique": True,
         "dns_seed_hostnames_must_differ_across_networks": True,
     }
+    expected_candidate_constraints_by_blocker_type = {
+        "litecoin_snapshot": expected_snapshot_audit_constraints,
+        "auxpow_chain_id": expected_auxpow_chain_id_constraints,
+        "public_network_identity": expected_public_identity_constraints,
+        "dns_seeds": expected_dns_seed_constraints,
+    }
+    expected_candidate_constraint_counts_by_blocker_type = {
+        blocker_type: len(constraints)
+        for blocker_type, constraints in expected_candidate_constraints_by_blocker_type.items()
+    }
+    expected_candidate_constraints_by_network_and_blocker_type = {
+        network: {
+            blocker_type: constraints
+            for blocker_type, constraints in expected_candidate_constraints_by_blocker_type.items()
+        }
+        for network in ("main", "testnet")
+    }
+    expected_candidate_constraint_counts_by_network_and_blocker_type = {
+        network: dict(expected_candidate_constraint_counts_by_blocker_type)
+        for network in ("main", "testnet")
+    }
+    expected_candidate_constraints_by_blocker = {
+        "{}.{}".format(network, blocker_type): constraints
+        for network in ("main", "testnet")
+        for blocker_type, constraints in expected_candidate_constraints_by_blocker_type.items()
+    }
+    expected_candidate_constraint_counts_by_blocker = {
+        "{}.{}".format(network, blocker_type): count
+        for network in ("main", "testnet")
+        for blocker_type, count in expected_candidate_constraint_counts_by_blocker_type.items()
+    }
+    if status_json.get("candidate_constraints_by_blocker_type") != expected_candidate_constraints_by_blocker_type:
+        return "{} --status-json did not expose candidate constraints by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("candidate_constraint_counts_by_blocker_type") != expected_candidate_constraint_counts_by_blocker_type:
+        return "{} --status-json did not count candidate constraints by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("candidate_constraints_by_network_and_blocker_type") != expected_candidate_constraints_by_network_and_blocker_type:
+        return "{} --status-json did not expose candidate constraints by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("candidate_constraint_counts_by_network_and_blocker_type") != expected_candidate_constraint_counts_by_network_and_blocker_type:
+        return "{} --status-json did not count candidate constraints by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("candidate_constraints_by_blocker") != expected_candidate_constraints_by_blocker:
+        return "{} --status-json did not expose candidate constraints by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("candidate_constraint_counts_by_blocker") != expected_candidate_constraint_counts_by_blocker:
+        return "{} --status-json did not count candidate constraints by blocker".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -11421,6 +11476,12 @@ def main():
         ("action_counts_by_blocker_type", "manifest status JSON counts actions by blocker type"),
         ("actions_by_network_and_blocker_type", "manifest status JSON groups actions by network and blocker type"),
         ("action_counts_by_network_and_blocker_type", "manifest status JSON counts actions by network and blocker type"),
+        ("candidate_constraints_by_blocker", "manifest status JSON indexes candidate constraints by blocker"),
+        ("candidate_constraint_counts_by_blocker", "manifest status JSON counts candidate constraints by blocker"),
+        ("candidate_constraints_by_blocker_type", "manifest status JSON indexes candidate constraints by blocker type"),
+        ("candidate_constraint_counts_by_blocker_type", "manifest status JSON counts candidate constraints by blocker type"),
+        ("candidate_constraints_by_network_and_blocker_type", "manifest status JSON indexes candidate constraints by network and blocker type"),
+        ("candidate_constraint_counts_by_network_and_blocker_type", "manifest status JSON counts candidate constraints by network and blocker type"),
         ("next_actions_by_network_and_blocker_type", "manifest status JSON includes next actions by network and blocker type"),
         ("next_commands_by_network_and_blocker_type", "manifest status JSON includes next commands by network and blocker type"),
         ("next_blocker_commands_by_network_and_blocker_type", "manifest status JSON aliases network blocker-type next blocker commands"),

@@ -244,7 +244,15 @@ Both are intentionally present before behavior changes so tests and review can t
   `actions_by_network_and_blocker_type` and
   `action_counts_by_network_and_blocker_type` provide the same handoff view as a
   mainnet/testnet workstream matrix without joining the network and blocker-type
-  payloads. `next_actions_by_network_and_blocker_type` and
+  payloads. `candidate_constraints_by_blocker`,
+  `candidate_constraint_counts_by_blocker`,
+  `candidate_constraints_by_blocker_type`,
+  `candidate_constraint_counts_by_blocker_type`,
+  `candidate_constraints_by_network_and_blocker_type`, and
+  `candidate_constraint_counts_by_network_and_blocker_type` expose the
+  machine-readable candidate constraint metadata as blocker-id, workstream, and
+  mainnet/testnet workstream indexes without requiring dashboards to scan every
+  action entry. `next_actions_by_network_and_blocker_type` and
   `next_commands_by_network_and_blocker_type` expose the first dispatchable
   handoff and commands for each mainnet/testnet workstream cell.
   `next_blocker_commands_by_network_and_blocker_type` mirrors those matrix
