@@ -2897,6 +2897,33 @@ def blocker_candidate_constraints(blocker_type):
             "start_height": 1,
             "strict_chain_id": True,
         }
+    if blocker_type == "public_network_identity":
+        return {
+            "message_start_bytes": 4,
+            "message_start_must_be_non_printable": True,
+            "message_start_must_not_be_all_zero": True,
+            "message_start_must_not_be_all_ff": True,
+            "forbidden_litecoin_message_starts": [
+                list(message_start)
+                for message_start in sorted(LITECOIN_MESSAGE_STARTS)
+            ],
+            "default_port_min": 1025,
+            "default_port_max": 65535,
+            "forbidden_litecoin_default_ports": sorted(LITECOIN_DEFAULT_PORTS),
+            "base58_prefix_lengths": {
+                field: expected_len
+                for field, expected_len in BASE58_FIELDS
+            },
+            "forbidden_litecoin_base58_prefixes": [
+                list(prefix)
+                for prefix in sorted(LITECOIN_BASE58_PREFIXES)
+            ],
+            "bech32_hrp_max_length": MAX_BECH32_HRP_LENGTH,
+            "hrp_must_be_lowercase_printable_ascii": True,
+            "forbidden_litecoin_hrps": sorted(LITECOIN_HRPS),
+            "mweb_hrp_must_differ_from_bech32_hrp": True,
+            "fixed_seeds_must_remain_empty": True,
+        }
     return None
 
 
