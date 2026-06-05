@@ -690,6 +690,8 @@ def require_public_launch_manifest_current():
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
         "  - next blockers by readiness gate: external_artifact=main.litecoin_snapshot, value_selection=main.auxpow_chain_id",
         "  - next blocker fields by readiness gate: external_artifact=11, value_selection=1",
+        "  - later blockers by readiness gate: external_artifact=testnet.litecoin_snapshot; value_selection=main.public_network_identity, main.dns_seeds, testnet.auxpow_chain_id, testnet.public_network_identity, testnet.dns_seeds",
+        "  - later blocker fields by readiness gate: external_artifact=11, value_selection=23",
         "  - next blockers by network and blocker type: main: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds; testnet: litecoin_snapshot=testnet.litecoin_snapshot, auxpow_chain_id=testnet.auxpow_chain_id, public_network_identity=testnet.public_network_identity, dns_seeds=testnet.dns_seeds",
         "  - next blocker fields by network: main=11, testnet=11",
         "  - next blocker fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
@@ -711,6 +713,8 @@ def require_public_launch_manifest_current():
         "  - next readiness gate summary commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - later blocker readiness summary commands by readiness gate: external_artifact=testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=main.public_network_identity=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet.dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker type readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -2544,6 +2548,46 @@ def require_public_launch_manifest_current():
         gate: len(fields)
         for gate, fields in expected_blocked_fields_by_readiness_gate.items()
     }
+    expected_later_blockers_by_readiness_gate = {
+        gate: blockers[1:]
+        for gate, blockers in expected_unresolved_blockers_by_readiness_gate.items()
+    }
+    expected_later_blocker_counts_by_readiness_gate = {
+        gate: len(blockers)
+        for gate, blockers in expected_later_blockers_by_readiness_gate.items()
+    }
+    expected_later_blocked_field_groups_by_readiness_gate = {
+        gate: groups[1:]
+        for gate, groups in expected_blocked_field_groups_by_readiness_gate.items()
+    }
+    expected_later_blocked_field_group_counts_by_readiness_gate = {
+        gate: len(groups)
+        for gate, groups in expected_later_blocked_field_groups_by_readiness_gate.items()
+    }
+    expected_later_blocked_fields_by_readiness_gate = {
+        gate: [
+            field
+            for group in groups
+            for field in group.get("fields", [])
+        ]
+        for gate, groups in expected_later_blocked_field_groups_by_readiness_gate.items()
+    }
+    expected_later_blocked_field_counts_by_readiness_gate = {
+        gate: len(fields)
+        for gate, fields in expected_later_blocked_fields_by_readiness_gate.items()
+    }
+    empty_items_by_readiness_gate = {
+        gate: []
+        for gate in expected_readiness_gates
+    }
+    empty_counts_by_readiness_gate = {
+        gate: 0
+        for gate in expected_readiness_gates
+    }
+    empty_maps_by_readiness_gate = {
+        gate: {}
+        for gate in expected_readiness_gates
+    }
     empty_readiness_gate_progress = {
         gate: {
             "ready_for_launch_profile": True,
@@ -2633,6 +2677,30 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("blocked_field_counts_by_readiness_gate") != expected_blocked_field_counts_by_readiness_gate:
         return "{} --status-json did not count blocked fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blockers_by_readiness_gate") != expected_later_blockers_by_readiness_gate:
+        return "{} --status-json did not group later blockers by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_counts_by_readiness_gate") != expected_later_blocker_counts_by_readiness_gate:
+        return "{} --status-json did not count later blockers by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_groups_by_readiness_gate") != expected_later_blocked_field_groups_by_readiness_gate:
+        return "{} --status-json did not group later blocker field groups by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_group_counts_by_readiness_gate") != expected_later_blocked_field_group_counts_by_readiness_gate:
+        return "{} --status-json did not count later blocker field groups by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_fields_by_readiness_gate") != expected_later_blocked_fields_by_readiness_gate:
+        return "{} --status-json did not group later blocker fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_counts_by_readiness_gate") != expected_later_blocked_field_counts_by_readiness_gate:
+        return "{} --status-json did not count later blocker fields by readiness gate".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("readiness_gate_progress") != expected_readiness_gate_progress:
@@ -3026,6 +3094,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blockers by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("later_blockers_by_readiness_gate") != expected_later_blockers_by_readiness_gate:
+        return "{} --status-json did not expose later blockers by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_counts_by_readiness_gate") != expected_later_blocker_counts_by_readiness_gate:
+        return "{} --status-json did not count later blockers by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_networks = [group.get("network") for group in expected_later_blocker_field_groups]
     if status_json.get("later_blocker_networks") != expected_later_blocker_networks:
         return "{} --status-json did not expose later blocker network aliases".format(
@@ -3130,6 +3206,21 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blocker summary command aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_later_blocker_summary_commands_by_readiness_gate = {
+        gate: {
+            blocker: status_json.get("blocker_readiness_summary_commands_by_blocker", {}).get(blocker)
+            for blocker in blockers
+        }
+        for gate, blockers in expected_later_blockers_by_readiness_gate.items()
+    }
+    if status_json.get("later_blocker_readiness_summary_commands_by_readiness_gate") != expected_later_blocker_summary_commands_by_readiness_gate:
+        return "{} --status-json did not expose later blocker summary commands by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_readiness_summary_command_counts_by_readiness_gate") != expected_later_blocker_counts_by_readiness_gate:
+        return "{} --status-json did not count later blocker summary commands by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("later_blocker_field_groups") != expected_later_blocker_field_groups:
         return "{} --status-json did not expose later blocker field group aliases".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3220,6 +3311,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count later blocker field groups by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("later_blocker_field_groups_by_readiness_gate") != expected_later_blocked_field_groups_by_readiness_gate:
+        return "{} --status-json did not expose later blocker field groups by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_group_counts_by_readiness_gate") != expected_later_blocked_field_group_counts_by_readiness_gate:
+        return "{} --status-json did not count later blocker field groups by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     expected_later_blocker_field_counts = [
         group.get("field_count") for group in expected_later_blocker_field_groups
     ]
@@ -3289,6 +3388,14 @@ def require_public_launch_manifest_current():
     }
     if status_json.get("later_blocker_field_counts_by_network_and_blocker_type") != expected_later_blocker_field_counts_by_network_and_blocker_type:
         return "{} --status-json did not count later blocker fields by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_fields_by_readiness_gate") != expected_later_blocked_fields_by_readiness_gate:
+        return "{} --status-json did not expose later blocker fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("later_blocker_field_counts_by_readiness_gate") != expected_later_blocked_field_counts_by_readiness_gate:
+        return "{} --status-json did not count later blocker fields by readiness gate".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     expected_later_blocker_fields = [
@@ -10128,6 +10235,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type
             or complete_status.get("later_blockers_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or complete_status.get("later_blocker_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or complete_status.get("later_blockers_by_readiness_gate") != empty_items_by_readiness_gate
+            or complete_status.get("later_blocker_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or complete_status.get("later_blocker_networks") != []
             or complete_status.get("later_blocker_types") != []
             or complete_status.get("later_blocker_commands") != []
@@ -10142,6 +10251,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_command_pair_counts") != []
             or complete_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
             or complete_status.get("later_blocker_readiness_summary_command_count") != 0
+            or complete_status.get("later_blocker_readiness_summary_commands_by_readiness_gate") != empty_maps_by_readiness_gate
+            or complete_status.get("later_blocker_readiness_summary_command_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or complete_status.get("later_blocker_field_groups") != []
             or complete_status.get("later_blocker_field_group_count") != 0
             or complete_status.get("later_blocker_field_groups_by_blocker") != {}
@@ -10152,6 +10263,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_field_group_counts_by_blocker_type") != empty_blocked_field_group_counts_by_blocker_type
             or complete_status.get("later_blocker_field_groups_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or complete_status.get("later_blocker_field_group_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or complete_status.get("later_blocker_field_groups_by_readiness_gate") != empty_items_by_readiness_gate
+            or complete_status.get("later_blocker_field_group_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or complete_status.get("later_blocker_field_counts") != []
             or complete_status.get("later_blocker_fields_by_blocker") != {}
             or complete_status.get("later_blocker_field_counts_by_blocker") != {}
@@ -10159,6 +10272,8 @@ def require_public_launch_manifest_current():
             or complete_status.get("later_blocker_field_counts_by_blocker_type") != empty_blocked_field_counts_by_blocker_type
             or complete_status.get("later_blocker_fields_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or complete_status.get("later_blocker_field_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or complete_status.get("later_blocker_fields_by_readiness_gate") != empty_items_by_readiness_gate
+            or complete_status.get("later_blocker_field_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or complete_status.get("later_blocker_fields_by_network") != {"main": [], "testnet": []}
             or complete_status.get("later_blocker_field_counts_by_network") != {"main": 0, "testnet": 0}
             or complete_status.get("later_blocker_fields") != []
@@ -10787,6 +10902,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type
             or ready_status.get("later_blockers_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or ready_status.get("later_blocker_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or ready_status.get("later_blockers_by_readiness_gate") != empty_items_by_readiness_gate
+            or ready_status.get("later_blocker_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or ready_status.get("later_blocker_networks") != []
             or ready_status.get("later_blocker_types") != []
             or ready_status.get("later_blocker_commands") != []
@@ -10801,6 +10918,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_command_pair_counts") != []
             or ready_status.get("later_blocker_readiness_summary_commands_by_blocker") != {}
             or ready_status.get("later_blocker_readiness_summary_command_count") != 0
+            or ready_status.get("later_blocker_readiness_summary_commands_by_readiness_gate") != empty_maps_by_readiness_gate
+            or ready_status.get("later_blocker_readiness_summary_command_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or ready_status.get("later_blocker_field_groups") != []
             or ready_status.get("later_blocker_field_group_count") != 0
             or ready_status.get("later_blocker_field_groups_by_blocker") != {}
@@ -10811,6 +10930,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_field_group_counts_by_blocker_type") != empty_blocked_field_group_counts_by_blocker_type
             or ready_status.get("later_blocker_field_groups_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or ready_status.get("later_blocker_field_group_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or ready_status.get("later_blocker_field_groups_by_readiness_gate") != empty_items_by_readiness_gate
+            or ready_status.get("later_blocker_field_group_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or ready_status.get("later_blocker_field_counts") != []
             or ready_status.get("later_blocker_fields_by_blocker") != {}
             or ready_status.get("later_blocker_field_counts_by_blocker") != {}
@@ -10818,6 +10939,8 @@ def require_public_launch_manifest_current():
             or ready_status.get("later_blocker_field_counts_by_blocker_type") != empty_blocked_field_counts_by_blocker_type
             or ready_status.get("later_blocker_fields_by_network_and_blocker_type") != empty_items_by_network_and_blocker_type
             or ready_status.get("later_blocker_field_counts_by_network_and_blocker_type") != empty_counts_by_network_and_blocker_type
+            or ready_status.get("later_blocker_fields_by_readiness_gate") != empty_items_by_readiness_gate
+            or ready_status.get("later_blocker_field_counts_by_readiness_gate") != empty_counts_by_readiness_gate
             or ready_status.get("later_blocker_fields_by_network") != {"main": [], "testnet": []}
             or ready_status.get("later_blocker_field_counts_by_network") != {"main": 0, "testnet": 0}
             or ready_status.get("later_blocker_fields") != []
@@ -11810,10 +11933,16 @@ def main():
         ("blocker_type_counts_by_readiness_gate", "manifest counts blocker types by readiness gate"),
         ("blockers_by_readiness_gate", "manifest groups blockers by readiness gate"),
         ("blocker_counts_by_readiness_gate", "manifest counts blockers by readiness gate"),
+        ("later_blockers_by_readiness_gate", "manifest groups later blockers by readiness gate"),
+        ("later_blocker_counts_by_readiness_gate", "manifest counts later blockers by readiness gate"),
         ("blocked_field_groups_by_readiness_gate", "manifest groups blocked field groups by readiness gate"),
         ("blocked_field_group_counts_by_readiness_gate", "manifest counts blocked field groups by readiness gate"),
         ("blocked_fields_by_readiness_gate", "manifest groups blocked fields by readiness gate"),
         ("blocked_field_counts_by_readiness_gate", "manifest counts blocked fields by readiness gate"),
+        ("later_blocked_field_groups_by_readiness_gate", "manifest groups later blocked field groups by readiness gate"),
+        ("later_blocked_field_group_counts_by_readiness_gate", "manifest counts later blocked field groups by readiness gate"),
+        ("later_blocked_fields_by_readiness_gate", "manifest groups later blocked fields by readiness gate"),
+        ("later_blocked_field_counts_by_readiness_gate", "manifest counts later blocked fields by readiness gate"),
         ("next_blocked_field_groups_by_readiness_gate", "manifest exposes next blocked field groups by readiness gate"),
         ("next_blocker_field_groups_by_readiness_gate", "manifest aliases next blocker field groups by readiness gate"),
         ("next_blocked_fields_by_readiness_gate", "manifest exposes next blocked fields by readiness gate"),
@@ -11875,6 +12004,7 @@ def main():
         ("readiness_gate_count_summary", "manifest formats readiness-gate counts for readiness summaries"),
         ("readiness_gate_list_summary", "manifest formats readiness-gate lists for readiness summaries"),
         ("readiness_gate_value_summary", "manifest formats readiness-gate values for readiness summaries"),
+        ("readiness_gate_blocker_command_summary", "manifest formats readiness-gate blocker command summaries"),
         ("network_blocker_type_count_summary", "manifest formats network blocker-type matrices for readiness summaries"),
         ("network_blocker_type_value_summary", "manifest formats network blocker-type value matrices for readiness summaries"),
         ("blocker_type_list_summary", "manifest formats blocker-type network lists for readiness summaries"),
@@ -11907,12 +12037,15 @@ def main():
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
+        ("later_blocker_readiness_summary_commands_by_readiness_gate", "manifest builds later blocker readiness-summary command maps by readiness gate"),
+        ("later_blocker_readiness_summary_command_counts_by_readiness_gate", "manifest counts later blocker readiness-summary command maps by readiness gate"),
         ("blocker_readiness_summary_command_summary", "manifest formats blocker readiness-summary command summaries"),
         ("readiness_gate_summary_command_summary", "manifest formats readiness-gate summary command summaries"),
         ("network launch order", "manifest prints blocker order within its network in blocker readiness summaries"),
         ("blocker-type launch order", "manifest prints blocker order within its blocker type in blocker readiness summaries"),
         ("earlier blocker readiness summary commands", "manifest prints earlier blocker summary commands for blocker readiness summaries"),
         ("later blocker readiness summary commands", "manifest prints later blocker summary commands for readiness summaries"),
+        ("later blocker readiness summary commands by readiness gate", "manifest prints later blocker summary commands by readiness gate in readiness summaries"),
         ("yes_no", "manifest formats readiness booleans"),
         ("COMMAND_FIELDS", "manifest centralizes command field order"),
         ("action_command_fields", "manifest builds current action command aliases"),
@@ -11995,10 +12128,16 @@ def main():
         ("blocker_type_counts_by_readiness_gate", "manifest status JSON counts blocker types by readiness gate"),
         ("unresolved_blockers_by_readiness_gate", "manifest status JSON groups unresolved blockers by readiness gate"),
         ("unresolved_blocker_counts_by_readiness_gate", "manifest status JSON counts unresolved blockers by readiness gate"),
+        ("later_blockers_by_readiness_gate", "manifest status JSON groups later blockers by readiness gate"),
+        ("later_blocker_counts_by_readiness_gate", "manifest status JSON counts later blockers by readiness gate"),
         ("blocked_field_groups_by_readiness_gate", "manifest status JSON groups blocked field groups by readiness gate"),
         ("blocked_field_group_counts_by_readiness_gate", "manifest status JSON counts blocked field groups by readiness gate"),
         ("blocked_fields_by_readiness_gate", "manifest status JSON groups blocked fields by readiness gate"),
         ("blocked_field_counts_by_readiness_gate", "manifest status JSON counts blocked fields by readiness gate"),
+        ("later_blocker_field_groups_by_readiness_gate", "manifest status JSON groups later blocker field groups by readiness gate"),
+        ("later_blocker_field_group_counts_by_readiness_gate", "manifest status JSON counts later blocker field groups by readiness gate"),
+        ("later_blocker_fields_by_readiness_gate", "manifest status JSON groups later blocker fields by readiness gate"),
+        ("later_blocker_field_counts_by_readiness_gate", "manifest status JSON counts later blocker fields by readiness gate"),
         ("next_actions_by_network_and_blocker_type", "manifest status JSON includes next actions by network and blocker type"),
         ("next_commands_by_network_and_blocker_type", "manifest status JSON includes next commands by network and blocker type"),
         ("next_blocker_commands_by_network_and_blocker_type", "manifest status JSON aliases network blocker-type next blocker commands"),
@@ -12183,6 +12322,8 @@ def main():
         ("later_blocker_command_pair_counts", "manifest status JSON counts later blocker command pairs"),
         ("later_blocker_readiness_summary_commands_by_blocker", "manifest status JSON includes later blocker summary command aliases"),
         ("later_blocker_readiness_summary_command_count", "manifest status JSON counts later blocker summary command aliases"),
+        ("later_blocker_readiness_summary_commands_by_readiness_gate", "manifest status JSON includes later blocker summary command aliases by readiness gate"),
+        ("later_blocker_readiness_summary_command_counts_by_readiness_gate", "manifest status JSON counts later blocker summary command aliases by readiness gate"),
         ("later_blocker_field_groups", "manifest status JSON includes later blocker field group aliases"),
         ("later_blocker_field_group_count", "manifest status JSON counts later blocker field group aliases"),
         ("later_blocker_field_groups_by_blocker", "manifest status JSON includes later blocker field groups by blocker"),
@@ -14004,6 +14145,14 @@ def main():
             "public launch manifest status-json later blocker counts by network and blocker type documentation",
         ),
         (
+            "later_blockers_by_readiness_gate",
+            "public launch manifest status-json later blockers by readiness gate documentation",
+        ),
+        (
+            "later_blocker_counts_by_readiness_gate",
+            "public launch manifest status-json later blocker counts by readiness gate documentation",
+        ),
+        (
             "later_blocker_networks",
             "public launch manifest status-json later blocker network documentation",
         ),
@@ -14060,6 +14209,14 @@ def main():
             "public launch manifest status-json later blocker summary command count documentation",
         ),
         (
+            "later_blocker_readiness_summary_commands_by_readiness_gate",
+            "public launch manifest status-json later blocker summary command map by readiness gate documentation",
+        ),
+        (
+            "later_blocker_readiness_summary_command_counts_by_readiness_gate",
+            "public launch manifest status-json later blocker summary command counts by readiness gate documentation",
+        ),
+        (
             "later_blocker_field_groups",
             "public launch manifest status-json later blocker field group documentation",
         ),
@@ -14100,6 +14257,14 @@ def main():
             "public launch manifest status-json later blocker field group counts by network and blocker type documentation",
         ),
         (
+            "later_blocker_field_groups_by_readiness_gate",
+            "public launch manifest status-json later blocker field groups by readiness gate documentation",
+        ),
+        (
+            "later_blocker_field_group_counts_by_readiness_gate",
+            "public launch manifest status-json later blocker field group counts by readiness gate documentation",
+        ),
+        (
             "later_blocker_field_counts",
             "public launch manifest status-json later blocker field count list documentation",
         ),
@@ -14126,6 +14291,14 @@ def main():
         (
             "later_blocker_field_counts_by_network_and_blocker_type",
             "public launch manifest status-json later blocker field counts by network and blocker type documentation",
+        ),
+        (
+            "later_blocker_fields_by_readiness_gate",
+            "public launch manifest status-json later blocker fields by readiness gate documentation",
+        ),
+        (
+            "later_blocker_field_counts_by_readiness_gate",
+            "public launch manifest status-json later blocker field counts by readiness gate documentation",
         ),
         (
             "later_blocker_fields_by_network",
