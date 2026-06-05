@@ -729,6 +729,8 @@ def require_public_launch_manifest_current():
         "  - next blocker type readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - network handoff bundle commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - network value-selection later blocker commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness gate summary commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
@@ -4181,6 +4183,14 @@ def require_public_launch_manifest_current():
             )
         if f"  - network readiness summary commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged per-network summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - network handoff bundle commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main {quoted_manifest_path}; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle testnet {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged per-network handoff bundle commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - network value-selection later blocker commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main {quoted_manifest_path}; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers testnet {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged per-network value-selection later blocker commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot {quoted_manifest_path}" not in spaced_readiness_result.stdout:
@@ -12558,7 +12568,9 @@ def main():
         ("status JSON command:", "manifest prints status-json commands in readiness summaries"),
         ("network_readiness_summary_command_summary", "manifest formats network readiness-summary commands for readiness summaries"),
         ("network_handoff_bundle_commands", "manifest builds network handoff-bundle command maps"),
+        ("network_handoff_bundle_command_summary", "manifest formats network handoff-bundle commands for readiness summaries"),
         ("network_value_selection_later_blockers_commands", "manifest builds network value-selection later-blocker command maps"),
+        ("network_value_selection_later_blockers_command_summary", "manifest formats network value-selection later-blocker commands for readiness summaries"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
         ("later_blocker_readiness_summary_commands_by_readiness_gate", "manifest builds later blocker readiness-summary command maps by readiness gate"),

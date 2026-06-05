@@ -135,9 +135,11 @@ Both are intentionally present before behavior changes so tests and review can t
   blocker-type summary commands, per-readiness-gate next readiness-gate summary
   commands, per-network next blocker-scoped summary
   commands, copyable action-plan, next-action, status-json, and rerun commands,
-  per-network scoped summary commands, the immediate blocker's exact field paths,
+  per-network scoped summary commands, per-network handoff bundle commands,
+  per-network queued value-selection commands, the immediate blocker's exact field paths,
   earlier and later blocker ids, per-readiness-gate later blockers, later blocker
-  field counts, and blocker-scoped summary commands, and the immediate handoff commands. These
+  field counts, and blocker-scoped summary commands, and the immediate handoff
+  commands. These
   commands are read-only and print copyable `template command`, `check command`,
   `preflight command`, `apply command`, `readiness summary command`,
   `network readiness summary command`,
@@ -152,7 +154,10 @@ Both are intentionally present before behavior changes so tests and review can t
   when release operators need one compact handoff with the current blocker
   template/check/preflight/apply commands, the current blocker summary command,
   the network readiness summary command, and the queued value-selection command
-  for that public network. Use
+  for that public network. The top-level readiness summary prints copyable
+  `network handoff bundle commands by network` and
+  `network value-selection later blocker commands by network` maps for the same
+  per-network handoffs. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary BLOCKER_TYPE`
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or
