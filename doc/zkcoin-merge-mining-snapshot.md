@@ -136,7 +136,8 @@ Both are intentionally present before behavior changes so tests and review can t
   commands, per-network next blocker-scoped summary
   commands, copyable action-plan, next-action, status-json, and rerun commands,
   per-network scoped summary commands, the immediate blocker's exact field paths,
-  earlier and later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
+  earlier and later blocker ids, per-readiness-gate later blockers, later blocker
+  field counts, and blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   `apply command`, `readiness summary command`,
   `network readiness summary command`,
@@ -283,6 +284,16 @@ Both are intentionally present before behavior changes so tests and review can t
   external-artifact handoffs and value-selection handoffs for launch planning,
   while `readiness_gate_progress` packages those gate-level counts, groups,
   fields, and next handoff objects into one progress map.
+  `later_blockers_by_readiness_gate`,
+  `later_blocker_counts_by_readiness_gate`,
+  `later_blocker_field_groups_by_readiness_gate`,
+  `later_blocker_field_group_counts_by_readiness_gate`,
+  `later_blocker_fields_by_readiness_gate`,
+  `later_blocker_field_counts_by_readiness_gate`,
+  `later_blocker_readiness_summary_commands_by_readiness_gate`, and
+  `later_blocker_readiness_summary_command_counts_by_readiness_gate` expose the
+  queued blocker ids, fields, and blocker-scoped summary commands after each
+  readiness gate's current handoff.
   `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
   `next_actions_by_readiness_gate`, `next_commands_by_readiness_gate`,
   `next_blocker_commands_by_readiness_gate`,
