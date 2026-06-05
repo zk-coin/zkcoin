@@ -138,6 +138,10 @@ BLOCKER_TYPES = (
     "public_network_identity",
     "dns_seeds",
 )
+READINESS_GATES = (
+    "external_artifact",
+    "value_selection",
+)
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 STATUS_JSON_SCHEMA_VERSION = 2
 
@@ -474,6 +478,104 @@ def external_artifact_counts_by_blocker():
         f"{network}.{blocker_type}": counts_by_type[blocker_type]
         for network in NETWORKS
         for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_type_readiness_gate(blocker_type):
+    if blocker_external_artifacts(blocker_type):
+        return "external_artifact"
+    return "value_selection"
+
+
+def readiness_gate_by_blocker_type():
+    return {
+        blocker_type: blocker_type_readiness_gate(blocker_type)
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def readiness_gate_by_network_and_blocker_type():
+    gates_by_type = readiness_gate_by_blocker_type()
+    return {
+        network: {
+            blocker_type: gates_by_type[blocker_type]
+            for blocker_type in BLOCKER_TYPES
+        }
+        for network in NETWORKS
+    }
+
+
+def readiness_gate_by_blocker():
+    gates_by_type = readiness_gate_by_blocker_type()
+    return {
+        f"{network}.{blocker_type}": gates_by_type[blocker_type]
+        for network in NETWORKS
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_types_by_readiness_gate():
+    grouped = {gate: [] for gate in READINESS_GATES}
+    for blocker_type in BLOCKER_TYPES:
+        grouped[blocker_type_readiness_gate(blocker_type)].append(blocker_type)
+    return grouped
+
+
+def blocker_type_counts_by_readiness_gate():
+    return {
+        gate: len(blocker_types)
+        for gate, blocker_types in blocker_types_by_readiness_gate().items()
+    }
+
+
+def blockers_by_readiness_gate(blockers):
+    gates_by_type = readiness_gate_by_blocker_type()
+    grouped = {gate: [] for gate in READINESS_GATES}
+    for blocker in blockers:
+        _, blocker_type = blocker.split(".", 1)
+        gate = gates_by_type.get(blocker_type)
+        if gate in grouped:
+            grouped[gate].append(blocker)
+    return grouped
+
+
+def blocker_counts_by_readiness_gate(blockers):
+    return {
+        gate: len(gate_blockers)
+        for gate, gate_blockers in blockers_by_readiness_gate(blockers).items()
+    }
+
+
+def blocked_field_groups_by_readiness_gate(blocked_field_groups):
+    grouped = {gate: [] for gate in READINESS_GATES}
+    for group in blocked_field_groups:
+        gate = blocker_type_readiness_gate(group["blocker_type"])
+        grouped[gate].append(group)
+    return grouped
+
+
+def blocked_field_group_counts_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: len(groups)
+        for gate, groups in blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def blocked_fields_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: [
+            field
+            for group in groups
+            for field in group.get("fields", [])
+        ]
+        for gate, groups in blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def blocked_field_counts_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: len(fields)
+        for gate, fields in blocked_fields_by_readiness_gate(blocked_field_groups).items()
     }
 
 
@@ -3679,6 +3781,13 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_networks_by_blocker_type": blocked_networks_by_blocker_type(blocked_field_groups),
             "ready_network_counts_by_blocker_type": ready_network_counts_by_blocker_type(blocked_field_groups),
             "ready_networks_by_blocker_type": ready_networks_by_blocker_type(blocked_field_groups),
+            "readiness_gates": list(READINESS_GATES),
+            "readiness_gate_count": len(READINESS_GATES),
+            "readiness_gate_by_blocker": readiness_gate_by_blocker(),
+            "readiness_gate_by_blocker_type": readiness_gate_by_blocker_type(),
+            "readiness_gate_by_network_and_blocker_type": readiness_gate_by_network_and_blocker_type(),
+            "blocker_types_by_readiness_gate": blocker_types_by_readiness_gate(),
+            "blocker_type_counts_by_readiness_gate": blocker_type_counts_by_readiness_gate(),
             "unresolved_blocker_count": len(blockers),
             "unresolved_blockers": blockers,
             "unresolved_blockers_by_network": items_by_network(blockers),
@@ -3687,6 +3796,8 @@ def status_json_text(manifest, manifest_path, check):
             "unresolved_blocker_counts_by_blocker_type": blocker_counts_by_blocker_type(blockers),
             "unresolved_blockers_by_network_and_blocker_type": blockers_by_network_and_blocker_type(blockers),
             "unresolved_blocker_counts_by_network_and_blocker_type": blocker_counts_by_network_and_blocker_type(blockers),
+            "unresolved_blockers_by_readiness_gate": blockers_by_readiness_gate(blockers),
+            "unresolved_blocker_counts_by_readiness_gate": blocker_counts_by_readiness_gate(blockers),
             "blocked_fields": check.blockers,
             "blocked_field_count": len(check.blockers),
             "blocked_fields_by_network": items_by_network(check.blockers),
@@ -3695,6 +3806,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_counts_by_blocker_type": blocked_field_counts_by_blocker_type(blocked_field_groups),
             "blocked_fields_by_network_and_blocker_type": blocked_fields_by_network_and_blocker_type(blocked_field_groups),
             "blocked_field_counts_by_network_and_blocker_type": blocked_field_counts_by_network_and_blocker_type(blocked_field_groups),
+            "blocked_fields_by_readiness_gate": blocked_fields_by_readiness_gate(blocked_field_groups),
+            "blocked_field_counts_by_readiness_gate": blocked_field_counts_by_readiness_gate(blocked_field_groups),
             "action_plan_command": action_plan_command(manifest_path),
             "readiness_summary_command": readiness_summary_command(manifest_path),
             "status_json_command": status_json_command(manifest_path),
@@ -3752,6 +3865,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocked_field_group_counts_by_blocker_type": blocked_field_group_counts_by_blocker_type(blocked_field_groups),
             "blocked_field_groups_by_network_and_blocker_type": blocked_field_groups_by_network_and_blocker_type(blocked_field_groups),
             "blocked_field_group_counts_by_network_and_blocker_type": blocked_field_group_counts_by_network_and_blocker_type(blocked_field_groups),
+            "blocked_field_groups_by_readiness_gate": blocked_field_groups_by_readiness_gate(blocked_field_groups),
+            "blocked_field_group_counts_by_readiness_gate": blocked_field_group_counts_by_readiness_gate(blocked_field_groups),
             "next_blocked_field_group": next_blocked_field_group,
             "next_blocker_field_group": next_blocked_field_group,
             "next_blocker_field_groups_by_blocker": next_blocker_field_groups_by_blocker,
