@@ -322,6 +322,22 @@ def action_counts_by_blocker_type(actions):
     }
 
 
+def actions_by_readiness_gate(actions):
+    grouped = {gate: [] for gate in READINESS_GATES}
+    for action in actions:
+        blocker_type = action.get("blocker_type")
+        if blocker_type in BLOCKER_TYPES:
+            grouped[blocker_type_readiness_gate(blocker_type)].append(action)
+    return grouped
+
+
+def action_counts_by_readiness_gate(actions):
+    return {
+        gate: len(gate_actions)
+        for gate, gate_actions in actions_by_readiness_gate(actions).items()
+    }
+
+
 def actions_by_network_and_blocker_type(actions):
     grouped = {
         network: {blocker_type: [] for blocker_type in BLOCKER_TYPES}
@@ -576,6 +592,62 @@ def blocked_field_counts_by_readiness_gate(blocked_field_groups):
     return {
         gate: len(fields)
         for gate, fields in blocked_fields_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_actions_by_readiness_gate(actions):
+    return {
+        gate: gate_actions[0] if gate_actions else None
+        for gate, gate_actions in actions_by_readiness_gate(actions).items()
+    }
+
+
+def next_commands_by_readiness_gate(actions):
+    return {
+        gate: action_command_fields(action)
+        for gate, action in next_actions_by_readiness_gate(actions).items()
+    }
+
+
+def next_blocked_field_groups_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: groups[0] if groups else None
+        for gate, groups in blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_blocked_fields_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: next_group["fields"] if next_group else []
+        for gate, next_group in next_blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_blocked_field_counts_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: next_group["field_count"] if next_group else 0
+        for gate, next_group in next_blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_blockers_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: next_group["id"] if next_group else None
+        for gate, next_group in next_blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_blocker_networks_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: next_group["network"] if next_group else None
+        for gate, next_group in next_blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
+    }
+
+
+def next_blocker_types_by_readiness_gate(blocked_field_groups):
+    return {
+        gate: next_group["blocker_type"] if next_group else None
+        for gate, next_group in next_blocked_field_groups_by_readiness_gate(blocked_field_groups).items()
     }
 
 
@@ -1148,6 +1220,13 @@ def blocker_type_list_summary(items_by_blocker_type):
 def readiness_gate_list_summary(items_by_gate):
     return "; ".join(
         f"{gate}={list_summary(items_by_gate[gate])}"
+        for gate in READINESS_GATES
+    )
+
+
+def readiness_gate_value_summary(values_by_gate):
+    return ", ".join(
+        f"{gate}={values_by_gate[gate] or 'none'}"
         for gate in READINESS_GATES
     )
 
@@ -3450,6 +3529,8 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - blocked fields by readiness gate: {readiness_gate_count_summary(blocked_field_counts_by_readiness_gate(blocked_field_groups))}",
         f"  - blocked fields by network and blocker type: {network_blocker_type_count_summary(blocked_field_counts_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blockers by network: {network_next_blocker_summary(network_progress)}",
+        f"  - next blockers by readiness gate: {readiness_gate_value_summary(next_blockers_by_readiness_gate(blocked_field_groups))}",
+        f"  - next blocker fields by readiness gate: {readiness_gate_count_summary(next_blocked_field_counts_by_readiness_gate(blocked_field_groups))}",
         f"  - next blockers by network and blocker type: {network_blocker_type_value_summary(next_blockers_by_network_and_blocker_type(blocked_field_groups))}",
         f"  - next blocker fields by network: {network_next_blocker_field_count_summary(network_progress)}",
         f"  - next blocker fields by network and blocker type: {network_blocker_type_count_summary(next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups))}",
@@ -3853,13 +3934,22 @@ def status_json_text(manifest, manifest_path, check):
             "next_blocker_field_counts_by_network": network_next_blocked_field_counts(network_progress),
             "next_blocked_field_groups_by_network_and_blocker_type": next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups),
             "next_blocker_field_groups_by_network_and_blocker_type": next_blocked_field_groups_by_network_and_blocker_type(blocked_field_groups),
+            "next_blocked_field_groups_by_readiness_gate": next_blocked_field_groups_by_readiness_gate(blocked_field_groups),
+            "next_blocker_field_groups_by_readiness_gate": next_blocked_field_groups_by_readiness_gate(blocked_field_groups),
             "next_blocked_fields_by_network_and_blocker_type": next_blocked_fields_by_network_and_blocker_type(blocked_field_groups),
             "next_blocked_field_counts_by_network_and_blocker_type": next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups),
             "next_blocker_fields_by_network_and_blocker_type": next_blocked_fields_by_network_and_blocker_type(blocked_field_groups),
             "next_blocker_field_counts_by_network_and_blocker_type": next_blocked_field_counts_by_network_and_blocker_type(blocked_field_groups),
+            "next_blocked_fields_by_readiness_gate": next_blocked_fields_by_readiness_gate(blocked_field_groups),
+            "next_blocked_field_counts_by_readiness_gate": next_blocked_field_counts_by_readiness_gate(blocked_field_groups),
+            "next_blocker_fields_by_readiness_gate": next_blocked_fields_by_readiness_gate(blocked_field_groups),
+            "next_blocker_field_counts_by_readiness_gate": next_blocked_field_counts_by_readiness_gate(blocked_field_groups),
             "next_blockers_by_network_and_blocker_type": next_blockers_by_network_and_blocker_type(blocked_field_groups),
             "next_blockers_by_network": network_next_blockers(network_progress),
             "next_blocker_types_by_network": network_next_blocker_types(network_progress),
+            "next_blockers_by_readiness_gate": next_blockers_by_readiness_gate(blocked_field_groups),
+            "next_blocker_networks_by_readiness_gate": next_blocker_networks_by_readiness_gate(blocked_field_groups),
+            "next_blocker_types_by_readiness_gate": next_blocker_types_by_readiness_gate(blocked_field_groups),
             "next_blocked_field_groups_by_blocker_type": next_blocked_field_groups_by_blocker_type(blocked_field_groups),
             "next_blocker_field_groups_by_blocker_type": next_blocked_field_groups_by_blocker_type(blocked_field_groups),
             "next_blocked_fields_by_blocker_type": blocker_type_next_blocked_fields(blocker_type_progress),
@@ -3993,6 +4083,8 @@ def status_json_text(manifest, manifest_path, check):
             "action_counts_by_network": action_counts_by_network(actions),
             "actions_by_blocker_type": actions_by_blocker_type(actions),
             "action_counts_by_blocker_type": action_counts_by_blocker_type(actions),
+            "actions_by_readiness_gate": actions_by_readiness_gate(actions),
+            "action_counts_by_readiness_gate": action_counts_by_readiness_gate(actions),
             "actions_by_network_and_blocker_type": actions_by_network_and_blocker_type(actions),
             "action_counts_by_network_and_blocker_type": action_counts_by_network_and_blocker_type(actions),
             "candidate_constraints_by_blocker": candidate_constraints_by_blocker(),
@@ -4013,6 +4105,9 @@ def status_json_text(manifest, manifest_path, check):
             "next_actions_by_blocker_type": next_actions_by_blocker_type(actions),
             "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
             "next_blocker_commands_by_blocker_type": next_commands_by_blocker_type(actions),
+            "next_actions_by_readiness_gate": next_actions_by_readiness_gate(actions),
+            "next_commands_by_readiness_gate": next_commands_by_readiness_gate(actions),
+            "next_blocker_commands_by_readiness_gate": next_commands_by_readiness_gate(actions),
             "next": next_action,
             "next_action": next_action,
             "next_action_id": next_action_id,

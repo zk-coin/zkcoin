@@ -683,6 +683,8 @@ def require_public_launch_manifest_current():
         "  - blocked fields by readiness gate: external_artifact=22, value_selection=24",
         "  - blocked fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
         "  - next blockers by network: main=main.litecoin_snapshot, testnet=testnet.litecoin_snapshot",
+        "  - next blockers by readiness gate: external_artifact=main.litecoin_snapshot, value_selection=main.auxpow_chain_id",
+        "  - next blocker fields by readiness gate: external_artifact=11, value_selection=1",
         "  - next blockers by network and blocker type: main: litecoin_snapshot=main.litecoin_snapshot, auxpow_chain_id=main.auxpow_chain_id, public_network_identity=main.public_network_identity, dns_seeds=main.dns_seeds; testnet: litecoin_snapshot=testnet.litecoin_snapshot, auxpow_chain_id=testnet.auxpow_chain_id, public_network_identity=testnet.public_network_identity, dns_seeds=testnet.dns_seeds",
         "  - next blocker fields by network: main=11, testnet=11",
         "  - next blocker fields by network and blocker type: main: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1; testnet: litecoin_snapshot=11, auxpow_chain_id=1, public_network_identity=10, dns_seeds=1",
@@ -1073,6 +1075,47 @@ def require_public_launch_manifest_current():
         ],
         "dns_seeds": ["main.dns_seeds", "testnet.dns_seeds"],
     }
+    expected_readiness_gates = ["external_artifact", "value_selection"]
+    expected_readiness_gate_by_blocker_type = {
+        "litecoin_snapshot": "external_artifact",
+        "auxpow_chain_id": "value_selection",
+        "public_network_identity": "value_selection",
+        "dns_seeds": "value_selection",
+    }
+    expected_action_ids_by_readiness_gate = {
+        "external_artifact": [
+            "main.litecoin_snapshot",
+            "testnet.litecoin_snapshot",
+        ],
+        "value_selection": [
+            "main.auxpow_chain_id",
+            "main.public_network_identity",
+            "main.dns_seeds",
+            "testnet.auxpow_chain_id",
+            "testnet.public_network_identity",
+            "testnet.dns_seeds",
+        ],
+    }
+    expected_action_counts_by_readiness_gate = {
+        gate: len(actions)
+        for gate, actions in expected_action_ids_by_readiness_gate.items()
+    }
+    expected_next_action_ids_by_readiness_gate = {
+        "external_artifact": "main.litecoin_snapshot",
+        "value_selection": "main.auxpow_chain_id",
+    }
+    expected_next_blocker_networks_by_readiness_gate = {
+        "external_artifact": "main",
+        "value_selection": "main",
+    }
+    expected_next_blocker_types_by_readiness_gate = {
+        "external_artifact": "litecoin_snapshot",
+        "value_selection": "auxpow_chain_id",
+    }
+    expected_next_blocked_field_counts_by_readiness_gate = {
+        "external_artifact": 11,
+        "value_selection": 1,
+    }
     expected_blocker_counts_by_blocker_type = {
         blocker_type: len(blockers)
         for blocker_type, blockers in expected_blockers_by_blocker_type.items()
@@ -1288,6 +1331,18 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not group DNS seed action entries by blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    actions_by_readiness_gate = status_json.get("actions_by_readiness_gate", {})
+    if {
+        gate: [action.get("id") for action in gate_actions]
+        for gate, gate_actions in actions_by_readiness_gate.items()
+    } != expected_action_ids_by_readiness_gate:
+        return "{} --status-json did not group action-plan entries by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("action_counts_by_readiness_gate") != expected_action_counts_by_readiness_gate:
+        return "{} --status-json did not count action-plan entries by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_actions_by_blocker_type = status_json.get("next_actions_by_blocker_type", {})
     if {blocker_type: action.get("id") for blocker_type, action in next_actions_by_blocker_type.items()} != {
         "litecoin_snapshot": "main.litecoin_snapshot",
@@ -1314,6 +1369,27 @@ def require_public_launch_manifest_current():
         "dns_seeds": "main",
     }:
         return "{} --status-json did not expose next blocker networks by blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_actions_by_readiness_gate = status_json.get("next_actions_by_readiness_gate", {})
+    if {
+        gate: action.get("id") if action else None
+        for gate, action in next_actions_by_readiness_gate.items()
+    } != expected_next_action_ids_by_readiness_gate:
+        return "{} --status-json did not expose next actions by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_commands_by_readiness_gate = status_json.get("next_commands_by_readiness_gate", {})
+    if "--check-snapshot-audit main <snapshot_audit.json>" not in next_commands_by_readiness_gate.get("external_artifact", {}).get("check_command", ""):
+        return "{} --status-json did not expose external-artifact next commands by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-auxpow main <chain_id>" not in next_commands_by_readiness_gate.get("value_selection", {}).get("check_command", ""):
+        return "{} --status-json did not expose value-selection next commands by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_commands_by_readiness_gate") != next_commands_by_readiness_gate:
+        return "{} --status-json did not alias readiness-gate next blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     next_groups_by_blocker_type = status_json.get("next_blocked_field_groups_by_blocker_type", {})
@@ -1828,6 +1904,30 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose next blockers by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    next_groups_by_readiness_gate = status_json.get("next_blocked_field_groups_by_readiness_gate", {})
+    if {
+        gate: group.get("id") if group else None
+        for gate, group in next_groups_by_readiness_gate.items()
+    } != expected_next_action_ids_by_readiness_gate:
+        return "{} --status-json did not expose next blocker groups by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_field_groups_by_readiness_gate") != next_groups_by_readiness_gate:
+        return "{} --status-json did not alias readiness-gate next blocker groups".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blockers_by_readiness_gate") != expected_next_action_ids_by_readiness_gate:
+        return "{} --status-json did not expose next blockers by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_networks_by_readiness_gate") != expected_next_blocker_networks_by_readiness_gate:
+        return "{} --status-json did not expose next blocker networks by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_types_by_readiness_gate") != expected_next_blocker_types_by_readiness_gate:
+        return "{} --status-json did not expose next blocker types by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_field_matrix = status_json.get("next_blocked_fields_by_network_and_blocker_type", {})
     if next_field_matrix.get("main", {}).get("litecoin_snapshot", [None])[0] != "main.litecoin_snapshot.height":
         return "{} --status-json did not expose mainnet snapshot next fields by network and blocker type".format(
@@ -1847,6 +1947,27 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_blocker_field_counts_by_network_and_blocker_type") != status_json.get("next_blocked_field_counts_by_network_and_blocker_type"):
         return "{} --status-json did not alias next blocker field counts by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    next_fields_by_readiness_gate = status_json.get("next_blocked_fields_by_readiness_gate", {})
+    if next_fields_by_readiness_gate.get("external_artifact", [None])[0] != "main.litecoin_snapshot.height":
+        return "{} --status-json did not expose external-artifact next fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_fields_by_readiness_gate.get("value_selection") != ["main.auxpow.chain_id"]:
+        return "{} --status-json did not expose value-selection next fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_fields_by_readiness_gate") != next_fields_by_readiness_gate:
+        return "{} --status-json did not alias readiness-gate next blocker fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocked_field_counts_by_readiness_gate") != expected_next_blocked_field_counts_by_readiness_gate:
+        return "{} --status-json did not count next fields by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_blocker_field_counts_by_readiness_gate") != expected_next_blocked_field_counts_by_readiness_gate:
+        return "{} --status-json did not alias readiness-gate next blocker field counts".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     blocked_field_groups = status_json.get("blocked_field_groups", [])
@@ -11524,6 +11645,8 @@ def main():
         ("action_counts_by_network", "manifest counts action entries by network"),
         ("actions_by_blocker_type", "manifest groups action entries by blocker type"),
         ("action_counts_by_blocker_type", "manifest counts action entries by blocker type"),
+        ("actions_by_readiness_gate", "manifest groups action entries by readiness gate"),
+        ("action_counts_by_readiness_gate", "manifest counts action entries by readiness gate"),
         ("network_step", "manifest includes network-scoped action order"),
         ("network_step_count", "manifest includes network-scoped action count"),
         ("blocker_type_step", "manifest includes blocker-type-scoped action order"),
@@ -11537,6 +11660,9 @@ def main():
         ("next_actions_by_blocker_type", "manifest exposes next action entries by blocker type"),
         ("next_commands_by_blocker_type", "manifest exposes next commands by blocker type"),
         ("next_blocker_commands_by_blocker_type", "manifest aliases next blocker commands by blocker type"),
+        ("next_actions_by_readiness_gate", "manifest exposes next action entries by readiness gate"),
+        ("next_commands_by_readiness_gate", "manifest exposes next commands by readiness gate"),
+        ("next_blocker_commands_by_readiness_gate", "manifest aliases next blocker commands by readiness gate"),
         ("blockers_by_blocker_type", "manifest groups blocker entries by blocker type"),
         ("blocker_counts_by_blocker_type", "manifest counts blocker entries by blocker type"),
         ("blockers_by_network_and_blocker_type", "manifest groups blocker entries by network and blocker type"),
@@ -11553,6 +11679,15 @@ def main():
         ("blocked_field_group_counts_by_readiness_gate", "manifest counts blocked field groups by readiness gate"),
         ("blocked_fields_by_readiness_gate", "manifest groups blocked fields by readiness gate"),
         ("blocked_field_counts_by_readiness_gate", "manifest counts blocked fields by readiness gate"),
+        ("next_blocked_field_groups_by_readiness_gate", "manifest exposes next blocked field groups by readiness gate"),
+        ("next_blocker_field_groups_by_readiness_gate", "manifest aliases next blocker field groups by readiness gate"),
+        ("next_blocked_fields_by_readiness_gate", "manifest exposes next blocked fields by readiness gate"),
+        ("next_blocked_field_counts_by_readiness_gate", "manifest counts next blocked fields by readiness gate"),
+        ("next_blocker_fields_by_readiness_gate", "manifest aliases next blocker fields by readiness gate"),
+        ("next_blocker_field_counts_by_readiness_gate", "manifest aliases next blocker field counts by readiness gate"),
+        ("next_blockers_by_readiness_gate", "manifest exposes next blockers by readiness gate"),
+        ("next_blocker_networks_by_readiness_gate", "manifest exposes next blocker networks by readiness gate"),
+        ("next_blocker_types_by_readiness_gate", "manifest exposes next blocker types by readiness gate"),
         ("blocked_fields_by_blocker_type", "manifest groups blocked fields by blocker type"),
         ("blocked_field_counts_by_blocker_type", "manifest counts blocked fields by blocker type"),
         ("blocked_fields_by_network_and_blocker_type", "manifest groups blocked fields by network and blocker type"),
@@ -11599,6 +11734,7 @@ def main():
         ("blocker_type_count_summary", "manifest formats blocker-type counts for readiness summaries"),
         ("readiness_gate_count_summary", "manifest formats readiness-gate counts for readiness summaries"),
         ("readiness_gate_list_summary", "manifest formats readiness-gate lists for readiness summaries"),
+        ("readiness_gate_value_summary", "manifest formats readiness-gate values for readiness summaries"),
         ("network_blocker_type_count_summary", "manifest formats network blocker-type matrices for readiness summaries"),
         ("network_blocker_type_value_summary", "manifest formats network blocker-type value matrices for readiness summaries"),
         ("blocker_type_list_summary", "manifest formats blocker-type network lists for readiness summaries"),
@@ -11613,6 +11749,8 @@ def main():
         ("unresolved blockers by readiness gate", "manifest prints unresolved blocker counts by readiness gate in readiness summaries"),
         ("blocked field groups by readiness gate", "manifest prints blocked field group counts by readiness gate in readiness summaries"),
         ("blocked fields by readiness gate", "manifest prints blocked field counts by readiness gate in readiness summaries"),
+        ("next blockers by readiness gate", "manifest prints next blockers by readiness gate in readiness summaries"),
+        ("next blocker fields by readiness gate", "manifest prints next blocker field counts by readiness gate in readiness summaries"),
         ("blocker_type_next_blocker_summary", "manifest formats blocker-type next blockers for readiness summaries"),
         ("blocker_type_next_blocker_network_summary", "manifest formats blocker-type next networks for readiness summaries"),
         ("blocker_type_next_blocker_field_count_summary", "manifest formats blocker-type next field counts for readiness summaries"),
@@ -11690,6 +11828,8 @@ def main():
         ("action_counts_by_network", "manifest status JSON counts actions by network"),
         ("actions_by_blocker_type", "manifest status JSON groups actions by blocker type"),
         ("action_counts_by_blocker_type", "manifest status JSON counts actions by blocker type"),
+        ("actions_by_readiness_gate", "manifest status JSON groups actions by readiness gate"),
+        ("action_counts_by_readiness_gate", "manifest status JSON counts actions by readiness gate"),
         ("actions_by_network_and_blocker_type", "manifest status JSON groups actions by network and blocker type"),
         ("action_counts_by_network_and_blocker_type", "manifest status JSON counts actions by network and blocker type"),
         ("candidate_constraints_by_blocker", "manifest status JSON indexes candidate constraints by blocker"),
@@ -11723,6 +11863,9 @@ def main():
         ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
         ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
         ("next_blocker_commands_by_blocker_type", "manifest status JSON aliases blocker-type next blocker commands"),
+        ("next_actions_by_readiness_gate", "manifest status JSON includes next actions by readiness gate"),
+        ("next_commands_by_readiness_gate", "manifest status JSON includes next commands by readiness gate"),
+        ("next_blocker_commands_by_readiness_gate", "manifest status JSON aliases readiness-gate next blocker commands"),
         ("next_blocked_field_groups_by_blocker_type", "manifest status JSON includes blocker-type next blocked field groups"),
         ("next_blocker_field_groups_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field groups"),
         ("next_blocked_fields_by_blocker_type", "manifest status JSON includes blocker-type next blocked fields"),
@@ -11810,6 +11953,15 @@ def main():
         ("blocked_field_group_counts_by_network_and_blocker_type", "manifest status JSON counts blocked field groups by network and blocker type"),
         ("blocked_field_groups_by_readiness_gate", "manifest status JSON groups blocked field groups by readiness gate"),
         ("blocked_field_group_counts_by_readiness_gate", "manifest status JSON counts blocked field groups by readiness gate"),
+        ("next_blocked_field_groups_by_readiness_gate", "manifest status JSON includes next blocked field groups by readiness gate"),
+        ("next_blocker_field_groups_by_readiness_gate", "manifest status JSON aliases next blocker field groups by readiness gate"),
+        ("next_blocked_fields_by_readiness_gate", "manifest status JSON includes next blocked fields by readiness gate"),
+        ("next_blocked_field_counts_by_readiness_gate", "manifest status JSON counts next blocked fields by readiness gate"),
+        ("next_blocker_fields_by_readiness_gate", "manifest status JSON aliases next blocker fields by readiness gate"),
+        ("next_blocker_field_counts_by_readiness_gate", "manifest status JSON aliases next blocker field counts by readiness gate"),
+        ("next_blockers_by_readiness_gate", "manifest status JSON includes next blockers by readiness gate"),
+        ("next_blocker_networks_by_readiness_gate", "manifest status JSON includes next blocker networks by readiness gate"),
+        ("next_blocker_types_by_readiness_gate", "manifest status JSON includes next blocker types by readiness gate"),
         ("next_blocked_field_groups_by_network_and_blocker_type", "manifest status JSON includes next blocked field groups by network and blocker type"),
         ("next_blocker_field_groups_by_network_and_blocker_type", "manifest status JSON aliases next blocker field groups by network and blocker type"),
         ("next_blocked_fields_by_network_and_blocker_type", "manifest status JSON includes next blocked fields by network and blocker type"),
@@ -12871,6 +13023,10 @@ def main():
             "public launch manifest readiness-summary next blocker field-count matrix documentation",
         ),
         (
+            "next blocker\n  and next blocker field count for each readiness gate",
+            "public launch manifest readiness-summary readiness-gate next blocker documentation",
+        ),
+        (
             "per-network next\n  blocker-type summary commands",
             "public launch manifest readiness-summary network blocker-type summary documentation",
         ),
@@ -13003,6 +13159,14 @@ def main():
             "public launch manifest status-json blocker-type action count documentation",
         ),
         (
+            "actions_by_readiness_gate",
+            "public launch manifest status-json readiness-gate action documentation",
+        ),
+        (
+            "action_counts_by_readiness_gate",
+            "public launch manifest status-json readiness-gate action count documentation",
+        ),
+        (
             "actions_by_network_and_blocker_type",
             "public launch manifest status-json network blocker-type action documentation",
         ),
@@ -13033,6 +13197,18 @@ def main():
         (
             "next_blocker_commands_by_blocker_type",
             "public launch manifest status-json blocker-type next blocker command alias documentation",
+        ),
+        (
+            "next_actions_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next action documentation",
+        ),
+        (
+            "next_commands_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next command documentation",
+        ),
+        (
+            "next_blocker_commands_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker command alias documentation",
         ),
         (
             "action_plan_command",
@@ -13369,6 +13545,42 @@ def main():
         (
             "next_blocker_field_counts_by_network_and_blocker_type",
             "public launch manifest status-json network blocker-type next blocker field-count alias documentation",
+        ),
+        (
+            "next_blocked_field_groups_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next field-group documentation",
+        ),
+        (
+            "next_blocker_field_groups_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker field-group alias documentation",
+        ),
+        (
+            "next_blocked_fields_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next field documentation",
+        ),
+        (
+            "next_blocked_field_counts_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next field-count documentation",
+        ),
+        (
+            "next_blocker_fields_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker field alias documentation",
+        ),
+        (
+            "next_blocker_field_counts_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker field-count alias documentation",
+        ),
+        (
+            "next_blockers_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker documentation",
+        ),
+        (
+            "next_blocker_networks_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker network documentation",
+        ),
+        (
+            "next_blocker_types_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next blocker type documentation",
         ),
         (
             "next_blockers_by_network_and_blocker_type",
