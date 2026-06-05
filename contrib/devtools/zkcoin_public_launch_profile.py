@@ -395,6 +395,88 @@ def candidate_constraint_counts_by_blocker():
     }
 
 
+def blocker_external_artifacts(blocker_type):
+    if blocker_type == "litecoin_snapshot":
+        return [
+            {
+                "id": "snapshot_audit_json",
+                "argument": "<snapshot_audit.json>",
+                "required_for_commands": ["check_command", "apply_command"],
+                "source": "operator-generated snapshot audit summary",
+                "must_be_utf8_json_object": True,
+                "must_match_template_fields": list(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+                "max_bytes": SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES,
+            },
+            {
+                "id": "snapshot_file",
+                "path_field": "snapshot_file",
+                "source": "snapshot audit JSON field",
+                "required_for_commands": ["check_command", "apply_command"],
+                "must_be_local_regular_file": True,
+                "must_not_be_symlink": True,
+                "parent_must_not_be_symlink": True,
+                "size_field": "snapshot_file_size",
+                "sha256_field": "snapshot_file_sha256",
+                "must_remain_stable_during_verification": True,
+            },
+        ]
+    return []
+
+
+def external_artifacts_by_blocker_type():
+    return {
+        blocker_type: blocker_external_artifacts(blocker_type)
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def external_artifact_counts_by_blocker_type():
+    return {
+        blocker_type: len(artifacts)
+        for blocker_type, artifacts in external_artifacts_by_blocker_type().items()
+    }
+
+
+def external_artifacts_by_network_and_blocker_type():
+    artifacts_by_type = external_artifacts_by_blocker_type()
+    return {
+        network: {
+            blocker_type: artifacts_by_type[blocker_type]
+            for blocker_type in BLOCKER_TYPES
+        }
+        for network in NETWORKS
+    }
+
+
+def external_artifact_counts_by_network_and_blocker_type():
+    counts_by_type = external_artifact_counts_by_blocker_type()
+    return {
+        network: {
+            blocker_type: counts_by_type[blocker_type]
+            for blocker_type in BLOCKER_TYPES
+        }
+        for network in NETWORKS
+    }
+
+
+def external_artifacts_by_blocker():
+    artifacts_by_type = external_artifacts_by_blocker_type()
+    return {
+        f"{network}.{blocker_type}": artifacts_by_type[blocker_type]
+        for network in NETWORKS
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def external_artifact_counts_by_blocker():
+    counts_by_type = external_artifact_counts_by_blocker_type()
+    return {
+        f"{network}.{blocker_type}": counts_by_type[blocker_type]
+        for network in NETWORKS
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
 def next_actions_by_network_and_blocker_type(actions):
     return {
         network: {
@@ -3789,6 +3871,12 @@ def status_json_text(manifest, manifest_path, check):
             "candidate_constraint_counts_by_blocker_type": candidate_constraint_counts_by_blocker_type(),
             "candidate_constraints_by_network_and_blocker_type": candidate_constraints_by_network_and_blocker_type(),
             "candidate_constraint_counts_by_network_and_blocker_type": candidate_constraint_counts_by_network_and_blocker_type(),
+            "external_artifacts_by_blocker": external_artifacts_by_blocker(),
+            "external_artifact_counts_by_blocker": external_artifact_counts_by_blocker(),
+            "external_artifacts_by_blocker_type": external_artifacts_by_blocker_type(),
+            "external_artifact_counts_by_blocker_type": external_artifact_counts_by_blocker_type(),
+            "external_artifacts_by_network_and_blocker_type": external_artifacts_by_network_and_blocker_type(),
+            "external_artifact_counts_by_network_and_blocker_type": external_artifact_counts_by_network_and_blocker_type(),
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
             "next_blocker_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
