@@ -2030,6 +2030,19 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not align later actions with later blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    snapshot_audit_template_fields = [
+        "height",
+        "block_hash",
+        "import_hash",
+        "snapshot_hash",
+        "coins",
+        "base_nchaintx",
+        "source_chain",
+        "snapshot_file_size",
+        "snapshot_file_sha256",
+        "snapshot_file",
+        "total_amount",
+    ]
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -2196,6 +2209,16 @@ def require_public_launch_manifest_current():
                     group.get("id"),
                     command_field,
                 )
+        if group.get("template_fields") != action.get("template_fields"):
+            return "{} --status-json blocker group {} did not match action template fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                group.get("id"),
+            )
+        if group.get("template_field_count") != action.get("template_field_count"):
+            return "{} --status-json blocker group {} did not match action template field count".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                group.get("id"),
+            )
     if status_json.get("next_blocked_field_group") != blocked_field_groups[0]:
         return "{} --status-json did not report the current blocker field group".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2739,6 +2762,14 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action template command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if actions[0].get("template_fields") != snapshot_audit_template_fields:
+        return "{} --status-json did not include first action snapshot audit template fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if actions[0].get("template_field_count") != len(snapshot_audit_template_fields):
+        return "{} --status-json did not count first action snapshot audit template fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--check-snapshot-audit main <snapshot_audit.json>" not in actions[0].get("check_command", ""):
         return "{} --status-json did not include first action check command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2786,6 +2817,22 @@ def require_public_launch_manifest_current():
                 )
         if action.get("blocker_type") != "litecoin_snapshot" and action.get("template_command") is not None:
             return "{} --status-json action {} did not report null template_command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                action.get("id"),
+            )
+        if action.get("blocker_type") == "litecoin_snapshot":
+            if action.get("template_fields") != snapshot_audit_template_fields:
+                return "{} --status-json action {} did not report snapshot audit template fields".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+            if action.get("template_field_count") != len(snapshot_audit_template_fields):
+                return "{} --status-json action {} did not count snapshot audit template fields".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+        elif action.get("template_fields") is not None or action.get("template_field_count") != 0:
+            return "{} --status-json action {} reported snapshot audit template fields".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 action.get("id"),
             )
