@@ -245,6 +245,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "action": action["action"],
                 "template_command": action["template_command"],
                 "check_command": action["check_command"],
+                "preflight_command": action["preflight_command"],
                 "apply_command": action["apply_command"],
                 "readiness_summary_command": action["readiness_summary_command"],
                 "network_readiness_summary_command": action["network_readiness_summary_command"],
@@ -1097,6 +1098,7 @@ def ready_blocker_types(blocker_type_progress):
 COMMAND_FIELDS = (
     "template_command",
     "check_command",
+    "preflight_command",
     "apply_command",
     "readiness_summary_command",
     "network_readiness_summary_command",
@@ -3331,6 +3333,10 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --check-snapshot-audit {network} "
                 f"<snapshot_audit.json> {manifest_path}"
             ),
+            "preflight_command": (
+                f"{tool_path} --snapshot-audit-preflight {network} "
+                f"<snapshot_audit.json> {manifest_path}"
+            ),
             "apply_command": (
                 f"{tool_path} --set-snapshot-audit {network} "
                 f"<snapshot_audit.json> --in-place {manifest_path}"
@@ -3347,6 +3353,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "check_command": (
                 f"{tool_path} --check-auxpow {network} <chain_id> {manifest_path}"
             ),
+            "preflight_command": None,
             "apply_command": (
                 f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
             ),
@@ -3364,6 +3371,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
                 f"<bech32_hrp> <mweb_hrp> {manifest_path}"
             ),
+            "preflight_command": None,
             "apply_command": (
                 f"{tool_path} --set-identity {network} <message_start> <port> "
                 f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
@@ -3382,6 +3390,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --check-dns-seeds {network} "
                 f"<seed1.hostname>,<seed2.hostname> {manifest_path}"
             ),
+            "preflight_command": None,
             "apply_command": (
                 f"{tool_path} --set-dns-seeds {network} "
                 f"<seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
@@ -3504,7 +3513,8 @@ def next_blocker_command(blocker_id, manifest_path):
             "select and verify the final Litecoin snapshot, generate the required audit JSON shape with "
             f"{commands['template_command']}, "
             "fill it with final audited constants, run "
-            f"{commands['check_command']}, then run {commands['apply_command']}"
+            f"{commands['check_command']}, run {commands['preflight_command']}, "
+            f"then run {commands['apply_command']}"
         )
     if blocker == "auxpow_chain_id":
         return (
@@ -3528,6 +3538,8 @@ def append_blocker_command_lines(lines, commands, prefix):
     if commands["template_command"] is not None:
         lines.append(f"{prefix}template command: {commands['template_command']}")
     lines.append(f"{prefix}check command: {commands['check_command']}")
+    if commands["preflight_command"] is not None:
+        lines.append(f"{prefix}preflight command: {commands['preflight_command']}")
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
     lines.append(
         f"{prefix}readiness summary command: {commands['readiness_summary_command']}"
@@ -3739,12 +3751,15 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next blocker fields by blocker type: {blocker_type_next_blocker_field_count_summary(blocker_type_progress)}",
         f"  - next template commands by network: {network_next_blocker_command_summary(network_progress, 'template_command')}",
         f"  - next check commands by network: {network_next_blocker_command_summary(network_progress, 'check_command')}",
+        f"  - next preflight commands by network: {network_next_blocker_command_summary(network_progress, 'preflight_command')}",
         f"  - next apply commands by network: {network_next_blocker_command_summary(network_progress, 'apply_command')}",
         f"  - next template commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'template_command')}",
         f"  - next check commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'check_command')}",
+        f"  - next preflight commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'preflight_command')}",
         f"  - next apply commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'apply_command')}",
         f"  - next network readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'network_readiness_summary_command')}",
         f"  - next blocker type readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_type_readiness_summary_command')}",
+        f"  - next preflight commands by readiness gate: {readiness_gate_next_action_command_summary(readiness_gate_progress, 'preflight_command')}",
         f"  - next readiness gate summary commands by readiness gate: {readiness_gate_next_action_command_summary(readiness_gate_progress, 'readiness_gate_summary_command')}",
         f"  - next blocker readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_readiness_summary_command')}",
         f"  - later blocker readiness summary commands by readiness gate: {readiness_gate_blocker_command_summary(manifest_path, later_blockers_by_readiness_gate(blockers))}",

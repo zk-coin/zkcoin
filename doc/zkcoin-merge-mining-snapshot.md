@@ -129,7 +129,7 @@ Both are intentionally present before behavior changes so tests and review can t
   per-network/per-workstream next blocker field-count matrix,
   per-workstream next blockers,
   per-workstream next blocker networks, per-workstream next blocker field counts,
-  per-network and per-workstream next template/check/apply commands,
+  per-network and per-workstream next template/check/preflight/apply commands,
   per-workstream next network, blocker-type, readiness-gate, and blocker-scoped
   summary commands, per-network next
   blocker-type summary commands, per-readiness-gate next readiness-gate summary
@@ -139,7 +139,7 @@ Both are intentionally present before behavior changes so tests and review can t
   earlier and later blocker ids, per-readiness-gate later blockers, later blocker
   field counts, and blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
-  `apply command`, `readiness summary command`,
+  `preflight command`, `apply command`, `readiness summary command`,
   `network readiness summary command`,
   `blocker type readiness summary command`,
   `readiness gate summary command`, and
@@ -198,7 +198,8 @@ Both are intentionally present before behavior changes so tests and review can t
   key/value pairs expose the ordered map entries, and the list counts expose
   each component length directly; the action list aliases mirror the handoff
   queue order, blocker metadata, command maps, and non-null command key/value
-  availability; `command_field_order` declares the stable order used by command
+  availability, including `preflight_command` for Litecoin snapshot blockers;
+  `command_field_order` declares the stable order used by command
   maps, key/value lists, and key/value pairs, while `command_field_count`
   exposes that schema length directly; and the next-action aliases mirror the
   current handoff routing fields without forcing clients to dereference
@@ -782,7 +783,7 @@ count, target-network remaining blocker count, overall and target-network
 remaining blocked field counts, post-apply next-action command,
 post-apply readiness summary command,
 target-network readiness summary command, blocker-type readiness summary command,
-next blocker, next check/apply commands, next network and blocker-type
+next blocker, next check/preflight/apply commands, next network and blocker-type
 readiness summary commands, and the
 exact next `--blocker-readiness-summary` command that would remain after applying
 the audit, so reviewers can confirm the handoff advances the expected profile
