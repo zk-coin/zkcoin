@@ -260,6 +260,16 @@ Both are intentionally present before behavior changes so tests and review can t
   required external handoff artifacts, starting with the Litecoin snapshot audit
   JSON argument and the snapshot file referenced from that audit, while blocker
   types that do not require external files report empty artifact lists.
+  `readiness_gates`, `readiness_gate_count`, `readiness_gate_by_blocker`,
+  `readiness_gate_by_blocker_type`, `readiness_gate_by_network_and_blocker_type`,
+  `blocker_types_by_readiness_gate`, `blocker_type_counts_by_readiness_gate`,
+  `unresolved_blockers_by_readiness_gate`,
+  `unresolved_blocker_counts_by_readiness_gate`,
+  `blocked_field_groups_by_readiness_gate`,
+  `blocked_field_group_counts_by_readiness_gate`,
+  `blocked_fields_by_readiness_gate`, and
+  `blocked_field_counts_by_readiness_gate` split unresolved work into
+  external-artifact handoffs and value-selection handoffs for launch planning.
   `next_actions_by_network_and_blocker_type` and
   `next_commands_by_network_and_blocker_type` expose the first dispatchable
   handoff and commands for each mainnet/testnet workstream cell.
