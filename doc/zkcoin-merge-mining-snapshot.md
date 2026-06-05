@@ -416,7 +416,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `template_command`. AuxPoW chain-id action entries and blocked field groups
   expose `candidate_constraints` and `candidate_constraint_count`, including the
   encodable chain-id bounds, forbidden Litecoin parent-version range, placeholder
-  chain id, required launch start height, and strict-chain-id requirement;
+  chain id, required launch start height, and strict-chain-id requirement.
+  Public identity action entries and blocked field groups use the same
+  candidate-constraint fields to expose message-start shape, public port bounds,
+  inherited Litecoin message-start, port, Base58, and HRP exclusions, Base58
+  prefix lengths, HRP shape, and the fixed-seed empty-state requirement;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.

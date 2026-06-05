@@ -2052,6 +2052,46 @@ def require_public_launch_manifest_current():
         "start_height": 1,
         "strict_chain_id": True,
     }
+    expected_public_identity_constraints = {
+        "message_start_bytes": 4,
+        "message_start_must_be_non_printable": True,
+        "message_start_must_not_be_all_zero": True,
+        "message_start_must_not_be_all_ff": True,
+        "forbidden_litecoin_message_starts": [
+            [251, 192, 182, 219],
+            [253, 210, 200, 241],
+        ],
+        "default_port_min": 1025,
+        "default_port_max": 65535,
+        "forbidden_litecoin_default_ports": [9333, 19335],
+        "base58_prefix_lengths": {
+            "pubkey_address": 1,
+            "script_address": 1,
+            "script_address2": 1,
+            "secret_key": 1,
+            "ext_public_key": 4,
+            "ext_secret_key": 4,
+        },
+        "forbidden_litecoin_base58_prefixes": [
+            [4, 53, 131, 148],
+            [4, 53, 135, 207],
+            [4, 136, 173, 228],
+            [4, 136, 178, 30],
+            [5],
+            [48],
+            [50],
+            [58],
+            [111],
+            [176],
+            [196],
+            [239],
+        ],
+        "bech32_hrp_max_length": 83,
+        "hrp_must_be_lowercase_printable_ascii": True,
+        "forbidden_litecoin_hrps": ["ltc", "ltcmweb", "tltc", "tmweb"],
+        "mweb_hrp_must_differ_from_bech32_hrp": True,
+        "fixed_seeds_must_remain_empty": True,
+    }
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -2866,8 +2906,19 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     action.get("id"),
                 )
+        elif action.get("blocker_type") == "public_network_identity":
+            if action.get("candidate_constraints") != expected_public_identity_constraints:
+                return "{} --status-json action {} did not report public identity constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+            if action.get("candidate_constraint_count") != len(expected_public_identity_constraints):
+                return "{} --status-json action {} did not count public identity constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
         elif action.get("candidate_constraints") is not None or action.get("candidate_constraint_count") != 0:
-            return "{} --status-json action {} reported AuxPoW chain-id constraints".format(
+            return "{} --status-json action {} reported candidate constraints".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 action.get("id"),
             )
