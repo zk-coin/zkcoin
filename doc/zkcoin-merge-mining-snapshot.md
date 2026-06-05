@@ -270,6 +270,20 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocked_fields_by_readiness_gate`, and
   `blocked_field_counts_by_readiness_gate` split unresolved work into
   external-artifact handoffs and value-selection handoffs for launch planning.
+  `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
+  `next_actions_by_readiness_gate`, `next_commands_by_readiness_gate`,
+  `next_blocker_commands_by_readiness_gate`,
+  `next_blocked_field_groups_by_readiness_gate`,
+  `next_blocker_field_groups_by_readiness_gate`,
+  `next_blocked_fields_by_readiness_gate`,
+  `next_blocked_field_counts_by_readiness_gate`,
+  `next_blocker_fields_by_readiness_gate`,
+  `next_blocker_field_counts_by_readiness_gate`,
+  `next_blockers_by_readiness_gate`,
+  `next_blocker_networks_by_readiness_gate`, and
+  `next_blocker_types_by_readiness_gate` expose the first dispatchable handoff
+  in each readiness gate without requiring dashboards to join blocker-type
+  rows.
   `next_actions_by_network_and_blocker_type` and
   `next_commands_by_network_and_blocker_type` expose the first dispatchable
   handoff and commands for each mainnet/testnet workstream cell.
@@ -349,10 +363,11 @@ Both are intentionally present before behavior changes so tests and review can t
   launch workstream without parsing JSON. It also prints blocker types,
   unresolved blocker counts, blocked field-group counts, and blocked field counts
   by readiness gate so operators can distinguish external-artifact handoffs from
-  value-selection handoffs without parsing JSON. The network-scoped readiness summary
-  also prints blocked blocker types and ready blocker types so operators can see
-  which launch workstreams remain for a selected public network without parsing
-  JSON. It also includes `network_progress`,
+  value-selection handoffs without parsing JSON, then prints the next blocker
+  and next blocker field count for each readiness gate. The network-scoped
+  readiness summary also prints blocked blocker types and ready blocker types so
+  operators can see which launch workstreams remain for a selected public network
+  without parsing JSON. It also includes `network_progress`,
   which consolidates each network's ready flag, unresolved blockers, blocked
   fields, and next blocker group for operator views.
   The same payload
