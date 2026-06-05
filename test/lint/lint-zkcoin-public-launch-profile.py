@@ -6443,6 +6443,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        relative_file_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(relative_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if relative_file_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a relative snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in relative_file_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain relative snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in relative_file_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a relative snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         non_normalized_file_audit_path = Path(temp_dir) / "non-normalized-file-audit.json"
         non_normalized_file_audit = dict(audit)
         non_normalized_file_audit["snapshot_file"] = str(
@@ -6472,6 +6499,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        non_normalized_file_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(non_normalized_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if non_normalized_file_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a non-normalized snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "normalized without control characters" not in non_normalized_file_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain non-normalized snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in non_normalized_file_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a non-normalized snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         control_file_audit_path = Path(temp_dir) / "control-file-audit.json"
         control_file_audit = dict(audit)
         control_file_audit["snapshot_file"] = str(snapshot_artifact_path) + "\ntruncated"
@@ -6496,6 +6550,33 @@ def require_public_launch_manifest_current():
             )
         if "without control characters" not in control_file_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain control-character snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        control_file_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(control_file_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if control_file_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a snapshot file path with control characters".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "without control characters" not in control_file_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain control-character snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in control_file_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a control-character snapshot file path".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
