@@ -346,7 +346,10 @@ Both are intentionally present before behavior changes so tests and review can t
   identity, or DNS seed workstream. The human-readable readiness summary prints
   the same blocked networks by blocker type and ready networks by blocker type
   lists so operators can see which public networks remain blocked for each
-  launch workstream without parsing JSON. The network-scoped readiness summary
+  launch workstream without parsing JSON. It also prints blocker types,
+  unresolved blocker counts, blocked field-group counts, and blocked field counts
+  by readiness gate so operators can distinguish external-artifact handoffs from
+  value-selection handoffs without parsing JSON. The network-scoped readiness summary
   also prints blocked blocker types and ready blocker types so operators can see
   which launch workstreams remain for a selected public network without parsing
   JSON. It also includes `network_progress`,
