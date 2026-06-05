@@ -130,16 +130,18 @@ Both are intentionally present before behavior changes so tests and review can t
   per-workstream next blockers,
   per-workstream next blocker networks, per-workstream next blocker field counts,
   per-network and per-workstream next template/check/apply commands,
-  per-workstream next network, blocker-type, and blocker-scoped summary
-  commands, per-network next
-  blocker-type summary commands, per-network next blocker-scoped summary
+  per-workstream next network, blocker-type, readiness-gate, and blocker-scoped
+  summary commands, per-network next
+  blocker-type summary commands, per-readiness-gate next readiness-gate summary
+  commands, per-network next blocker-scoped summary
   commands, copyable action-plan, next-action, status-json, and rerun commands,
   per-network scoped summary commands, the immediate blocker's exact field paths,
   earlier and later blocker ids with blocker-scoped summary commands, and the immediate handoff commands. These
   commands are read-only and print copyable `template command`, `check command`,
   `apply command`, `readiness summary command`,
   `network readiness summary command`,
-  `blocker type readiness summary command`, and
+  `blocker type readiness summary command`,
+  `readiness gate summary command`, and
   `blocker readiness summary command` lines next to the prose handoff, omitting
   the template line for blocker types that only need check/apply commands. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary NETWORK`
@@ -149,6 +151,9 @@ Both are intentionally present before behavior changes so tests and review can t
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or
   `dns_seeds`. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary READINESS_GATE`
+  for the same read-only next-blocker detail scoped to `external_artifact` or
+  `value_selection` launch gates. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -219,7 +224,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocker_type_readiness_summary_commands_by_blocker_type` and
   `blocker_type_readiness_summary_command_count` so dashboards and operators
   can jump directly to a scoped workstream handoff and validate the map size,
-  plus `blocker_readiness_summary_commands_by_blocker` and
+  plus `readiness_gate_summary_commands_by_readiness_gate` and
+  `readiness_gate_summary_command_count` so external-artifact and value-selection
+  handoffs have the same scoped command discovery, plus
+  `blocker_readiness_summary_commands_by_blocker` and
   `blocker_readiness_summary_command_count` so dashboards and operators can
   deep-link directly to exact unresolved blocker handoffs and validate the map
   size, plus `network_readiness_summary_commands_by_network` and
@@ -301,8 +309,9 @@ Both are intentionally present before behavior changes so tests and review can t
   with the same `next_blocker` wording used by the human-readable readiness
   summary. The payload also exposes
   `next_commands_by_network`, which mirrors the current command fields for each
-  network's next blocker, including the network and blocker-type summary
-  commands, so automation can dispatch scoped handoffs directly.
+  network's next blocker, including the network, blocker-type, and
+  readiness-gate summary commands, so automation can dispatch scoped handoffs
+  directly.
   `next_blocker_commands_by_network` mirrors the same command maps with the
   same `next_blocker` wording used by the human-readable readiness summary.
   `next_blocked_field_groups_by_network` exposes the same current blocker group
@@ -709,6 +718,10 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --readiness-gate-summary external_artifact \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --blocker-readiness-summary NETWORK.litecoin_snapshot \
