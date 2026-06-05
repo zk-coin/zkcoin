@@ -3229,6 +3229,12 @@ def readiness_gate_summary_command(manifest_path, readiness_gate):
     return f"{tool_path} --readiness-gate-summary {readiness_gate} {manifest_path}"
 
 
+def readiness_gate_later_blockers_command(manifest_path, readiness_gate):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --readiness-gate-later-blockers {readiness_gate} {manifest_path}"
+
+
 def blocker_readiness_summary_command(manifest_path, blocker_id):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -3266,6 +3272,13 @@ def blocker_type_readiness_summary_commands(manifest_path):
 def readiness_gate_summary_commands(manifest_path):
     return {
         gate: readiness_gate_summary_command(manifest_path, gate)
+        for gate in READINESS_GATES
+    }
+
+
+def readiness_gate_later_blockers_commands(manifest_path):
+    return {
+        gate: readiness_gate_later_blockers_command(manifest_path, gate)
         for gate in READINESS_GATES
     }
 
@@ -3328,6 +3341,11 @@ def blocker_type_readiness_summary_command_summary(manifest_path):
 
 def readiness_gate_summary_command_summary(manifest_path):
     commands = readiness_gate_summary_commands(manifest_path)
+    return "; ".join(f"{gate}={commands[gate]}" for gate in READINESS_GATES)
+
+
+def readiness_gate_later_blockers_command_summary(manifest_path):
+    commands = readiness_gate_later_blockers_commands(manifest_path)
     return "; ".join(f"{gate}={commands[gate]}" for gate in READINESS_GATES)
 
 
@@ -3798,6 +3816,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - network value-selection later blocker commands by network: {network_value_selection_later_blockers_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
         f"  - readiness gate summary commands by readiness gate: {readiness_gate_summary_command_summary(manifest_path)}",
+        f"  - readiness gate later blocker commands by readiness gate: {readiness_gate_later_blockers_command_summary(manifest_path)}",
     ]
 
     if blockers:
@@ -4277,6 +4296,7 @@ def status_json_text(manifest, manifest_path, check):
     network_value_selection_later_commands = network_value_selection_later_blockers_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
+    readiness_gate_later_blockers_commands_by_gate = readiness_gate_later_blockers_commands(manifest_path)
     blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
     later_blocker_readiness_commands = blocker_readiness_summary_commands(
         manifest_path,
@@ -4370,6 +4390,8 @@ def status_json_text(manifest, manifest_path, check):
             "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
             "readiness_gate_summary_commands_by_readiness_gate": readiness_gate_summary_commands_by_gate,
             "readiness_gate_summary_command_count": len(readiness_gate_summary_commands_by_gate),
+            "readiness_gate_later_blockers_commands_by_readiness_gate": readiness_gate_later_blockers_commands_by_gate,
+            "readiness_gate_later_blockers_command_count": len(readiness_gate_later_blockers_commands_by_gate),
             "blocker_readiness_summary_commands_by_blocker": blocker_readiness_commands,
             "blocker_readiness_summary_command_count": len(blocker_readiness_commands),
             "next_action_command": next_action_command(manifest_path),
