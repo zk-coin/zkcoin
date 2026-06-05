@@ -6371,6 +6371,10 @@ def require_public_launch_manifest_current():
             return "{} --check-snapshot-audit did not explain reordered audit field rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "--set-snapshot-audit main" in reordered_field_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a reordered-field audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         invalid_source_chain_audit_path = Path(temp_dir) / "invalid-source-chain-audit.json"
         invalid_source_chain_audit = dict(audit)
@@ -6396,6 +6400,10 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit source_chain must be main or test" not in invalid_source_chain_result.stderr:
             return "{} --check-snapshot-audit did not explain non-public source_chain rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in invalid_source_chain_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a non-public source_chain".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -6425,6 +6433,10 @@ def require_public_launch_manifest_current():
             return "{} --check-snapshot-audit did not explain root snapshot file rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "--set-snapshot-audit main" in root_file_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a root snapshot file path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         double_slash_file_audit_path = Path(temp_dir) / "double-slash-file-audit.json"
         double_slash_file_audit = dict(audit)
@@ -6450,6 +6462,10 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit snapshot_file must be an absolute non-placeholder path" not in double_slash_file_audit_result.stderr:
             return "{} --check-snapshot-audit did not explain double-slash snapshot file rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in double_slash_file_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a double-slash snapshot file path".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
