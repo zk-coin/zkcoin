@@ -6488,6 +6488,53 @@ def require_public_launch_manifest_current():
                     expected,
                 )
 
+        preflight_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-preflight",
+                "main",
+                str(audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if preflight_audit_result.returncode != 0:
+            return "{} --snapshot-audit-preflight failed: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                preflight_audit_result.stderr.strip()
+                or preflight_audit_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "Snapshot audit ready-to-apply preflight passed for main.",
+            "ready to apply: yes",
+            "source chain: main",
+            f"snapshot file SHA-256: {snapshot_artifact_sha256}",
+            "snapshot file size: 8",
+            "apply command: contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot-audit main {shlex.quote(str(audit_path))} "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "recheck command: contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--check-snapshot-audit main {shlex.quote(str(audit_path))} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "network handoff bundle command: contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "current blocker readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "remaining blockers after applying audit: 7",
+            "remaining blockers on main after applying audit: 3",
+            "remaining blocked fields after applying audit: 35",
+            "remaining blocked fields on main after applying audit: 12",
+            "next blocker after applying audit: main.auxpow_chain_id",
+        ):
+            if expected not in preflight_audit_result.stdout:
+                return "{} --snapshot-audit-preflight did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
         readonly_check_manifest_path = Path(temp_dir) / "read-only-check-manifest.json"
         readonly_check_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
         readonly_check_manifest_path.write_bytes(readonly_check_manifest_bytes)
@@ -6514,6 +6561,35 @@ def require_public_launch_manifest_current():
             )
         if readonly_check_manifest_path.read_bytes() != readonly_check_manifest_bytes:
             return "{} --check-snapshot-audit modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        readonly_preflight_manifest_path = Path(temp_dir) / "read-only-preflight-manifest.json"
+        readonly_preflight_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_preflight_manifest_path.write_bytes(readonly_preflight_manifest_bytes)
+        readonly_preflight_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-preflight",
+                "main",
+                str(audit_path),
+                str(readonly_preflight_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_preflight_result.returncode != 0:
+            return "{} --snapshot-audit-preflight failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_preflight_result.stderr.strip()
+                or readonly_preflight_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_preflight_manifest_path.read_bytes() != readonly_preflight_manifest_bytes:
+            return "{} --snapshot-audit-preflight modified the manifest during a read-only preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -6609,6 +6685,36 @@ def require_public_launch_manifest_current():
             )
         if f"--set-snapshot-audit main {shlex.quote(str(spaced_audit_path))} --in-place" not in spaced_check_audit_result.stdout:
             return "{} --check-snapshot-audit did not shell-quote an audit apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        spaced_preflight_audit_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-preflight",
+                "main",
+                str(spaced_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_preflight_audit_result.returncode != 0:
+            return "{} --snapshot-audit-preflight failed for an audit path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_preflight_audit_result.stderr.strip()
+                or spaced_preflight_audit_result.stdout.strip()
+                or "no output",
+            )
+        if f"--set-snapshot-audit main {shlex.quote(str(spaced_audit_path))} --in-place" not in spaced_preflight_audit_result.stdout:
+            return "{} --snapshot-audit-preflight did not shell-quote an audit apply command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"--check-snapshot-audit main {shlex.quote(str(spaced_audit_path))}" not in spaced_preflight_audit_result.stdout:
+            return "{} --snapshot-audit-preflight did not shell-quote an audit recheck command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -6721,6 +6827,34 @@ def require_public_launch_manifest_current():
             )
         if malformed_check_manifest_path.read_bytes() != malformed_set_manifest_bytes:
             return "{} --set-snapshot-audit --in-place wrote a malformed manifest update".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        preflight_audit_in_place_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-preflight",
+                "main",
+                str(audit_path),
+                "--in-place",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if preflight_audit_in_place_result.returncode == 0:
+            return "{} --snapshot-audit-preflight accepted --in-place".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--snapshot-audit-preflight does not write the manifest" not in preflight_audit_in_place_result.stderr:
+            return "{} --snapshot-audit-preflight did not explain --in-place rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in preflight_audit_in_place_result.stdout:
+            return "{} --snapshot-audit-preflight printed an apply command for --in-place".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -12067,6 +12201,7 @@ def main():
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
         ("--snapshot-audit-template", "manifest snapshot audit template flag"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
+        ("--snapshot-audit-preflight", "manifest verified snapshot audit preflight flag"),
         ("--check-snapshot-audit", "manifest verified snapshot audit read-only check flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--check-auxpow", "manifest AuxPoW read-only check flag"),
@@ -12362,6 +12497,8 @@ def main():
         ("readiness_gate_later_blockers_text", "manifest prints readiness-gate later blocker guidance"),
         ("blocker_readiness_summary_text", "manifest prints blocker-scoped readiness guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
+        ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
+        ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
         ("action_count", "manifest status JSON includes an action count"),
         ("action_ids", "manifest status JSON includes action id aliases"),
@@ -13644,6 +13781,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK",
             "public launch manifest snapshot audit template documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py --snapshot-audit-preflight NETWORK <snapshot_audit.json>",
+            "public launch manifest snapshot audit preflight documentation",
         ),
         (
             "machine-readable JSON",
