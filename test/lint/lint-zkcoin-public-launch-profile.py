@@ -6220,6 +6220,11 @@ def require_public_launch_manifest_current():
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                     null_hash_description,
                 )
+            if "--set-snapshot-audit main" in null_hash_result.stdout:
+                return "{} --check-snapshot-audit printed an apply command for a null {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    null_hash_description,
+                )
 
         duplicate_field_audit_path = Path(temp_dir) / "duplicate-field-audit.json"
         duplicate_field_audit_path.write_text(
