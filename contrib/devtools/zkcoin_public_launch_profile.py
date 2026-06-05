@@ -3162,6 +3162,18 @@ def network_readiness_summary_command(manifest_path, network):
     return f"{tool_path} --network-readiness-summary {network} {manifest_path}"
 
 
+def network_handoff_bundle_command(manifest_path, network):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --network-handoff-bundle {network} {manifest_path}"
+
+
+def network_value_selection_later_blockers_command(manifest_path, network):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --network-value-selection-later-blockers {network} {manifest_path}"
+
+
 def blocker_type_readiness_summary_command(manifest_path, blocker_type):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -3882,17 +3894,7 @@ def readiness_gate_later_blockers_text(manifest, manifest_path, check, readiness
     return "\n".join(lines)
 
 
-def network_value_selection_later_blockers_text(manifest, manifest_path, check, network):
-    if network not in NETWORKS:
-        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
-    blockers = ordered_unresolved_blocker_ids(manifest)
-    actions = action_plan_entries(manifest, manifest_path)
-    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
-    network_progress = network_progress_entries(
-        blockers,
-        check.blockers,
-        blocked_field_groups,
-    )[network]
+def network_value_selection_later_blocker_state(blocked_field_groups, network_progress):
     value_selection_types = set(blocker_types_by_readiness_gate()["value_selection"])
     later_blockers = [
         blocker
@@ -3905,6 +3907,24 @@ def network_value_selection_later_blockers_text(manifest, manifest_path, check, 
         for blocker in later_blockers
         for field in groups_by_blocker[blocker].get("fields", [])
     ]
+    return later_blockers, later_fields
+
+
+def network_value_selection_later_blockers_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    later_blockers, later_fields = network_value_selection_later_blocker_state(
+        blocked_field_groups,
+        network_progress,
+    )
     next_group = network_progress["next_blocked_field_group"]
     lines = [
         "zkCoin public launch profile network value-selection later blockers:",
@@ -3916,6 +3936,52 @@ def network_value_selection_later_blockers_text(manifest, manifest_path, check, 
         f"  - later value-selection blocker fields: {len(later_fields)}",
         (
             "  - later value-selection blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def network_handoff_bundle_text(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    next_group = progress["next_blocked_field_group"]
+    later_blockers, later_fields = network_value_selection_later_blocker_state(
+        blocked_field_groups,
+        progress,
+    )
+    lines = [
+        "zkCoin public launch profile network handoff bundle:",
+        f"  - network: {network}",
+        f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
+        f"  - current blocker: {next_group['id'] if next_group is not None else 'none'}",
+        f"  - current blocker fields: {next_group['field_count'] if next_group is not None else 0}",
+        (
+            "  - current blocker readiness summary command: "
+            + (
+                blocker_readiness_summary_command(manifest_path, next_group["id"])
+                if next_group is not None
+                else "none"
+            )
+        ),
+        f"  - network readiness summary command: {network_readiness_summary_command(manifest_path, network)}",
+        (
+            "  - network value-selection later blockers command: "
+            + network_value_selection_later_blockers_command(manifest_path, network)
+        ),
+        f"  - queued value-selection blockers: {list_summary(later_blockers)}",
+        f"  - queued value-selection blocker count: {len(later_blockers)}",
+        f"  - queued value-selection blocker fields: {len(later_fields)}",
+        (
+            "  - queued value-selection blocker readiness summary commands: "
             + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
         ),
     ]
@@ -4456,6 +4522,8 @@ def selected_primary_actions(args):
         actions.append("--readiness-summary")
     if args.network_readiness_summary is not None:
         actions.append("--network-readiness-summary")
+    if args.network_handoff_bundle is not None:
+        actions.append("--network-handoff-bundle")
     if args.blocker_type_readiness_summary is not None:
         actions.append("--blocker-type-readiness-summary")
     if args.readiness_gate_summary is not None:
@@ -4484,6 +4552,7 @@ def main():
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
+    parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
     parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
@@ -4756,6 +4825,8 @@ def main():
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
+    if args.network_handoff_bundle is not None:
+        allow_blocked = True
     if args.blocker_type_readiness_summary is not None:
         allow_blocked = True
     if args.readiness_gate_summary is not None:
@@ -4823,6 +4894,24 @@ def main():
                     args.manifest,
                     check,
                     args.network_readiness_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.network_handoff_bundle is not None:
+        if args.in_place:
+            print("error: --network-handoff-bundle does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                network_handoff_bundle_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.network_handoff_bundle,
                 )
             )
         except ValueError as exc:
