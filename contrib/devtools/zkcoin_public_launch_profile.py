@@ -2885,6 +2885,42 @@ def blocker_template_fields(blocker_type):
 
 
 def blocker_candidate_constraints(blocker_type):
+    if blocker_type == "litecoin_snapshot":
+        return {
+            "audit_summary_fields": list(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+            "audit_summary_max_bytes": SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES,
+            "audit_summary_must_be_utf8_json_object": True,
+            "audit_summary_rejects_duplicate_fields": True,
+            "audit_summary_field_order_must_match_template": True,
+            "positive_integer_fields": [
+                "height",
+                "coins",
+                "base_nchaintx",
+                "snapshot_file_size",
+            ],
+            "hex256_fields": [
+                "block_hash",
+                "import_hash",
+                "snapshot_hash",
+                "snapshot_file_sha256",
+            ],
+            "hex256_length": 64,
+            "hex256_must_be_lowercase": True,
+            "hex256_must_not_be_null_uint256": True,
+            "source_chain_by_network": dict(SNAPSHOT_SOURCE_CHAINS),
+            "snapshot_file_must_be_absolute_normalized_path": True,
+            "snapshot_file_must_not_be_placeholder": True,
+            "snapshot_file_must_not_contain_control_characters": True,
+            "snapshot_file_must_be_regular_file": True,
+            "snapshot_file_must_not_be_symlink": True,
+            "snapshot_file_parent_must_not_be_symlink": True,
+            "snapshot_file_must_differ_from_audit_summary": True,
+            "snapshot_file_must_remain_stable_during_verification": True,
+            "snapshot_file_size_must_match_artifact": True,
+            "snapshot_file_sha256_must_match_artifact": True,
+            "total_amount_must_be_positive_decimal_8_places": True,
+            "total_amount_max": SNAPSHOT_MAX_MONEY_TEXT,
+        }
     if blocker_type == "auxpow_chain_id":
         return {
             "chain_id_min": 1,
