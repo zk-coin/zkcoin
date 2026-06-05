@@ -6009,6 +6009,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        incomplete_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(incomplete_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if incomplete_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an incomplete audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit missing field: snapshot_hash" not in incomplete_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain incomplete audit rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in incomplete_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an incomplete audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         malformed_json_audit_path = Path(temp_dir) / "malformed-json-audit.json"
         malformed_json_audit_path.write_text('{"height": ', encoding="utf8")
         malformed_json_audit_result = subprocess.run(
