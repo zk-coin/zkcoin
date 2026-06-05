@@ -6253,6 +6253,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        extra_field_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(extra_field_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if extra_field_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an audit summary with an extra field".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit summary has unexpected field(s): unexpected_launch_value" not in extra_field_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain extra audit field rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in extra_field_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an extra-field audit summary".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         reordered_field_audit_path = Path(temp_dir) / "reordered-field-audit.json"
         reordered_field_audit_path.write_text(
             json.dumps(dict(reversed(list(audit.items())))),
