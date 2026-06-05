@@ -2561,6 +2561,13 @@ def snapshot_audit_apply_command(network, audit_path, manifest_path):
     )
 
 
+def snapshot_audit_check_command(network, audit_path, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    audit_path = shell_quote(display_path(audit_path))
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --check-snapshot-audit {network} {audit_path} {manifest_path}"
+
+
 def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_path):
     audit_detail = audit["audit"]
     return "\n".join((
@@ -2578,6 +2585,40 @@ def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_pa
         f"  total amount: {audit_detail['total_amount']}",
         f"  apply command: {snapshot_audit_apply_command(network, audit_path, manifest_path)}",
         candidate_next_step_text(candidate, "audit", manifest_path, network, "litecoin_snapshot"),
+    ))
+
+
+def snapshot_audit_preflight_text(network, audit, candidate, audit_path, manifest_path):
+    audit_detail = audit["audit"]
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    next_blocker = blockers[0] if blockers else "none"
+    return "\n".join((
+        f"Snapshot audit ready-to-apply preflight passed for {network}.",
+        "  - ready to apply: yes",
+        f"  - source chain: {audit_detail['source_chain']}",
+        f"  - snapshot file: {audit_detail['snapshot_file']}",
+        f"  - snapshot file size: {audit_detail['snapshot_file_size']}",
+        f"  - snapshot file SHA-256: {audit_detail['snapshot_file_sha256']}",
+        f"  - apply command: {snapshot_audit_apply_command(network, audit_path, manifest_path)}",
+        f"  - recheck command: {snapshot_audit_check_command(network, audit_path, manifest_path)}",
+        f"  - network handoff bundle command: {network_handoff_bundle_command(manifest_path, network)}",
+        (
+            "  - current blocker readiness summary command: "
+            + blocker_readiness_summary_command(manifest_path, f"{network}.litecoin_snapshot")
+        ),
+        f"  - remaining blockers after applying audit: {len(blockers)}",
+        (
+            f"  - remaining blockers on {network} after applying audit: "
+            f"{item_counts_by_network(blockers)[network]}"
+        ),
+        f"  - remaining blocked fields after applying audit: {len(blocked_fields)}",
+        (
+            f"  - remaining blocked fields on {network} after applying audit: "
+            f"{item_counts_by_network(blocked_fields)[network]}"
+        ),
+        f"  - next blocker after applying audit: {next_blocker}",
     ))
 
 
@@ -4498,6 +4539,8 @@ def selected_primary_actions(args):
         actions.append("--set-snapshot")
     if args.set_snapshot_audit is not None:
         actions.append("--set-snapshot-audit")
+    if args.snapshot_audit_preflight is not None:
+        actions.append("--snapshot-audit-preflight")
     if args.check_snapshot_audit is not None:
         actions.append("--check-snapshot-audit")
     if args.set_auxpow is not None:
@@ -4582,6 +4625,12 @@ def main():
         nargs=2,
         metavar=("NETWORK", "AUDIT_JSON"),
         help="update one network's Litecoin snapshot constants from a verified snapshot audit summary",
+    )
+    parser.add_argument(
+        "--snapshot-audit-preflight",
+        nargs=2,
+        metavar=("NETWORK", "AUDIT_JSON"),
+        help="preflight one network's snapshot audit summary and print ready-to-apply guidance",
     )
     parser.add_argument(
         "--check-snapshot-audit",
@@ -4709,6 +4758,29 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.snapshot_audit_preflight is not None:
+        if args.in_place:
+            print("error: --snapshot-audit-preflight does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            audit, candidate = checked_snapshot_audit_candidate(
+                manifest,
+                *args.snapshot_audit_preflight,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(
+            snapshot_audit_preflight_text(
+                args.snapshot_audit_preflight[0],
+                audit,
+                candidate,
+                args.snapshot_audit_preflight[1],
+                args.manifest,
+            )
+        )
+        return 0
 
     if args.check_snapshot_audit is not None:
         if args.in_place:
