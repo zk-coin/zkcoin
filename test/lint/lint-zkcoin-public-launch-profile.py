@@ -732,6 +732,7 @@ def require_public_launch_manifest_current():
         "  - network handoff bundle commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - network value-selection later blocker commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - blocker type later blocker commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json; auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json; public_network_identity=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json; dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness gate summary commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness gate later blocker commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
@@ -932,6 +933,41 @@ def require_public_launch_manifest_current():
     ):
         if expected not in blocker_type_readiness_result.stdout:
             return "{} --blocker-type-readiness-summary did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    blocker_type_later_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--blocker-type-later-blockers",
+            "litecoin_snapshot",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if blocker_type_later_result.returncode != 0:
+        return "{} --blocker-type-later-blockers failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            blocker_type_later_result.stderr.strip()
+            or blocker_type_later_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile blocker-type later blockers:",
+        "  - blocker type: litecoin_snapshot",
+        "  - current blocker: main.litecoin_snapshot",
+        "  - later blockers: testnet.litecoin_snapshot",
+        "  - later blocker count: 1",
+        "  - later blocker fields: 11",
+        "  - later blocker readiness summary commands: testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in blocker_type_later_result.stdout:
+            return "{} --blocker-type-later-blockers did not print {}".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 expected,
             )
@@ -2020,6 +2056,21 @@ def require_public_launch_manifest_current():
         status_json.get("blocker_type_readiness_summary_commands_by_blocker_type", {})
     ):
         return "{} --status-json did not count blocker-type readiness-summary commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocker_type_later_blockers_commands_by_blocker_type") != {
+        "litecoin_snapshot": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "auxpow_chain_id": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "public_network_identity": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "dns_seeds": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose blocker-type later-blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("blocker_type_later_blockers_command_count") != len(
+        status_json.get("blocker_type_later_blockers_commands_by_blocker_type", {})
+    ):
+        return "{} --status-json did not count blocker-type later-blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("readiness_gate_summary_commands_by_readiness_gate") != {
@@ -4211,6 +4262,10 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote staged blocker-type summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - blocker type later blocker commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers litecoin_snapshot {quoted_manifest_path}; auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers auxpow_chain_id {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged blocker-type later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - readiness gate later blocker commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact {quoted_manifest_path}; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection {quoted_manifest_path}" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged readiness-gate later-blocker commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4429,6 +4484,39 @@ def require_public_launch_manifest_current():
             )
         if f"  - later blocker readiness summary commands: testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_type_readiness_result.stdout:
             return "{} --blocker-type-readiness-summary did not shell-quote staged later blocker summary commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        spaced_blocker_type_later_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--blocker-type-later-blockers",
+                "litecoin_snapshot",
+                str(spaced_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if spaced_blocker_type_later_result.returncode != 0:
+            return "{} --blocker-type-later-blockers failed for a staged manifest path with spaces: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                spaced_blocker_type_later_result.stderr.strip()
+                or spaced_blocker_type_later_result.stdout.strip()
+                or "no output",
+            )
+        if "  - current blocker: main.litecoin_snapshot" not in spaced_blocker_type_later_result.stdout:
+            return "{} --blocker-type-later-blockers did not print staged current blocker".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "  - later blocker fields: 11" not in spaced_blocker_type_later_result.stdout:
+            return "{} --blocker-type-later-blockers did not print staged later field count".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - later blocker readiness summary commands: testnet.litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot {quoted_manifest_path}" not in spaced_blocker_type_later_result.stdout:
+            return "{} --blocker-type-later-blockers did not shell-quote staged later blocker summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5247,6 +5335,7 @@ def require_public_launch_manifest_current():
         ("network-handoff-bundle", ["--network-handoff-bundle", "main"]),
         ("network-value-selection-later-blockers", ["--network-value-selection-later-blockers", "main"]),
         ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
+        ("blocker-type-later-blockers", ["--blocker-type-later-blockers", "litecoin_snapshot"]),
         ("readiness-gate-summary", ["--readiness-gate-summary", "external_artifact"]),
         ("readiness-gate-later-blockers", ["--readiness-gate-later-blockers", "external_artifact"]),
         ("blocker-readiness-summary", ["--blocker-readiness-summary", "main.litecoin_snapshot"]),
@@ -5414,6 +5503,29 @@ def require_public_launch_manifest_current():
         )
     if "--blocker-type-readiness-summary does not write the manifest" not in blocker_type_summary_in_place_result.stderr:
         return "{} --blocker-type-readiness-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    blocker_type_later_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--blocker-type-later-blockers",
+            "litecoin_snapshot",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if blocker_type_later_in_place_result.returncode == 0:
+        return "{} --blocker-type-later-blockers accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--blocker-type-later-blockers does not write the manifest" not in blocker_type_later_in_place_result.stderr:
+        return "{} --blocker-type-later-blockers did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -10928,6 +11040,12 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count complete blocked manifest blocker-type readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("blocker_type_later_blockers_command_count") != len(
+            complete_status.get("blocker_type_later_blockers_commands_by_blocker_type", {})
+        ):
+            return "{} --status-json did not count complete blocked manifest blocker-type later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if complete_status.get("readiness_gate_later_blockers_command_count") != len(
             complete_status.get("readiness_gate_later_blockers_commands_by_readiness_gate", {})
         ):
@@ -11750,6 +11868,12 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not count ready manifest blocker-type readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("blocker_type_later_blockers_command_count") != len(
+            ready_status.get("blocker_type_later_blockers_commands_by_blocker_type", {})
+        ):
+            return "{} --status-json did not count ready manifest blocker-type later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("readiness_gate_later_blockers_command_count") != len(
             ready_status.get("readiness_gate_later_blockers_commands_by_readiness_gate", {})
         ):
@@ -12321,6 +12445,7 @@ def main():
         ("--network-handoff-bundle", "manifest network handoff bundle flag"),
         ("--network-value-selection-later-blockers", "manifest network value-selection later blockers flag"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
+        ("--blocker-type-later-blockers", "manifest blocker-type later blockers flag"),
         ("--readiness-gate-summary", "manifest readiness-gate summary flag"),
         ("--readiness-gate-later-blockers", "manifest readiness-gate later blockers flag"),
         ("--blocker-readiness-summary", "manifest blocker readiness summary flag"),
@@ -12604,6 +12729,9 @@ def main():
         ("network_value_selection_later_blockers_commands", "manifest builds network value-selection later-blocker command maps"),
         ("network_value_selection_later_blockers_command_summary", "manifest formats network value-selection later-blocker commands for readiness summaries"),
         ("blocker_type_readiness_summary_command_summary", "manifest formats blocker-type readiness-summary commands for readiness summaries"),
+        ("blocker_type_later_blockers_command", "manifest builds blocker-type later-blocker commands"),
+        ("blocker_type_later_blockers_commands", "manifest builds blocker-type later-blocker command maps"),
+        ("blocker_type_later_blockers_command_summary", "manifest formats blocker-type later-blocker commands for readiness summaries"),
         ("blocker_readiness_summary_commands", "manifest builds blocker readiness-summary command maps"),
         ("later_blocker_readiness_summary_commands_by_readiness_gate", "manifest builds later blocker readiness-summary command maps by readiness gate"),
         ("later_blocker_readiness_summary_command_counts_by_readiness_gate", "manifest counts later blocker readiness-summary command maps by readiness gate"),
@@ -12635,6 +12763,7 @@ def main():
         ("network_value_selection_later_blockers_command", "manifest builds network value-selection later blocker commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("blocker_type_readiness_summary_text", "manifest prints blocker-type-scoped readiness guidance"),
+        ("blocker_type_later_blockers_text", "manifest prints blocker-type later blocker guidance"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate-scoped readiness guidance"),
         ("readiness_gate_later_blockers_text", "manifest prints readiness-gate later blocker guidance"),
         ("blocker_readiness_summary_text", "manifest prints blocker-scoped readiness guidance"),
@@ -14359,6 +14488,14 @@ def main():
         (
             "blocker_type_readiness_summary_command_count",
             "public launch manifest status-json blocker-type readiness-summary command count documentation",
+        ),
+        (
+            "blocker_type_later_blockers_commands_by_blocker_type",
+            "public launch manifest status-json blocker-type later-blocker command documentation",
+        ),
+        (
+            "blocker_type_later_blockers_command_count",
+            "public launch manifest status-json blocker-type later-blocker command count documentation",
         ),
         (
             "readiness_gate_summary_commands_by_readiness_gate",

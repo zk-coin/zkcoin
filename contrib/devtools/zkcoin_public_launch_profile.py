@@ -3223,6 +3223,12 @@ def blocker_type_readiness_summary_command(manifest_path, blocker_type):
     return f"{tool_path} --blocker-type-readiness-summary {blocker_type} {manifest_path}"
 
 
+def blocker_type_later_blockers_command(manifest_path, blocker_type):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --blocker-type-later-blockers {blocker_type} {manifest_path}"
+
+
 def readiness_gate_summary_command(manifest_path, readiness_gate):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -3265,6 +3271,13 @@ def network_value_selection_later_blockers_commands(manifest_path):
 def blocker_type_readiness_summary_commands(manifest_path):
     return {
         blocker_type: blocker_type_readiness_summary_command(manifest_path, blocker_type)
+        for blocker_type in BLOCKER_TYPES
+    }
+
+
+def blocker_type_later_blockers_commands(manifest_path):
+    return {
+        blocker_type: blocker_type_later_blockers_command(manifest_path, blocker_type)
         for blocker_type in BLOCKER_TYPES
     }
 
@@ -3333,6 +3346,14 @@ def network_value_selection_later_blockers_command_summary(manifest_path):
 
 def blocker_type_readiness_summary_command_summary(manifest_path):
     commands = blocker_type_readiness_summary_commands(manifest_path)
+    return "; ".join(
+        f"{blocker_type}={commands[blocker_type]}"
+        for blocker_type in BLOCKER_TYPES
+    )
+
+
+def blocker_type_later_blockers_command_summary(manifest_path):
+    commands = blocker_type_later_blockers_commands(manifest_path)
     return "; ".join(
         f"{blocker_type}={commands[blocker_type]}"
         for blocker_type in BLOCKER_TYPES
@@ -3815,6 +3836,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - network handoff bundle commands by network: {network_handoff_bundle_command_summary(manifest_path)}",
         f"  - network value-selection later blocker commands by network: {network_value_selection_later_blockers_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
+        f"  - blocker type later blocker commands by blocker type: {blocker_type_later_blockers_command_summary(manifest_path)}",
         f"  - readiness gate summary commands by readiness gate: {readiness_gate_summary_command_summary(manifest_path)}",
         f"  - readiness gate later blocker commands by readiness gate: {readiness_gate_later_blockers_command_summary(manifest_path)}",
     ]
@@ -3921,6 +3943,41 @@ def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_
             "  - later blocker readiness summary commands: "
             + blocker_readiness_summary_command_summary(manifest_path, remaining_blockers)
         )
+    return "\n".join(lines)
+
+
+def blocker_type_later_blockers_text(manifest, manifest_path, check, blocker_type):
+    if blocker_type not in BLOCKER_TYPES:
+        raise ValueError("blocker type must be one of: " + ", ".join(BLOCKER_TYPES))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )[blocker_type]
+    later_blockers = progress["unresolved_blockers"][1:]
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_fields = [
+        field
+        for blocker in later_blockers
+        for field in groups_by_blocker.get(blocker, {}).get("fields", [])
+    ]
+    next_action = progress["next_action"]
+    lines = [
+        "zkCoin public launch profile blocker-type later blockers:",
+        f"  - blocker type: {blocker_type}",
+        f"  - current blocker: {next_action['id'] if next_action is not None else 'none'}",
+        f"  - later blockers: {list_summary(later_blockers)}",
+        f"  - later blocker count: {len(later_blockers)}",
+        f"  - later blocker fields: {len(later_fields)}",
+        (
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, later_blockers)
+        ),
+    ]
     return "\n".join(lines)
 
 
@@ -4295,6 +4352,7 @@ def status_json_text(manifest, manifest_path, check):
     network_handoff_commands = network_handoff_bundle_commands(manifest_path)
     network_value_selection_later_commands = network_value_selection_later_blockers_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
+    blocker_type_later_blockers_commands_by_type = blocker_type_later_blockers_commands(manifest_path)
     readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
     readiness_gate_later_blockers_commands_by_gate = readiness_gate_later_blockers_commands(manifest_path)
     blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
@@ -4388,6 +4446,8 @@ def status_json_text(manifest, manifest_path, check):
             "network_value_selection_later_blockers_command_count": len(network_value_selection_later_commands),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
             "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
+            "blocker_type_later_blockers_commands_by_blocker_type": blocker_type_later_blockers_commands_by_type,
+            "blocker_type_later_blockers_command_count": len(blocker_type_later_blockers_commands_by_type),
             "readiness_gate_summary_commands_by_readiness_gate": readiness_gate_summary_commands_by_gate,
             "readiness_gate_summary_command_count": len(readiness_gate_summary_commands_by_gate),
             "readiness_gate_later_blockers_commands_by_readiness_gate": readiness_gate_later_blockers_commands_by_gate,
@@ -4646,6 +4706,8 @@ def selected_primary_actions(args):
         actions.append("--network-handoff-bundle")
     if args.blocker_type_readiness_summary is not None:
         actions.append("--blocker-type-readiness-summary")
+    if args.blocker_type_later_blockers is not None:
+        actions.append("--blocker-type-later-blockers")
     if args.readiness_gate_summary is not None:
         actions.append("--readiness-gate-summary")
     if args.readiness_gate_later_blockers is not None:
@@ -4674,6 +4736,7 @@ def main():
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
+    parser.add_argument("--blocker-type-later-blockers", metavar="BLOCKER_TYPE", help="print the queued later blockers for one launch blocker type")
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
     parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
     parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
@@ -4978,6 +5041,8 @@ def main():
         allow_blocked = True
     if args.blocker_type_readiness_summary is not None:
         allow_blocked = True
+    if args.blocker_type_later_blockers is not None:
+        allow_blocked = True
     if args.readiness_gate_summary is not None:
         allow_blocked = True
     if args.readiness_gate_later_blockers is not None:
@@ -5079,6 +5144,24 @@ def main():
                     args.manifest,
                     check,
                     args.blocker_type_readiness_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.blocker_type_later_blockers is not None:
+        if args.in_place:
+            print("error: --blocker-type-later-blockers does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                blocker_type_later_blockers_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.blocker_type_later_blockers,
                 )
             )
         except ValueError as exc:

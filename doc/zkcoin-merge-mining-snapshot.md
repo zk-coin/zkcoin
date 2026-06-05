@@ -162,6 +162,9 @@ Both are intentionally present before behavior changes so tests and review can t
   for the same read-only next-blocker detail scoped to one workstream such as
   `litecoin_snapshot`, `auxpow_chain_id`, `public_network_identity`, or
   `dns_seeds`. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers BLOCKER_TYPE`
+  when release operators need only the queued later blockers, field count, and
+  blocker-scoped summary commands after that workstream's current blocker. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary READINESS_GATE`
   for the same read-only next-blocker detail scoped to `external_artifact` or
   `value_selection` launch gates. Use
@@ -243,6 +246,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `blocker_type_readiness_summary_commands_by_blocker_type` and
   `blocker_type_readiness_summary_command_count` so dashboards and operators
   can jump directly to a scoped workstream handoff and validate the map size,
+  plus `blocker_type_later_blockers_commands_by_blocker_type` and
+  `blocker_type_later_blockers_command_count` so launch dashboards can jump
+  directly to each workstream's queued later-blocker handoff and validate the
+  map size,
   plus `readiness_gate_summary_commands_by_readiness_gate` and
   `readiness_gate_summary_command_count` so external-artifact and value-selection
   handoffs have the same scoped command discovery, plus
@@ -322,8 +329,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `later_blocker_readiness_summary_command_counts_by_readiness_gate` expose the
   queued blocker ids, fields, and blocker-scoped summary commands after each
   readiness gate's current handoff. The human-readable readiness summary also
-  prints `readiness gate later blocker commands by readiness gate` so operators
-  can copy those gate-scoped queue handoffs without parsing JSON.
+  prints `blocker type later blocker commands by blocker type` and
+  `readiness gate later blocker commands by readiness gate` so operators can
+  copy workstream- or gate-scoped queue handoffs without parsing JSON.
   `actions_by_readiness_gate`, `action_counts_by_readiness_gate`,
   `next_actions_by_readiness_gate`, `next_commands_by_readiness_gate`,
   `next_blocker_commands_by_readiness_gate`,
@@ -770,6 +778,10 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --readiness-gate-summary external_artifact \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --blocker-type-later-blockers litecoin_snapshot \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
