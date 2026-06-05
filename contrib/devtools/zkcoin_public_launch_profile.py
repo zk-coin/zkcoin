@@ -249,6 +249,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "readiness_summary_command": action["readiness_summary_command"],
                 "network_readiness_summary_command": action["network_readiness_summary_command"],
                 "blocker_type_readiness_summary_command": action["blocker_type_readiness_summary_command"],
+                "readiness_gate_summary_command": action["readiness_gate_summary_command"],
                 "blocker_readiness_summary_command": action["blocker_readiness_summary_command"],
                 "template_fields": action.get("template_fields"),
                 "template_field_count": action.get("template_field_count", 0),
@@ -1054,6 +1055,7 @@ COMMAND_FIELDS = (
     "readiness_summary_command",
     "network_readiness_summary_command",
     "blocker_type_readiness_summary_command",
+    "readiness_gate_summary_command",
     "blocker_readiness_summary_command",
     "command",
 )
@@ -1342,6 +1344,15 @@ def blocker_type_next_action_command_summary(blocker_type_progress, command_key)
         next_action = blocker_type_progress[blocker_type]["next_action"]
         command = next_action.get(command_key) if next_action else None
         entries.append(f"{blocker_type}={command or 'none'}")
+    return "; ".join(entries)
+
+
+def readiness_gate_next_action_command_summary(readiness_gate_progress, command_key):
+    entries = []
+    for gate in READINESS_GATES:
+        next_action = readiness_gate_progress[gate]["next_action"]
+        command = next_action.get(command_key) if next_action else None
+        entries.append(f"{gate}={command or 'none'}")
     return "; ".join(entries)
 
 
@@ -3104,6 +3115,12 @@ def blocker_type_readiness_summary_command(manifest_path, blocker_type):
     return f"{tool_path} --blocker-type-readiness-summary {blocker_type} {manifest_path}"
 
 
+def readiness_gate_summary_command(manifest_path, readiness_gate):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --readiness-gate-summary {readiness_gate} {manifest_path}"
+
+
 def blocker_readiness_summary_command(manifest_path, blocker_id):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -3121,6 +3138,13 @@ def blocker_type_readiness_summary_commands(manifest_path):
     return {
         blocker_type: blocker_type_readiness_summary_command(manifest_path, blocker_type)
         for blocker_type in BLOCKER_TYPES
+    }
+
+
+def readiness_gate_summary_commands(manifest_path):
+    return {
+        gate: readiness_gate_summary_command(manifest_path, gate)
+        for gate in READINESS_GATES
     }
 
 
@@ -3153,6 +3177,11 @@ def blocker_type_readiness_summary_command_summary(manifest_path):
     )
 
 
+def readiness_gate_summary_command_summary(manifest_path):
+    commands = readiness_gate_summary_commands(manifest_path)
+    return "; ".join(f"{gate}={commands[gate]}" for gate in READINESS_GATES)
+
+
 def blocker_action_commands(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -3162,6 +3191,10 @@ def blocker_action_commands(blocker_id, manifest_path):
     )
     blocker_type_summary_command = (
         f"{tool_path} --blocker-type-readiness-summary {blocker} {manifest_path}"
+    )
+    gate_summary_command = (
+        f"{tool_path} --readiness-gate-summary "
+        f"{blocker_type_readiness_gate(blocker)} {manifest_path}"
     )
     blocker_summary_command = (
         f"{tool_path} --blocker-readiness-summary {blocker_id} {manifest_path}"
@@ -3182,6 +3215,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
+            "readiness_gate_summary_command": gate_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "auxpow_chain_id":
@@ -3196,6 +3230,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
+            "readiness_gate_summary_command": gate_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "public_network_identity":
@@ -3214,6 +3249,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
+            "readiness_gate_summary_command": gate_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     if blocker == "dns_seeds":
@@ -3230,6 +3266,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
+            "readiness_gate_summary_command": gate_summary_command,
             "blocker_readiness_summary_command": blocker_summary_command,
         }
     raise ValueError(f"unknown blocker id: {blocker_id}")
@@ -3379,6 +3416,10 @@ def append_blocker_command_lines(lines, commands, prefix):
     lines.append(
         f"{prefix}blocker type readiness summary command: "
         f"{commands['blocker_type_readiness_summary_command']}"
+    )
+    lines.append(
+        f"{prefix}readiness gate summary command: "
+        f"{commands['readiness_gate_summary_command']}"
     )
     lines.append(
         f"{prefix}blocker readiness summary command: "
@@ -3531,6 +3572,11 @@ def readiness_summary_text(manifest, manifest_path, check):
         blockers,
         blocked_field_groups,
     )
+    readiness_gate_progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
     ready_for_chainparams = manifest.get("status") == "ready-for-chainparams" and not blockers
     next_action = actions[0] if actions else None
     lines = [
@@ -3574,11 +3620,13 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next apply commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'apply_command')}",
         f"  - next network readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'network_readiness_summary_command')}",
         f"  - next blocker type readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_type_readiness_summary_command')}",
+        f"  - next readiness gate summary commands by readiness gate: {readiness_gate_next_action_command_summary(readiness_gate_progress, 'readiness_gate_summary_command')}",
         f"  - next blocker readiness summary commands by blocker type: {blocker_type_next_action_command_summary(blocker_type_progress, 'blocker_readiness_summary_command')}",
         f"  - next blocker type readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_type_readiness_summary_command')}",
         f"  - next blocker readiness summary commands by network: {network_next_blocker_command_summary(network_progress, 'blocker_readiness_summary_command')}",
         f"  - network readiness summary commands by network: {network_readiness_summary_command_summary(manifest_path)}",
         f"  - blocker type readiness summary commands by blocker type: {blocker_type_readiness_summary_command_summary(manifest_path)}",
+        f"  - readiness gate summary commands by readiness gate: {readiness_gate_summary_command_summary(manifest_path)}",
     ]
 
     if blockers:
@@ -3667,6 +3715,46 @@ def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_
         f"  - blocked fields: {progress['blocked_field_count']}",
         f"  - blocked networks: {list_summary(blocked_networks_by_blocker_type(blocked_field_groups)[blocker_type])}",
         f"  - ready networks: {list_summary(ready_networks_by_blocker_type(blocked_field_groups)[blocker_type])}",
+    ]
+    if next_action is None:
+        lines.append("  - next blocker: none")
+        return "\n".join(lines)
+
+    lines.append(f"  - next blocker: {next_action['id']}")
+    lines.append(f"  - next blocker fields: {next_action['field_count']}")
+    append_blocker_field_lines(lines, next_action, "  - ", "    - ")
+    append_blocker_command_lines(lines, next_action, "  - ")
+    remaining_blockers = progress["unresolved_blockers"][1:]
+    if remaining_blockers:
+        lines.append("  - later blockers: " + ", ".join(remaining_blockers))
+        lines.append(
+            "  - later blocker readiness summary commands: "
+            + blocker_readiness_summary_command_summary(manifest_path, remaining_blockers)
+        )
+    return "\n".join(lines)
+
+
+def readiness_gate_summary_text(manifest, manifest_path, check, readiness_gate):
+    if readiness_gate not in READINESS_GATES:
+        raise ValueError("readiness gate must be one of: " + ", ".join(READINESS_GATES))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )[readiness_gate]
+    next_action = progress["next_action"]
+    lines = [
+        "zkCoin public launch profile readiness-gate summary:",
+        f"  - readiness gate: {readiness_gate}",
+        f"  - ready for launch profile: {yes_no(progress['ready_for_launch_profile'])}",
+        f"  - blocker types: {list_summary(progress['blocker_types'])}",
+        f"  - unresolved blockers: {progress['unresolved_blocker_count']}",
+        f"  - blocked field groups: {progress['blocked_field_group_count']}",
+        f"  - blocked fields: {progress['blocked_field_count']}",
     ]
     if next_action is None:
         lines.append("  - next blocker: none")
@@ -3876,6 +3964,7 @@ def status_json_text(manifest, manifest_path, check):
     later_blocker_field_counts_by_network = item_counts_by_network(later_blocker_fields)
     network_readiness_commands = network_readiness_summary_commands(manifest_path)
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
+    readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
     blocker_readiness_commands = blocker_readiness_summary_commands(manifest_path, blockers)
     later_blocker_readiness_commands = blocker_readiness_summary_commands(
         manifest_path,
@@ -3955,6 +4044,8 @@ def status_json_text(manifest, manifest_path, check):
             "network_readiness_summary_command_count": len(network_readiness_commands),
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
             "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
+            "readiness_gate_summary_commands_by_readiness_gate": readiness_gate_summary_commands_by_gate,
+            "readiness_gate_summary_command_count": len(readiness_gate_summary_commands_by_gate),
             "blocker_readiness_summary_commands_by_blocker": blocker_readiness_commands,
             "blocker_readiness_summary_command_count": len(blocker_readiness_commands),
             "next_action_command": next_action_command(manifest_path),
@@ -4197,6 +4288,8 @@ def selected_primary_actions(args):
         actions.append("--network-readiness-summary")
     if args.blocker_type_readiness_summary is not None:
         actions.append("--blocker-type-readiness-summary")
+    if args.readiness_gate_summary is not None:
+        actions.append("--readiness-gate-summary")
     if args.blocker_readiness_summary is not None:
         actions.append("--blocker-readiness-summary")
     if args.status_json:
@@ -4218,6 +4311,7 @@ def main():
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--blocker-type-readiness-summary", metavar="BLOCKER_TYPE", help="print a compact readiness summary for one launch blocker type")
+    parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
@@ -4488,6 +4582,8 @@ def main():
         allow_blocked = True
     if args.blocker_type_readiness_summary is not None:
         allow_blocked = True
+    if args.readiness_gate_summary is not None:
+        allow_blocked = True
     if args.blocker_readiness_summary is not None:
         allow_blocked = True
     if args.status_json:
@@ -4565,6 +4661,24 @@ def main():
                     args.manifest,
                     check,
                     args.blocker_type_readiness_summary,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.readiness_gate_summary is not None:
+        if args.in_place:
+            print("error: --readiness-gate-summary does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            print(
+                readiness_gate_summary_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.readiness_gate_summary,
                 )
             )
         except ValueError as exc:
