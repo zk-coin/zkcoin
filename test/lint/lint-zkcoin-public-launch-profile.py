@@ -6885,6 +6885,10 @@ def require_public_launch_manifest_current():
             return "{} --check-snapshot-audit did not explain zero total amount rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if "--set-snapshot-audit main" in zero_amount_audit_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a zero snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
 
         malformed_amount_audit_path = Path(temp_dir) / "malformed-amount-audit.json"
         malformed_amount_audit = dict(audit)
@@ -6913,6 +6917,33 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        malformed_amount_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(malformed_amount_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if malformed_amount_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted a malformed snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit total_amount must be a positive decimal amount with 8 fractional digits" not in malformed_amount_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain malformed total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in malformed_amount_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for a malformed snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         over_maximum_amount_audit_path = Path(temp_dir) / "over-maximum-amount-audit.json"
         over_maximum_amount_audit = dict(audit)
         over_maximum_amount_audit["total_amount"] = "84000000.00000001"
@@ -6937,6 +6968,33 @@ def require_public_launch_manifest_current():
             )
         if "snapshot audit total_amount must not exceed 84000000.00000000" not in over_maximum_amount_audit_result.stderr:
             return "{} --set-snapshot-audit did not explain over-maximum total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        over_maximum_amount_audit_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-snapshot-audit",
+                "main",
+                str(over_maximum_amount_audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if over_maximum_amount_audit_check_result.returncode == 0:
+            return "{} --check-snapshot-audit accepted an over-maximum snapshot total amount".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "snapshot audit total_amount must not exceed 84000000.00000000" not in over_maximum_amount_audit_check_result.stderr:
+            return "{} --check-snapshot-audit did not explain over-maximum total amount rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--set-snapshot-audit main" in over_maximum_amount_audit_check_result.stdout:
+            return "{} --check-snapshot-audit printed an apply command for an over-maximum snapshot total amount".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
