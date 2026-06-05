@@ -247,6 +247,8 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "blocker_readiness_summary_command": action["blocker_readiness_summary_command"],
                 "template_fields": action.get("template_fields"),
                 "template_field_count": action.get("template_field_count", 0),
+                "candidate_constraints": action.get("candidate_constraints"),
+                "candidate_constraint_count": action.get("candidate_constraint_count", 0),
                 "field_count": len(fields),
                 "fields": fields,
             }
@@ -2881,6 +2883,23 @@ def blocker_template_fields(blocker_type):
     return None
 
 
+def blocker_candidate_constraints(blocker_type):
+    if blocker_type == "auxpow_chain_id":
+        return {
+            "chain_id_min": 1,
+            "chain_id_max": 0x7fff,
+            "placeholder_chain_id": PLACEHOLDER_AUXPOW_CHAIN_ID,
+            "placeholder_chain_id_hex": f"0x{PLACEHOLDER_AUXPOW_CHAIN_ID:x}",
+            "forbidden_parent_version_chain_id_range": [
+                FORBIDDEN_PARENT_VERSION_CHAIN_IDS.start,
+                FORBIDDEN_PARENT_VERSION_CHAIN_IDS.stop - 1,
+            ],
+            "start_height": 1,
+            "strict_chain_id": True,
+        }
+    return None
+
+
 def next_blocker_command(blocker_id, manifest_path):
     network, blocker = blocker_id.split(".", 1)
     commands = blocker_action_commands(blocker_id, manifest_path)
@@ -2983,6 +3002,7 @@ def blocker_action_entry(index, blocker, blockers, manifest_path):
     network_blockers = items_by_network(blockers)[network]
     blocker_type_blockers = blockers_by_blocker_type(blockers)[blocker_type]
     template_fields = blocker_template_fields(blocker_type)
+    candidate_constraints = blocker_candidate_constraints(blocker_type)
     return {
         "step": index,
         "network_step": network_blockers.index(blocker) + 1,
@@ -2996,6 +3016,8 @@ def blocker_action_entry(index, blocker, blockers, manifest_path):
         "action": next_blocker_command(blocker, manifest_path),
         "template_fields": template_fields,
         "template_field_count": len(template_fields) if template_fields is not None else 0,
+        "candidate_constraints": candidate_constraints,
+        "candidate_constraint_count": len(candidate_constraints) if candidate_constraints is not None else 0,
         **blocker_action_commands(blocker, manifest_path),
     }
 
