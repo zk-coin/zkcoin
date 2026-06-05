@@ -2043,6 +2043,15 @@ def require_public_launch_manifest_current():
         "snapshot_file",
         "total_amount",
     ]
+    expected_auxpow_chain_id_constraints = {
+        "chain_id_min": 1,
+        "chain_id_max": 32767,
+        "placeholder_chain_id": 23115,
+        "placeholder_chain_id_hex": "0x5a4b",
+        "forbidden_parent_version_chain_id_range": [8192, 16383],
+        "start_height": 1,
+        "strict_chain_id": True,
+    }
     command_fields = tuple(status_json.get("command_field_order", []))
     if command_fields != (
         "template_command",
@@ -2216,6 +2225,16 @@ def require_public_launch_manifest_current():
             )
         if group.get("template_field_count") != action.get("template_field_count"):
             return "{} --status-json blocker group {} did not match action template field count".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                group.get("id"),
+            )
+        if group.get("candidate_constraints") != action.get("candidate_constraints"):
+            return "{} --status-json blocker group {} did not match action candidate constraints".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                group.get("id"),
+            )
+        if group.get("candidate_constraint_count") != action.get("candidate_constraint_count"):
+            return "{} --status-json blocker group {} did not match action candidate constraint count".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 group.get("id"),
             )
@@ -2833,6 +2852,22 @@ def require_public_launch_manifest_current():
                 )
         elif action.get("template_fields") is not None or action.get("template_field_count") != 0:
             return "{} --status-json action {} reported snapshot audit template fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                action.get("id"),
+            )
+        if action.get("blocker_type") == "auxpow_chain_id":
+            if action.get("candidate_constraints") != expected_auxpow_chain_id_constraints:
+                return "{} --status-json action {} did not report AuxPoW chain-id constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+            if action.get("candidate_constraint_count") != len(expected_auxpow_chain_id_constraints):
+                return "{} --status-json action {} did not count AuxPoW chain-id constraints".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    action.get("id"),
+                )
+        elif action.get("candidate_constraints") is not None or action.get("candidate_constraint_count") != 0:
+            return "{} --status-json action {} reported AuxPoW chain-id constraints".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 action.get("id"),
             )

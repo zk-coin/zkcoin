@@ -413,7 +413,10 @@ Both are intentionally present before behavior changes so tests and review can t
   or human-readable action prose. Litecoin snapshot action entries and blocked
   field groups also expose `template_fields` and `template_field_count`, listing
   the required snapshot audit JSON field order for the matching
-  `template_command`;
+  `template_command`. AuxPoW chain-id action entries and blocked field groups
+  expose `candidate_constraints` and `candidate_constraint_count`, including the
+  encodable chain-id bounds, forbidden Litecoin parent-version range, placeholder
+  chain id, required launch start height, and strict-chain-id requirement;
   when checking a staged copy, pass that manifest path so the printed command
   targets the same file. The printed command shell-quotes the manifest path
   when needed, so staged copies in directories with spaces are safe to use.
