@@ -617,6 +617,151 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    snapshot_template_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--snapshot-audit-template",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_template_json_result.returncode != 0:
+        return "{} --snapshot-audit-template --json failed for main: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            snapshot_template_json_result.stderr.strip()
+            or snapshot_template_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        snapshot_template_json = json.loads(snapshot_template_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --snapshot-audit-template --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        snapshot_template_json.get("schema_version") != 1
+        or snapshot_template_json.get("network") != "main"
+        or snapshot_template_json.get("blocker") != "main.litecoin_snapshot"
+        or snapshot_template_json.get("readiness_gate") != "external_artifact"
+        or snapshot_template_json.get("source_chain") != "main"
+        or snapshot_template_json.get("source_chain_by_network") != {"main": "main", "testnet": "test"}
+    ):
+        return "{} --snapshot-audit-template --json did not expose template identity".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    template_json_template = snapshot_template_json.get("template", {})
+    if (
+        list(template_json_template) != expected_snapshot_audit_template_fields
+        or template_json_template.get("source_chain") != "main"
+        or any(
+            value is not None
+            for field, value in template_json_template.items()
+            if field != "source_chain"
+        )
+        or snapshot_template_json.get("fields") != expected_snapshot_audit_template_fields
+        or snapshot_template_json.get("field_count") != len(expected_snapshot_audit_template_fields)
+        or snapshot_template_json.get("operator_fields") != [
+            field
+            for field in expected_snapshot_audit_template_fields
+            if field != "source_chain"
+        ]
+        or snapshot_template_json.get("operator_field_count") != len(expected_snapshot_audit_template_fields) - 1
+        or snapshot_template_json.get("prefilled_fields") != {"source_chain": "main"}
+        or snapshot_template_json.get("prefilled_field_count") != 1
+    ):
+        return "{} --snapshot-audit-template --json did not expose template field order".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    template_json_requirements = snapshot_template_json.get("requirements", {})
+    template_json_artifact_requirements = snapshot_template_json.get(
+        "snapshot_artifact_requirements",
+        {},
+    )
+    if (
+        template_json_requirements.get("must_be_utf8_json_object") is not True
+        or template_json_requirements.get("field_order_must_match_template") is not True
+        or template_json_requirements.get("rejects_duplicate_fields") is not True
+        or template_json_requirements.get("max_bytes") != 65536
+        or template_json_artifact_requirements.get("must_be_absolute_normalized_regular_file") is not True
+        or template_json_artifact_requirements.get("must_not_be_symlink") is not True
+        or template_json_artifact_requirements.get("must_remain_stable_during_verification") is not True
+        or template_json_artifact_requirements.get("size_and_sha256_must_match_audit") is not True
+    ):
+        return "{} --snapshot-audit-template --json did not expose audit requirements".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    template_json_constraints = snapshot_template_json.get("candidate_constraints", {})
+    template_json_artifacts = snapshot_template_json.get("external_artifacts", [])
+    if (
+        snapshot_template_json.get("candidate_constraint_count") != 23
+        or template_json_constraints.get("audit_summary_fields") != expected_snapshot_audit_template_fields
+        or template_json_constraints.get("snapshot_file_must_be_regular_file") is not True
+        or template_json_constraints.get("total_amount_max") != "84000000.00000000"
+        or snapshot_template_json.get("external_artifact_count") != 2
+        or [artifact.get("id") for artifact in template_json_artifacts] != ["snapshot_audit_json", "snapshot_file"]
+        or template_json_artifacts[1].get("sha256_field") != "snapshot_file_sha256"
+    ):
+        return "{} --snapshot-audit-template --json did not expose constraints and artifacts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    template_json_commands = snapshot_template_json.get("commands", {})
+    if (
+        template_json_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("preflight_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("apply_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("snapshot_audit_handoff_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("network_handoff_bundle_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or template_json_commands.get("blocker_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --snapshot-audit-template --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_template_json_manifest_path = Path(temp_dir) / "read-only-template-json-manifest.json"
+        readonly_template_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_template_json_manifest_path.write_bytes(readonly_template_json_manifest_bytes)
+        readonly_template_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-template",
+                "main",
+                str(readonly_template_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_template_json_result.returncode != 0:
+            return "{} --snapshot-audit-template --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_template_json_result.stderr.strip()
+                or readonly_template_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_template_json_manifest_path.read_bytes() != readonly_template_json_manifest_bytes:
+            return "{} --snapshot-audit-template --json modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     snapshot_handoff_result = subprocess.run(
         [
             sys.executable,
@@ -8947,7 +9092,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -14838,6 +14983,8 @@ def main():
         ("blocker_action_commands(next_blocker, manifest_path)", "manifest reports next candidate handoff commands"),
         ("parse_snapshot_audit", "manifest parses verified snapshot audit summaries"),
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
+        ("snapshot_audit_template_json_payload", "manifest builds snapshot audit template JSON payloads"),
+        ("snapshot_audit_template_json_text", "manifest prints machine-readable snapshot audit templates"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_apply_command", "manifest prints snapshot audit apply commands after read-only checks"),
@@ -16506,6 +16653,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --snapshot-audit-template NETWORK",
             "public launch manifest snapshot audit template documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --snapshot-audit-template NETWORK",
+            "public launch manifest snapshot audit template JSON documentation",
+        ),
+        (
+            "machine-readable template field order",
+            "public launch manifest snapshot audit template JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --snapshot-audit-handoff NETWORK",

@@ -820,6 +820,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --snapshot-audit-template NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --check-snapshot-audit NETWORK <snapshot_audit.json> \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -932,6 +937,10 @@ Add `--json` to the snapshot audit handoff command when automation needs
 machine-readable audit summary fields, candidate constraints, external artifact
 requirements, blocked fields, copyable commands, readiness, and checklist
 details before any artifact is available.
+Add `--json` to the snapshot audit template command when automation needs
+machine-readable template field order, source-chain mapping, operator-filled
+fields, candidate constraints, external artifact metadata, and handoff commands
+without parsing the raw template JSON object.
 Add `--json` to the network handoff bundle when automation needs
 machine-readable current blocker state, current commands, queued
 value-selection blockers, blocked fields, and per-blocker readiness summary
