@@ -7976,6 +7976,20 @@ def release_evidence_handoff_artifacts(
     ]
 
 
+def release_evidence_publication_blockers(handoff_artifacts):
+    return [
+        {
+            "id": artifact["id"],
+            "step": artifact["step"],
+            "path": artifact["path"],
+            "reason": "handoff artifact is not verified",
+            "command": artifact["command"],
+        }
+        for artifact in handoff_artifacts
+        if not artifact["verified"]
+    ]
+
+
 def release_evidence_handoff_summary_payload(
     manifest,
     manifest_path,
@@ -8016,6 +8030,7 @@ def release_evidence_handoff_summary_payload(
         summary_json_command,
         verified,
     )
+    publication_blockers = release_evidence_publication_blockers(handoff_artifacts)
     return {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
@@ -8033,6 +8048,9 @@ def release_evidence_handoff_summary_payload(
             if artifact["verified"]
         ]),
         "handoff_artifacts": handoff_artifacts,
+        "ready_for_publication": not publication_blockers,
+        "publication_blocker_count": len(publication_blockers),
+        "publication_blockers": publication_blockers,
         "first_mismatch": release_evidence_handoff_first_mismatch(
             bundle_gate,
             archive_gate,
@@ -8093,6 +8111,8 @@ def release_evidence_handoff_summary_text_from_payload(payload):
         f"  - mismatches: {payload['mismatch_count']}",
         f"  - handoff artifacts: {payload['handoff_artifact_count']}",
         f"  - verified handoff artifacts: {payload['verified_handoff_artifact_count']}",
+        f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
+        f"  - publication blockers: {payload['publication_blocker_count']}",
         f"  - bundle gate verified: {yes_no(payload['bundle_gate']['verified'])}",
         f"  - bundle gate required-match exit code: {payload['bundle_gate']['required_match_exit_code']}",
         f"  - bundle gate mismatches: {payload['bundle_gate']['mismatch_count']}",
@@ -8116,6 +8136,13 @@ def release_evidence_handoff_summary_text_from_payload(payload):
                 f"{yes_no(artifact['verified'])}"
             ),
             f"  - handoff artifact {artifact['step']} command: {artifact['command']}",
+        ])
+    if payload["publication_blockers"]:
+        blocker = payload["publication_blockers"][0]
+        lines.extend([
+            f"  - first publication blocker: {blocker['id']}",
+            f"  - first publication blocker path: {blocker['path']}",
+            f"  - first publication blocker command: {blocker['command']}",
         ])
     if payload["first_mismatch"] is not None:
         mismatch = payload["first_mismatch"]

@@ -1258,6 +1258,9 @@ combined handoff view with `bundle_gate`, `archive_gate`, `verified`, and
 The same payload includes `handoff_artifacts`, `handoff_artifact_count`, and
 `verified_handoff_artifact_count` so release dashboards can retain the bundle,
 archive record, and generated handoff summary JSON as one publication checklist.
+It also exposes `ready_for_publication`, `publication_blocker_count`, and
+`publication_blockers` so dashboards can decide whether the retained evidence
+set is publishable without inferring that state from individual gate counters.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
