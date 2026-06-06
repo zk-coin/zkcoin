@@ -482,6 +482,21 @@ def external_artifact_counts_by_network_and_blocker_type():
     }
 
 
+def snapshot_audit_external_artifacts_by_network():
+    artifacts_by_network = external_artifacts_by_network_and_blocker_type()
+    return {
+        network: artifacts_by_network[network]["litecoin_snapshot"]
+        for network in NETWORKS
+    }
+
+
+def snapshot_audit_external_artifact_counts_by_network():
+    return {
+        network: len(artifacts)
+        for network, artifacts in snapshot_audit_external_artifacts_by_network().items()
+    }
+
+
 def external_artifacts_by_blocker():
     artifacts_by_type = external_artifacts_by_blocker_type()
     return {
@@ -4828,6 +4843,8 @@ def status_json_text(manifest, manifest_path, check):
             "external_artifact_counts_by_blocker_type": external_artifact_counts_by_blocker_type(),
             "external_artifacts_by_network_and_blocker_type": external_artifacts_by_network_and_blocker_type(),
             "external_artifact_counts_by_network_and_blocker_type": external_artifact_counts_by_network_and_blocker_type(),
+            "snapshot_audit_external_artifacts_by_network": snapshot_audit_external_artifacts_by_network(),
+            "snapshot_audit_external_artifact_counts_by_network": snapshot_audit_external_artifact_counts_by_network(),
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
             "next_blocker_commands_by_network_and_blocker_type": network_blocker_type_next_commands,

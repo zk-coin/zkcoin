@@ -2846,6 +2846,14 @@ def require_public_launch_manifest_current():
         network: dict(expected_external_artifact_counts_by_blocker_type)
         for network in ("main", "testnet")
     }
+    expected_snapshot_audit_external_artifacts_by_network = {
+        network: expected_external_artifacts_by_network_and_blocker_type[network]["litecoin_snapshot"]
+        for network in ("main", "testnet")
+    }
+    expected_snapshot_audit_external_artifact_counts_by_network = {
+        network: len(artifacts)
+        for network, artifacts in expected_snapshot_audit_external_artifacts_by_network.items()
+    }
     expected_external_artifacts_by_blocker = {
         "{}.{}".format(network, blocker_type): artifacts
         for network in ("main", "testnet")
@@ -2870,6 +2878,14 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("external_artifact_counts_by_network_and_blocker_type") != expected_external_artifact_counts_by_network_and_blocker_type:
         return "{} --status-json did not count external artifacts by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("snapshot_audit_external_artifacts_by_network") != expected_snapshot_audit_external_artifacts_by_network:
+        return "{} --status-json did not expose snapshot audit external artifacts by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("snapshot_audit_external_artifact_counts_by_network") != expected_snapshot_audit_external_artifact_counts_by_network:
+        return "{} --status-json did not count snapshot audit external artifacts by network".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("external_artifacts_by_blocker") != expected_external_artifacts_by_blocker:
@@ -12976,6 +12992,8 @@ def main():
         ("require_snapshot_audit_artifact_stable", "manifest rechecks snapshot audit artifacts after hashing"),
         ("snapshot audit file size mismatch", "manifest rejects mismatched snapshot audit artifact sizes"),
         ("snapshot audit file SHA-256 mismatch", "manifest rejects mismatched snapshot audit artifact hashes"),
+        ("snapshot_audit_external_artifacts_by_network", "manifest exposes snapshot audit artifacts by network"),
+        ("snapshot_audit_external_artifact_counts_by_network", "manifest counts snapshot audit artifacts by network"),
         (
             "must be blocked until required blocker ids are resolved",
             "manifest rejects ready status while blocker fields remain unresolved",
@@ -13270,6 +13288,8 @@ def main():
         ("external_artifact_counts_by_blocker_type", "manifest status JSON counts external artifacts by blocker type"),
         ("external_artifacts_by_network_and_blocker_type", "manifest status JSON indexes external artifacts by network and blocker type"),
         ("external_artifact_counts_by_network_and_blocker_type", "manifest status JSON counts external artifacts by network and blocker type"),
+        ("snapshot_audit_external_artifacts_by_network", "manifest status JSON indexes snapshot audit artifacts by network"),
+        ("snapshot_audit_external_artifact_counts_by_network", "manifest status JSON counts snapshot audit artifacts by network"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
