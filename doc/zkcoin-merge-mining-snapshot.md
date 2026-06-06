@@ -212,6 +212,11 @@ Both are intentionally present before behavior changes so tests and review can t
   embeds the operator runbook, launch-gate preflight, snapshot audit handoffs,
   and value-selection checklist payloads without choosing production constants.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-release-evidence-bundle <release_evidence_bundle.json>`
+  when CI needs release evidence bundle freshness: the read-only check
+  regenerates the expected bundle payload from the current launch manifest and
+  reports whether the archived JSON still matches.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -234,7 +239,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_plan_command`, `readiness_summary_command`, `status_json_command`,
   `value_selection_checklists_command`, `snapshot_audit_handoffs_command`,
   `launch_gate_preflight_command`, `operator_runbook_command`,
-  `release_evidence_bundle_command`,
+  `release_evidence_bundle_command`, `release_evidence_bundle_json_command`,
+  `check_release_evidence_bundle_command`,
+  `check_release_evidence_bundle_json_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -317,6 +324,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_bundle_command` exposes the compact release evidence bundle
   command for CI artifacts that need to archive the runbook, gate preflight,
   snapshot handoff, and value-selection payloads together.
+  `check_release_evidence_bundle_command` and
+  `check_release_evidence_bundle_json_command` expose the matching freshness
+  checks so dashboards can verify an archived bundle against the current
+  manifest without reconstructing command lines.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -910,6 +921,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-release-evidence-bundle <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --check-release-evidence-bundle <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1113,6 +1133,9 @@ gate summary counts in one compact operator runbook payload.
 Use `--release-evidence-bundle --json` when CI needs one compact release
 evidence bundle with embedded operator-runbook, launch-gate preflight,
 snapshot-audit handoff, and value-selection checklist JSON payloads.
+Use `--check-release-evidence-bundle --json` when CI needs a machine-readable
+freshness check for an archived release evidence bundle, including a stable
+`verified` boolean and compact mismatch paths.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

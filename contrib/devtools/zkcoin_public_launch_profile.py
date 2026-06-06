@@ -66,6 +66,8 @@ SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
 SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
 SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES = 64 * 1024
 LAUNCH_MANIFEST_MAX_BYTES = 256 * 1024
+RELEASE_EVIDENCE_BUNDLE_MAX_BYTES = 512 * 1024
+RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT = 50
 CHAINPARAMS_INPUT_MAX_BYTES = 1024 * 1024
 SNAPSHOT_SOURCE_CHAINS = {
     "main": "main",
@@ -2495,6 +2497,62 @@ def read_launch_manifest_text(manifest_path):
         raise ValueError(f"{manifest_path} is not valid UTF-8") from None
 
 
+def release_evidence_bundle_too_large_error(bundle_path):
+    return (
+        "release evidence bundle must not exceed "
+        f"{RELEASE_EVIDENCE_BUNDLE_MAX_BYTES} bytes: {bundle_path}"
+    )
+
+
+def read_release_evidence_bundle_text(bundle_path):
+    fd, bundle_stat = open_regular_file_no_symlink(
+        bundle_path,
+        symlink_error="release evidence bundle path must not be a symlink",
+        missing_error="cannot read release evidence bundle",
+        not_regular_error="release evidence bundle path must be a regular file",
+        open_error="cannot read release evidence bundle",
+        parent_symlink_error=(
+            "release evidence bundle parent directory must not be a symlink"
+        ),
+    )
+    if bundle_stat.st_size > RELEASE_EVIDENCE_BUNDLE_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(release_evidence_bundle_too_large_error(bundle_path))
+
+    chunks = []
+    total_bytes = 0
+    try:
+        while total_bytes <= RELEASE_EVIDENCE_BUNDLE_MAX_BYTES:
+            chunk = os.read(
+                fd,
+                min(65536, RELEASE_EVIDENCE_BUNDLE_MAX_BYTES + 1 - total_bytes),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+        if total_bytes > RELEASE_EVIDENCE_BUNDLE_MAX_BYTES:
+            raise ValueError(release_evidence_bundle_too_large_error(bundle_path))
+        require_regular_file_stable(
+            bundle_path,
+            bundle_stat,
+            fd,
+            "release evidence bundle changed during read",
+            parent_symlink_error=(
+                "release evidence bundle parent directory must not be a symlink"
+            ),
+        )
+    except OSError as exc:
+        raise ValueError(f"cannot read release evidence bundle: {exc}") from None
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError(f"{bundle_path} is not valid UTF-8") from None
+
+
 def chainparams_input_too_large_error(chainparams_path):
     return f"chainparams input must not exceed {CHAINPARAMS_INPUT_MAX_BYTES} bytes: {chainparams_path}"
 
@@ -4014,6 +4072,13 @@ def shell_quote(value):
     return shlex.quote(str(value))
 
 
+def command_path_arg(path):
+    path = str(path)
+    if path.startswith("<") and path.endswith(">"):
+        return path
+    return shell_quote(display_path(path))
+
+
 def action_plan_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -4054,6 +4119,27 @@ def release_evidence_bundle_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
     return f"{tool_path} --release-evidence-bundle {manifest_path}"
+
+
+def release_evidence_bundle_json_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --json --release-evidence-bundle {manifest_path}"
+
+
+def check_release_evidence_bundle_command(
+    manifest_path,
+    bundle_path="<release_evidence_bundle.json>",
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    bundle_path = command_path_arg(bundle_path)
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}--check-release-evidence-bundle "
+        f"{bundle_path} {manifest_path}"
+    )
 
 
 def next_action_command(manifest_path):
@@ -4748,6 +4834,9 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
         f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
+        f"  - release evidence bundle JSON command: {release_evidence_bundle_json_command(manifest_path)}",
+        f"  - check release evidence bundle command: {check_release_evidence_bundle_command(manifest_path)}",
+        f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -4884,6 +4973,15 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         ),
         "release_evidence_bundle_command": release_evidence_bundle_command(
             manifest_path,
+        ),
+        "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
+            manifest_path,
+        ),
+        "check_release_evidence_bundle_command": (
+            check_release_evidence_bundle_command(manifest_path)
+        ),
+        "check_release_evidence_bundle_json_command": (
+            check_release_evidence_bundle_command(manifest_path, json_output=True)
         ),
         "blocked_networks": blocked_networks(network_progress),
         "blocked_network_count": len(blocked_networks(network_progress)),
@@ -6745,6 +6843,9 @@ def release_evidence_bundle_text(manifest, manifest_path, check):
         "zkCoin public launch profile release evidence bundle:",
         f"  - status: {manifest.get('status')}",
         f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
+        f"  - release evidence bundle JSON command: {release_evidence_bundle_json_command(manifest_path)}",
+        f"  - check release evidence bundle command: {check_release_evidence_bundle_command(manifest_path)}",
+        f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True)}",
         f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
@@ -6786,6 +6887,15 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
         "release_evidence_bundle_command": release_evidence_bundle_command(
             manifest_path,
         ),
+        "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
+            manifest_path,
+        ),
+        "check_release_evidence_bundle_command": (
+            check_release_evidence_bundle_command(manifest_path)
+        ),
+        "check_release_evidence_bundle_json_command": (
+            check_release_evidence_bundle_command(manifest_path, json_output=True)
+        ),
         "operator_runbook_command": operator_runbook_command(manifest_path),
         "launch_gate_preflight_command": launch_gate_preflight_command(
             manifest_path,
@@ -6817,6 +6927,171 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
 def release_evidence_bundle_json_text(manifest, manifest_path, check):
     return json.dumps(
         release_evidence_bundle_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
+def release_evidence_bundle_mismatch_value(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, list):
+        return f"<list:{len(value)}>"
+    if isinstance(value, dict):
+        return f"<object:{len(value)}>"
+    return f"<{type(value).__name__}>"
+
+
+def release_evidence_bundle_mismatch_entries(actual, expected):
+    mismatches = []
+
+    def append_mismatch(path, kind, actual_value, expected_value):
+        if len(mismatches) >= RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT:
+            return
+        mismatches.append({
+            "path": path or "$",
+            "kind": kind,
+            "expected": release_evidence_bundle_mismatch_value(expected_value),
+            "actual": release_evidence_bundle_mismatch_value(actual_value),
+        })
+
+    def compare(actual_value, expected_value, path):
+        if len(mismatches) >= RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT:
+            return
+        if isinstance(expected_value, dict):
+            if not isinstance(actual_value, dict):
+                append_mismatch(path, "type", actual_value, expected_value)
+                return
+            for key, expected_child in expected_value.items():
+                child_path = f"{path}.{key}" if path else key
+                if key not in actual_value:
+                    append_mismatch(child_path, "missing", "<missing>", expected_child)
+                    continue
+                compare(actual_value[key], expected_child, child_path)
+            for key in sorted(set(actual_value) - set(expected_value)):
+                child_path = f"{path}.{key}" if path else key
+                append_mismatch(child_path, "unexpected", actual_value[key], "<absent>")
+            return
+        if isinstance(expected_value, list):
+            if not isinstance(actual_value, list):
+                append_mismatch(path, "type", actual_value, expected_value)
+                return
+            if len(actual_value) != len(expected_value):
+                append_mismatch(path, "length", actual_value, expected_value)
+            for index, expected_child in enumerate(expected_value):
+                if index >= len(actual_value):
+                    append_mismatch(
+                        f"{path}[{index}]",
+                        "missing",
+                        "<missing>",
+                        expected_child,
+                    )
+                    continue
+                compare(actual_value[index], expected_child, f"{path}[{index}]")
+            return
+        if actual_value != expected_value:
+            append_mismatch(path, "value", actual_value, expected_value)
+
+    compare(actual, expected, "")
+    return mismatches
+
+
+def release_evidence_bundle_check_payload(manifest, manifest_path, check, bundle_path):
+    bundle_text = read_release_evidence_bundle_text(bundle_path)
+    try:
+        actual = json.loads(
+            bundle_text,
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
+    except DuplicateJSONFieldError as exc:
+        raise ValueError(
+            f"{bundle_path} contains duplicate field: {exc}"
+        ) from None
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{bundle_path} is not valid JSON: {exc}") from None
+
+    if not isinstance(actual, dict):
+        raise ValueError("release evidence bundle must be a JSON object")
+
+    expected = release_evidence_bundle_json_payload(manifest, manifest_path, check)
+    mismatches = release_evidence_bundle_mismatch_entries(actual, expected)
+    verified = not mismatches
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "release_evidence_bundle": display_path(bundle_path),
+        "verified": verified,
+        "mismatch_count": len(mismatches),
+        "mismatches": mismatches,
+        "mismatch_limit": RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT,
+        "mismatch_limit_reached": (
+            len(mismatches) >= RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT
+        ),
+        "release_evidence_bundle_command": release_evidence_bundle_command(
+            manifest_path,
+        ),
+        "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
+            manifest_path,
+        ),
+        "check_release_evidence_bundle_command": (
+            check_release_evidence_bundle_command(manifest_path, bundle_path)
+        ),
+        "check_release_evidence_bundle_json_command": (
+            check_release_evidence_bundle_command(
+                manifest_path,
+                bundle_path,
+                json_output=True,
+            )
+        ),
+        "expected_schema_version": expected.get("schema_version"),
+        "actual_schema_version": actual.get("schema_version"),
+        "expected_status": expected.get("status"),
+        "actual_status": actual.get("status"),
+        "expected_evidence_payload_count": expected.get("evidence_payload_count"),
+        "actual_evidence_payload_count": actual.get("evidence_payload_count"),
+        "expected_next_blocker": expected.get("next_blocker"),
+        "actual_next_blocker": actual.get("next_blocker"),
+        "expected_summary": expected.get("summary"),
+        "actual_summary": actual.get("summary"),
+    }
+
+
+def release_evidence_bundle_check_text(manifest, manifest_path, check, bundle_path):
+    payload = release_evidence_bundle_check_payload(
+        manifest,
+        manifest_path,
+        check,
+        bundle_path,
+    )
+    lines = [
+        "zkCoin public launch profile release evidence bundle check:",
+        f"  - verified: {yes_no(payload['verified'])}",
+        f"  - manifest: {payload['manifest']}",
+        f"  - release evidence bundle: {payload['release_evidence_bundle']}",
+        f"  - mismatches: {payload['mismatch_count']}",
+        f"  - release evidence bundle command: {payload['release_evidence_bundle_command']}",
+        f"  - release evidence bundle JSON command: {payload['release_evidence_bundle_json_command']}",
+        f"  - check release evidence bundle command: {payload['check_release_evidence_bundle_command']}",
+        f"  - check release evidence bundle JSON command: {payload['check_release_evidence_bundle_json_command']}",
+        f"  - expected schema version: {payload['expected_schema_version']}",
+        f"  - actual schema version: {payload['actual_schema_version']}",
+        f"  - expected evidence payloads: {payload['expected_evidence_payload_count']}",
+        f"  - actual evidence payloads: {payload['actual_evidence_payload_count']}",
+        f"  - expected next blocker: {payload['expected_next_blocker']}",
+        f"  - actual next blocker: {payload['actual_next_blocker']}",
+    ]
+    if payload["mismatches"]:
+        mismatch = payload["mismatches"][0]
+        lines.extend([
+            f"  - first mismatch path: {mismatch['path']}",
+            f"  - first mismatch kind: {mismatch['kind']}",
+        ])
+    return "\n".join(lines)
+
+
+def release_evidence_bundle_check_json_text(manifest, manifest_path, check, bundle_path):
+    return json.dumps(
+        release_evidence_bundle_check_payload(manifest, manifest_path, check, bundle_path),
         indent=2,
         sort_keys=False,
     )
@@ -7470,6 +7745,15 @@ def status_json_text(manifest, manifest_path, check):
             "release_evidence_bundle_command": release_evidence_bundle_command(
                 manifest_path,
             ),
+            "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
+                manifest_path,
+            ),
+            "check_release_evidence_bundle_command": (
+                check_release_evidence_bundle_command(manifest_path)
+            ),
+            "check_release_evidence_bundle_json_command": (
+                check_release_evidence_bundle_command(manifest_path, json_output=True)
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -7763,6 +8047,8 @@ def selected_primary_actions(args):
         actions.append("--operator-runbook")
     if args.release_evidence_bundle:
         actions.append("--release-evidence-bundle")
+    if args.check_release_evidence_bundle is not None:
+        actions.append("--check-release-evidence-bundle")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -7825,6 +8111,12 @@ def main():
     parser.add_argument("--launch-gate-preflight", action="store_true", help="print compact launch-gate preflight handoffs for external artifacts and value selection")
     parser.add_argument("--operator-runbook", action="store_true", help="print ordered public launch-profile operator runbook commands")
     parser.add_argument("--release-evidence-bundle", action="store_true", help="print bundled launch-profile release evidence payloads")
+    parser.add_argument(
+        "--check-release-evidence-bundle",
+        metavar="BUNDLE_JSON",
+        type=Path,
+        help="verify an archived release evidence bundle against the current launch manifest",
+    )
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
     parser.add_argument("--network-later-blockers", metavar="NETWORK", help="print the queued later blockers for one public network")
@@ -7975,6 +8267,7 @@ def main():
         and not args.launch_gate_preflight
         and not args.operator_runbook
         and not args.release_evidence_bundle
+        and args.check_release_evidence_bundle is None
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -8006,7 +8299,7 @@ def main():
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
             "--readiness-gate-summary, --readiness-gate-later-blockers, "
             "--launch-gate-preflight, --operator-runbook, "
-            "--release-evidence-bundle, "
+            "--release-evidence-bundle, --check-release-evidence-bundle, "
             "or --value-selection-checklists",
             file=sys.stderr,
         )
@@ -8162,6 +8455,10 @@ def main():
         if args.in_place:
             print("error: --release-evidence-bundle does not write the manifest", file=sys.stderr)
             return 1
+    if args.check_release_evidence_bundle is not None:
+        if args.in_place:
+            print("error: --check-release-evidence-bundle does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -8273,6 +8570,8 @@ def main():
     if args.operator_runbook:
         allow_blocked = True
     if args.release_evidence_bundle:
+        allow_blocked = True
+    if args.check_release_evidence_bundle is not None:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -8403,6 +8702,26 @@ def main():
             else release_evidence_bundle_text
         )
         print(evidence_text(manifest, args.manifest, check))
+        return 0
+
+    if args.check_release_evidence_bundle is not None:
+        evidence_check_text = (
+            release_evidence_bundle_check_json_text
+            if args.json
+            else release_evidence_bundle_check_text
+        )
+        try:
+            print(
+                evidence_check_text(
+                    manifest,
+                    args.manifest,
+                    check,
+                    args.check_release_evidence_bundle,
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
         return 0
 
     if args.network_readiness_summary is not None:
