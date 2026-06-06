@@ -5822,6 +5822,52 @@ def network_value_selection_later_blockers_text(manifest, manifest_path, check, 
     return "\n".join(lines)
 
 
+def value_selection_candidate_checklist(later_groups):
+    steps = []
+    for index, group in enumerate(later_groups, 1):
+        steps.append({
+            "step": index,
+            "id": f"{group['id']}.candidate_json_check",
+            "blocker": group["id"],
+            "network": group["network"],
+            "blocker_type": group["blocker_type"],
+            "field_count": group["field_count"],
+            "fields": group["fields"],
+            "json_check_command": group["json_check_command"],
+            "apply_command": group["apply_command"],
+            "blocker_readiness_summary_command": group[
+                "blocker_readiness_summary_command"
+            ],
+            "requires_operator_selected_values": True,
+            "required_before_apply": True,
+        })
+    return steps
+
+
+def value_selection_candidate_checklist_summary(checklist):
+    return {
+        "step_count": len(checklist),
+        "required_json_check_count": len(checklist),
+        "apply_command_count": sum(
+            1
+            for step in checklist
+            if step["apply_command"] is not None
+        ),
+        "all_steps_have_json_check_commands": all(
+            step["json_check_command"] is not None
+            for step in checklist
+        ),
+        "all_steps_require_operator_selected_values": all(
+            step["requires_operator_selected_values"]
+            for step in checklist
+        ),
+        "blockers": [
+            step["blocker"]
+            for step in checklist
+        ],
+    }
+
+
 def network_value_selection_later_blockers_json_payload(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -5847,6 +5893,7 @@ def network_value_selection_later_blockers_json_payload(manifest, manifest_path,
         }
         for blocker in later_blockers
     ]
+    checklist = value_selection_candidate_checklist(later_groups)
     next_group = network_progress["next_blocked_field_group"]
     current_blocker_id = next_group["id"] if next_group is not None else None
     return {
@@ -5867,6 +5914,10 @@ def network_value_selection_later_blockers_json_payload(manifest, manifest_path,
         "later_value_selection_blocker_field_groups": later_groups,
         "later_value_selection_json_check_commands": json_check_commands,
         "later_value_selection_json_check_command_count": len(json_check_commands),
+        "later_value_selection_candidate_checklist": checklist,
+        "later_value_selection_candidate_checklist_summary": (
+            value_selection_candidate_checklist_summary(checklist)
+        ),
         "later_value_selection_blocker_readiness_summary_commands": (
             blocker_readiness_summary_commands(manifest_path, later_blockers)
         ),

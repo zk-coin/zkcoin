@@ -1003,8 +1003,8 @@ readiness-summary command map.
 Add `--json` to the network value-selection later-blocker command when
 automation needs machine-readable queued AuxPoW chain-id, public identity, and
 DNS seed blockers, their blocked fields, candidate constraints, JSON-capable
-candidate check command templates, and readiness-summary command map for one
-network.
+candidate check command templates, ordered pre-apply candidate checklists, and
+readiness-summary command map for one network.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

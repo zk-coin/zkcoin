@@ -2061,6 +2061,39 @@ def require_public_launch_manifest_current():
         return "{} --network-value-selection-later-blockers --json did not expose command shortcuts".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    network_value_selection_checklist = network_value_selection_later_json.get(
+        "later_value_selection_candidate_checklist",
+        [],
+    )
+    network_value_selection_checklist_summary = network_value_selection_later_json.get(
+        "later_value_selection_candidate_checklist_summary",
+        {},
+    )
+    if (
+        [step.get("blocker") for step in network_value_selection_checklist]
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or [step.get("blocker_type") for step in network_value_selection_checklist]
+        != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+        or network_value_selection_checklist[0].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_checklist[1].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_checklist[2].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_checklist[1].get("field_count") != 10
+        or network_value_selection_checklist[2].get("required_before_apply") is not True
+        or network_value_selection_checklist[2].get("requires_operator_selected_values") is not True
+        or network_value_selection_checklist_summary.get("step_count") != 3
+        or network_value_selection_checklist_summary.get("required_json_check_count") != 3
+        or network_value_selection_checklist_summary.get("apply_command_count") != 3
+        or network_value_selection_checklist_summary.get("all_steps_have_json_check_commands") is not True
+        or network_value_selection_checklist_summary.get("all_steps_require_operator_selected_values") is not True
+        or network_value_selection_checklist_summary.get("blockers")
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+    ):
+        return "{} --network-value-selection-later-blockers --json did not expose the value-selection candidate checklist".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
 
     with tempfile.TemporaryDirectory() as temp_dir:
         readonly_network_value_selection_json_manifest_path = Path(temp_dir) / "read-only-network-value-selection-json-manifest.json"
@@ -15803,6 +15836,9 @@ def main():
         ("blocker_json_check_command", "manifest builds JSON candidate check command templates"),
         ("blocker_json_check_commands", "manifest builds JSON candidate check command maps"),
         ("later_value_selection_json_check_commands", "manifest exposes value-selection JSON candidate check command maps"),
+        ("value_selection_candidate_checklist", "manifest builds ordered value-selection candidate checklists"),
+        ("value_selection_candidate_checklist_summary", "manifest summarizes value-selection candidate checklists"),
+        ("later_value_selection_candidate_checklist", "manifest exposes value-selection candidate checklist JSON"),
         ("next_action_text", "manifest prints next action guidance"),
         ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
         ("append_blocker_field_lines", "manifest prints human-readable blocked field paths"),
@@ -17173,6 +17209,10 @@ def main():
         (
             "JSON-capable\ncandidate check command templates",
             "public launch manifest network value-selection JSON command documentation",
+        ),
+        (
+            "ordered pre-apply candidate checklists",
+            "public launch manifest network value-selection checklist documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
