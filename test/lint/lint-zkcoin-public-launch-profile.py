@@ -3581,6 +3581,8 @@ def require_public_launch_manifest_current():
             "  - mismatches: 0",
             "  - handoff artifacts: 3",
             "  - verified handoff artifacts: 3",
+            "  - ready for publication: yes",
+            "  - publication blockers: 0",
             "  - bundle gate verified: yes",
             "  - bundle gate required-match exit code: 0",
             "  - bundle gate mismatches: 0",
@@ -3648,6 +3650,9 @@ def require_public_launch_manifest_current():
             or release_evidence_handoff_summary_json.get("mismatch_count") != 0
             or release_evidence_handoff_summary_json.get("handoff_artifact_count") != 3
             or release_evidence_handoff_summary_json.get("verified_handoff_artifact_count") != 3
+            or release_evidence_handoff_summary_json.get("ready_for_publication") is not True
+            or release_evidence_handoff_summary_json.get("publication_blocker_count") != 0
+            or release_evidence_handoff_summary_json.get("publication_blockers") != []
             or release_evidence_handoff_summary_json.get("first_mismatch") is not None
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("mismatch_count") != 0
@@ -3782,6 +3787,13 @@ def require_public_launch_manifest_current():
             or stale_release_evidence_handoff_summary_json.get("required_match_exit_code") != 1
             or stale_release_evidence_handoff_summary_json.get("handoff_artifact_count") != 3
             or stale_release_evidence_handoff_summary_json.get("verified_handoff_artifact_count") != 1
+            or stale_release_evidence_handoff_summary_json.get("ready_for_publication") is not False
+            or stale_release_evidence_handoff_summary_json.get("publication_blocker_count") != 2
+            or [blocker.get("id") for blocker in stale_release_evidence_handoff_summary_json.get("publication_blockers", [])]
+            != [
+                "release-evidence-archive-record",
+                "release-evidence-handoff-summary-json",
+            ]
             or stale_release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or stale_release_evidence_handoff_summary_json.get("archive_gate", {}).get("verified") is not False
             or stale_first_mismatch.get("source") != "archive_gate"
@@ -18009,6 +18021,7 @@ def main():
         ("release_evidence_archive_check_payload", "manifest builds release evidence archive check JSON payloads"),
         ("release_evidence_archive_check_text", "manifest prints release evidence archive check guidance"),
         ("release_evidence_handoff_artifacts", "manifest builds release evidence handoff artifact checklist"),
+        ("release_evidence_publication_blockers", "manifest builds release evidence publication blockers"),
         ("release_evidence_handoff_summary_payload", "manifest builds release evidence handoff summary payloads"),
         ("release_evidence_handoff_summary_text", "manifest prints release evidence handoff summary guidance"),
         ("release_evidence_handoff_summary_json_text", "manifest prints release evidence handoff summary JSON guidance"),
@@ -19971,6 +19984,10 @@ def main():
         (
             "handoff_artifacts",
             "public launch manifest release evidence handoff artifact checklist documentation",
+        ),
+        (
+            "ready_for_publication",
+            "public launch manifest release evidence publication readiness documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
