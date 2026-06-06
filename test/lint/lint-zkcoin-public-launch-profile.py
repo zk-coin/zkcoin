@@ -977,6 +977,168 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    readiness_summary_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--readiness-summary",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if readiness_summary_json_result.returncode != 0:
+        return "{} --readiness-summary --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            readiness_summary_json_result.stderr.strip()
+            or readiness_summary_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        readiness_summary_json = json.loads(readiness_summary_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --readiness-summary --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        readiness_summary_json.get("schema_version") != 1
+        or readiness_summary_json.get("status") != "blocked"
+        or readiness_summary_json.get("ready_for_chainparams") is not False
+        or readiness_summary_json.get("blocked_networks") != ["main", "testnet"]
+        or readiness_summary_json.get("blocked_network_count") != 2
+        or readiness_summary_json.get("ready_networks") != []
+        or readiness_summary_json.get("ready_network_count") != 0
+        or readiness_summary_json.get("unresolved_blocker_count") != 8
+        or readiness_summary_json.get("blocked_field_count") != 46
+        or readiness_summary_json.get("blocked_field_group_count") != 8
+        or readiness_summary_json.get("next_action_id") != "main.litecoin_snapshot"
+        or readiness_summary_json.get("next_action_kind") != "blocker"
+        or readiness_summary_json.get("current_blocker_id") != "main.litecoin_snapshot"
+        or readiness_summary_json.get("current_blocker_field_count") != 11
+    ):
+        return "{} --readiness-summary --json did not expose launch readiness state".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        readiness_summary_json.get("unresolved_blocker_counts_by_network", {}).get("main") != 4
+        or readiness_summary_json.get("unresolved_blocker_counts_by_network", {}).get("testnet") != 4
+        or readiness_summary_json.get("unresolved_blocker_counts_by_blocker_type", {}).get("litecoin_snapshot") != 2
+        or readiness_summary_json.get("unresolved_blocker_counts_by_readiness_gate", {}).get("external_artifact") != 2
+        or readiness_summary_json.get("unresolved_blocker_counts_by_readiness_gate", {}).get("value_selection") != 6
+        or readiness_summary_json.get("blocked_field_counts_by_network", {}).get("main") != 23
+        or readiness_summary_json.get("blocked_field_counts_by_blocker_type", {}).get("public_network_identity") != 20
+        or readiness_summary_json.get("blocked_field_counts_by_readiness_gate", {}).get("external_artifact") != 22
+        or readiness_summary_json.get("blocked_field_counts_by_readiness_gate", {}).get("value_selection") != 24
+        or readiness_summary_json.get("blocked_networks_by_blocker_type", {}).get("dns_seeds") != ["main", "testnet"]
+        or readiness_summary_json.get("ready_networks_by_blocker_type", {}).get("litecoin_snapshot") != []
+        or readiness_summary_json.get("blocker_types_by_readiness_gate", {}).get("external_artifact") != ["litecoin_snapshot"]
+    ):
+        return "{} --readiness-summary --json did not expose grouped readiness counts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    readiness_current_blocker = readiness_summary_json.get("current_blocker", {})
+    if (
+        readiness_current_blocker.get("id") != "main.litecoin_snapshot"
+        or readiness_current_blocker.get("network") != "main"
+        or readiness_current_blocker.get("blocker_type") != "litecoin_snapshot"
+        or readiness_current_blocker.get("template_field_count") != 11
+        or readiness_current_blocker.get("candidate_constraints", {}).get("snapshot_file_must_be_regular_file") is not True
+        or "main.litecoin_snapshot.audit.total_amount" not in readiness_current_blocker.get("fields", [])
+        or "testnet.public_network_identity.default_port" not in readiness_summary_json.get("blocked_fields", [])
+    ):
+        return "{} --readiness-summary --json did not expose current blocker details".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    readiness_later_blockers = [
+        "main.auxpow_chain_id",
+        "main.public_network_identity",
+        "main.dns_seeds",
+        "testnet.litecoin_snapshot",
+        "testnet.auxpow_chain_id",
+        "testnet.public_network_identity",
+        "testnet.dns_seeds",
+    ]
+    if (
+        readiness_summary_json.get("later_blockers") != readiness_later_blockers
+        or readiness_summary_json.get("later_blocker_count") != len(readiness_later_blockers)
+        or readiness_summary_json.get("network_progress", {}).get("main", {}).get("next_blocked_field_group", {}).get("id")
+        != "main.litecoin_snapshot"
+        or readiness_summary_json.get("blocker_type_progress", {}).get("dns_seeds", {}).get("next_action", {}).get("id")
+        != "main.dns_seeds"
+        or readiness_summary_json.get("readiness_gate_progress", {}).get("value_selection", {}).get("next_action", {}).get("id")
+        != "main.auxpow_chain_id"
+    ):
+        return "{} --readiness-summary --json did not expose next and later blocker queues".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    readiness_current_commands = readiness_summary_json.get("current_commands", {})
+    readiness_later_commands = readiness_summary_json.get(
+        "later_blocker_readiness_summary_commands",
+        {},
+    )
+    if (
+        readiness_summary_json.get("commands", {}).get("readiness_summary")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("commands", {}).get("status_json")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --status-json contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_current_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_current_commands.get("blocker_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_later_commands.get("testnet.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("next_commands_by_network", {}).get("main", {}).get("network_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("next_commands_by_blocker_type", {}).get("dns_seeds", {}).get("blocker_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("next_commands_by_readiness_gate", {}).get("external_artifact", {}).get("readiness_gate_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("network_readiness_summary_commands_by_network", {}).get("testnet")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("blocker_type_readiness_summary_commands_by_blocker_type", {}).get("litecoin_snapshot")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("readiness_gate_later_blockers_commands_by_readiness_gate", {}).get("value_selection")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --readiness-summary --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_readiness_summary_json_manifest_path = Path(temp_dir) / "read-only-readiness-summary-json-manifest.json"
+        readonly_readiness_summary_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_readiness_summary_json_manifest_path.write_bytes(
+            readonly_readiness_summary_json_manifest_bytes
+        )
+        readonly_readiness_summary_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--readiness-summary",
+                str(readonly_readiness_summary_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_readiness_summary_json_result.returncode != 0:
+            return "{} --readiness-summary --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_readiness_summary_json_result.stderr.strip()
+                or readonly_readiness_summary_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_readiness_summary_json_manifest_path.read_bytes() != readonly_readiness_summary_json_manifest_bytes:
+            return "{} --readiness-summary --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     network_readiness_result = subprocess.run(
         [
             sys.executable,
@@ -8785,7 +8947,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -14597,6 +14759,8 @@ def main():
         ("--next-action", "manifest next-action guidance flag"),
         ("--action-plan", "manifest full action-plan guidance flag"),
         ("--readiness-summary", "manifest readiness summary flag"),
+        ("readiness_summary_json_payload", "manifest readiness summary JSON payload helper"),
+        ("readiness_summary_json_text", "manifest readiness summary JSON renderer"),
         ("--network-readiness-summary", "manifest network readiness summary flag"),
         ("network_readiness_summary_json_payload", "manifest network readiness summary JSON payload helper"),
         ("network_readiness_summary_json_text", "manifest network readiness summary JSON renderer"),
@@ -16190,6 +16354,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --readiness-summary",
             "public launch manifest readiness-summary documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --readiness-summary",
+            "public launch manifest readiness-summary JSON documentation",
+        ),
+        (
+            "machine-readable top-level launch readiness state",
+            "public launch manifest readiness-summary JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --network-handoff-bundle NETWORK",
