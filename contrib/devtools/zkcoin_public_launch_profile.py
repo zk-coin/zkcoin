@@ -3678,6 +3678,7 @@ def next_action_text(manifest, manifest_path):
     lines = ["zkCoin public launch profile next action:"]
     if blockers:
         next_blocker = blockers[0]
+        network, blocker_type = next_blocker.split(".", 1)
         lines.append(f"  - next blocker: {next_blocker}")
         lines.append(f"  - action: {next_blocker_command(next_blocker, manifest_path)}")
         append_blocker_command_lines(
@@ -3685,6 +3686,11 @@ def next_action_text(manifest, manifest_path):
             blocker_action_commands(next_blocker, manifest_path),
             "  - ",
         )
+        if blocker_type == "litecoin_snapshot":
+            lines.append(
+                "  - snapshot audit handoff command: "
+                f"{tool_path} --snapshot-audit-handoff {network} {manifest_path}"
+            )
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
             lines.append(
