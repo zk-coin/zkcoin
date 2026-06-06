@@ -3579,6 +3579,8 @@ def require_public_launch_manifest_current():
             f"  - release evidence archive record: {release_evidence_archive_record_path}",
             f"  - release evidence bundle: {release_evidence_bundle_path}",
             "  - mismatches: 0",
+            "  - handoff artifacts: 3",
+            "  - verified handoff artifacts: 3",
             "  - bundle gate verified: yes",
             "  - bundle gate required-match exit code: 0",
             "  - bundle gate mismatches: 0",
@@ -3589,6 +3591,18 @@ def require_public_launch_manifest_current():
             f"  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence archive gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - handoff artifact 1: release-evidence-bundle",
+            f"  - handoff artifact 1 path: {release_evidence_bundle_path}",
+            "  - handoff artifact 1 verified: yes",
+            f"  - handoff artifact 1 command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - handoff artifact 2: release-evidence-archive-record",
+            f"  - handoff artifact 2 path: {release_evidence_archive_record_path}",
+            "  - handoff artifact 2 verified: yes",
+            f"  - handoff artifact 2 command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - handoff artifact 3: release-evidence-handoff-summary-json",
+            "  - handoff artifact 3 path: <release_evidence_handoff_summary.json>",
+            "  - handoff artifact 3 verified: yes",
+            f"  - handoff artifact 3 command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         ):
             if expected not in release_evidence_handoff_summary_result.stdout:
                 return "{} --release-evidence-handoff-summary did not print {}".format(
@@ -3632,11 +3646,25 @@ def require_public_launch_manifest_current():
             or release_evidence_handoff_summary_json.get("verified") is not True
             or release_evidence_handoff_summary_json.get("required_match_exit_code") != 0
             or release_evidence_handoff_summary_json.get("mismatch_count") != 0
+            or release_evidence_handoff_summary_json.get("handoff_artifact_count") != 3
+            or release_evidence_handoff_summary_json.get("verified_handoff_artifact_count") != 3
             or release_evidence_handoff_summary_json.get("first_mismatch") is not None
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("mismatch_count") != 0
             or release_evidence_handoff_summary_json.get("archive_gate", {}).get("verified") is not True
             or release_evidence_handoff_summary_json.get("archive_gate", {}).get("mismatch_count") != 0
+            or [artifact.get("id") for artifact in release_evidence_handoff_summary_json.get("handoff_artifacts", [])]
+            != [
+                "release-evidence-bundle",
+                "release-evidence-archive-record",
+                "release-evidence-handoff-summary-json",
+            ]
+            or release_evidence_handoff_summary_json.get("handoff_artifacts", [{}])[0].get("path")
+            != str(release_evidence_bundle_path)
+            or release_evidence_handoff_summary_json.get("handoff_artifacts", [{}, {}])[1].get("path")
+            != str(release_evidence_archive_record_path)
+            or release_evidence_handoff_summary_json.get("handoff_artifacts", [{}, {}, {}])[2].get("path")
+            != "<release_evidence_handoff_summary.json>"
             or release_evidence_handoff_summary_json.get("commands", {}).get("release_evidence_handoff_summary_json")
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
                 quoted_archive_record_path,
@@ -3752,6 +3780,8 @@ def require_public_launch_manifest_current():
         if (
             stale_release_evidence_handoff_summary_json.get("verified") is not False
             or stale_release_evidence_handoff_summary_json.get("required_match_exit_code") != 1
+            or stale_release_evidence_handoff_summary_json.get("handoff_artifact_count") != 3
+            or stale_release_evidence_handoff_summary_json.get("verified_handoff_artifact_count") != 1
             or stale_release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or stale_release_evidence_handoff_summary_json.get("archive_gate", {}).get("verified") is not False
             or stale_first_mismatch.get("source") != "archive_gate"
@@ -17978,6 +18008,7 @@ def main():
         ("release_evidence_bundle_sha256", "manifest hashes release evidence bundles for archive checks"),
         ("release_evidence_archive_check_payload", "manifest builds release evidence archive check JSON payloads"),
         ("release_evidence_archive_check_text", "manifest prints release evidence archive check guidance"),
+        ("release_evidence_handoff_artifacts", "manifest builds release evidence handoff artifact checklist"),
         ("release_evidence_handoff_summary_payload", "manifest builds release evidence handoff summary payloads"),
         ("release_evidence_handoff_summary_text", "manifest prints release evidence handoff summary guidance"),
         ("release_evidence_handoff_summary_json_text", "manifest prints release evidence handoff summary JSON guidance"),
@@ -19936,6 +19967,10 @@ def main():
         (
             "release_evidence_handoff_summary_command",
             "public launch manifest status-json release evidence handoff summary command documentation",
+        ),
+        (
+            "handoff_artifacts",
+            "public launch manifest release evidence handoff artifact checklist documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

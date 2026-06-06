@@ -234,7 +234,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json>`
   when release dashboards need one compact read-only handoff payload covering
   both the bundle gate and the filled archive record gate without adding a new
-  failing gate path.
+  failing gate path. The payload also lists the required handoff artifacts:
+  the bundle JSON, filled archive record JSON, and generated handoff summary
+  JSON.
   Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
@@ -1253,6 +1255,9 @@ stdout.
 Use `--release-evidence-handoff-summary --json` when automation needs a compact
 combined handoff view with `bundle_gate`, `archive_gate`, `verified`, and
 `required_match_exit_code` fields after the archive record has been filled.
+The same payload includes `handoff_artifacts`, `handoff_artifact_count`, and
+`verified_handoff_artifact_count` so release dashboards can retain the bundle,
+archive record, and generated handoff summary JSON as one publication checklist.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

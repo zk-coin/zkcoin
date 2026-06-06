@@ -7939,6 +7939,43 @@ def release_evidence_handoff_first_mismatch(bundle_gate, archive_gate):
     return None
 
 
+def release_evidence_handoff_artifacts(
+    bundle_gate,
+    archive_gate,
+    summary_json_command,
+    verified,
+):
+    return [
+        {
+            "step": 1,
+            "id": "release-evidence-bundle",
+            "description": "Retain the release evidence bundle JSON artifact.",
+            "path": bundle_gate["release_evidence_bundle"],
+            "verified": bundle_gate["verified"],
+            "command": bundle_gate["release_evidence_bundle_gate_json_command"],
+            "required_before_launch": True,
+        },
+        {
+            "step": 2,
+            "id": "release-evidence-archive-record",
+            "description": "Retain the filled release evidence archive record JSON.",
+            "path": archive_gate["release_evidence_archive_record"],
+            "verified": archive_gate["verified"],
+            "command": archive_gate["release_evidence_archive_gate_json_command"],
+            "required_before_launch": True,
+        },
+        {
+            "step": 3,
+            "id": "release-evidence-handoff-summary-json",
+            "description": "Publish the handoff summary JSON after both gates pass.",
+            "path": "<release_evidence_handoff_summary.json>",
+            "verified": verified,
+            "command": summary_json_command,
+            "required_before_launch": True,
+        },
+    ]
+
+
 def release_evidence_handoff_summary_payload(
     manifest,
     manifest_path,
@@ -7973,6 +8010,12 @@ def release_evidence_handoff_summary_payload(
         bundle_path,
         json_output=True,
     )
+    handoff_artifacts = release_evidence_handoff_artifacts(
+        bundle_gate,
+        archive_gate,
+        summary_json_command,
+        verified,
+    )
     return {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
@@ -7983,6 +8026,13 @@ def release_evidence_handoff_summary_payload(
         "mismatch_count": (
             bundle_gate["mismatch_count"] + archive_gate["mismatch_count"]
         ),
+        "handoff_artifact_count": len(handoff_artifacts),
+        "verified_handoff_artifact_count": len([
+            artifact
+            for artifact in handoff_artifacts
+            if artifact["verified"]
+        ]),
+        "handoff_artifacts": handoff_artifacts,
         "first_mismatch": release_evidence_handoff_first_mismatch(
             bundle_gate,
             archive_gate,
@@ -8041,6 +8091,8 @@ def release_evidence_handoff_summary_text_from_payload(payload):
         f"  - release evidence archive record: {payload['release_evidence_archive_record']}",
         f"  - release evidence bundle: {payload['release_evidence_bundle']}",
         f"  - mismatches: {payload['mismatch_count']}",
+        f"  - handoff artifacts: {payload['handoff_artifact_count']}",
+        f"  - verified handoff artifacts: {payload['verified_handoff_artifact_count']}",
         f"  - bundle gate verified: {yes_no(payload['bundle_gate']['verified'])}",
         f"  - bundle gate required-match exit code: {payload['bundle_gate']['required_match_exit_code']}",
         f"  - bundle gate mismatches: {payload['bundle_gate']['mismatch_count']}",
@@ -8055,6 +8107,16 @@ def release_evidence_handoff_summary_text_from_payload(payload):
         f"  - release evidence bundle gate JSON command: {payload['release_evidence_bundle_gate_json_command']}",
         f"  - release evidence archive gate JSON command: {payload['release_evidence_archive_gate_json_command']}",
     ]
+    for artifact in payload["handoff_artifacts"]:
+        lines.extend([
+            f"  - handoff artifact {artifact['step']}: {artifact['id']}",
+            f"  - handoff artifact {artifact['step']} path: {artifact['path']}",
+            (
+                f"  - handoff artifact {artifact['step']} verified: "
+                f"{yes_no(artifact['verified'])}"
+            ),
+            f"  - handoff artifact {artifact['step']} command: {artifact['command']}",
+        ])
     if payload["first_mismatch"] is not None:
         mismatch = payload["first_mismatch"]
         lines.extend([
