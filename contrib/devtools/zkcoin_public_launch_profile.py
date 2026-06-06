@@ -4340,6 +4340,77 @@ def network_readiness_summary_text(manifest, manifest_path, check, network):
     return "\n".join(lines)
 
 
+def network_readiness_summary_json_payload(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    progress = network_progress[network]
+    current_group = progress["next_blocked_field_group"]
+    current_blocker_id = current_group["id"] if current_group is not None else None
+    later_blockers = progress["unresolved_blockers"][1:]
+    blocked_blocker_types = blocked_blocker_types_by_network(blocked_field_groups)[network]
+    ready_blocker_types = ready_blocker_types_by_network(blocked_field_groups)[network]
+    return {
+        "schema_version": 1,
+        "network": network,
+        "ready_for_launch_profile": progress["ready_for_launch_profile"],
+        "unresolved_blockers": progress["unresolved_blockers"],
+        "unresolved_blocker_count": progress["unresolved_blocker_count"],
+        "blocked_fields": progress["blocked_fields"],
+        "blocked_field_count": progress["blocked_field_count"],
+        "blocked_blocker_types": blocked_blocker_types,
+        "blocked_blocker_type_count": len(blocked_blocker_types),
+        "ready_blocker_types": ready_blocker_types,
+        "ready_blocker_type_count": len(ready_blocker_types),
+        "current_blocker": current_group,
+        "current_blocker_id": current_blocker_id,
+        "current_blocker_field_count": (
+            current_group["field_count"] if current_group is not None else 0
+        ),
+        "current_commands": action_command_fields(current_group),
+        "later_blockers": later_blockers,
+        "later_blocker_count": len(later_blockers),
+        "later_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+        "network_readiness_summary_command": network_readiness_summary_command(
+            manifest_path,
+            network,
+        ),
+        "network_handoff_bundle_command": network_handoff_bundle_command(
+            manifest_path,
+            network,
+        ),
+        "network_later_blockers_command": network_later_blockers_command(
+            manifest_path,
+            network,
+        ),
+        "network_value_selection_later_blockers_command": (
+            network_value_selection_later_blockers_command(manifest_path, network)
+        ),
+    }
+
+
+def network_readiness_summary_json_text(manifest, manifest_path, check, network):
+    return json.dumps(
+        network_readiness_summary_json_payload(
+            manifest,
+            manifest_path,
+            check,
+            network,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def network_later_blockers_text(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -6014,6 +6085,7 @@ def main():
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
         and args.network_value_selection_later_blockers is None
+        and args.network_readiness_summary is None
         and args.network_later_blockers is None
         and args.blocker_type_readiness_summary is None
         and args.blocker_type_later_blockers is None
@@ -6024,7 +6096,8 @@ def main():
             "error: --json is only supported with --snapshot-audit-preflight, "
             "--check-snapshot-audit, --snapshot-audit-handoff, "
             "--network-handoff-bundle, --blocker-readiness-summary, "
-            "--network-value-selection-later-blockers, --network-later-blockers, "
+            "--network-value-selection-later-blockers, --network-readiness-summary, "
+            "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
             "--readiness-gate-summary, or --readiness-gate-later-blockers",
             file=sys.stderr,
@@ -6317,8 +6390,13 @@ def main():
             print("error: --network-readiness-summary does not write the manifest", file=sys.stderr)
             return 1
         try:
+            summary_text = (
+                network_readiness_summary_json_text
+                if args.json
+                else network_readiness_summary_text
+            )
             print(
-                network_readiness_summary_text(
+                summary_text(
                     manifest,
                     args.manifest,
                     check,
