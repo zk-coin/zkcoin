@@ -880,6 +880,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --readiness-gate-later-blockers READINESS_GATE \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --network-value-selection-later-blockers NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -913,6 +918,10 @@ candidate constraints, and readiness-summary command map for one network.
 Add `--json` to the blocker-type later-blocker command when automation needs
 machine-readable all remaining blockers for one blocker type, blocked fields,
 blocker field groups, candidate constraints, blocked networks, and
+readiness-summary command map.
+Add `--json` to the readiness-gate later-blocker command when automation needs
+machine-readable all remaining blockers for one readiness gate, blocked
+fields, blocker field groups, candidate constraints, blocker-type commands, and
 readiness-summary command map.
 Add `--json` to the network value-selection later-blocker command when
 automation needs machine-readable queued AuxPoW chain-id, public identity, and
