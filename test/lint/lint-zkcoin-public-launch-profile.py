@@ -762,6 +762,135 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        template_diff_manifest_path = Path(temp_dir) / "read-only-template-diff-manifest.json"
+        template_diff_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        template_diff_manifest_path.write_bytes(template_diff_manifest_bytes)
+        incomplete_audit_path = Path(temp_dir) / "incomplete-snapshot-audit.json"
+        incomplete_audit = dict(snapshot_template)
+        incomplete_audit.pop("snapshot_file_sha256")
+        incomplete_audit["unexpected_operator_note"] = "extra"
+        incomplete_audit_path.write_text(json.dumps(incomplete_audit, indent=2), encoding="utf8")
+        template_diff_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-template-diff",
+                "main",
+                str(incomplete_audit_path),
+                str(template_diff_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if template_diff_json_result.returncode != 0:
+            return "{} --snapshot-audit-template-diff --json failed for main: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                template_diff_json_result.stderr.strip()
+                or template_diff_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            template_diff_json = json.loads(template_diff_json_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --snapshot-audit-template-diff --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            template_diff_json.get("schema_version") != 1
+            or template_diff_json.get("network") != "main"
+            or template_diff_json.get("blocker") != "main.litecoin_snapshot"
+            or template_diff_json.get("readiness_gate") != "external_artifact"
+        ):
+            return "{} --snapshot-audit-template-diff --json did not expose diff identity".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            template_diff_json.get("artifact_verification_performed") is not False
+            or template_diff_json.get("value_validation_performed") is not False
+            or template_diff_json.get("json_parse_ok") is not True
+            or template_diff_json.get("json_object_ok") is not True
+            or template_diff_json.get("parse_error") is not None
+            or template_diff_json.get("duplicate_field") is not None
+        ):
+            return "{} --snapshot-audit-template-diff --json did not report a structural-only diff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            template_diff_json.get("template_fields") != expected_snapshot_audit_template_fields
+            or template_diff_json.get("template_field_count") != len(expected_snapshot_audit_template_fields)
+            or template_diff_json.get("missing_fields") != ["snapshot_file_sha256"]
+            or template_diff_json.get("missing_field_count") != 1
+            or template_diff_json.get("unexpected_fields") != ["unexpected_operator_note"]
+            or template_diff_json.get("unexpected_field_count") != 1
+            or template_diff_json.get("known_field_order_matches_template") is not True
+            or template_diff_json.get("field_order_matches_template") is not False
+            or template_diff_json.get("field_set_matches_template") is not False
+            or template_diff_json.get("ready_for_full_audit_check") is not False
+        ):
+            return "{} --snapshot-audit-template-diff --json did not expose missing and unexpected fields".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            template_diff_json.get("expected_source_chain") != "main"
+            or template_diff_json.get("source_chain") != "main"
+            or template_diff_json.get("source_chain_matches_network") is not True
+        ):
+            return "{} --snapshot-audit-template-diff --json did not expose source-chain status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        template_diff_commands = template_diff_json.get("commands", {})
+        if (
+            "--json --snapshot-audit-template-diff main" not in template_diff_commands.get("template_diff_json_command", "")
+            or incomplete_audit_path.name not in template_diff_commands.get("template_diff_json_command", "")
+            or incomplete_audit_path.name not in template_diff_commands.get("check_command", "")
+            or "<snapshot_audit.json>" in template_diff_commands.get("check_command", "")
+        ):
+            return "{} --snapshot-audit-template-diff --json did not expose audit-specific commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        template_diff_text_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--snapshot-audit-template-diff",
+                "main",
+                str(incomplete_audit_path),
+                str(template_diff_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if template_diff_text_result.returncode != 0:
+            return "{} --snapshot-audit-template-diff failed for main: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                template_diff_text_result.stderr.strip()
+                or template_diff_text_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "Snapshot audit template diff for main.",
+            "  - missing fields: snapshot_file_sha256",
+            "  - unexpected fields: unexpected_operator_note",
+            "  - artifact verification performed: no",
+            "  - ready for full audit check: no",
+        ):
+            if expected not in template_diff_text_result.stdout:
+                return "{} --snapshot-audit-template-diff did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+        if template_diff_manifest_path.read_bytes() != template_diff_manifest_bytes:
+            return "{} --snapshot-audit-template-diff modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     snapshot_handoff_result = subprocess.run(
         [
             sys.executable,
@@ -9092,7 +9221,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -14944,6 +15073,7 @@ def main():
         ("--mark-ready", "manifest guarded ready transition flag"),
         ("manual snapshot constants are not accepted", "manifest rejects manual snapshot constants"),
         ("--snapshot-audit-template", "manifest snapshot audit template flag"),
+        ("--snapshot-audit-template-diff", "manifest snapshot audit template diff flag"),
         ("--snapshot-audit-handoff", "manifest snapshot audit handoff flag"),
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--snapshot-audit-preflight", "manifest verified snapshot audit preflight flag"),
@@ -14985,6 +15115,9 @@ def main():
         ("snapshot_audit_template", "manifest builds snapshot audit templates"),
         ("snapshot_audit_template_json_payload", "manifest builds snapshot audit template JSON payloads"),
         ("snapshot_audit_template_json_text", "manifest prints machine-readable snapshot audit templates"),
+        ("snapshot_audit_template_diff_payload", "manifest builds snapshot audit template diff JSON payloads"),
+        ("snapshot_audit_template_diff_text", "manifest prints snapshot audit template diff summaries"),
+        ("snapshot_audit_template_diff_json_text", "manifest prints machine-readable snapshot audit template diffs"),
         ("verified_snapshot_audit_for_network", "manifest reuses verified snapshot audit checks"),
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_apply_command", "manifest prints snapshot audit apply commands after read-only checks"),
@@ -15005,6 +15138,7 @@ def main():
         ("SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES", "manifest caps snapshot audit summary input size"),
         ("snapshot audit summary must not exceed", "manifest rejects oversized snapshot audit summaries"),
         ("read_snapshot_audit_summary_text", "manifest enforces snapshot audit summary cap while reading"),
+        ("read_snapshot_audit_summary_text_from_path", "manifest reuses hardened snapshot audit summary reads"),
         ("require_snapshot_audit_summary_stable", "manifest rechecks snapshot audit summaries after reading"),
         ("snapshot audit summary is not valid UTF-8", "manifest rejects invalid UTF-8 snapshot audit summaries"),
         ("SNAPSHOT_AUDIT_SUMMARY_FIELDS", "manifest requires exact snapshot audit summary fields"),
@@ -16661,6 +16795,18 @@ def main():
         (
             "machine-readable template field order",
             "public launch manifest snapshot audit template JSON contents documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --snapshot-audit-template-diff NETWORK <snapshot_audit.json>",
+            "public launch manifest snapshot audit template diff documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --snapshot-audit-template-diff NETWORK <snapshot_audit.json>",
+            "public launch manifest snapshot audit template diff JSON documentation",
+        ),
+        (
+            "machine-readable parse/object status",
+            "public launch manifest snapshot audit template diff JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --snapshot-audit-handoff NETWORK",
