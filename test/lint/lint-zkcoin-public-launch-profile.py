@@ -4018,6 +4018,41 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count network value-selection later-blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    status_value_selection_json_commands = status_json.get(
+        "queued_value_selection_json_check_commands_by_network",
+        {},
+    )
+    status_value_selection_checklists = status_json.get(
+        "queued_value_selection_candidate_checklists_by_network",
+        {},
+    )
+    status_value_selection_checklist_summaries = status_json.get(
+        "queued_value_selection_candidate_checklist_summaries_by_network",
+        {},
+    )
+    if (
+        status_value_selection_json_commands.get("main", {}).get("main.auxpow_chain_id")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or status_value_selection_json_commands.get("main", {}).get("main.public_network_identity")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or status_value_selection_json_commands.get("testnet", {}).get("testnet.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds testnet <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or status_json.get("queued_value_selection_json_check_command_counts_by_network")
+        != {"main": 3, "testnet": 3}
+        or [step.get("blocker") for step in status_value_selection_checklists.get("main", [])]
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or [step.get("blocker_type") for step in status_value_selection_checklists.get("testnet", [])]
+        != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+        or status_value_selection_checklists.get("main", [{}])[1].get("field_count") != 10
+        or status_value_selection_checklists.get("testnet", [{}])[2].get("required_before_apply") is not True
+        or status_value_selection_checklist_summaries.get("main", {}).get("step_count") != 3
+        or status_value_selection_checklist_summaries.get("main", {}).get("all_steps_have_json_check_commands") is not True
+        or status_value_selection_checklist_summaries.get("testnet", {}).get("blockers")
+        != ["testnet.auxpow_chain_id", "testnet.public_network_identity", "testnet.dns_seeds"]
+    ):
+        return "{} --status-json did not expose queued value-selection checklists".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("blocker_type_readiness_summary_commands_by_blocker_type") != {
         "litecoin_snapshot": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "auxpow_chain_id": "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -7078,6 +7113,10 @@ def require_public_launch_manifest_current():
             )
         if quoted_manifest_path not in spaced_status_json.get("network_value_selection_later_blockers_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network value-selection later-blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("queued_value_selection_json_check_commands_by_network", {}).get("main", {}).get("main.auxpow_chain_id", ""):
+            return "{} --status-json did not shell-quote staged queued value-selection JSON check commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if quoted_manifest_path not in spaced_status_json.get("blocker_type_readiness_summary_commands_by_blocker_type", {}).get("litecoin_snapshot", ""):
@@ -15933,7 +15972,9 @@ def main():
         ("queued_value_selection_json_check_commands", "manifest exposes network handoff JSON candidate check command maps"),
         ("queued_value_selection_candidate_checklist", "manifest exposes network handoff value-selection checklist JSON"),
         ("queued_value_selection_json_check_commands_by_network", "manifest readiness summary exposes value-selection JSON check command maps"),
+        ("queued_value_selection_json_check_command_counts_by_network", "manifest status JSON counts value-selection JSON check command maps"),
         ("queued_value_selection_candidate_checklists_by_network", "manifest readiness summary exposes value-selection checklist maps"),
+        ("queued_value_selection_candidate_checklist_summaries_by_network", "manifest status JSON summarizes value-selection checklist maps"),
         ("next_action_text", "manifest prints next action guidance"),
         ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
         ("append_blocker_field_lines", "manifest prints human-readable blocked field paths"),
@@ -17936,6 +17977,22 @@ def main():
         (
             "network_value_selection_later_blockers_command_count",
             "public launch manifest status-json network value-selection later-blocker command count documentation",
+        ),
+        (
+            "queued_value_selection_json_check_commands_by_network",
+            "public launch manifest status-json queued value-selection JSON check command documentation",
+        ),
+        (
+            "queued_value_selection_json_check_command_counts_by_network",
+            "public launch manifest status-json queued value-selection JSON check command count documentation",
+        ),
+        (
+            "queued_value_selection_candidate_checklists_by_network",
+            "public launch manifest status-json queued value-selection checklist documentation",
+        ),
+        (
+            "queued_value_selection_candidate_checklist_summaries_by_network",
+            "public launch manifest status-json queued value-selection checklist summary documentation",
         ),
         (
             "next_commands_by_network",

@@ -6500,6 +6500,11 @@ def status_json_text(manifest, manifest_path, check):
     snapshot_audit_handoff_checklist_summary_by_network_map = snapshot_audit_handoff_checklist_summary_by_network(
         snapshot_audit_handoff_checklist_by_network_map,
     )
+    value_selection_states = network_value_selection_json_states(
+        blocked_field_groups,
+        network_progress,
+        manifest_path,
+    )
     commands = status_command_fields(manifest_path)
     command_keys = list(commands)
     command_values = list(commands.values())
@@ -6580,6 +6585,22 @@ def status_json_text(manifest, manifest_path, check):
             "network_later_blockers_command_count": len(network_later_commands),
             "network_value_selection_later_blockers_commands_by_network": network_value_selection_later_commands,
             "network_value_selection_later_blockers_command_count": len(network_value_selection_later_commands),
+            "queued_value_selection_json_check_commands_by_network": {
+                network: state["json_check_commands"]
+                for network, state in value_selection_states.items()
+            },
+            "queued_value_selection_json_check_command_counts_by_network": {
+                network: state["json_check_command_count"]
+                for network, state in value_selection_states.items()
+            },
+            "queued_value_selection_candidate_checklists_by_network": {
+                network: state["candidate_checklist"]
+                for network, state in value_selection_states.items()
+            },
+            "queued_value_selection_candidate_checklist_summaries_by_network": {
+                network: state["candidate_checklist_summary"]
+                for network, state in value_selection_states.items()
+            },
             "blocker_type_readiness_summary_commands_by_blocker_type": blocker_type_readiness_commands,
             "blocker_type_readiness_summary_command_count": len(blocker_type_readiness_commands),
             "blocker_type_later_blockers_commands_by_blocker_type": blocker_type_later_blockers_commands_by_type,
