@@ -868,6 +868,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 
 contrib/devtools/zkcoin_public_launch_profile.py \
   --json \
+  --readiness-gate-summary READINESS_GATE \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
   --blocker-type-readiness-summary BLOCKER_TYPE \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -923,6 +928,10 @@ candidate constraints, and readiness-summary command map for one network.
 Add `--json` to the blocker-type readiness-summary command when automation
 needs machine-readable current blocker state for one blocker type, blocked
 fields, blocked and ready networks, candidate constraints, and command
+shortcuts.
+Add `--json` to the readiness-gate summary command when automation needs
+machine-readable current blocker state for one readiness gate, blocked fields,
+blocker field groups, candidate constraints, blocker-type commands, and command
 shortcuts.
 Add `--json` to the blocker-type later-blocker command when automation needs
 machine-readable all remaining blockers for one blocker type, blocked fields,
