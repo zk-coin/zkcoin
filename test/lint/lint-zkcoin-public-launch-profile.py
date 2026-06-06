@@ -1732,6 +1732,21 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not alias readiness-gate next blocker commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    expected_next_snapshot_handoff_by_readiness_gate = {
+        gate: commands.get("snapshot_audit_handoff_command") if commands else None
+        for gate, commands in next_commands_by_readiness_gate.items()
+    }
+    if status_json.get("next_snapshot_audit_handoff_commands_by_readiness_gate") != expected_next_snapshot_handoff_by_readiness_gate:
+        return "{} --status-json did not expose readiness-gate next snapshot handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_snapshot_audit_handoff_command_counts_by_readiness_gate") != {
+        gate: 1 if command is not None else 0
+        for gate, command in expected_next_snapshot_handoff_by_readiness_gate.items()
+    }:
+        return "{} --status-json did not count readiness-gate next snapshot handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     next_groups_by_blocker_type = status_json.get("next_blocked_field_groups_by_blocker_type", {})
     if {
         blocker_type: group.get("id") if group else None
@@ -1781,6 +1796,21 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_blocker_commands_by_blocker_type") != next_commands_by_blocker_type:
         return "{} --status-json did not alias blocker-type next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_snapshot_handoff_by_blocker_type = {
+        blocker_type: commands.get("snapshot_audit_handoff_command") if commands else None
+        for blocker_type, commands in next_commands_by_blocker_type.items()
+    }
+    if status_json.get("next_snapshot_audit_handoff_commands_by_blocker_type") != expected_next_snapshot_handoff_by_blocker_type:
+        return "{} --status-json did not expose blocker-type next snapshot handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_snapshot_audit_handoff_command_counts_by_blocker_type") != {
+        blocker_type: 1 if command is not None else 0
+        for blocker_type, command in expected_next_snapshot_handoff_by_blocker_type.items()
+    }:
+        return "{} --status-json did not count blocker-type next snapshot handoff commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     blocker_type_progress = status_json.get("blocker_type_progress", {})
@@ -2273,6 +2303,21 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("next_blocker_commands_by_network") != next_commands_by_network:
         return "{} --status-json did not alias per-network next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    expected_next_snapshot_handoff_by_network = {
+        network: commands.get("snapshot_audit_handoff_command") if commands else None
+        for network, commands in next_commands_by_network.items()
+    }
+    if status_json.get("next_snapshot_audit_handoff_commands_by_network") != expected_next_snapshot_handoff_by_network:
+        return "{} --status-json did not expose per-network next snapshot handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("next_snapshot_audit_handoff_command_counts_by_network") != {
+        network: 1 if command is not None else 0
+        for network, command in expected_next_snapshot_handoff_by_network.items()
+    }:
+        return "{} --status-json did not count per-network next snapshot handoff commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     next_fields_by_network = status_json.get("next_blocked_fields_by_network", {})
@@ -5135,6 +5180,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not alias staged per-network next blocker commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("next_snapshot_audit_handoff_commands_by_network", {}).get("main", ""):
+            return "{} --status-json did not shell-quote staged per-network next snapshot handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_snapshot_audit_handoff_command_counts_by_network", {}).get("main") != 1:
+            return "{} --status-json did not count staged per-network next snapshot handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("next_commands_by_blocker_type", {}).get("litecoin_snapshot", {}).get("check_command", ""):
             return "{} --status-json did not shell-quote staged blocker-type next commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -5145,6 +5198,22 @@ def require_public_launch_manifest_current():
             )
         if spaced_status_json.get("next_blocker_commands_by_blocker_type") != spaced_status_json.get("next_commands_by_blocker_type"):
             return "{} --status-json did not alias staged blocker-type next blocker commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_snapshot_audit_handoff_commands_by_blocker_type", {}).get("litecoin_snapshot", ""):
+            return "{} --status-json did not shell-quote staged blocker-type next snapshot handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_snapshot_audit_handoff_command_counts_by_blocker_type", {}).get("litecoin_snapshot") != 1:
+            return "{} --status-json did not count staged blocker-type next snapshot handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if quoted_manifest_path not in spaced_status_json.get("next_snapshot_audit_handoff_commands_by_readiness_gate", {}).get("external_artifact", ""):
+            return "{} --status-json did not shell-quote staged readiness-gate next snapshot handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if spaced_status_json.get("next_snapshot_audit_handoff_command_counts_by_readiness_gate", {}).get("external_artifact") != 1:
+            return "{} --status-json did not count staged readiness-gate next snapshot handoff commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"--in-place {quoted_manifest_path}" not in spaced_status_json.get("blocked_field_groups", [{}])[0].get("action", ""):
@@ -10999,6 +11068,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported per-network next blocker command aliases for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if complete_status.get("next_snapshot_audit_handoff_commands_by_network") != {"main": None, "testnet": None}:
+            return "{} --status-json reported per-network next snapshot handoff commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_snapshot_audit_handoff_command_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted per-network next snapshot handoff commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         empty_next_by_blocker_type = {
             "litecoin_snapshot": None,
             "auxpow_chain_id": None,
@@ -11015,6 +11092,26 @@ def require_public_launch_manifest_current():
             )
         if complete_status.get("next_blocker_commands_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next blocker command aliases for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_snapshot_audit_handoff_commands_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next snapshot handoff commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_snapshot_audit_handoff_command_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type:
+            return "{} --status-json counted blocker-type next snapshot handoff commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        empty_next_by_readiness_gate = {
+            gate: None
+            for gate in expected_readiness_gates
+        }
+        if complete_status.get("next_snapshot_audit_handoff_commands_by_readiness_gate") != empty_next_by_readiness_gate:
+            return "{} --status-json reported readiness-gate next snapshot handoff commands for a complete blocked manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if complete_status.get("next_snapshot_audit_handoff_command_counts_by_readiness_gate") != empty_counts_by_readiness_gate:
+            return "{} --status-json counted readiness-gate next snapshot handoff commands for a complete blocked manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if complete_status.get("next_blocked_field_groups_by_blocker_type") != empty_next_by_blocker_type:
@@ -11696,6 +11793,14 @@ def require_public_launch_manifest_current():
             return "{} --status-json reported per-network next blocker command aliases for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if ready_status.get("next_snapshot_audit_handoff_commands_by_network") != {"main": None, "testnet": None}:
+            return "{} --status-json reported per-network next snapshot handoff commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_snapshot_audit_handoff_command_counts_by_network") != {"main": 0, "testnet": 0}:
+            return "{} --status-json counted per-network next snapshot handoff commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if ready_status.get("next_actions_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next actions for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -11706,6 +11811,22 @@ def require_public_launch_manifest_current():
             )
         if ready_status.get("next_blocker_commands_by_blocker_type") != empty_next_by_blocker_type:
             return "{} --status-json reported blocker-type next blocker command aliases for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_snapshot_audit_handoff_commands_by_blocker_type") != empty_next_by_blocker_type:
+            return "{} --status-json reported blocker-type next snapshot handoff commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_snapshot_audit_handoff_command_counts_by_blocker_type") != empty_blocker_counts_by_blocker_type:
+            return "{} --status-json counted blocker-type next snapshot handoff commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_snapshot_audit_handoff_commands_by_readiness_gate") != empty_next_by_readiness_gate:
+            return "{} --status-json reported readiness-gate next snapshot handoff commands for a ready manifest".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if ready_status.get("next_snapshot_audit_handoff_command_counts_by_readiness_gate") != empty_counts_by_readiness_gate:
+            return "{} --status-json counted readiness-gate next snapshot handoff commands for a ready manifest".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if ready_status.get("next_blocked_field_groups_by_blocker_type") != empty_next_by_blocker_type:
@@ -12926,6 +13047,8 @@ def main():
         ("next_actions_by_readiness_gate", "manifest exposes next action entries by readiness gate"),
         ("next_commands_by_readiness_gate", "manifest exposes next commands by readiness gate"),
         ("next_blocker_commands_by_readiness_gate", "manifest aliases next blocker commands by readiness gate"),
+        ("command_field_values_by_group", "manifest extracts command-field maps by group"),
+        ("command_field_counts_by_group", "manifest counts command-field maps by group"),
         ("blockers_by_blocker_type", "manifest groups blocker entries by blocker type"),
         ("blocker_counts_by_blocker_type", "manifest counts blocker entries by blocker type"),
         ("blockers_by_network_and_blocker_type", "manifest groups blocker entries by network and blocker type"),
@@ -13172,9 +13295,13 @@ def main():
         ("next_actions_by_blocker_type", "manifest status JSON includes next actions by blocker type"),
         ("next_commands_by_blocker_type", "manifest status JSON includes next commands by blocker type"),
         ("next_blocker_commands_by_blocker_type", "manifest status JSON aliases blocker-type next blocker commands"),
+        ("next_snapshot_audit_handoff_commands_by_blocker_type", "manifest status JSON includes blocker-type next snapshot handoff commands"),
+        ("next_snapshot_audit_handoff_command_counts_by_blocker_type", "manifest status JSON counts blocker-type next snapshot handoff commands"),
         ("next_actions_by_readiness_gate", "manifest status JSON includes next actions by readiness gate"),
         ("next_commands_by_readiness_gate", "manifest status JSON includes next commands by readiness gate"),
         ("next_blocker_commands_by_readiness_gate", "manifest status JSON aliases readiness-gate next blocker commands"),
+        ("next_snapshot_audit_handoff_commands_by_readiness_gate", "manifest status JSON includes readiness-gate next snapshot handoff commands"),
+        ("next_snapshot_audit_handoff_command_counts_by_readiness_gate", "manifest status JSON counts readiness-gate next snapshot handoff commands"),
         ("next_blocked_field_groups_by_blocker_type", "manifest status JSON includes blocker-type next blocked field groups"),
         ("next_blocker_field_groups_by_blocker_type", "manifest status JSON aliases blocker-type next blocker field groups"),
         ("next_blocked_fields_by_blocker_type", "manifest status JSON includes blocker-type next blocked fields"),
@@ -13294,6 +13421,8 @@ def main():
         ("readiness_gate_progress", "manifest status JSON includes readiness-gate progress entries"),
         ("next_commands_by_network", "manifest status JSON includes per-network next commands"),
         ("next_blocker_commands_by_network", "manifest status JSON aliases per-network next blocker commands"),
+        ("next_snapshot_audit_handoff_commands_by_network", "manifest status JSON includes per-network next snapshot handoff commands"),
+        ("next_snapshot_audit_handoff_command_counts_by_network", "manifest status JSON counts per-network next snapshot handoff commands"),
         ("next_blocked_field_groups_by_network", "manifest status JSON includes per-network next blocked field groups"),
         ("next_blocker_field_groups_by_network", "manifest status JSON aliases per-network next blocker field groups"),
         ("next_blocked_fields_by_network", "manifest status JSON includes per-network next blocked fields"),
@@ -14537,6 +14666,14 @@ def main():
             "public launch manifest status-json blocker-type next blocker command alias documentation",
         ),
         (
+            "next_snapshot_audit_handoff_commands_by_blocker_type",
+            "public launch manifest status-json blocker-type next snapshot handoff command documentation",
+        ),
+        (
+            "next_snapshot_audit_handoff_command_counts_by_blocker_type",
+            "public launch manifest status-json blocker-type next snapshot handoff command count documentation",
+        ),
+        (
             "next_actions_by_readiness_gate",
             "public launch manifest status-json readiness-gate next action documentation",
         ),
@@ -14547,6 +14684,14 @@ def main():
         (
             "next_blocker_commands_by_readiness_gate",
             "public launch manifest status-json readiness-gate next blocker command alias documentation",
+        ),
+        (
+            "next_snapshot_audit_handoff_commands_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next snapshot handoff command documentation",
+        ),
+        (
+            "next_snapshot_audit_handoff_command_counts_by_readiness_gate",
+            "public launch manifest status-json readiness-gate next snapshot handoff command count documentation",
         ),
         (
             "action_plan_command",
@@ -14895,6 +15040,14 @@ def main():
         (
             "next_blocker_commands_by_network",
             "public launch manifest status-json network next blocker command alias documentation",
+        ),
+        (
+            "next_snapshot_audit_handoff_commands_by_network",
+            "public launch manifest status-json network next snapshot handoff command documentation",
+        ),
+        (
+            "next_snapshot_audit_handoff_command_counts_by_network",
+            "public launch manifest status-json network next snapshot handoff command count documentation",
         ),
         (
             "next_blocked_field_groups_by_network",
