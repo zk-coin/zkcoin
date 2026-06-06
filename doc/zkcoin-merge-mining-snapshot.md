@@ -640,6 +640,8 @@ Both are intentionally present before behavior changes so tests and review can t
   inherited Litecoin seed hostnames. After choosing the public network identity,
   verify it without modifying the manifest with
   `contrib/devtools/zkcoin_public_launch_profile.py --check-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`,
+  or `contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`
+  when automation needs machine-readable identity and post-apply progress,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-identity NETWORK <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp>`;
   the read-only identity check reports the exact apply command, remaining blocker
@@ -648,7 +650,10 @@ Both are intentionally present before behavior changes so tests and review can t
   post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
-  the candidate, and next scoped summary commands for that next blocker, so reviewers can verify identity handoff progress before changing the manifest;
+  the candidate, and next scoped summary commands for that next blocker; the
+  JSON form exposes the same identity values, constraints, commands, and
+  post-apply blocker counts without parsing the human handoff text, so
+  reviewers can verify identity handoff progress before changing the manifest;
   byte values may be decimal, `0x..`, comma-separated, or compact hex for
   multi-byte fields, and the validator rejects inherited Litecoin message
   starts, ports, Base58 prefixes, HRPs, overlong HRPs, duplicate prefixes, and
