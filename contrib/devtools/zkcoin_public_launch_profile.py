@@ -2227,6 +2227,28 @@ def snapshot_audit_template_json_text(network, manifest_path):
     )
 
 
+def read_snapshot_audit_summary_text_from_path(audit_path):
+    audit_summary_path = Path(audit_path)
+    fd, audit_summary_stat = open_regular_file_no_symlink(
+        audit_summary_path,
+        symlink_error="snapshot audit summary must not be a symlink",
+        missing_error="cannot read snapshot audit summary",
+        not_regular_error="snapshot audit summary must be a regular file",
+        open_error="cannot read snapshot audit summary",
+        parent_symlink_error="snapshot audit summary parent directory must not be a symlink",
+    )
+    audit_summary_size = audit_summary_stat.st_size
+    if audit_summary_size > SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(snapshot_audit_summary_too_large_error(audit_summary_path))
+    try:
+        audit_summary_text = read_snapshot_audit_summary_text(fd, audit_summary_path)
+        require_snapshot_audit_summary_stable(audit_summary_path, audit_summary_stat, fd)
+        return audit_summary_text
+    finally:
+        os.close(fd)
+
+
 def open_direct_parent_directory_for_read(path, *, parent_symlink_error, missing_error, open_error):
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     if nofollow == 0 and path.parent.is_symlink():
@@ -2791,6 +2813,244 @@ def snapshot_audit_check_command(network, audit_path, manifest_path):
     audit_path = shell_quote(display_path(audit_path))
     manifest_path = shell_quote(display_path(manifest_path))
     return f"{tool_path} --check-snapshot-audit {network} {audit_path} {manifest_path}"
+
+
+def snapshot_audit_preflight_command(network, audit_path, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    audit_path = shell_quote(display_path(audit_path))
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --snapshot-audit-preflight {network} {audit_path} {manifest_path}"
+
+
+def snapshot_audit_template_command(network, manifest_path, *, json_output=False):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    json_arg = "--json " if json_output else ""
+    return f"{tool_path} {json_arg}--snapshot-audit-template {network} {manifest_path}"
+
+
+def snapshot_audit_template_diff_command(network, audit_path, manifest_path, *, json_output=False):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    audit_path = shell_quote(display_path(audit_path))
+    manifest_path = shell_quote(display_path(manifest_path))
+    json_arg = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_arg}--snapshot-audit-template-diff {network} "
+        f"{audit_path} {manifest_path}"
+    )
+
+
+def snapshot_audit_template_diff_payload(network, audit_path, manifest_path):
+    template = snapshot_audit_template(network)
+    template_fields = list(SNAPSHOT_AUDIT_SUMMARY_FIELDS)
+    expected_source_chain = SNAPSHOT_SOURCE_CHAINS[network]
+    blocker_id = f"{network}.litecoin_snapshot"
+    audit_summary_text = read_snapshot_audit_summary_text_from_path(audit_path)
+
+    audit = None
+    parse_error = None
+    duplicate_field = None
+    try:
+        audit = json.loads(
+            audit_summary_text,
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
+    except DuplicateJSONFieldError as exc:
+        duplicate_field = str(exc)
+        parse_error = f"snapshot audit summary contains duplicate field: {exc}"
+    except json.JSONDecodeError as exc:
+        parse_error = f"snapshot audit summary is not valid JSON: {exc}"
+
+    json_parse_ok = parse_error is None
+    json_object_ok = isinstance(audit, dict)
+    audit_fields = list(audit) if json_object_ok else []
+    known_fields = [field for field in audit_fields if field in SNAPSHOT_AUDIT_SUMMARY_FIELDS]
+    present_template_fields = [
+        field for field in template_fields
+        if json_object_ok and field in audit
+    ]
+    missing_fields = [
+        field for field in template_fields
+        if json_object_ok and field not in audit
+    ]
+    unexpected_fields = [
+        field for field in audit_fields
+        if field not in SNAPSHOT_AUDIT_SUMMARY_FIELDS
+    ]
+    source_chain = audit.get("source_chain") if json_object_ok else None
+    source_chain_matches_network = source_chain == expected_source_chain
+    field_set_matches_template = (
+        json_object_ok
+        and not missing_fields
+        and not unexpected_fields
+    )
+    known_field_order_matches_template = (
+        json_object_ok
+        and known_fields == present_template_fields
+    )
+    field_order_matches_template = (
+        json_object_ok
+        and audit_fields == template_fields
+    )
+    ready_for_full_audit_check = (
+        json_parse_ok
+        and json_object_ok
+        and field_set_matches_template
+        and field_order_matches_template
+        and source_chain_matches_network
+    )
+
+    issues = []
+    if parse_error is not None:
+        issues.append({
+            "kind": "json_parse",
+            "message": parse_error,
+        })
+    elif not json_object_ok:
+        issues.append({
+            "kind": "json_object",
+            "message": "snapshot audit summary must be a JSON object",
+        })
+    if missing_fields:
+        issues.append({
+            "kind": "missing_fields",
+            "fields": missing_fields,
+            "field_count": len(missing_fields),
+        })
+    if unexpected_fields:
+        issues.append({
+            "kind": "unexpected_fields",
+            "fields": unexpected_fields,
+            "field_count": len(unexpected_fields),
+        })
+    if json_object_ok and not known_field_order_matches_template:
+        issues.append({
+            "kind": "field_order",
+            "message": "known snapshot audit fields are not in template order",
+        })
+    if (
+        json_object_ok
+        and field_set_matches_template
+        and not field_order_matches_template
+    ):
+        issues.append({
+            "kind": "exact_field_order",
+            "message": "snapshot audit summary field order must match --snapshot-audit-template output",
+        })
+    if json_object_ok and not source_chain_matches_network:
+        issues.append({
+            "kind": "source_chain",
+            "expected": expected_source_chain,
+            "actual": source_chain,
+        })
+
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": blocker_id,
+        "readiness_gate": blocker_type_readiness_gate("litecoin_snapshot"),
+        "audit_summary_path": display_path(audit_path),
+        "artifact_verification_performed": False,
+        "value_validation_performed": False,
+        "expected_source_chain": expected_source_chain,
+        "source_chain": source_chain,
+        "source_chain_matches_network": source_chain_matches_network,
+        "template": template,
+        "template_fields": template_fields,
+        "template_field_count": len(template_fields),
+        "fields": audit_fields,
+        "field_count": len(audit_fields),
+        "known_fields": known_fields,
+        "known_field_count": len(known_fields),
+        "present_template_fields": present_template_fields,
+        "present_template_field_count": len(present_template_fields),
+        "missing_fields": missing_fields,
+        "missing_field_count": len(missing_fields),
+        "unexpected_fields": unexpected_fields,
+        "unexpected_field_count": len(unexpected_fields),
+        "field_set_matches_template": field_set_matches_template,
+        "known_field_order_matches_template": known_field_order_matches_template,
+        "field_order_matches_template": field_order_matches_template,
+        "json_parse_ok": json_parse_ok,
+        "json_object_ok": json_object_ok,
+        "duplicate_field": duplicate_field,
+        "parse_error": parse_error,
+        "ready_for_full_audit_check": ready_for_full_audit_check,
+        "issues": issues,
+        "issue_count": len(issues),
+        "commands": {
+            "template_command": snapshot_audit_template_command(network, manifest_path),
+            "template_json_command": snapshot_audit_template_command(
+                network,
+                manifest_path,
+                json_output=True,
+            ),
+            "template_diff_command": snapshot_audit_template_diff_command(
+                network,
+                audit_path,
+                manifest_path,
+            ),
+            "template_diff_json_command": snapshot_audit_template_diff_command(
+                network,
+                audit_path,
+                manifest_path,
+                json_output=True,
+            ),
+            "check_command": snapshot_audit_check_command(network, audit_path, manifest_path),
+            "preflight_command": snapshot_audit_preflight_command(network, audit_path, manifest_path),
+            "apply_command": snapshot_audit_apply_command(network, audit_path, manifest_path),
+            "snapshot_audit_handoff_command": snapshot_audit_handoff_command(
+                manifest_path,
+                network,
+            ),
+            "network_handoff_bundle_command": network_handoff_bundle_command(
+                manifest_path,
+                network,
+            ),
+            "blocker_readiness_summary_command": blocker_readiness_summary_command(
+                manifest_path,
+                blocker_id,
+            ),
+        },
+    }
+
+
+def snapshot_audit_template_diff_text(network, audit_path, manifest_path):
+    diff = snapshot_audit_template_diff_payload(network, audit_path, manifest_path)
+    lines = [
+        f"Snapshot audit template diff for {network}.",
+        f"  - audit summary: {diff['audit_summary_path']}",
+        f"  - JSON parse ok: {yes_no(diff['json_parse_ok'])}",
+        f"  - JSON object ok: {yes_no(diff['json_object_ok'])}",
+        f"  - template field count: {diff['template_field_count']}",
+        f"  - present field count: {diff['field_count']}",
+        f"  - missing fields: {list_summary(diff['missing_fields'])}",
+        f"  - unexpected fields: {list_summary(diff['unexpected_fields'])}",
+        f"  - known field order matches template: {yes_no(diff['known_field_order_matches_template'])}",
+        f"  - exact field order matches template: {yes_no(diff['field_order_matches_template'])}",
+        f"  - expected source chain: {diff['expected_source_chain']}",
+        f"  - source chain: {diff['source_chain'] if diff['source_chain'] is not None else 'none'}",
+        f"  - source chain matches network: {yes_no(diff['source_chain_matches_network'])}",
+        f"  - artifact verification performed: {yes_no(diff['artifact_verification_performed'])}",
+        f"  - ready for full audit check: {yes_no(diff['ready_for_full_audit_check'])}",
+    ]
+    if diff["parse_error"] is not None:
+        lines.append(f"  - parse error: {diff['parse_error']}")
+    lines.extend((
+        f"  - template diff JSON command: {diff['commands']['template_diff_json_command']}",
+        f"  - check command: {diff['commands']['check_command']}",
+        f"  - preflight command: {diff['commands']['preflight_command']}",
+        f"  - apply command: {diff['commands']['apply_command']}",
+    ))
+    return "\n".join(lines)
+
+
+def snapshot_audit_template_diff_json_text(network, audit_path, manifest_path):
+    return json.dumps(
+        snapshot_audit_template_diff_payload(network, audit_path, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
 
 
 def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_path):
@@ -6135,6 +6395,8 @@ def selected_primary_actions(args):
         actions.append("--check-snapshot-audit")
     if args.snapshot_audit_handoff is not None:
         actions.append("--snapshot-audit-handoff")
+    if args.snapshot_audit_template_diff is not None:
+        actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
         actions.append("--set-auxpow")
     if args.check_auxpow is not None:
@@ -6206,6 +6468,12 @@ def main():
         "--snapshot-audit-template",
         metavar="NETWORK",
         help="print the required snapshot audit summary JSON shape for one public network",
+    )
+    parser.add_argument(
+        "--snapshot-audit-template-diff",
+        nargs=2,
+        metavar=("NETWORK", "AUDIT_JSON"),
+        help="compare one snapshot audit summary with the required template without verifying the artifact",
     )
     parser.add_argument(
         "--check-chainparams",
@@ -6325,6 +6593,7 @@ def main():
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
         and args.snapshot_audit_template is None
+        and args.snapshot_audit_template_diff is None
         and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
@@ -6338,6 +6607,7 @@ def main():
     ):
         print(
             "error: --json is only supported with --snapshot-audit-template, "
+            "--snapshot-audit-template-diff, "
             "--snapshot-audit-preflight, --check-snapshot-audit, "
             "--snapshot-audit-handoff, "
             "--readiness-summary, --network-handoff-bundle, "
@@ -6382,6 +6652,28 @@ def main():
                 print(template_text(args.snapshot_audit_template, args.manifest))
             else:
                 print(template_text(args.snapshot_audit_template))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.snapshot_audit_template_diff is not None:
+        if args.in_place:
+            print("error: --snapshot-audit-template-diff does not write the manifest", file=sys.stderr)
+            return 1
+        try:
+            diff_text = (
+                snapshot_audit_template_diff_json_text
+                if args.json
+                else snapshot_audit_template_diff_text
+            )
+            print(
+                diff_text(
+                    args.snapshot_audit_template_diff[0],
+                    args.snapshot_audit_template_diff[1],
+                    args.manifest,
+                )
+            )
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
