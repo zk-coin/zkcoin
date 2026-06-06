@@ -4038,6 +4038,12 @@ def value_selection_checklists_command(manifest_path):
     return f"{tool_path} --value-selection-checklists {manifest_path}"
 
 
+def launch_gate_preflight_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --launch-gate-preflight {manifest_path}"
+
+
 def next_action_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -4727,6 +4733,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - status JSON command: {status_json_command(manifest_path)}",
         f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
+        f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -4853,6 +4860,9 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
             manifest_path,
         ),
         "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
+            manifest_path,
+        ),
+        "launch_gate_preflight_command": launch_gate_preflight_command(
             manifest_path,
         ),
         "blocked_networks": blocked_networks(network_progress),
@@ -6253,6 +6263,219 @@ def value_selection_checklists_json_text(manifest, manifest_path, check):
     )
 
 
+def launch_gate_preflight_state(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    readiness_gate_progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
+    snapshot_state = snapshot_audit_handoffs_state(manifest, manifest_path, check)
+    snapshot_summary = snapshot_audit_handoffs_summary(snapshot_state)
+    value_selection_states = value_selection_checklists_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    value_selection_summary = value_selection_checklists_summary(
+        value_selection_states,
+    )
+    gate_commands = {
+        "external_artifact": snapshot_audit_handoffs_command(manifest_path),
+        "value_selection": value_selection_checklists_command(manifest_path),
+    }
+    gates = {}
+    for gate in READINESS_GATES:
+        progress = readiness_gate_progress[gate]
+        next_group = progress["next_blocked_field_group"]
+        gates[gate] = {
+            "ready_for_launch_profile": progress["ready_for_launch_profile"],
+            "blocker_types": progress["blocker_types"],
+            "blocker_type_count": progress["blocker_type_count"],
+            "unresolved_blockers": progress["unresolved_blockers"],
+            "unresolved_blocker_count": progress["unresolved_blocker_count"],
+            "blocked_field_count": progress["blocked_field_count"],
+            "blocked_field_group_count": progress["blocked_field_group_count"],
+            "next_blocker": next_group["id"] if next_group is not None else None,
+            "next_blocker_network": (
+                next_group["network"] if next_group is not None else None
+            ),
+            "next_blocker_type": (
+                next_group["blocker_type"] if next_group is not None else None
+            ),
+            "handoff_command": gate_commands[gate],
+        }
+    gates["external_artifact"].update({
+        "required_external_artifact_count": (
+            snapshot_summary["required_artifact_count"]
+        ),
+        "checklist_step_count": snapshot_summary["step_count"],
+        "available_command_count": snapshot_summary["available_command_count"],
+    })
+    gates["value_selection"].update({
+        "required_json_check_count": (
+            value_selection_summary["required_json_check_count"]
+        ),
+        "checklist_step_count": value_selection_summary["step_count"],
+        "apply_command_count": value_selection_summary["apply_command_count"],
+        "all_steps_have_json_check_commands": (
+            value_selection_summary["all_steps_have_json_check_commands"]
+        ),
+        "all_steps_require_operator_selected_values": (
+            value_selection_summary[
+                "all_steps_require_operator_selected_values"
+            ]
+        ),
+    })
+    return {
+        "gates": gates,
+        "gate_commands": gate_commands,
+        "snapshot_audit": {
+            "summary": snapshot_summary,
+            "checklist_summary_by_network": (
+                snapshot_state["checklist_summary_by_network"]
+            ),
+        },
+        "value_selection": {
+            "summary": value_selection_summary,
+            "checklist_summaries_by_network": {
+                network: state["candidate_checklist_summary"]
+                for network, state in value_selection_states.items()
+            },
+            "json_check_command_counts_by_network": {
+                network: state["json_check_command_count"]
+                for network, state in value_selection_states.items()
+            },
+        },
+    }
+
+
+def launch_gate_preflight_summary(preflight_state):
+    gates = preflight_state["gates"]
+    blocked_gates = [
+        gate
+        for gate in READINESS_GATES
+        if not gates[gate]["ready_for_launch_profile"]
+    ]
+    ready_gates = [
+        gate
+        for gate in READINESS_GATES
+        if gates[gate]["ready_for_launch_profile"]
+    ]
+    return {
+        "readiness_gate_count": len(READINESS_GATES),
+        "blocked_gate_count": len(blocked_gates),
+        "blocked_gates": blocked_gates,
+        "ready_gate_count": len(ready_gates),
+        "ready_gates": ready_gates,
+        "unresolved_blocker_count": sum(
+            gate["unresolved_blocker_count"]
+            for gate in gates.values()
+        ),
+        "blocked_field_count": sum(
+            gate["blocked_field_count"]
+            for gate in gates.values()
+        ),
+        "required_external_artifact_count": (
+            gates["external_artifact"]["required_external_artifact_count"]
+        ),
+        "required_json_check_count": (
+            gates["value_selection"]["required_json_check_count"]
+        ),
+        "checklist_step_count": sum(
+            gate["checklist_step_count"]
+            for gate in gates.values()
+        ),
+        "gate_commands": preflight_state["gate_commands"],
+    }
+
+
+def launch_gate_preflight_text(manifest, manifest_path, check):
+    preflight_state = launch_gate_preflight_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    summary = launch_gate_preflight_summary(preflight_state)
+    gates = preflight_state["gates"]
+    lines = [
+        "zkCoin public launch profile launch-gate preflight:",
+        f"  - status: {manifest.get('status')}",
+        f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
+        f"  - readiness gates: {list_summary(READINESS_GATES)}",
+        f"  - blocked gates: {list_summary(summary['blocked_gates'])}",
+        f"  - ready gates: {list_summary(summary['ready_gates'])}",
+        f"  - unresolved blockers: {summary['unresolved_blocker_count']}",
+        f"  - blocked fields: {summary['blocked_field_count']}",
+        f"  - external_artifact blockers: {gates['external_artifact']['unresolved_blocker_count']}",
+        f"  - external_artifact blocked fields: {gates['external_artifact']['blocked_field_count']}",
+        f"  - external_artifact required external artifacts: {gates['external_artifact']['required_external_artifact_count']}",
+        f"  - external_artifact checklist steps: {gates['external_artifact']['checklist_step_count']}",
+        f"  - external_artifact handoff command: {gates['external_artifact']['handoff_command']}",
+        f"  - value_selection blockers: {gates['value_selection']['unresolved_blocker_count']}",
+        f"  - value_selection blocked fields: {gates['value_selection']['blocked_field_count']}",
+        f"  - value_selection required JSON checks: {gates['value_selection']['required_json_check_count']}",
+        f"  - value_selection checklist steps: {gates['value_selection']['checklist_step_count']}",
+        f"  - value_selection handoff command: {gates['value_selection']['handoff_command']}",
+    ]
+    return "\n".join(lines)
+
+
+def launch_gate_preflight_json_payload(manifest, manifest_path, check):
+    preflight_state = launch_gate_preflight_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "launch_gate_preflight_command": launch_gate_preflight_command(
+            manifest_path,
+        ),
+        "readiness_gates": list(READINESS_GATES),
+        "readiness_gate_count": len(READINESS_GATES),
+        "gate_preflight_by_readiness_gate": preflight_state["gates"],
+        "gate_commands_by_readiness_gate": preflight_state["gate_commands"],
+        "snapshot_audit_handoffs_command": (
+            preflight_state["gate_commands"]["external_artifact"]
+        ),
+        "value_selection_checklists_command": (
+            preflight_state["gate_commands"]["value_selection"]
+        ),
+        "snapshot_audit_handoffs_summary": (
+            preflight_state["snapshot_audit"]["summary"]
+        ),
+        "snapshot_audit_handoff_checklist_summary_by_network": (
+            preflight_state["snapshot_audit"]["checklist_summary_by_network"]
+        ),
+        "value_selection_checklists_summary": (
+            preflight_state["value_selection"]["summary"]
+        ),
+        "queued_value_selection_candidate_checklist_summaries_by_network": (
+            preflight_state["value_selection"]["checklist_summaries_by_network"]
+        ),
+        "queued_value_selection_json_check_command_counts_by_network": (
+            preflight_state["value_selection"][
+                "json_check_command_counts_by_network"
+            ]
+        ),
+        "summary": launch_gate_preflight_summary(preflight_state),
+    }
+
+
+def launch_gate_preflight_json_text(manifest, manifest_path, check):
+    return json.dumps(
+        launch_gate_preflight_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def network_value_selection_later_blockers_json_payload(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -6894,6 +7117,9 @@ def status_json_text(manifest, manifest_path, check):
             "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
                 manifest_path,
             ),
+            "launch_gate_preflight_command": launch_gate_preflight_command(
+                manifest_path,
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -7181,6 +7407,8 @@ def selected_primary_actions(args):
         actions.append("--snapshot-audit-handoff")
     if args.snapshot_audit_handoffs:
         actions.append("--snapshot-audit-handoffs")
+    if args.launch_gate_preflight:
+        actions.append("--launch-gate-preflight")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -7240,6 +7468,7 @@ def main():
     parser.add_argument("--next-action", action="store_true", help="print the next unresolved public launch-profile action")
     parser.add_argument("--action-plan", action="store_true", help="print every unresolved public launch-profile action in blocker order")
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
+    parser.add_argument("--launch-gate-preflight", action="store_true", help="print compact launch-gate preflight handoffs for external artifacts and value selection")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
     parser.add_argument("--network-later-blockers", metavar="NETWORK", help="print the queued later blockers for one public network")
@@ -7387,6 +7616,7 @@ def main():
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
         and not args.snapshot_audit_handoffs
+        and not args.launch_gate_preflight
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -7417,7 +7647,7 @@ def main():
             "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
             "--readiness-gate-summary, --readiness-gate-later-blockers, "
-            "or --value-selection-checklists",
+            "--launch-gate-preflight, or --value-selection-checklists",
             file=sys.stderr,
         )
         return 1
@@ -7560,6 +7790,10 @@ def main():
         if args.in_place:
             print("error: --snapshot-audit-handoffs does not write the manifest", file=sys.stderr)
             return 1
+    if args.launch_gate_preflight:
+        if args.in_place:
+            print("error: --launch-gate-preflight does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -7666,6 +7900,8 @@ def main():
         allow_blocked = True
     if args.readiness_summary:
         allow_blocked = True
+    if args.launch_gate_preflight:
+        allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
     if args.snapshot_audit_handoff is not None:
@@ -7768,6 +8004,15 @@ def main():
             else snapshot_audit_handoffs_text
         )
         print(handoffs_text(manifest, args.manifest, check))
+        return 0
+
+    if args.launch_gate_preflight:
+        preflight_text = (
+            launch_gate_preflight_json_text
+            if args.json
+            else launch_gate_preflight_text
+        )
+        print(preflight_text(manifest, args.manifest, check))
         return 0
 
     if args.network_readiness_summary is not None:
