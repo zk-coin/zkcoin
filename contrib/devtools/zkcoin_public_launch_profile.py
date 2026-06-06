@@ -146,6 +146,17 @@ READINESS_GATES = (
 )
 REQUIRED_BLOCKERS = set(BLOCKER_ORDER)
 STATUS_JSON_SCHEMA_VERSION = 2
+RELEASE_EVIDENCE_ARCHIVE_RECORD_FIELDS = (
+    "release_evidence_bundle_uri",
+    "release_evidence_bundle_sha256",
+    "release_evidence_bundle_schema_version",
+    "manifest_path",
+    "manifest_commit",
+    "gate_command",
+    "gate_verified",
+    "gate_mismatch_count",
+    "gate_checked_at",
+)
 
 
 class DuplicateJSONFieldError(ValueError):
@@ -4157,6 +4168,21 @@ def release_evidence_bundle_gate_command(
     )
 
 
+def release_evidence_archive_checklist_command(
+    manifest_path,
+    bundle_path="<release_evidence_bundle.json>",
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    bundle_path = command_path_arg(bundle_path)
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}--release-evidence-archive-checklist "
+        f"{bundle_path} {manifest_path}"
+    )
+
+
 def next_action_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -4854,6 +4880,8 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True)}",
         f"  - release evidence bundle gate command: {release_evidence_bundle_gate_command(manifest_path)}",
         f"  - release evidence bundle gate JSON command: {release_evidence_bundle_gate_command(manifest_path, json_output=True)}",
+        f"  - release evidence archive checklist command: {release_evidence_archive_checklist_command(manifest_path)}",
+        f"  - release evidence archive checklist JSON command: {release_evidence_archive_checklist_command(manifest_path, json_output=True)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -5005,6 +5033,12 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         ),
         "release_evidence_bundle_gate_json_command": (
             release_evidence_bundle_gate_command(manifest_path, json_output=True)
+        ),
+        "release_evidence_archive_checklist_command": (
+            release_evidence_archive_checklist_command(manifest_path)
+        ),
+        "release_evidence_archive_checklist_json_command": (
+            release_evidence_archive_checklist_command(manifest_path, json_output=True)
         ),
         "blocked_networks": blocked_networks(network_progress),
         "blocked_network_count": len(blocked_networks(network_progress)),
@@ -6871,6 +6905,8 @@ def release_evidence_bundle_text(manifest, manifest_path, check):
         f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True)}",
         f"  - release evidence bundle gate command: {release_evidence_bundle_gate_command(manifest_path)}",
         f"  - release evidence bundle gate JSON command: {release_evidence_bundle_gate_command(manifest_path, json_output=True)}",
+        f"  - release evidence archive checklist command: {release_evidence_archive_checklist_command(manifest_path)}",
+        f"  - release evidence archive checklist JSON command: {release_evidence_archive_checklist_command(manifest_path, json_output=True)}",
         f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
@@ -6926,6 +6962,12 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
         ),
         "release_evidence_bundle_gate_json_command": (
             release_evidence_bundle_gate_command(manifest_path, json_output=True)
+        ),
+        "release_evidence_archive_checklist_command": (
+            release_evidence_archive_checklist_command(manifest_path)
+        ),
+        "release_evidence_archive_checklist_json_command": (
+            release_evidence_archive_checklist_command(manifest_path, json_output=True)
         ),
         "operator_runbook_command": operator_runbook_command(manifest_path),
         "launch_gate_preflight_command": launch_gate_preflight_command(
@@ -7172,6 +7214,161 @@ def release_evidence_bundle_check_json_text(
             check,
             bundle_path,
             require_match=require_match,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
+def release_evidence_archive_checklist_steps(manifest_path, bundle_path):
+    archive_fields = list(RELEASE_EVIDENCE_ARCHIVE_RECORD_FIELDS)
+    return [
+        {
+            "step": 1,
+            "id": "generate-release-evidence-bundle",
+            "description": "Generate the compact release evidence bundle JSON.",
+            "command": release_evidence_bundle_json_command(manifest_path),
+            "output_artifact": display_path(bundle_path),
+            "required_before_launch": True,
+        },
+        {
+            "step": 2,
+            "id": "verify-release-evidence-bundle-gate",
+            "description": (
+                "Verify the archived bundle matches the current launch manifest."
+            ),
+            "command": release_evidence_bundle_gate_command(
+                manifest_path,
+                bundle_path,
+                json_output=True,
+            ),
+            "required_verified": True,
+            "required_mismatch_count": 0,
+            "required_exit_code": 0,
+            "required_before_launch": True,
+        },
+        {
+            "step": 3,
+            "id": "archive-release-evidence-record",
+            "description": (
+                "Archive the bundle and record the bundle location plus gate output."
+            ),
+            "required_archive_record_fields": archive_fields,
+            "required_archive_record_field_count": len(archive_fields),
+            "required_before_launch": True,
+        },
+        {
+            "step": 4,
+            "id": "publish-release-evidence-handoff",
+            "description": (
+                "Attach the archive record to the release handoff without adding "
+                "production constants."
+            ),
+            "required_before_launch": True,
+        },
+    ]
+
+
+def release_evidence_archive_checklist_payload(
+    manifest,
+    manifest_path,
+    check,
+    bundle_path,
+):
+    bundle_state = release_evidence_bundle_state(manifest, manifest_path, check)
+    steps = release_evidence_archive_checklist_steps(manifest_path, bundle_path)
+    archive_fields = list(RELEASE_EVIDENCE_ARCHIVE_RECORD_FIELDS)
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "release_evidence_bundle": display_path(bundle_path),
+        "release_evidence_archive_checklist_command": (
+            release_evidence_archive_checklist_command(manifest_path, bundle_path)
+        ),
+        "release_evidence_archive_checklist_json_command": (
+            release_evidence_archive_checklist_command(
+                manifest_path,
+                bundle_path,
+                json_output=True,
+            )
+        ),
+        "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
+            manifest_path,
+        ),
+        "release_evidence_bundle_gate_json_command": (
+            release_evidence_bundle_gate_command(
+                manifest_path,
+                bundle_path,
+                json_output=True,
+            )
+        ),
+        "archive_record_schema_version": 1,
+        "required_archive_record_fields": archive_fields,
+        "required_archive_record_field_count": len(archive_fields),
+        "required_gate_result": {
+            "verified": True,
+            "mismatch_count": 0,
+            "required_match_exit_code": 0,
+        },
+        "evidence_payloads": bundle_state["payload_entries"],
+        "evidence_payload_count": len(bundle_state["payload_entries"]),
+        "summary": release_evidence_bundle_summary(bundle_state),
+        "checklist_steps": steps,
+        "checklist_step_count": len(steps),
+    }
+
+
+def release_evidence_archive_checklist_text(manifest, manifest_path, check, bundle_path):
+    payload = release_evidence_archive_checklist_payload(
+        manifest,
+        manifest_path,
+        check,
+        bundle_path,
+    )
+    lines = [
+        "zkCoin public launch profile release evidence archive checklist:",
+        f"  - status: {payload['status']}",
+        f"  - manifest: {payload['manifest']}",
+        f"  - release evidence bundle: {payload['release_evidence_bundle']}",
+        f"  - release evidence archive checklist command: {payload['release_evidence_archive_checklist_command']}",
+        f"  - release evidence archive checklist JSON command: {payload['release_evidence_archive_checklist_json_command']}",
+        f"  - release evidence bundle JSON command: {payload['release_evidence_bundle_json_command']}",
+        f"  - release evidence bundle gate JSON command: {payload['release_evidence_bundle_gate_json_command']}",
+        f"  - archive record schema version: {payload['archive_record_schema_version']}",
+        f"  - archive record fields: {list_summary(payload['required_archive_record_fields'])}",
+        "  - required gate verified: yes",
+        "  - required gate mismatches: 0",
+        "  - required gate exit code: 0",
+        f"  - evidence payloads: {payload['evidence_payload_count']}",
+        f"  - checklist steps: {payload['checklist_step_count']}",
+    ]
+    for step in payload["checklist_steps"]:
+        lines.append(f"  - step {step['step']}: {step['id']}")
+        if step.get("command") is not None:
+            lines.append(f"  - step {step['step']} command: {step['command']}")
+        if step.get("output_artifact") is not None:
+            lines.append(f"  - step {step['step']} artifact: {step['output_artifact']}")
+        if step.get("required_archive_record_fields") is not None:
+            lines.append(
+                f"  - step {step['step']} required fields: "
+                f"{list_summary(step['required_archive_record_fields'])}"
+            )
+    return "\n".join(lines)
+
+
+def release_evidence_archive_checklist_json_text(
+    manifest,
+    manifest_path,
+    check,
+    bundle_path,
+):
+    return json.dumps(
+        release_evidence_archive_checklist_payload(
+            manifest,
+            manifest_path,
+            check,
+            bundle_path,
         ),
         indent=2,
         sort_keys=False,
@@ -7841,6 +8038,15 @@ def status_json_text(manifest, manifest_path, check):
             "release_evidence_bundle_gate_json_command": (
                 release_evidence_bundle_gate_command(manifest_path, json_output=True)
             ),
+            "release_evidence_archive_checklist_command": (
+                release_evidence_archive_checklist_command(manifest_path)
+            ),
+            "release_evidence_archive_checklist_json_command": (
+                release_evidence_archive_checklist_command(
+                    manifest_path,
+                    json_output=True,
+                )
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -8136,6 +8342,8 @@ def selected_primary_actions(args):
         actions.append("--release-evidence-bundle")
     if args.check_release_evidence_bundle is not None:
         actions.append("--check-release-evidence-bundle")
+    if args.release_evidence_archive_checklist is not None:
+        actions.append("--release-evidence-archive-checklist")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -8208,6 +8416,12 @@ def main():
         "--require-release-evidence-bundle-match",
         action="store_true",
         help="return a non-zero exit code when --check-release-evidence-bundle detects mismatches",
+    )
+    parser.add_argument(
+        "--release-evidence-archive-checklist",
+        metavar="BUNDLE_JSON",
+        type=Path,
+        help="print the release evidence bundle archive checklist for one bundle artifact",
     )
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
@@ -8371,6 +8585,7 @@ def main():
         and not args.operator_runbook
         and not args.release_evidence_bundle
         and args.check_release_evidence_bundle is None
+        and args.release_evidence_archive_checklist is None
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -8403,6 +8618,7 @@ def main():
             "--readiness-gate-summary, --readiness-gate-later-blockers, "
             "--launch-gate-preflight, --operator-runbook, "
             "--release-evidence-bundle, --check-release-evidence-bundle, "
+            "--release-evidence-archive-checklist, "
             "or --value-selection-checklists",
             file=sys.stderr,
         )
@@ -8562,6 +8778,10 @@ def main():
         if args.in_place:
             print("error: --check-release-evidence-bundle does not write the manifest", file=sys.stderr)
             return 1
+    if args.release_evidence_archive_checklist is not None:
+        if args.in_place:
+            print("error: --release-evidence-archive-checklist does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -8675,6 +8895,8 @@ def main():
     if args.release_evidence_bundle:
         allow_blocked = True
     if args.check_release_evidence_bundle is not None:
+        allow_blocked = True
+    if args.release_evidence_archive_checklist is not None:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -8834,6 +9056,22 @@ def main():
                 file=sys.stderr,
             )
             return 1
+        return 0
+
+    if args.release_evidence_archive_checklist is not None:
+        archive_checklist_text = (
+            release_evidence_archive_checklist_json_text
+            if args.json
+            else release_evidence_archive_checklist_text
+        )
+        print(
+            archive_checklist_text(
+                manifest,
+                args.manifest,
+                check,
+                args.release_evidence_archive_checklist,
+            )
+        )
         return 0
 
     if args.network_readiness_summary is not None:
