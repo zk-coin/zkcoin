@@ -2160,6 +2160,73 @@ def snapshot_audit_template_text(network):
     return json.dumps(snapshot_audit_template(network), indent=2, sort_keys=False)
 
 
+def snapshot_audit_template_json_payload(network, manifest_path):
+    template = snapshot_audit_template(network)
+    blocker_id = f"{network}.litecoin_snapshot"
+    constraints = blocker_candidate_constraints("litecoin_snapshot")
+    external_artifacts = blocker_external_artifacts("litecoin_snapshot")
+    operator_fields = [
+        field
+        for field in SNAPSHOT_AUDIT_SUMMARY_FIELDS
+        if template[field] is None
+    ]
+    prefilled_fields = {
+        field: value
+        for field, value in template.items()
+        if value is not None
+    }
+    commands = blocker_action_commands(
+        blocker_id,
+        shell_quote(display_path(manifest_path)),
+    )
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": blocker_id,
+        "readiness_gate": blocker_type_readiness_gate("litecoin_snapshot"),
+        "source_chain": SNAPSHOT_SOURCE_CHAINS[network],
+        "source_chain_by_network": dict(SNAPSHOT_SOURCE_CHAINS),
+        "template": template,
+        "fields": list(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+        "field_count": len(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+        "operator_fields": operator_fields,
+        "operator_field_count": len(operator_fields),
+        "prefilled_fields": prefilled_fields,
+        "prefilled_field_count": len(prefilled_fields),
+        "requirements": {
+            "must_be_utf8_json_object": True,
+            "field_order_must_match_template": True,
+            "rejects_duplicate_fields": True,
+            "max_bytes": SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES,
+        },
+        "snapshot_artifact_requirements": {
+            "must_be_absolute_normalized_regular_file": True,
+            "must_not_be_symlink": True,
+            "must_remain_stable_during_verification": True,
+            "size_and_sha256_must_match_audit": True,
+        },
+        "candidate_constraints": constraints,
+        "candidate_constraint_count": len(constraints),
+        "external_artifacts": external_artifacts,
+        "external_artifact_count": len(external_artifacts),
+        "commands": {
+            **commands,
+            "network_handoff_bundle_command": network_handoff_bundle_command(
+                manifest_path,
+                network,
+            ),
+        },
+    }
+
+
+def snapshot_audit_template_json_text(network, manifest_path):
+    return json.dumps(
+        snapshot_audit_template_json_payload(network, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def open_direct_parent_directory_for_read(path, *, parent_symlink_error, missing_error, open_error):
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     if nofollow == 0 and path.parent.is_symlink():
@@ -6257,6 +6324,7 @@ def main():
         and args.snapshot_audit_preflight is None
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
+        and args.snapshot_audit_template is None
         and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
@@ -6269,8 +6337,9 @@ def main():
         and args.readiness_gate_later_blockers is None
     ):
         print(
-            "error: --json is only supported with --snapshot-audit-preflight, "
-            "--check-snapshot-audit, --snapshot-audit-handoff, "
+            "error: --json is only supported with --snapshot-audit-template, "
+            "--snapshot-audit-preflight, --check-snapshot-audit, "
+            "--snapshot-audit-handoff, "
             "--readiness-summary, --network-handoff-bundle, "
             "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, --network-readiness-summary, "
@@ -6304,7 +6373,15 @@ def main():
             print("error: --snapshot-audit-template does not write the manifest", file=sys.stderr)
             return 1
         try:
-            print(snapshot_audit_template_text(args.snapshot_audit_template))
+            template_text = (
+                snapshot_audit_template_json_text
+                if args.json
+                else snapshot_audit_template_text
+            )
+            if args.json:
+                print(template_text(args.snapshot_audit_template, args.manifest))
+            else:
+                print(template_text(args.snapshot_audit_template))
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
