@@ -665,6 +665,167 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    snapshot_handoff_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--snapshot-audit-handoff",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_handoff_json_result.returncode != 0:
+        return "{} --snapshot-audit-handoff --json failed for main: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            snapshot_handoff_json_result.stderr.strip()
+            or snapshot_handoff_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        snapshot_handoff_json = json.loads(snapshot_handoff_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --snapshot-audit-handoff --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        snapshot_handoff_json.get("schema_version") != 1
+        or snapshot_handoff_json.get("network") != "main"
+        or snapshot_handoff_json.get("blocker") != "main.litecoin_snapshot"
+        or snapshot_handoff_json.get("unresolved") is not True
+        or snapshot_handoff_json.get("is_next_blocker") is not True
+        or snapshot_handoff_json.get("source_chain") != "main"
+    ):
+        return "{} --snapshot-audit-handoff --json did not report main handoff identity".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_audit_summary = snapshot_handoff_json.get("audit_summary", {})
+    snapshot_handoff_audit_requirements = snapshot_handoff_audit_summary.get("requirements", {})
+    if (
+        snapshot_handoff_audit_summary.get("fields") != expected_snapshot_audit_template_fields
+        or snapshot_handoff_audit_summary.get("field_count") != len(expected_snapshot_audit_template_fields)
+        or snapshot_handoff_audit_requirements.get("must_be_utf8_json_object") is not True
+        or snapshot_handoff_audit_requirements.get("field_order_must_match_template") is not True
+        or snapshot_handoff_audit_requirements.get("rejects_duplicate_fields") is not True
+        or snapshot_handoff_audit_requirements.get("max_bytes") != 65536
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose audit summary requirements".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_artifact_requirements = snapshot_handoff_json.get("snapshot_artifact_requirements", {})
+    if (
+        snapshot_handoff_artifact_requirements.get("must_be_absolute_normalized_regular_file") is not True
+        or snapshot_handoff_artifact_requirements.get("must_not_be_symlink") is not True
+        or snapshot_handoff_artifact_requirements.get("must_remain_stable_during_verification") is not True
+        or snapshot_handoff_artifact_requirements.get("size_and_sha256_must_match_audit") is not True
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose artifact requirements".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_constraints = snapshot_handoff_json.get("candidate_constraints", {})
+    if (
+        snapshot_handoff_json.get("candidate_constraint_count") != 23
+        or snapshot_handoff_constraints.get("audit_summary_fields") != expected_snapshot_audit_template_fields
+        or snapshot_handoff_constraints.get("source_chain_by_network") != {"main": "main", "testnet": "test"}
+        or snapshot_handoff_constraints.get("snapshot_file_sha256_must_match_artifact") is not True
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose candidate constraints".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_artifacts = snapshot_handoff_json.get("external_artifacts", [])
+    if (
+        snapshot_handoff_json.get("external_artifact_count") != 2
+        or [artifact.get("id") for artifact in snapshot_handoff_artifacts] != ["snapshot_audit_json", "snapshot_file"]
+        or snapshot_handoff_artifacts[0].get("required_for_commands") != ["check_command", "preflight_command", "apply_command"]
+        or snapshot_handoff_artifacts[1].get("sha256_field") != "snapshot_file_sha256"
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose external artifacts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        snapshot_handoff_json.get("blocked_field_count") != 11
+        or "main.litecoin_snapshot.audit.snapshot_file_sha256" not in snapshot_handoff_json.get("blocked_fields", [])
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose blocked fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_commands = snapshot_handoff_json.get("commands", {})
+    if (
+        snapshot_handoff_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or snapshot_handoff_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or snapshot_handoff_commands.get("preflight_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or snapshot_handoff_commands.get("apply_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or snapshot_handoff_commands.get("network_handoff_bundle_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_readiness = snapshot_handoff_json.get("readiness", {})
+    if (
+        snapshot_handoff_readiness.get("blocker") != "main.litecoin_snapshot"
+        or snapshot_handoff_readiness.get("blocked_field_count") != 11
+        or snapshot_handoff_readiness.get("external_artifact_count") != 2
+        or snapshot_handoff_readiness.get("next_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose readiness details".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoff_checklist = snapshot_handoff_json.get("checklist", {})
+    snapshot_handoff_checklist_summary = snapshot_handoff_json.get("checklist_summary", {})
+    if (
+        snapshot_handoff_checklist.get("state") != "required"
+        or snapshot_handoff_checklist.get("artifact_ids") != ["snapshot_audit_json", "snapshot_file"]
+        or snapshot_handoff_checklist.get("available_command_count") != 4
+        or [step.get("id") for step in snapshot_handoff_checklist.get("steps", [])]
+        != ["generate_template", "snapshot_audit_json", "snapshot_file", "verify_audit", "preflight_audit", "apply_audit"]
+        or snapshot_handoff_checklist_summary.get("step_count") != 6
+        or snapshot_handoff_checklist_summary.get("requires_preflight_step_ids") != ["apply_audit"]
+    ):
+        return "{} --snapshot-audit-handoff --json did not expose checklist details".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_handoff_json_manifest_path = Path(temp_dir) / "read-only-handoff-json-manifest.json"
+        readonly_handoff_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_handoff_json_manifest_path.write_bytes(readonly_handoff_json_manifest_bytes)
+        readonly_handoff_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-handoff",
+                "main",
+                str(readonly_handoff_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_handoff_json_result.returncode != 0:
+            return "{} --snapshot-audit-handoff --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_handoff_json_result.stderr.strip()
+                or readonly_handoff_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_handoff_json_manifest_path.read_bytes() != readonly_handoff_json_manifest_bytes:
+            return "{} --snapshot-audit-handoff --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     action_plan_result = subprocess.run(
         [
             sys.executable,
@@ -7501,7 +7662,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, or --snapshot-audit-handoff" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -13424,6 +13585,8 @@ def main():
         ("SNAPSHOT_AUDIT_HANDOFF_CHECKLIST_COMMAND_STEPS", "manifest centralizes snapshot audit handoff checklist command steps"),
         ("snapshot_audit_handoff_checklist_by_network", "manifest exposes snapshot audit handoff checklist by network"),
         ("snapshot_audit_handoff_checklist_summary_by_network", "manifest summarizes snapshot audit handoff checklist by network"),
+        ("snapshot_audit_handoff_json_payload", "manifest builds machine-readable snapshot audit handoff payloads"),
+        ("snapshot_audit_handoff_json_text", "manifest prints machine-readable snapshot audit handoff guidance"),
         (
             "must be blocked until required blocker ids are resolved",
             "manifest rejects ready status while blocker fields remain unresolved",
@@ -13662,6 +13825,7 @@ def main():
         ("blocker_readiness_summary_text", "manifest prints blocker-scoped readiness guidance"),
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("snapshot_audit_handoff_text", "manifest prints snapshot audit handoff guidance"),
+        ("snapshot_audit_handoff_json_text", "manifest prints snapshot audit handoff JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -14963,6 +15127,10 @@ def main():
             "public launch manifest snapshot audit handoff documentation",
         ),
         (
+            "machine-readable\naudit summary fields",
+            "public launch manifest snapshot audit handoff JSON documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py --check-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest snapshot audit check documentation",
         ),
@@ -16201,6 +16369,10 @@ def main():
         (
             "zkcoin_public_launch_profile.py \\\n  --check-snapshot-audit NETWORK <snapshot_audit.json>",
             "public launch manifest read-only snapshot audit check documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --snapshot-audit-handoff NETWORK",
+            "public launch manifest read-only snapshot audit JSON handoff documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --json \\\n  --check-snapshot-audit NETWORK <snapshot_audit.json>",

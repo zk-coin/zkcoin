@@ -811,6 +811,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --snapshot-audit-handoff NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -869,6 +874,10 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 ```
 
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
+Add `--json` to the handoff command when automation needs machine-readable
+audit summary fields, candidate constraints, external artifact requirements,
+blocked fields, copyable commands, readiness, and checklist details before any
+artifact is available.
 Use the read-only `--check-snapshot-audit` command first to verify the audit
 summary, source-chain mapping, snapshot file byte size, and snapshot file
 SHA-256, then stage the candidate through launch-manifest validation without

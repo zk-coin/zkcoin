@@ -4211,6 +4211,95 @@ def snapshot_audit_handoff_text(manifest, manifest_path, check, network):
     return "\n".join(lines)
 
 
+def snapshot_audit_handoff_json_payload(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blocker_id = f"{network}.litecoin_snapshot"
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    blocked_group = groups_by_blocker.get(blocker_id)
+    blocked_fields = blocked_group["fields"] if blocked_group is not None else []
+    commands = blocker_action_commands(
+        blocker_id,
+        shell_quote(display_path(manifest_path)),
+    )
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    network_next_commands = network_next_command_fields(network_progress)
+    next_snapshot_audit_handoff_commands_by_network = command_field_values_by_group(
+        network_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    readiness = snapshot_audit_handoff_readiness_by_network(
+        network_progress,
+        blocked_field_groups,
+        next_snapshot_audit_handoff_commands_by_network,
+    )[network]
+    checklists = snapshot_audit_handoff_checklist_by_network(
+        manifest_path,
+        blocked_field_groups,
+    )
+    checklist = checklists[network]
+    checklist_summary = snapshot_audit_handoff_checklist_summary_by_network(
+        checklists,
+    )[network]
+    constraints = blocker_candidate_constraints("litecoin_snapshot")
+    external_artifacts = blocker_external_artifacts("litecoin_snapshot")
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": blocker_id,
+        "unresolved": blocker_id in blockers,
+        "is_next_blocker": readiness["is_next_blocker"],
+        "source_chain": SNAPSHOT_SOURCE_CHAINS[network],
+        "audit_summary": {
+            "fields": list(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+            "field_count": len(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
+            "requirements": {
+                "must_be_utf8_json_object": True,
+                "field_order_must_match_template": True,
+                "rejects_duplicate_fields": True,
+                "max_bytes": SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES,
+            },
+        },
+        "snapshot_artifact_requirements": {
+            "must_be_absolute_normalized_regular_file": True,
+            "must_not_be_symlink": True,
+            "must_remain_stable_during_verification": True,
+            "size_and_sha256_must_match_audit": True,
+        },
+        "candidate_constraints": constraints,
+        "candidate_constraint_count": len(constraints),
+        "external_artifacts": external_artifacts,
+        "external_artifact_count": len(external_artifacts),
+        "blocked_fields": blocked_fields,
+        "blocked_field_count": len(blocked_fields),
+        "commands": {
+            **commands,
+            "network_handoff_bundle_command": network_handoff_bundle_command(
+                manifest_path,
+                network,
+            ),
+        },
+        "readiness": readiness,
+        "checklist": checklist,
+        "checklist_summary": checklist_summary,
+    }
+
+
+def snapshot_audit_handoff_json_text(manifest, manifest_path, check, network):
+    return json.dumps(
+        snapshot_audit_handoff_json_payload(manifest, manifest_path, check, network),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def network_readiness_summary_text(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -5308,8 +5397,17 @@ def main():
         )
         return 1
 
-    if args.json and args.snapshot_audit_preflight is None and args.check_snapshot_audit is None:
-        print("error: --json is only supported with --snapshot-audit-preflight or --check-snapshot-audit", file=sys.stderr)
+    if (
+        args.json
+        and args.snapshot_audit_preflight is None
+        and args.check_snapshot_audit is None
+        and args.snapshot_audit_handoff is None
+    ):
+        print(
+            "error: --json is only supported with --snapshot-audit-preflight, "
+            "--check-snapshot-audit, or --snapshot-audit-handoff",
+            file=sys.stderr,
+        )
         return 1
 
     try:
@@ -5575,8 +5673,13 @@ def main():
 
     if args.snapshot_audit_handoff is not None:
         try:
+            handoff_text = (
+                snapshot_audit_handoff_json_text
+                if args.json
+                else snapshot_audit_handoff_text
+            )
             print(
-                snapshot_audit_handoff_text(
+                handoff_text(
                     manifest,
                     args.manifest,
                     check,
