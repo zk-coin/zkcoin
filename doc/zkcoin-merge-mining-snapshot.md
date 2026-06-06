@@ -332,7 +332,12 @@ Both are intentionally present before behavior changes so tests and review can t
   empty artifact lists. `snapshot_audit_handoff_readiness_by_network` combines
   each network's snapshot blocker id, unresolved and next-blocker state, blocked
   field count, next handoff command, and external artifact requirements into a
-  compact per-network object for dashboards and release checklists. The
+  compact per-network object for dashboards and release checklists.
+  `snapshot_audit_handoff_checklist_by_network` exposes the ordered per-network
+  operator checklist as derived command steps and external artifact steps,
+  including which commands require the audit JSON and referenced snapshot file;
+  it does not mark runtime checks as completed until operators supply and verify
+  real audited artifacts. The
   snapshot audit JSON and referenced snapshot file both list the read-only check,
   read-only preflight, and apply command fields that depend on them.
   `readiness_gates`, `readiness_gate_count`, `readiness_gate_by_blocker`,

@@ -2866,6 +2866,60 @@ def require_public_launch_manifest_current():
         }
         for network in ("main", "testnet")
     }
+    expected_snapshot_audit_handoff_checklist_command_steps = (
+        ("generate_template", "template_command"),
+        ("verify_audit", "check_command"),
+        ("preflight_audit", "preflight_command"),
+        ("apply_audit", "apply_command"),
+    )
+    expected_snapshot_audit_handoff_checklist_by_network = {}
+    for network in ("main", "testnet"):
+        commands = next_commands_by_network[network]
+        artifacts = expected_snapshot_audit_external_artifacts_by_network[network]
+        artifact_ids = [artifact["id"] for artifact in artifacts]
+        artifact_ids_by_command = {
+            command_key: [
+                artifact["id"]
+                for artifact in artifacts
+                if command_key in artifact.get("required_for_commands", [])
+            ]
+            for _, command_key in expected_snapshot_audit_handoff_checklist_command_steps
+        }
+        command_steps = [
+            {
+                "id": step_id,
+                "kind": "command",
+                "command_key": command_key,
+                "command": commands[command_key],
+                "available": commands[command_key] is not None,
+                "required_artifacts": artifact_ids_by_command[command_key],
+                "requires_preflight": command_key == "apply_command",
+            }
+            for step_id, command_key in expected_snapshot_audit_handoff_checklist_command_steps
+        ]
+        artifact_steps = [
+            {
+                "id": artifact["id"],
+                "kind": "external_artifact",
+                "required": True,
+                "required_for_commands": artifact["required_for_commands"],
+            }
+            for artifact in artifacts
+        ]
+        expected_snapshot_audit_handoff_checklist_by_network[network] = {
+            "blocker": "{}.litecoin_snapshot".format(network),
+            "state": "required",
+            "unresolved": True,
+            "blocked_field_count": expected_blocked_field_counts_by_network_and_blocker_type[network]["litecoin_snapshot"],
+            "artifact_ids": artifact_ids,
+            "required_artifact_count": len(artifact_ids),
+            "command_keys": [
+                command_key
+                for _, command_key in expected_snapshot_audit_handoff_checklist_command_steps
+            ],
+            "available_command_count": len(command_steps),
+            "steps": [command_steps[0]] + artifact_steps + command_steps[1:],
+        }
     expected_external_artifacts_by_blocker = {
         "{}.{}".format(network, blocker_type): artifacts
         for network in ("main", "testnet")
@@ -2902,6 +2956,10 @@ def require_public_launch_manifest_current():
         )
     if status_json.get("snapshot_audit_handoff_readiness_by_network") != expected_snapshot_audit_handoff_readiness_by_network:
         return "{} --status-json did not expose snapshot audit handoff readiness by network".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("snapshot_audit_handoff_checklist_by_network") != expected_snapshot_audit_handoff_checklist_by_network:
+        return "{} --status-json did not expose snapshot audit handoff checklist by network".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("external_artifacts_by_blocker") != expected_external_artifacts_by_blocker:
@@ -13011,6 +13069,8 @@ def main():
         ("snapshot_audit_external_artifacts_by_network", "manifest exposes snapshot audit artifacts by network"),
         ("snapshot_audit_external_artifact_counts_by_network", "manifest counts snapshot audit artifacts by network"),
         ("snapshot_audit_handoff_readiness_by_network", "manifest exposes snapshot audit handoff readiness by network"),
+        ("SNAPSHOT_AUDIT_HANDOFF_CHECKLIST_COMMAND_STEPS", "manifest centralizes snapshot audit handoff checklist command steps"),
+        ("snapshot_audit_handoff_checklist_by_network", "manifest exposes snapshot audit handoff checklist by network"),
         (
             "must be blocked until required blocker ids are resolved",
             "manifest rejects ready status while blocker fields remain unresolved",
@@ -13308,6 +13368,7 @@ def main():
         ("snapshot_audit_external_artifacts_by_network", "manifest status JSON indexes snapshot audit artifacts by network"),
         ("snapshot_audit_external_artifact_counts_by_network", "manifest status JSON counts snapshot audit artifacts by network"),
         ("snapshot_audit_handoff_readiness_by_network", "manifest status JSON indexes snapshot audit handoff readiness by network"),
+        ("snapshot_audit_handoff_checklist_by_network", "manifest status JSON indexes snapshot audit handoff checklist by network"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
