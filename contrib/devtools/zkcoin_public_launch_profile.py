@@ -2746,6 +2746,90 @@ def snapshot_audit_check_text(network, audit, candidate, audit_path, manifest_pa
     ))
 
 
+def snapshot_audit_json_payload(network, audit, candidate, audit_path, manifest_path):
+    audit_detail = audit["audit"]
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    blocker_counts_by_network = item_counts_by_network(blockers)
+    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
+    next_blocker = blockers[0] if blockers else None
+    if next_blocker is None:
+        next_blocker_network = None
+        next_blocker_type = None
+        next_blocker_commands = None
+    else:
+        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
+        next_blocker_commands = blocker_action_commands(
+            next_blocker,
+            shell_quote(display_path(manifest_path)),
+        )
+
+    return {
+        "schema_version": 1,
+        "network": network,
+        "verified": True,
+        "ready_to_apply": True,
+        "audit_path": display_path(audit_path),
+        "audit": {
+            "height": audit["height"],
+            "block_hash": audit["block_hash"],
+            "import_hash": audit["import_hash"],
+            "snapshot_hash": audit_detail["snapshot_hash"],
+            "coins": audit_detail["coins"],
+            "base_nchaintx": audit_detail["base_nchaintx"],
+            "source_chain": audit_detail["source_chain"],
+            "snapshot_file_size": audit_detail["snapshot_file_size"],
+            "snapshot_file_sha256": audit_detail["snapshot_file_sha256"],
+            "snapshot_file": audit_detail["snapshot_file"],
+            "total_amount": audit_detail["total_amount"],
+        },
+        "commands": {
+            "apply": snapshot_audit_apply_command(network, audit_path, manifest_path),
+            "recheck": snapshot_audit_check_command(network, audit_path, manifest_path),
+            "network_handoff_bundle": network_handoff_bundle_command(manifest_path, network),
+            "current_blocker_readiness_summary": blocker_readiness_summary_command(
+                manifest_path,
+                f"{network}.litecoin_snapshot",
+            ),
+        },
+        "post_apply": {
+            "remaining_blocker_count": len(blockers),
+            "remaining_blocker_count_for_network": blocker_counts_by_network[network],
+            "remaining_blocker_counts_by_network": blocker_counts_by_network,
+            "remaining_blockers": blockers,
+            "remaining_blockers_by_network": items_by_network(blockers),
+            "remaining_blocked_field_count": len(blocked_fields),
+            "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[network],
+            "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
+            "remaining_blocked_fields": blocked_fields,
+            "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
+            "next_action_command": next_action_command(manifest_path),
+            "readiness_summary_command": readiness_summary_command(manifest_path),
+            "network_readiness_summary_command": network_readiness_summary_command(
+                manifest_path,
+                network,
+            ),
+            "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
+                manifest_path,
+                "litecoin_snapshot",
+            ),
+            "next_blocker": next_blocker,
+            "next_blocker_network": next_blocker_network,
+            "next_blocker_type": next_blocker_type,
+            "next_commands": next_blocker_commands,
+        },
+    }
+
+
+def snapshot_audit_check_json_text(network, audit, candidate, audit_path, manifest_path):
+    return json.dumps(
+        snapshot_audit_json_payload(network, audit, candidate, audit_path, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def snapshot_audit_preflight_text(network, audit, candidate, audit_path, manifest_path):
     audit_detail = audit["audit"]
     candidate_check = validate_manifest(candidate, allow_blocked=True)
@@ -2781,78 +2865,8 @@ def snapshot_audit_preflight_text(network, audit, candidate, audit_path, manifes
 
 
 def snapshot_audit_preflight_json_text(network, audit, candidate, audit_path, manifest_path):
-    audit_detail = audit["audit"]
-    candidate_check = validate_manifest(candidate, allow_blocked=True)
-    blockers = ordered_unresolved_blocker_ids(candidate)
-    blocked_fields = candidate_check.blockers
-    blocker_counts_by_network = item_counts_by_network(blockers)
-    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
-    next_blocker = blockers[0] if blockers else None
-    if next_blocker is None:
-        next_blocker_network = None
-        next_blocker_type = None
-        next_blocker_commands = None
-    else:
-        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
-        next_blocker_commands = blocker_action_commands(
-            next_blocker,
-            shell_quote(display_path(manifest_path)),
-        )
     return json.dumps(
-        {
-            "schema_version": 1,
-            "network": network,
-            "ready_to_apply": True,
-            "audit_path": display_path(audit_path),
-            "audit": {
-                "height": audit["height"],
-                "block_hash": audit["block_hash"],
-                "import_hash": audit["import_hash"],
-                "snapshot_hash": audit_detail["snapshot_hash"],
-                "coins": audit_detail["coins"],
-                "base_nchaintx": audit_detail["base_nchaintx"],
-                "source_chain": audit_detail["source_chain"],
-                "snapshot_file_size": audit_detail["snapshot_file_size"],
-                "snapshot_file_sha256": audit_detail["snapshot_file_sha256"],
-                "snapshot_file": audit_detail["snapshot_file"],
-                "total_amount": audit_detail["total_amount"],
-            },
-            "commands": {
-                "apply": snapshot_audit_apply_command(network, audit_path, manifest_path),
-                "recheck": snapshot_audit_check_command(network, audit_path, manifest_path),
-                "network_handoff_bundle": network_handoff_bundle_command(manifest_path, network),
-                "current_blocker_readiness_summary": blocker_readiness_summary_command(
-                    manifest_path,
-                    f"{network}.litecoin_snapshot",
-                ),
-            },
-            "post_apply": {
-                "remaining_blocker_count": len(blockers),
-                "remaining_blocker_count_for_network": blocker_counts_by_network[network],
-                "remaining_blocker_counts_by_network": blocker_counts_by_network,
-                "remaining_blockers": blockers,
-                "remaining_blockers_by_network": items_by_network(blockers),
-                "remaining_blocked_field_count": len(blocked_fields),
-                "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[network],
-                "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
-                "remaining_blocked_fields": blocked_fields,
-                "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
-                "next_action_command": next_action_command(manifest_path),
-                "readiness_summary_command": readiness_summary_command(manifest_path),
-                "network_readiness_summary_command": network_readiness_summary_command(
-                    manifest_path,
-                    network,
-                ),
-                "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
-                    manifest_path,
-                    "litecoin_snapshot",
-                ),
-                "next_blocker": next_blocker,
-                "next_blocker_network": next_blocker_network,
-                "next_blocker_type": next_blocker_type,
-                "next_commands": next_blocker_commands,
-            },
-        },
+        snapshot_audit_json_payload(network, audit, candidate, audit_path, manifest_path),
         indent=2,
         sort_keys=False,
     )
@@ -5175,7 +5189,7 @@ def main():
     parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
-    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON for snapshot audit preflight output")
+    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON for snapshot audit read-only output")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
         "--snapshot-audit-template",
@@ -5294,8 +5308,8 @@ def main():
         )
         return 1
 
-    if args.json and args.snapshot_audit_preflight is None:
-        print("error: --json is only supported with --snapshot-audit-preflight", file=sys.stderr)
+    if args.json and args.snapshot_audit_preflight is None and args.check_snapshot_audit is None:
+        print("error: --json is only supported with --snapshot-audit-preflight or --check-snapshot-audit", file=sys.stderr)
         return 1
 
     try:
@@ -5382,8 +5396,13 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+        check_text = (
+            snapshot_audit_check_json_text
+            if args.json
+            else snapshot_audit_check_text
+        )
         print(
-            snapshot_audit_check_text(
+            check_text(
                 args.check_snapshot_audit[0],
                 audit,
                 candidate,

@@ -819,6 +819,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --check-snapshot-audit NETWORK <snapshot_audit.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-preflight NETWORK <snapshot_audit.json> \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -868,6 +873,11 @@ Use the read-only `--check-snapshot-audit` command first to verify the audit
 summary, source-chain mapping, snapshot file byte size, and snapshot file
 SHA-256, then stage the candidate through launch-manifest validation without
 modifying the manifest.
+The one-line check form is
+`zkcoin_public_launch_profile.py --check-snapshot-audit NETWORK <snapshot_audit.json>`.
+Add `--json` to the check command when CI needs machine-readable `verified`,
+audit metadata, apply/recheck commands, and `post_apply` remaining blocker and
+blocked-field counts for the validated audit artifact.
 Use the read-only `--snapshot-audit-preflight` command when operators need a
 short ready-to-apply handoff that reuses the same audit and artifact checks,
 prints the exact apply and recheck commands, and reports the remaining blocker
