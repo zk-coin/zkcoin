@@ -7646,6 +7646,49 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        snapshot_handoff_chain_commands = snapshot_handoff_json.get("commands", {})
+        snapshot_audit_arg = shlex.quote(str(audit_path))
+        if check_json != preflight_json:
+            return "{} snapshot audit check/preflight JSON payloads diverged for the same verified audit".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if snapshot_handoff_json.get("audit_summary", {}).get("fields") != list(check_json.get("audit", {})):
+            return "{} snapshot audit handoff/check JSON fields are not schema-compatible".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if snapshot_handoff_json.get("audit_summary", {}).get("fields") != list(preflight_json.get("audit", {})):
+            return "{} snapshot audit handoff/preflight JSON fields are not schema-compatible".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            snapshot_handoff_chain_commands.get("check_command", "").replace(
+                "<snapshot_audit.json>",
+                snapshot_audit_arg,
+            )
+            != check_json_commands.get("recheck")
+            or snapshot_handoff_chain_commands.get("apply_command", "").replace(
+                "<snapshot_audit.json>",
+                snapshot_audit_arg,
+            )
+            != check_json_commands.get("apply")
+        ):
+            return "{} snapshot audit handoff/check JSON commands are not chain-compatible".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if check_json.get("post_apply") != preflight_json.get("post_apply"):
+            return "{} snapshot audit check/preflight JSON post-apply deltas diverged".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            snapshot_handoff_json.get("checklist_summary", {}).get("requires_preflight_step_ids")
+            != ["apply_audit"]
+            or "preflight_command" not in snapshot_handoff_artifacts[0].get("required_for_commands", [])
+            or "preflight_command" not in snapshot_handoff_artifacts[1].get("required_for_commands", [])
+        ):
+            return "{} snapshot audit handoff JSON did not require preflight before apply".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         json_without_preflight_result = subprocess.run(
             [
                 sys.executable,
