@@ -188,6 +188,10 @@ Both are intentionally present before behavior changes so tests and review can t
   when release operators need only the queued AuxPoW, public identity, and DNS
   seed value-selection blockers for one public network after its current
   blocker. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists`
+  when CI or release dashboards need one compact all-network pre-apply checklist
+  of the queued value-selection JSON checks without parsing full status JSON.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -208,6 +212,7 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_command_value_counts`, `action_command_pairs`,
   `action_command_pair_counts`, `command_field_order`, `command_field_count`,
   `action_plan_command`, `readiness_summary_command`, `status_json_command`,
+  `value_selection_checklists_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -953,6 +958,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --value-selection-checklists \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --value-selection-checklists \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --blocker-readiness-summary NETWORK.litecoin_snapshot \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1013,6 +1027,10 @@ automation needs machine-readable queued AuxPoW chain-id, public identity, and
 DNS seed blockers, their blocked fields, candidate constraints, JSON-capable
 candidate check command templates, ordered pre-apply candidate checklists, and
 readiness-summary command map for one network.
+Use `--value-selection-checklists --json` when automation needs the same
+pre-apply value-selection checklist data for every public network in one compact
+payload, including per-network blocker counts, field counts, JSON check command
+maps, ordered candidate checklist steps, and aggregate summary counts.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

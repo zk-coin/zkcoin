@@ -4032,6 +4032,12 @@ def status_json_command(manifest_path):
     return f"{tool_path} --status-json {manifest_path}"
 
 
+def value_selection_checklists_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --value-selection-checklists {manifest_path}"
+
+
 def next_action_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -4713,6 +4719,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - next action command: {next_action_command(manifest_path)}",
         f"  - readiness summary command: {readiness_summary_command(manifest_path)}",
         f"  - status JSON command: {status_json_command(manifest_path)}",
+        f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -4835,6 +4842,9 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         "next_action_command": commands["next_action"],
         "readiness_summary_command": commands["readiness_summary"],
         "status_json_command": commands["status_json"],
+        "value_selection_checklists_command": value_selection_checklists_command(
+            manifest_path,
+        ),
         "blocked_networks": blocked_networks(network_progress),
         "blocked_network_count": len(blocked_networks(network_progress)),
         "ready_networks": ready_networks(network_progress),
@@ -5930,6 +5940,152 @@ def network_value_selection_json_states(blocked_field_groups, network_progress, 
     }
 
 
+def value_selection_checklists_state(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    return network_value_selection_json_states(
+        blocked_field_groups,
+        network_progress,
+        manifest_path,
+    )
+
+
+def value_selection_checklists_summary(value_selection_states):
+    checklist_summaries = {
+        network: state["candidate_checklist_summary"]
+        for network, state in value_selection_states.items()
+    }
+    blockers_by_network = {
+        network: state["blockers"]
+        for network, state in value_selection_states.items()
+    }
+    return {
+        "network_count": len(value_selection_states),
+        "step_count": sum(
+            summary["step_count"]
+            for summary in checklist_summaries.values()
+        ),
+        "required_json_check_count": sum(
+            summary["required_json_check_count"]
+            for summary in checklist_summaries.values()
+        ),
+        "apply_command_count": sum(
+            summary["apply_command_count"]
+            for summary in checklist_summaries.values()
+        ),
+        "all_steps_have_json_check_commands": all(
+            summary["all_steps_have_json_check_commands"]
+            for summary in checklist_summaries.values()
+        ),
+        "all_steps_require_operator_selected_values": all(
+            summary["all_steps_require_operator_selected_values"]
+            for summary in checklist_summaries.values()
+        ),
+        "blockers_by_network": blockers_by_network,
+    }
+
+
+def value_selection_checklists_text(manifest, manifest_path, check):
+    value_selection_states = value_selection_checklists_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    summary = value_selection_checklists_summary(value_selection_states)
+    lines = [
+        "zkCoin public launch profile value-selection checklists:",
+        f"  - status: {manifest.get('status')}",
+        f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
+        f"  - value-selection blocker types: {list_summary(blocker_types_by_readiness_gate()['value_selection'])}",
+        f"  - networks: {list_summary(NETWORKS)}",
+        f"  - required JSON checks: {summary['required_json_check_count']}",
+        f"  - apply commands: {summary['apply_command_count']}",
+        f"  - all steps have JSON check commands: {yes_no(summary['all_steps_have_json_check_commands'])}",
+        f"  - all steps require operator-selected values: {yes_no(summary['all_steps_require_operator_selected_values'])}",
+    ]
+    for network in NETWORKS:
+        state = value_selection_states[network]
+        lines.extend([
+            f"  - {network} queued value-selection blockers: {list_summary(state['blockers'])}",
+            f"  - {network} queued value-selection blocker fields: {len(state['fields'])}",
+            f"  - {network} required JSON checks: {state['json_check_command_count']}",
+        ])
+        for blocker, command in state["json_check_commands"].items():
+            lines.append(f"    - {blocker}: {command}")
+    return "\n".join(lines)
+
+
+def value_selection_checklists_json_payload(manifest, manifest_path, check):
+    value_selection_states = value_selection_checklists_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "value_selection_checklists_command": value_selection_checklists_command(
+            manifest_path,
+        ),
+        "value_selection_blocker_types": list(
+            blocker_types_by_readiness_gate()["value_selection"]
+        ),
+        "networks": list(NETWORKS),
+        "network_count": len(NETWORKS),
+        "queued_value_selection_blockers_by_network": {
+            network: state["blockers"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_blocker_counts_by_network": {
+            network: len(state["blockers"])
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_fields_by_network": {
+            network: state["fields"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_field_counts_by_network": {
+            network: len(state["fields"])
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_json_check_commands_by_network": {
+            network: state["json_check_commands"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_json_check_command_counts_by_network": {
+            network: state["json_check_command_count"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_candidate_checklists_by_network": {
+            network: state["candidate_checklist"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_candidate_checklist_summaries_by_network": {
+            network: state["candidate_checklist_summary"]
+            for network, state in value_selection_states.items()
+        },
+        "summary": value_selection_checklists_summary(value_selection_states),
+        "network_value_selection_later_blockers_commands_by_network": (
+            network_value_selection_later_blockers_commands(manifest_path)
+        ),
+    }
+
+
+def value_selection_checklists_json_text(manifest, manifest_path, check):
+    return json.dumps(
+        value_selection_checklists_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def network_value_selection_later_blockers_json_payload(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -6565,6 +6721,9 @@ def status_json_text(manifest, manifest_path, check):
             "action_plan_command": action_plan_command(manifest_path),
             "readiness_summary_command": readiness_summary_command(manifest_path),
             "status_json_command": status_json_command(manifest_path),
+            "value_selection_checklists_command": value_selection_checklists_command(
+                manifest_path,
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -6888,6 +7047,8 @@ def selected_primary_actions(args):
         actions.append("--readiness-gate-later-blockers")
     if args.network_value_selection_later_blockers is not None:
         actions.append("--network-value-selection-later-blockers")
+    if args.value_selection_checklists:
+        actions.append("--value-selection-checklists")
     if args.blocker_readiness_summary is not None:
         actions.append("--blocker-readiness-summary")
     if args.status_json:
@@ -6915,6 +7076,7 @@ def main():
     parser.add_argument("--readiness-gate-summary", metavar="READINESS_GATE", help="print a compact readiness summary for one launch readiness gate")
     parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
     parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
+    parser.add_argument("--value-selection-checklists", action="store_true", help="print queued value-selection JSON checklists for all public networks")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON for supported read-only output")
@@ -7062,6 +7224,7 @@ def main():
         and args.blocker_type_later_blockers is None
         and args.readiness_gate_summary is None
         and args.readiness_gate_later_blockers is None
+        and not args.value_selection_checklists
     ):
         print(
             "error: --json is only supported with --snapshot-audit-template, "
@@ -7074,7 +7237,8 @@ def main():
             "--network-value-selection-later-blockers, --network-readiness-summary, "
             "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
-            "--readiness-gate-summary, or --readiness-gate-later-blockers",
+            "--readiness-gate-summary, --readiness-gate-later-blockers, "
+            "or --value-selection-checklists",
             file=sys.stderr,
         )
         return 1
@@ -7337,6 +7501,8 @@ def main():
         allow_blocked = True
     if args.network_value_selection_later_blockers is not None:
         allow_blocked = True
+    if args.value_selection_checklists:
+        allow_blocked = True
     if args.blocker_readiness_summary is not None:
         allow_blocked = True
     if args.status_json:
@@ -7592,6 +7758,18 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+        return 0
+
+    if args.value_selection_checklists:
+        if args.in_place:
+            print("error: --value-selection-checklists does not write the manifest", file=sys.stderr)
+            return 1
+        checklists_text = (
+            value_selection_checklists_json_text
+            if args.json
+            else value_selection_checklists_text
+        )
+        print(checklists_text(manifest, args.manifest, check))
         return 0
 
     if args.blocker_readiness_summary is not None:
