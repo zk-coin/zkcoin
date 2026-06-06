@@ -3262,6 +3262,95 @@ def auxpow_apply_command(network, auxpow, manifest_path):
     )
 
 
+def auxpow_check_command(network, auxpow, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --check-auxpow {network} 0x{auxpow['chain_id']:x} {manifest_path}"
+
+
+def auxpow_json_payload(network, auxpow, candidate, manifest_path):
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    blocker_counts_by_network = item_counts_by_network(blockers)
+    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
+    next_blocker = blockers[0] if blockers else None
+    if next_blocker is None:
+        next_blocker_network = None
+        next_blocker_type = None
+        next_blocker_commands = None
+    else:
+        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
+        next_blocker_commands = blocker_action_commands(
+            next_blocker,
+            shell_quote(display_path(manifest_path)),
+        )
+    constraints = blocker_candidate_constraints("auxpow_chain_id")
+
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": f"{network}.auxpow_chain_id",
+        "readiness_gate": blocker_type_readiness_gate("auxpow_chain_id"),
+        "verified": True,
+        "ready_to_apply": True,
+        "candidate": {
+            "start_height": auxpow["start_height"],
+            "chain_id": auxpow["chain_id"],
+            "chain_id_hex": f"0x{auxpow['chain_id']:x}",
+            "strict_chain_id": auxpow["strict_chain_id"],
+            "forbidden_parent_version_chain_id_range": auxpow[
+                "forbidden_parent_version_chain_id_range"
+            ],
+        },
+        "candidate_constraints": constraints,
+        "candidate_constraint_count": len(constraints),
+        "commands": {
+            "apply": auxpow_apply_command(network, auxpow, manifest_path),
+            "recheck": auxpow_check_command(network, auxpow, manifest_path),
+            "network_handoff_bundle": network_handoff_bundle_command(manifest_path, network),
+            "current_blocker_readiness_summary": blocker_readiness_summary_command(
+                manifest_path,
+                f"{network}.auxpow_chain_id",
+            ),
+        },
+        "post_apply": {
+            "remaining_blocker_count": len(blockers),
+            "remaining_blocker_count_for_network": blocker_counts_by_network[network],
+            "remaining_blocker_counts_by_network": blocker_counts_by_network,
+            "remaining_blockers": blockers,
+            "remaining_blockers_by_network": items_by_network(blockers),
+            "remaining_blocked_field_count": len(blocked_fields),
+            "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[network],
+            "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
+            "remaining_blocked_fields": blocked_fields,
+            "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
+            "next_action_command": next_action_command(manifest_path),
+            "readiness_summary_command": readiness_summary_command(manifest_path),
+            "network_readiness_summary_command": network_readiness_summary_command(
+                manifest_path,
+                network,
+            ),
+            "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
+                manifest_path,
+                "auxpow_chain_id",
+            ),
+            "next_blocker": next_blocker,
+            "next_blocker_network": next_blocker_network,
+            "next_blocker_type": next_blocker_type,
+            "next_commands": next_blocker_commands,
+        },
+    }
+
+
+def auxpow_check_json_text(network, auxpow, candidate, manifest_path):
+    return json.dumps(
+        auxpow_json_payload(network, auxpow, candidate, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def auxpow_check_text(network, auxpow, candidate, manifest_path):
     return "\n".join((
         f"AuxPoW chain id candidate verified for {network}.",
@@ -6594,6 +6683,7 @@ def main():
         and args.snapshot_audit_handoff is None
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
+        and args.check_auxpow is None
         and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
@@ -6609,7 +6699,7 @@ def main():
             "error: --json is only supported with --snapshot-audit-template, "
             "--snapshot-audit-template-diff, "
             "--snapshot-audit-preflight, --check-snapshot-audit, "
-            "--snapshot-audit-handoff, "
+            "--snapshot-audit-handoff, --check-auxpow, "
             "--readiness-summary, --network-handoff-bundle, "
             "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, --network-readiness-summary, "
@@ -6771,7 +6861,12 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(auxpow_check_text(args.check_auxpow[0], auxpow, candidate, args.manifest))
+        check_text = (
+            auxpow_check_json_text
+            if args.json
+            else auxpow_check_text
+        )
+        print(check_text(args.check_auxpow[0], auxpow, candidate, args.manifest))
         return 0
 
     if args.set_dns_seeds is not None:
