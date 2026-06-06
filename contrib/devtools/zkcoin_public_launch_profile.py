@@ -6020,10 +6020,16 @@ def network_handoff_bundle_json_payload(manifest, manifest_path, check, network)
         progress,
     )
     groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    manifest_arg = shell_quote(display_path(manifest_path))
+    json_check_commands = blocker_json_check_commands(later_blockers, manifest_arg)
     later_groups = [
-        groups_by_blocker[blocker]
+        {
+            **groups_by_blocker[blocker],
+            "json_check_command": json_check_commands[blocker],
+        }
         for blocker in later_blockers
     ]
+    checklist = value_selection_candidate_checklist(later_groups)
     current_commands = action_command_fields(next_group)
     current_blocker = None
     if next_group is not None:
@@ -6076,6 +6082,12 @@ def network_handoff_bundle_json_payload(manifest, manifest_path, check, network)
         "queued_value_selection_blocker_fields": later_fields,
         "queued_value_selection_blocker_field_count": len(later_fields),
         "queued_value_selection_blocker_field_groups": later_groups,
+        "queued_value_selection_json_check_commands": json_check_commands,
+        "queued_value_selection_json_check_command_count": len(json_check_commands),
+        "queued_value_selection_candidate_checklist": checklist,
+        "queued_value_selection_candidate_checklist_summary": (
+            value_selection_candidate_checklist_summary(checklist)
+        ),
         "queued_value_selection_blocker_readiness_summary_commands": (
             blocker_readiness_summary_commands(manifest_path, later_blockers)
         ),

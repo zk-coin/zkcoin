@@ -1876,6 +1876,60 @@ def require_public_launch_manifest_current():
         return "{} --network-handoff-bundle --json did not expose queued value-selection blockers".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    network_handoff_queued_groups = network_handoff_json.get(
+        "queued_value_selection_blocker_field_groups",
+        [],
+    )
+    network_handoff_json_check_commands = network_handoff_json.get(
+        "queued_value_selection_json_check_commands",
+        {},
+    )
+    if (
+        network_handoff_queued_groups[0].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_queued_groups[1].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_queued_groups[2].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json_check_commands.get("main.auxpow_chain_id")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json_check_commands.get("main.public_network_identity")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json_check_commands.get("main.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json.get("queued_value_selection_json_check_command_count") != 3
+    ):
+        return "{} --network-handoff-bundle --json did not expose queued JSON check commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    network_handoff_checklist = network_handoff_json.get(
+        "queued_value_selection_candidate_checklist",
+        [],
+    )
+    network_handoff_checklist_summary = network_handoff_json.get(
+        "queued_value_selection_candidate_checklist_summary",
+        {},
+    )
+    if (
+        [step.get("blocker") for step in network_handoff_checklist]
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or [step.get("blocker_type") for step in network_handoff_checklist]
+        != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+        or network_handoff_checklist[0].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_checklist[1].get("field_count") != 10
+        or network_handoff_checklist[2].get("required_before_apply") is not True
+        or network_handoff_checklist_summary.get("step_count") != 3
+        or network_handoff_checklist_summary.get("required_json_check_count") != 3
+        or network_handoff_checklist_summary.get("apply_command_count") != 3
+        or network_handoff_checklist_summary.get("all_steps_have_json_check_commands") is not True
+        or network_handoff_checklist_summary.get("all_steps_require_operator_selected_values") is not True
+        or network_handoff_checklist_summary.get("blockers")
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+    ):
+        return "{} --network-handoff-bundle --json did not expose the queued value-selection checklist".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     network_handoff_queued_commands = network_handoff_json.get(
         "queued_value_selection_blocker_readiness_summary_commands",
         {},
@@ -15839,6 +15893,8 @@ def main():
         ("value_selection_candidate_checklist", "manifest builds ordered value-selection candidate checklists"),
         ("value_selection_candidate_checklist_summary", "manifest summarizes value-selection candidate checklists"),
         ("later_value_selection_candidate_checklist", "manifest exposes value-selection candidate checklist JSON"),
+        ("queued_value_selection_json_check_commands", "manifest exposes network handoff JSON candidate check command maps"),
+        ("queued_value_selection_candidate_checklist", "manifest exposes network handoff value-selection checklist JSON"),
         ("next_action_text", "manifest prints next action guidance"),
         ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
         ("append_blocker_field_lines", "manifest prints human-readable blocked field paths"),
@@ -17137,6 +17193,10 @@ def main():
         (
             "machine-readable current blocker state for one network",
             "public launch manifest network readiness-summary JSON contents documentation",
+        ),
+        (
+            "JSON-capable candidate check command\ntemplates, ordered pre-apply candidate checklists",
+            "public launch manifest network handoff JSON checklist documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --json \\\n  --network-later-blockers NETWORK",
