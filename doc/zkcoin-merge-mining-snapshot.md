@@ -289,6 +289,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `network_value_selection_later_blockers_commands_by_network` and
   `network_value_selection_later_blockers_command_count` expose the queued
   per-network value-selection handoff commands and their map size.
+  `queued_value_selection_json_check_commands_by_network`,
+  `queued_value_selection_json_check_command_counts_by_network`,
+  `queued_value_selection_candidate_checklists_by_network`, and
+  `queued_value_selection_candidate_checklist_summaries_by_network` expose the
+  per-network pre-apply value-selection JSON checks and checklist metadata
+  directly from status JSON.
   `actions_by_network`
   and `action_counts_by_network` group and count the remaining blocker handoffs
   by public network while non-network chainparams handoffs remain only in the
