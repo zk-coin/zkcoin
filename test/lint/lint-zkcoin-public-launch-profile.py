@@ -1276,6 +1276,126 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    network_value_selection_later_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--network-value-selection-later-blockers",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_value_selection_later_json_result.returncode != 0:
+        return "{} --network-value-selection-later-blockers --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            network_value_selection_later_json_result.stderr.strip()
+            or network_value_selection_later_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        network_value_selection_later_json = json.loads(
+            network_value_selection_later_json_result.stdout
+        )
+    except json.JSONDecodeError as exc:
+        return "{} --network-value-selection-later-blockers --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        network_value_selection_later_json.get("schema_version") != 1
+        or network_value_selection_later_json.get("network") != "main"
+        or network_value_selection_later_json.get("ready_for_launch_profile") is not False
+        or network_value_selection_later_json.get("current_blocker") != "main.litecoin_snapshot"
+        or network_value_selection_later_json.get("current_blocker_field_count") != 11
+    ):
+        return "{} --network-value-selection-later-blockers --json did not expose network state".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        network_value_selection_later_json.get("value_selection_blocker_types")
+        != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+        or network_value_selection_later_json.get("later_value_selection_blockers")
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or network_value_selection_later_json.get("later_value_selection_blocker_count") != 3
+        or network_value_selection_later_json.get("later_value_selection_blocker_field_count") != 12
+        or "main.public_network_identity.default_port" not in network_value_selection_later_json.get("later_value_selection_blocker_fields", [])
+        or [group.get("id") for group in network_value_selection_later_json.get("later_value_selection_blocker_field_groups", [])]
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+    ):
+        return "{} --network-value-selection-later-blockers --json did not expose queued blockers and fields".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    network_value_selection_groups = network_value_selection_later_json.get(
+        "later_value_selection_blocker_field_groups",
+        [],
+    )
+    if (
+        network_value_selection_groups[0].get("candidate_constraints", {}).get("strict_chain_id") is not True
+        or network_value_selection_groups[1].get("candidate_constraints", {}).get("message_start_bytes") != 4
+        or network_value_selection_groups[2].get("candidate_constraints", {}).get("dns_seed_count_min") != 1
+        or network_value_selection_groups[1].get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --network-value-selection-later-blockers --json did not expose queued blocker details".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    network_value_selection_commands = network_value_selection_later_json.get(
+        "later_value_selection_blocker_readiness_summary_commands",
+        {},
+    )
+    if (
+        network_value_selection_commands.get("main.auxpow_chain_id")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_commands.get("main.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("network_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("network_handoff_bundle_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("network_value_selection_later_blockers_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --network-value-selection-later-blockers --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_network_value_selection_json_manifest_path = Path(temp_dir) / "read-only-network-value-selection-json-manifest.json"
+        readonly_network_value_selection_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_network_value_selection_json_manifest_path.write_bytes(
+            readonly_network_value_selection_json_manifest_bytes
+        )
+        readonly_network_value_selection_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--network-value-selection-later-blockers",
+                "main",
+                str(readonly_network_value_selection_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_network_value_selection_json_result.returncode != 0:
+            return "{} --network-value-selection-later-blockers --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_network_value_selection_json_result.stderr.strip()
+                or readonly_network_value_selection_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_network_value_selection_json_manifest_path.read_bytes() != readonly_network_value_selection_json_manifest_bytes:
+            return "{} --network-value-selection-later-blockers --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     blocker_type_readiness_result = subprocess.run(
         [
             sys.executable,
@@ -7961,7 +8081,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --network-handoff-bundle, or --blocker-readiness-summary" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --network-handoff-bundle, --blocker-readiness-summary, or --network-value-selection-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -13779,6 +13899,8 @@ def main():
         ("network_handoff_bundle_json_text", "manifest network handoff JSON renderer"),
         ("--network-later-blockers", "manifest network later blockers flag"),
         ("--network-value-selection-later-blockers", "manifest network value-selection later blockers flag"),
+        ("network_value_selection_later_blockers_json_payload", "manifest network value-selection later blockers JSON payload helper"),
+        ("network_value_selection_later_blockers_json_text", "manifest network value-selection later blockers JSON renderer"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
         ("--blocker-type-later-blockers", "manifest blocker-type later blockers flag"),
         ("--readiness-gate-summary", "manifest readiness-gate summary flag"),
@@ -15376,6 +15498,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --network-value-selection-later-blockers NETWORK",
             "public launch manifest network value-selection later blockers documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --network-value-selection-later-blockers NETWORK",
+            "public launch manifest network value-selection later blockers JSON documentation",
+        ),
+        (
+            "machine-readable queued AuxPoW chain-id",
+            "public launch manifest network value-selection later blockers JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
