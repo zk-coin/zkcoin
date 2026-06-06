@@ -219,6 +219,11 @@ Both are intentionally present before behavior changes so tests and review can t
   Add `--require-release-evidence-bundle-match` to make the same check a CI
   gate that exits nonzero when the archived bundle drifts.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json>`
+  when release operators need a checklist of the bundle URI, SHA-256, manifest
+  commit, gate command, gate result, and timestamp fields to retain with the
+  launch evidence archive.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -246,6 +251,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `check_release_evidence_bundle_json_command`,
   `release_evidence_bundle_gate_command`,
   `release_evidence_bundle_gate_json_command`,
+  `release_evidence_archive_checklist_command`,
+  `release_evidence_archive_checklist_json_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -335,6 +342,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_bundle_gate_command` and
   `release_evidence_bundle_gate_json_command` expose the CI gate form that
   requires an exact bundle match and exits nonzero on drift.
+  `release_evidence_archive_checklist_command` and
+  `release_evidence_archive_checklist_json_command` expose the archive record
+  checklist for retaining the verified bundle location and gate evidence.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -948,6 +958,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-archive-checklist <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-archive-checklist <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1157,6 +1176,9 @@ freshness check for an archived release evidence bundle, including a stable
 Add `--require-release-evidence-bundle-match` to that command when CI should
 fail on release evidence drift while still receiving the same JSON payload on
 stdout.
+Use `--release-evidence-archive-checklist --json` when automation needs the
+required archive record fields and exact gate command to store alongside a
+verified release evidence bundle.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

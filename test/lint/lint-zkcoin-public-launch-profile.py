@@ -1327,6 +1327,8 @@ def require_public_launch_manifest_current():
         "  - check release evidence bundle JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence bundle gate command: contrib/devtools/zkcoin_public_launch_profile.py --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence archive checklist command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence archive checklist JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocked networks: main, testnet",
         "  - ready networks: none",
         "  - blocked networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
@@ -1539,6 +1541,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_summary_json.get("release_evidence_bundle_gate_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("release_evidence_archive_checklist_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("release_evidence_archive_checklist_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("template_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("blocker_readiness_summary_command")
@@ -2861,6 +2867,8 @@ def require_public_launch_manifest_current():
         "  - check release evidence bundle JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence bundle gate command: contrib/devtools/zkcoin_public_launch_profile.py --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence archive checklist command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence archive checklist JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - operator runbook command: contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - launch-gate preflight command: contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - snapshot audit handoffs command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -2928,6 +2936,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("release_evidence_bundle_gate_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or release_evidence_json.get("release_evidence_archive_checklist_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or release_evidence_json.get("release_evidence_archive_checklist_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("operator_runbook_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("launch_gate_preflight_command")
@@ -3136,6 +3148,124 @@ def require_public_launch_manifest_current():
             or release_evidence_gate_json.get("required_match_exit_code") != 0
         ):
             return "{} --require-release-evidence-bundle-match did not verify a fresh bundle".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        release_evidence_archive_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--release-evidence-archive-checklist",
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_archive_result.returncode != 0:
+            return "{} --release-evidence-archive-checklist failed for a bundle path: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_archive_result.stderr.strip()
+                or release_evidence_archive_result.stdout.strip()
+                or "no output",
+            )
+        archive_fields_text = (
+            "release_evidence_bundle_uri, release_evidence_bundle_sha256, "
+            "release_evidence_bundle_schema_version, manifest_path, manifest_commit, "
+            "gate_command, gate_verified, gate_mismatch_count, gate_checked_at"
+        )
+        for expected in (
+            "zkCoin public launch profile release evidence archive checklist:",
+            "  - status: blocked",
+            f"  - release evidence bundle: {release_evidence_bundle_path}",
+            f"  - release evidence archive checklist command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence archive checklist JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - archive record fields: {archive_fields_text}",
+            "  - required gate verified: yes",
+            "  - required gate mismatches: 0",
+            "  - required gate exit code: 0",
+            "  - evidence payloads: 4",
+            "  - checklist steps: 4",
+            "  - step 1: generate-release-evidence-bundle",
+            "  - step 2: verify-release-evidence-bundle-gate",
+            "  - step 3: archive-release-evidence-record",
+            f"  - step 3 required fields: {archive_fields_text}",
+            "  - step 4: publish-release-evidence-handoff",
+        ):
+            if expected not in release_evidence_archive_result.stdout:
+                return "{} --release-evidence-archive-checklist did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        release_evidence_archive_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--release-evidence-archive-checklist",
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_archive_json_result.returncode != 0:
+            return "{} --release-evidence-archive-checklist --json failed for a bundle path: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_archive_json_result.stderr.strip()
+                or release_evidence_archive_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            release_evidence_archive_json = json.loads(
+                release_evidence_archive_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-archive-checklist --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            release_evidence_archive_json.get("schema_version") != 1
+            or release_evidence_archive_json.get("release_evidence_bundle")
+            != str(release_evidence_bundle_path)
+            or release_evidence_archive_json.get("archive_record_schema_version") != 1
+            or release_evidence_archive_json.get("required_archive_record_field_count") != 9
+            or release_evidence_archive_json.get("required_archive_record_fields")
+            != [
+                "release_evidence_bundle_uri",
+                "release_evidence_bundle_sha256",
+                "release_evidence_bundle_schema_version",
+                "manifest_path",
+                "manifest_commit",
+                "gate_command",
+                "gate_verified",
+                "gate_mismatch_count",
+                "gate_checked_at",
+            ]
+            or release_evidence_archive_json.get("required_gate_result")
+            != {
+                "verified": True,
+                "mismatch_count": 0,
+                "required_match_exit_code": 0,
+            }
+            or release_evidence_archive_json.get("evidence_payload_count") != 4
+            or release_evidence_archive_json.get("checklist_step_count") != 4
+            or [step.get("id") for step in release_evidence_archive_json.get("checklist_steps", [])]
+            != [
+                "generate-release-evidence-bundle",
+                "verify-release-evidence-bundle-gate",
+                "archive-release-evidence-record",
+                "publish-release-evidence-handoff",
+            ]
+        ):
+            return "{} --release-evidence-archive-checklist --json did not expose archive checklist state".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5086,6 +5216,22 @@ def require_public_launch_manifest_current():
         "<release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the release evidence bundle gate JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_archive_checklist_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--release-evidence-archive-checklist <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence archive checklist command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_archive_checklist_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --json "
+        "--release-evidence-archive-checklist <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence archive checklist JSON command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -8346,6 +8492,22 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged release evidence bundle gate JSON commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            "--release-evidence-archive-checklist <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get("release_evidence_archive_checklist_command", "")
+        ):
+            return "{} --status-json did not shell-quote staged release evidence archive checklist commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "--json --release-evidence-archive-checklist <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get("release_evidence_archive_checklist_json_command", "")
+        ):
+            return "{} --status-json did not shell-quote staged release evidence archive checklist JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -9170,6 +9332,29 @@ def require_public_launch_manifest_current():
         )
     if "--check-release-evidence-bundle does not write the manifest" not in release_evidence_check_in_place_result.stderr:
         return "{} --check-release-evidence-bundle did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    release_evidence_archive_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--release-evidence-archive-checklist",
+            str(PUBLIC_LAUNCH_MANIFEST),
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if release_evidence_archive_in_place_result.returncode == 0:
+        return "{} --release-evidence-archive-checklist accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--release-evidence-archive-checklist does not write the manifest" not in release_evidence_archive_in_place_result.stderr:
+        return "{} --release-evidence-archive-checklist did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -10801,7 +10986,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -17045,6 +17230,8 @@ def main():
         ("--require-release-evidence-bundle-match", "manifest release evidence bundle gate flag"),
         ("check_release_evidence_bundle_command", "manifest builds release evidence bundle check commands"),
         ("release_evidence_bundle_gate_command", "manifest builds release evidence bundle gate commands"),
+        ("--release-evidence-archive-checklist", "manifest release evidence archive checklist flag"),
+        ("release_evidence_archive_checklist_command", "manifest builds release evidence archive checklist commands"),
         ("release_evidence_bundle_state", "manifest builds release evidence bundle state"),
         ("release_evidence_bundle_summary", "manifest summarizes release evidence bundle state"),
         ("release_evidence_bundle_text", "manifest prints release evidence bundle guidance"),
@@ -17056,6 +17243,11 @@ def main():
         ("release_evidence_bundle_check_text", "manifest prints release evidence bundle check guidance"),
         ("release_evidence_bundle_check_json_text_from_payload", "manifest prints precomputed release evidence bundle check JSON"),
         ("release_evidence_bundle_check_json_text", "manifest prints release evidence bundle check JSON guidance"),
+        ("RELEASE_EVIDENCE_ARCHIVE_RECORD_FIELDS", "manifest defines release evidence archive record fields"),
+        ("release_evidence_archive_checklist_steps", "manifest builds release evidence archive checklist steps"),
+        ("release_evidence_archive_checklist_payload", "manifest builds release evidence archive checklist JSON payloads"),
+        ("release_evidence_archive_checklist_text", "manifest prints release evidence archive checklist guidance"),
+        ("release_evidence_archive_checklist_json_text", "manifest prints release evidence archive checklist JSON guidance"),
         ("--snapshot-audit-handoffs", "manifest snapshot audit handoffs flag"),
         ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
         ("snapshot_audit_handoffs_state", "manifest builds all-network snapshot audit handoff state"),
@@ -17445,6 +17637,7 @@ def main():
         ("release_evidence_bundle_json_command", "manifest builds release evidence bundle JSON commands"),
         ("check_release_evidence_bundle_command", "manifest builds release evidence bundle check commands"),
         ("release_evidence_bundle_gate_command", "manifest builds release evidence bundle gate commands"),
+        ("release_evidence_archive_checklist_command", "manifest builds release evidence archive checklist commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
         ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
@@ -17465,6 +17658,8 @@ def main():
         ("release_evidence_bundle_json_text", "manifest prints release evidence bundle JSON guidance"),
         ("release_evidence_bundle_check_text", "manifest prints release evidence bundle check guidance"),
         ("release_evidence_bundle_check_json_text", "manifest prints release evidence bundle check JSON guidance"),
+        ("release_evidence_archive_checklist_text", "manifest prints release evidence archive checklist guidance"),
+        ("release_evidence_archive_checklist_json_text", "manifest prints release evidence archive checklist JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -17532,6 +17727,7 @@ def main():
         ("release_evidence_bundle_command", "manifest status JSON exposes release evidence bundle command"),
         ("check_release_evidence_bundle_command", "manifest status JSON exposes release evidence bundle check command"),
         ("release_evidence_bundle_gate_command", "manifest status JSON exposes release evidence bundle gate command"),
+        ("release_evidence_archive_checklist_command", "manifest status JSON exposes release evidence archive checklist command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -18922,6 +19118,14 @@ def main():
             "public launch manifest release evidence bundle gate JSON documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --release-evidence-archive-checklist <release_evidence_bundle.json>",
+            "public launch manifest release evidence archive checklist documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --release-evidence-archive-checklist <release_evidence_bundle.json>",
+            "public launch manifest release evidence archive checklist JSON documentation",
+        ),
+        (
             "release evidence bundle freshness",
             "public launch manifest release evidence bundle freshness documentation",
         ),
@@ -18944,6 +19148,10 @@ def main():
         (
             "release_evidence_bundle_gate_command",
             "public launch manifest status-json release evidence bundle gate command documentation",
+        ),
+        (
+            "release_evidence_archive_checklist_command",
+            "public launch manifest status-json release evidence archive checklist command documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
