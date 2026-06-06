@@ -1100,6 +1100,159 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+    snapshot_handoffs_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--snapshot-audit-handoffs",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_handoffs_result.returncode != 0:
+        return "{} --snapshot-audit-handoffs failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            snapshot_handoffs_result.stderr.strip()
+            or snapshot_handoffs_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile snapshot audit handoffs:",
+        "  - snapshot audit handoffs command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - unresolved snapshot blockers: 2",
+        "  - blocked snapshot fields: 22",
+        "  - required external artifacts: 4",
+        "  - available handoff commands: 8",
+        "  - main required artifacts: snapshot_audit_json, snapshot_file",
+        "  - main step count: 6",
+        "  - testnet snapshot audit handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in snapshot_handoffs_result.stdout:
+            return "{} --snapshot-audit-handoffs did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    snapshot_handoffs_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--snapshot-audit-handoffs",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_handoffs_json_result.returncode != 0:
+        return "{} --snapshot-audit-handoffs --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            snapshot_handoffs_json_result.stderr.strip()
+            or snapshot_handoffs_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        snapshot_handoffs_json = json.loads(snapshot_handoffs_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --snapshot-audit-handoffs --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    expected_snapshot_handoff_commands = {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }
+    snapshot_handoffs_summary = snapshot_handoffs_json.get("summary", {})
+    if (
+        snapshot_handoffs_json.get("schema_version") != 1
+        or snapshot_handoffs_json.get("status") != "blocked"
+        or snapshot_handoffs_json.get("network_count") != 2
+        or snapshot_handoffs_json.get("snapshot_audit_handoffs_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or snapshot_handoffs_json.get("snapshot_audit_handoff_commands_by_network")
+        != expected_snapshot_handoff_commands
+        or snapshot_handoffs_json.get("next_snapshot_audit_handoff_commands_by_network")
+        != expected_snapshot_handoff_commands
+        or snapshot_handoffs_json.get("snapshot_audit_handoff_command_count") != 2
+    ):
+        return "{} --snapshot-audit-handoffs --json did not expose all-network handoff commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        snapshot_handoffs_summary.get("unresolved_network_count") != 2
+        or snapshot_handoffs_summary.get("next_blocker_network_count") != 2
+        or snapshot_handoffs_summary.get("blocked_field_count") != 22
+        or snapshot_handoffs_summary.get("required_artifact_count") != 4
+        or snapshot_handoffs_summary.get("step_count") != 12
+        or snapshot_handoffs_summary.get("available_command_count") != 8
+        or snapshot_handoffs_summary.get("blockers_by_network")
+        != {"main": "main.litecoin_snapshot", "testnet": "testnet.litecoin_snapshot"}
+    ):
+        return "{} --snapshot-audit-handoffs --json did not expose aggregate handoff counts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    snapshot_handoffs_readiness = snapshot_handoffs_json.get(
+        "snapshot_audit_handoff_readiness_by_network",
+        {},
+    )
+    snapshot_handoffs_checklists = snapshot_handoffs_json.get(
+        "snapshot_audit_handoff_checklist_by_network",
+        {},
+    )
+    snapshot_handoffs_checklist_summaries = snapshot_handoffs_json.get(
+        "snapshot_audit_handoff_checklist_summary_by_network",
+        {},
+    )
+    if (
+        snapshot_handoffs_readiness.get("main", {}).get("next_command")
+        != expected_snapshot_handoff_commands["main"]
+        or snapshot_handoffs_readiness.get("testnet", {}).get("external_artifact_count") != 2
+        or snapshot_handoffs_checklists.get("main", {}).get("state") != "required"
+        or snapshot_handoffs_checklists.get("main", {}).get("available_command_count") != 4
+        or [step.get("id") for step in snapshot_handoffs_checklists.get("testnet", {}).get("steps", [])]
+        != ["generate_template", "snapshot_audit_json", "snapshot_file", "verify_audit", "preflight_audit", "apply_audit"]
+        or snapshot_handoffs_checklist_summaries.get("main", {}).get("step_count") != 6
+        or snapshot_handoffs_checklist_summaries.get("testnet", {}).get("requires_preflight_step_ids") != ["apply_audit"]
+        or snapshot_handoffs_json.get("snapshot_audit_external_artifact_counts_by_network") != {"main": 2, "testnet": 2}
+    ):
+        return "{} --snapshot-audit-handoffs --json did not expose per-network handoff checklists".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_handoffs_manifest_path = Path(temp_dir) / "read-only-handoffs-manifest.json"
+        readonly_handoffs_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_handoffs_manifest_path.write_bytes(readonly_handoffs_manifest_bytes)
+        readonly_handoffs_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-handoffs",
+                str(readonly_handoffs_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_handoffs_result.returncode != 0:
+            return "{} --snapshot-audit-handoffs --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_handoffs_result.stderr.strip()
+                or readonly_handoffs_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_handoffs_manifest_path.read_bytes() != readonly_handoffs_manifest_bytes:
+            return "{} --snapshot-audit-handoffs --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     action_plan_result = subprocess.run(
         [
             sys.executable,
@@ -1361,6 +1514,8 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --status-json contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_summary_json.get("value_selection_checklists_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("snapshot_audit_handoffs_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("template_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("blocker_readiness_summary_command")
@@ -4046,6 +4201,13 @@ def require_public_launch_manifest_current():
         "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the value-selection checklists command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("snapshot_audit_handoffs_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the snapshot audit handoffs command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -7254,6 +7416,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged value-selection checklist commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("snapshot_audit_handoffs_command", ""):
+            return "{} --status-json did not shell-quote staged snapshot audit handoffs commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -7772,6 +7938,7 @@ def require_public_launch_manifest_current():
         ("network-later-blockers", ["--network-later-blockers", "main"]),
         ("network-value-selection-later-blockers", ["--network-value-selection-later-blockers", "main"]),
         ("value-selection-checklists", ["--value-selection-checklists"]),
+        ("snapshot-audit-handoffs", ["--snapshot-audit-handoffs"]),
         ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
         ("blocker-type-later-blockers", ["--blocker-type-later-blockers", "litecoin_snapshot"]),
         ("readiness-gate-summary", ["--readiness-gate-summary", "external_artifact"]),
@@ -7963,6 +8130,28 @@ def require_public_launch_manifest_current():
         )
     if "--value-selection-checklists does not write the manifest" not in value_selection_checklists_in_place_result.stderr:
         return "{} --value-selection-checklists did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    snapshot_handoffs_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--snapshot-audit-handoffs",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if snapshot_handoffs_in_place_result.returncode == 0:
+        return "{} --snapshot-audit-handoffs accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--snapshot-audit-handoffs does not write the manifest" not in snapshot_handoffs_in_place_result.stderr:
+        return "{} --snapshot-audit-handoffs did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -9573,7 +9762,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -15794,6 +15983,13 @@ def main():
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklists"),
         ("value_selection_checklists_json_payload", "manifest all-network value-selection checklist JSON payload helper"),
         ("value_selection_checklists_json_text", "manifest all-network value-selection checklist JSON renderer"),
+        ("--snapshot-audit-handoffs", "manifest snapshot audit handoffs flag"),
+        ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
+        ("snapshot_audit_handoffs_state", "manifest builds all-network snapshot audit handoff state"),
+        ("snapshot_audit_handoffs_summary", "manifest summarizes all-network snapshot audit handoffs"),
+        ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
+        ("snapshot_audit_handoffs_json_payload", "manifest builds all-network snapshot audit handoff payloads"),
+        ("snapshot_audit_handoffs_json_text", "manifest prints all-network snapshot audit handoff JSON guidance"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
         ("blocker_type_readiness_summary_json_payload", "manifest blocker-type readiness summary JSON payload helper"),
         ("blocker_type_readiness_summary_json_text", "manifest blocker-type readiness summary JSON renderer"),
@@ -15849,6 +16045,7 @@ def main():
         ("snapshot_audit_handoff_command", "manifest builds snapshot audit handoff commands"),
         ("snapshot_audit_handoff_commands", "manifest builds snapshot audit handoff command maps"),
         ("snapshot_audit_handoff_command_summary", "manifest formats snapshot audit handoff commands for readiness summaries"),
+        ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
         ("network_readiness_summary_command", "manifest prints network readiness-summary commands after read-only checks"),
         ("blocker_type_readiness_summary_command", "manifest prints blocker-type readiness-summary commands after read-only checks"),
         ("blocker_readiness_summary_command", "manifest prints blocker readiness-summary commands after read-only checks"),
@@ -16168,8 +16365,10 @@ def main():
         ("network_later_blockers_text", "manifest prints network later blocker guidance"),
         ("network_value_selection_later_blockers_command", "manifest builds network value-selection later blocker commands"),
         ("value_selection_checklists_command", "manifest builds all-network value-selection checklist commands"),
+        ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
+        ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
         ("blocker_type_readiness_summary_text", "manifest prints blocker-type-scoped readiness guidance"),
         ("blocker_type_later_blockers_text", "manifest prints blocker-type later blocker guidance"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate-scoped readiness guidance"),
@@ -16178,6 +16377,7 @@ def main():
         ("status_json_text", "manifest prints machine-readable status guidance"),
         ("snapshot_audit_handoff_text", "manifest prints snapshot audit handoff guidance"),
         ("snapshot_audit_handoff_json_text", "manifest prints snapshot audit handoff JSON guidance"),
+        ("snapshot_audit_handoffs_json_text", "manifest prints snapshot audit handoffs JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -16239,6 +16439,7 @@ def main():
         ("snapshot_audit_handoff_readiness_by_network", "manifest status JSON indexes snapshot audit handoff readiness by network"),
         ("snapshot_audit_handoff_checklist_by_network", "manifest status JSON indexes snapshot audit handoff checklist by network"),
         ("snapshot_audit_handoff_checklist_summary_by_network", "manifest status JSON summarizes snapshot audit handoff checklist by network"),
+        ("snapshot_audit_handoffs_command", "manifest status JSON exposes snapshot audit handoffs command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -17555,6 +17756,22 @@ def main():
         (
             "value_selection_checklists_command",
             "public launch manifest status-json value-selection checklist command documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --snapshot-audit-handoffs",
+            "public launch manifest all-network snapshot audit handoff documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --snapshot-audit-handoffs",
+            "public launch manifest all-network snapshot audit handoff JSON documentation",
+        ),
+        (
+            "all-network snapshot audit handoff",
+            "public launch manifest all-network snapshot audit handoff contents documentation",
+        ),
+        (
+            "snapshot_audit_handoffs_command",
+            "public launch manifest status-json snapshot audit handoffs command documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

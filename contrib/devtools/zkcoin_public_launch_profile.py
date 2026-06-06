@@ -4050,6 +4050,12 @@ def snapshot_audit_handoff_command(manifest_path, network):
     return f"{tool_path} --snapshot-audit-handoff {network} {manifest_path}"
 
 
+def snapshot_audit_handoffs_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --snapshot-audit-handoffs {manifest_path}"
+
+
 def status_command_fields(manifest_path):
     return {
         "action_plan": action_plan_command(manifest_path),
@@ -4720,6 +4726,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - readiness summary command: {readiness_summary_command(manifest_path)}",
         f"  - status JSON command: {status_json_command(manifest_path)}",
         f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
+        f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -4843,6 +4850,9 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         "readiness_summary_command": commands["readiness_summary"],
         "status_json_command": commands["status_json"],
         "value_selection_checklists_command": value_selection_checklists_command(
+            manifest_path,
+        ),
+        "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
             manifest_path,
         ),
         "blocked_networks": blocked_networks(network_progress),
@@ -4995,6 +5005,163 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
 def readiness_summary_json_text(manifest, manifest_path, check):
     return json.dumps(
         readiness_summary_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
+def snapshot_audit_handoffs_state(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    network_next_commands = network_next_command_fields(network_progress)
+    next_snapshot_audit_handoff_commands_by_network = command_field_values_by_group(
+        network_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    readiness_by_network = snapshot_audit_handoff_readiness_by_network(
+        network_progress,
+        blocked_field_groups,
+        next_snapshot_audit_handoff_commands_by_network,
+    )
+    checklist_by_network = snapshot_audit_handoff_checklist_by_network(
+        manifest_path,
+        blocked_field_groups,
+    )
+    checklist_summary_by_network = snapshot_audit_handoff_checklist_summary_by_network(
+        checklist_by_network,
+    )
+    return {
+        "readiness_by_network": readiness_by_network,
+        "checklist_by_network": checklist_by_network,
+        "checklist_summary_by_network": checklist_summary_by_network,
+        "next_snapshot_audit_handoff_commands_by_network": (
+            next_snapshot_audit_handoff_commands_by_network
+        ),
+    }
+
+
+def snapshot_audit_handoffs_summary(handoffs_state):
+    readiness_by_network = handoffs_state["readiness_by_network"]
+    checklist_summary_by_network = handoffs_state["checklist_summary_by_network"]
+    return {
+        "network_count": len(readiness_by_network),
+        "unresolved_network_count": sum(
+            1
+            for readiness in readiness_by_network.values()
+            if readiness["unresolved"]
+        ),
+        "next_blocker_network_count": sum(
+            1
+            for readiness in readiness_by_network.values()
+            if readiness["is_next_blocker"]
+        ),
+        "blocked_field_count": sum(
+            readiness["blocked_field_count"]
+            for readiness in readiness_by_network.values()
+        ),
+        "required_artifact_count": sum(
+            summary["required_artifact_count"]
+            for summary in checklist_summary_by_network.values()
+        ),
+        "step_count": sum(
+            summary["step_count"]
+            for summary in checklist_summary_by_network.values()
+        ),
+        "available_command_count": sum(
+            summary["available_command_count"]
+            for summary in checklist_summary_by_network.values()
+        ),
+        "blockers_by_network": {
+            network: readiness["blocker"]
+            for network, readiness in readiness_by_network.items()
+        },
+    }
+
+
+def snapshot_audit_handoffs_text(manifest, manifest_path, check):
+    handoffs_state = snapshot_audit_handoffs_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    summary = snapshot_audit_handoffs_summary(handoffs_state)
+    commands_by_network = snapshot_audit_handoff_commands(manifest_path)
+    readiness_by_network = handoffs_state["readiness_by_network"]
+    checklist_summary_by_network = handoffs_state["checklist_summary_by_network"]
+    lines = [
+        "zkCoin public launch profile snapshot audit handoffs:",
+        f"  - status: {manifest.get('status')}",
+        f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
+        f"  - networks: {list_summary(NETWORKS)}",
+        f"  - unresolved snapshot blockers: {summary['unresolved_network_count']}",
+        f"  - blocked snapshot fields: {summary['blocked_field_count']}",
+        f"  - required external artifacts: {summary['required_artifact_count']}",
+        f"  - available handoff commands: {summary['available_command_count']}",
+    ]
+    for network in NETWORKS:
+        readiness = readiness_by_network[network]
+        checklist_summary = checklist_summary_by_network[network]
+        lines.extend([
+            f"  - {network} blocker: {readiness['blocker']}",
+            f"  - {network} state: {checklist_summary['state']}",
+            f"  - {network} blocked fields: {readiness['blocked_field_count']}",
+            f"  - {network} required artifacts: {list_summary(checklist_summary['required_artifact_ids'])}",
+            f"  - {network} step count: {checklist_summary['step_count']}",
+            f"  - {network} snapshot audit handoff command: {commands_by_network[network]}",
+        ])
+    return "\n".join(lines)
+
+
+def snapshot_audit_handoffs_json_payload(manifest, manifest_path, check):
+    handoffs_state = snapshot_audit_handoffs_state(
+        manifest,
+        manifest_path,
+        check,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
+            manifest_path,
+        ),
+        "networks": list(NETWORKS),
+        "network_count": len(NETWORKS),
+        "snapshot_audit_handoff_commands_by_network": (
+            snapshot_audit_handoff_commands(manifest_path)
+        ),
+        "snapshot_audit_handoff_command_count": len(NETWORKS),
+        "next_snapshot_audit_handoff_commands_by_network": (
+            handoffs_state["next_snapshot_audit_handoff_commands_by_network"]
+        ),
+        "snapshot_audit_handoff_readiness_by_network": (
+            handoffs_state["readiness_by_network"]
+        ),
+        "snapshot_audit_handoff_checklist_by_network": (
+            handoffs_state["checklist_by_network"]
+        ),
+        "snapshot_audit_handoff_checklist_summary_by_network": (
+            handoffs_state["checklist_summary_by_network"]
+        ),
+        "snapshot_audit_external_artifacts_by_network": (
+            snapshot_audit_external_artifacts_by_network()
+        ),
+        "snapshot_audit_external_artifact_counts_by_network": (
+            snapshot_audit_external_artifact_counts_by_network()
+        ),
+        "summary": snapshot_audit_handoffs_summary(handoffs_state),
+    }
+
+
+def snapshot_audit_handoffs_json_text(manifest, manifest_path, check):
+    return json.dumps(
+        snapshot_audit_handoffs_json_payload(manifest, manifest_path, check),
         indent=2,
         sort_keys=False,
     )
@@ -6724,6 +6891,9 @@ def status_json_text(manifest, manifest_path, check):
             "value_selection_checklists_command": value_selection_checklists_command(
                 manifest_path,
             ),
+            "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
+                manifest_path,
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -7009,6 +7179,8 @@ def selected_primary_actions(args):
         actions.append("--check-snapshot-audit")
     if args.snapshot_audit_handoff is not None:
         actions.append("--snapshot-audit-handoff")
+    if args.snapshot_audit_handoffs:
+        actions.append("--snapshot-audit-handoffs")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -7128,6 +7300,11 @@ def main():
         help="print the snapshot audit field, artifact, and command checklist for one public network",
     )
     parser.add_argument(
+        "--snapshot-audit-handoffs",
+        action="store_true",
+        help="print snapshot audit field, artifact, and command checklists for all public networks",
+    )
+    parser.add_argument(
         "--set-auxpow",
         nargs=2,
         metavar=("NETWORK", "CHAIN_ID"),
@@ -7209,6 +7386,7 @@ def main():
         and args.snapshot_audit_preflight is None
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
+        and not args.snapshot_audit_handoffs
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -7230,7 +7408,8 @@ def main():
             "error: --json is only supported with --snapshot-audit-template, "
             "--snapshot-audit-template-diff, "
             "--snapshot-audit-preflight, --check-snapshot-audit, "
-            "--snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, "
+            "--snapshot-audit-handoff, --snapshot-audit-handoffs, "
+            "--check-auxpow, --check-dns-seeds, "
             "--check-identity, "
             "--readiness-summary, --network-handoff-bundle, "
             "--blocker-readiness-summary, "
@@ -7377,6 +7556,10 @@ def main():
         if args.in_place:
             print("error: --snapshot-audit-handoff does not write the manifest", file=sys.stderr)
             return 1
+    if args.snapshot_audit_handoffs:
+        if args.in_place:
+            print("error: --snapshot-audit-handoffs does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -7487,6 +7670,8 @@ def main():
         allow_blocked = True
     if args.snapshot_audit_handoff is not None:
         allow_blocked = True
+    if args.snapshot_audit_handoffs:
+        allow_blocked = True
     if args.network_handoff_bundle is not None:
         allow_blocked = True
     if args.network_later_blockers is not None:
@@ -7574,6 +7759,15 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+        return 0
+
+    if args.snapshot_audit_handoffs:
+        handoffs_text = (
+            snapshot_audit_handoffs_json_text
+            if args.json
+            else snapshot_audit_handoffs_text
+        )
+        print(handoffs_text(manifest, args.manifest, check))
         return 0
 
     if args.network_readiness_summary is not None:
