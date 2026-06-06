@@ -3415,6 +3415,91 @@ def dns_seeds_apply_command(network, dns_seeds, manifest_path):
     )
 
 
+def dns_seeds_check_command(network, dns_seeds, manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    dns_seed_arg = shell_quote(",".join(dns_seeds))
+    return f"{tool_path} --check-dns-seeds {network} {dns_seed_arg} {manifest_path}"
+
+
+def dns_seeds_json_payload(network, dns_seeds, candidate, manifest_path):
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    blocker_counts_by_network = item_counts_by_network(blockers)
+    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
+    next_blocker = blockers[0] if blockers else None
+    if next_blocker is None:
+        next_blocker_network = None
+        next_blocker_type = None
+        next_blocker_commands = None
+    else:
+        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
+        next_blocker_commands = blocker_action_commands(
+            next_blocker,
+            shell_quote(display_path(manifest_path)),
+        )
+    constraints = blocker_candidate_constraints("dns_seeds")
+
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": f"{network}.dns_seeds",
+        "readiness_gate": blocker_type_readiness_gate("dns_seeds"),
+        "verified": True,
+        "ready_to_apply": True,
+        "candidate": {
+            "seeds": list(dns_seeds),
+            "seed_count": len(dns_seeds),
+        },
+        "candidate_constraints": constraints,
+        "candidate_constraint_count": len(constraints),
+        "commands": {
+            "apply": dns_seeds_apply_command(network, dns_seeds, manifest_path),
+            "recheck": dns_seeds_check_command(network, dns_seeds, manifest_path),
+            "network_handoff_bundle": network_handoff_bundle_command(manifest_path, network),
+            "current_blocker_readiness_summary": blocker_readiness_summary_command(
+                manifest_path,
+                f"{network}.dns_seeds",
+            ),
+        },
+        "post_apply": {
+            "remaining_blocker_count": len(blockers),
+            "remaining_blocker_count_for_network": blocker_counts_by_network[network],
+            "remaining_blocker_counts_by_network": blocker_counts_by_network,
+            "remaining_blockers": blockers,
+            "remaining_blockers_by_network": items_by_network(blockers),
+            "remaining_blocked_field_count": len(blocked_fields),
+            "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[network],
+            "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
+            "remaining_blocked_fields": blocked_fields,
+            "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
+            "next_action_command": next_action_command(manifest_path),
+            "readiness_summary_command": readiness_summary_command(manifest_path),
+            "network_readiness_summary_command": network_readiness_summary_command(
+                manifest_path,
+                network,
+            ),
+            "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
+                manifest_path,
+                "dns_seeds",
+            ),
+            "next_blocker": next_blocker,
+            "next_blocker_network": next_blocker_network,
+            "next_blocker_type": next_blocker_type,
+            "next_commands": next_blocker_commands,
+        },
+    }
+
+
+def dns_seeds_check_json_text(network, dns_seeds, candidate, manifest_path):
+    return json.dumps(
+        dns_seeds_json_payload(network, dns_seeds, candidate, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def dns_seeds_check_text(network, dns_seeds, candidate, manifest_path):
     return "\n".join((
         f"DNS seed candidate verified for {network}.",
@@ -6684,6 +6769,7 @@ def main():
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
+        and args.check_dns_seeds is None
         and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
@@ -6699,7 +6785,7 @@ def main():
             "error: --json is only supported with --snapshot-audit-template, "
             "--snapshot-audit-template-diff, "
             "--snapshot-audit-preflight, --check-snapshot-audit, "
-            "--snapshot-audit-handoff, --check-auxpow, "
+            "--snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, "
             "--readiness-summary, --network-handoff-bundle, "
             "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, --network-readiness-summary, "
@@ -6885,7 +6971,12 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate, args.manifest))
+        check_text = (
+            dns_seeds_check_json_text
+            if args.json
+            else dns_seeds_check_text
+        )
+        print(check_text(args.check_dns_seeds[0], dns_seeds, candidate, args.manifest))
         return 0
 
     if args.set_identity is not None:

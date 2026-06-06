@@ -621,6 +621,8 @@ Both are intentionally present before behavior changes so tests and review can t
   Litecoin parent versionbits-derived `0x2000..0x3fff` range. After provisioning
   zkCoin-operated DNS seeds, verify them without modifying the manifest with
   `contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`,
+  or `contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`
+  when automation needs machine-readable seed and post-apply progress,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>`;
   the read-only DNS seed check reports the exact apply command, remaining blocker
@@ -629,7 +631,10 @@ Both are intentionally present before behavior changes so tests and review can t
   post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
-  the candidate, and next scoped summary commands for that next blocker, so reviewers can verify seed handoff progress before changing the manifest;
+  the candidate, and next scoped summary commands for that next blocker; the
+  JSON form exposes the same seed list, constraints, commands, and post-apply
+  blocker counts without parsing the human handoff text, so reviewers can
+  verify seed handoff progress before changing the manifest;
   the validator rejects empty, duplicate, single-label, numeric final-label,
   overlong-label, malformed, uppercase, reserved or local-use suffixes, and
   inherited Litecoin seed hostnames. After choosing the public network identity,
