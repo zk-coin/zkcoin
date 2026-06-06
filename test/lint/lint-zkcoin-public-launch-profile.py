@@ -1320,6 +1320,7 @@ def require_public_launch_manifest_current():
         "  - next action command: contrib/devtools/zkcoin_public_launch_profile.py --next-action contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --status-json contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - operator runbook command: contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocked networks: main, testnet",
         "  - ready networks: none",
         "  - blocked networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
@@ -1518,6 +1519,8 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_summary_json.get("launch_gate_preflight_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("operator_runbook_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("template_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("blocker_readiness_summary_command")
@@ -2655,6 +2658,158 @@ def require_public_launch_manifest_current():
             )
         if readonly_launch_gate_manifest_path.read_bytes() != readonly_launch_gate_manifest_bytes:
             return "{} --launch-gate-preflight --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+    operator_runbook_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--operator-runbook",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if operator_runbook_result.returncode != 0:
+        return "{} --operator-runbook failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            operator_runbook_result.stderr.strip()
+            or operator_runbook_result.stdout.strip()
+            or "no output",
+        )
+    for expected in (
+        "zkCoin public launch profile operator runbook:",
+        "  - operator runbook command: contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - launch-gate preflight command: contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - snapshot audit handoffs command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - value-selection checklists command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - required external artifacts: 4",
+        "  - required JSON checks: 6",
+        "  - checklist steps: 18",
+        "  - runbook steps: 3",
+        "  - step 1: launch-gate-preflight",
+        "  - step 1 command: contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - step 2: snapshot-audit-handoffs",
+        "  - step 2 command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - step 3: value-selection-checklists",
+        "  - step 3 command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next blocker: main.litecoin_snapshot",
+        "  - next recommended handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    ):
+        if expected not in operator_runbook_result.stdout:
+            return "{} --operator-runbook did not print {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                expected,
+            )
+
+    operator_runbook_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--operator-runbook",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if operator_runbook_json_result.returncode != 0:
+        return "{} --operator-runbook --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            operator_runbook_json_result.stderr.strip()
+            or operator_runbook_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        operator_runbook_json = json.loads(operator_runbook_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --operator-runbook --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    operator_runbook_summary = operator_runbook_json.get("summary", {})
+    operator_runbook_steps = operator_runbook_json.get("runbook_steps", [])
+    if (
+        operator_runbook_json.get("schema_version") != 1
+        or operator_runbook_json.get("status") != "blocked"
+        or operator_runbook_json.get("operator_runbook_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or operator_runbook_json.get("launch_gate_preflight_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or operator_runbook_json.get("snapshot_audit_handoffs_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or operator_runbook_json.get("value_selection_checklists_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --operator-runbook --json did not expose command routing".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        operator_runbook_json.get("runbook_step_count") != 3
+        or len(operator_runbook_steps) != 3
+        or [step.get("id") for step in operator_runbook_steps]
+        != ["launch-gate-preflight", "snapshot-audit-handoffs", "value-selection-checklists"]
+        or [step.get("readiness_gate") for step in operator_runbook_steps]
+        != ["all", "external_artifact", "value_selection"]
+        or operator_runbook_steps[1].get("command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or operator_runbook_steps[2].get("required_before_launch") is not True
+    ):
+        return "{} --operator-runbook --json did not expose ordered runbook steps".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        operator_runbook_summary.get("step_count") != 3
+        or operator_runbook_summary.get("blocked_gate_count") != 2
+        or operator_runbook_summary.get("unresolved_blocker_count") != 8
+        or operator_runbook_summary.get("blocked_field_count") != 46
+        or operator_runbook_summary.get("required_external_artifact_count") != 4
+        or operator_runbook_summary.get("required_json_check_count") != 6
+        or operator_runbook_summary.get("checklist_step_count") != 18
+        or operator_runbook_json.get("next_blocker") != "main.litecoin_snapshot"
+        or operator_runbook_json.get("next_blocker_handoff_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or operator_runbook_json.get("launch_gate_preflight_summary", {}).get("checklist_step_count") != 18
+        or operator_runbook_json.get("snapshot_audit_handoffs_summary", {}).get("required_artifact_count") != 4
+        or operator_runbook_json.get("value_selection_checklists_summary", {}).get("required_json_check_count") != 6
+    ):
+        return "{} --operator-runbook --json did not expose aggregate launch runbook counts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_operator_runbook_manifest_path = Path(temp_dir) / "read-only-operator-runbook.json"
+        readonly_operator_runbook_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_operator_runbook_manifest_path.write_bytes(
+            readonly_operator_runbook_manifest_bytes
+        )
+        readonly_operator_runbook_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--operator-runbook",
+                str(readonly_operator_runbook_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_operator_runbook_result.returncode != 0:
+            return "{} --operator-runbook --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_operator_runbook_result.stderr.strip()
+                or readonly_operator_runbook_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_operator_runbook_manifest_path.read_bytes() != readonly_operator_runbook_manifest_bytes:
+            return "{} --operator-runbook --json modified the manifest during a read-only handoff".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -4362,6 +4517,13 @@ def require_public_launch_manifest_current():
         "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the launch-gate preflight command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("operator_runbook_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the operator runbook command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -7578,6 +7740,10 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged launch-gate preflight commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if quoted_manifest_path not in spaced_status_json.get("operator_runbook_command", ""):
+            return "{} --status-json did not shell-quote staged operator runbook commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -8098,6 +8264,7 @@ def require_public_launch_manifest_current():
         ("value-selection-checklists", ["--value-selection-checklists"]),
         ("snapshot-audit-handoffs", ["--snapshot-audit-handoffs"]),
         ("launch-gate-preflight", ["--launch-gate-preflight"]),
+        ("operator-runbook", ["--operator-runbook"]),
         ("blocker-type-readiness-summary", ["--blocker-type-readiness-summary", "litecoin_snapshot"]),
         ("blocker-type-later-blockers", ["--blocker-type-later-blockers", "litecoin_snapshot"]),
         ("readiness-gate-summary", ["--readiness-gate-summary", "external_artifact"]),
@@ -8333,6 +8500,28 @@ def require_public_launch_manifest_current():
         )
     if "--launch-gate-preflight does not write the manifest" not in launch_gate_preflight_in_place_result.stderr:
         return "{} --launch-gate-preflight did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    operator_runbook_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--operator-runbook",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if operator_runbook_in_place_result.returncode == 0:
+        return "{} --operator-runbook accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--operator-runbook does not write the manifest" not in operator_runbook_in_place_result.stderr:
+        return "{} --operator-runbook did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -9943,7 +10132,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -16171,6 +16360,13 @@ def main():
         ("launch_gate_preflight_text", "manifest prints launch-gate preflight guidance"),
         ("launch_gate_preflight_json_payload", "manifest builds launch-gate preflight JSON payloads"),
         ("launch_gate_preflight_json_text", "manifest prints launch-gate preflight JSON guidance"),
+        ("--operator-runbook", "manifest operator runbook flag"),
+        ("operator_runbook_command", "manifest builds operator runbook commands"),
+        ("operator_runbook_state", "manifest builds operator runbook state"),
+        ("operator_runbook_summary", "manifest summarizes operator runbook state"),
+        ("operator_runbook_text", "manifest prints operator runbook guidance"),
+        ("operator_runbook_json_payload", "manifest builds operator runbook JSON payloads"),
+        ("operator_runbook_json_text", "manifest prints operator runbook JSON guidance"),
         ("--snapshot-audit-handoffs", "manifest snapshot audit handoffs flag"),
         ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
         ("snapshot_audit_handoffs_state", "manifest builds all-network snapshot audit handoff state"),
@@ -16555,10 +16751,12 @@ def main():
         ("value_selection_checklists_command", "manifest builds all-network value-selection checklist commands"),
         ("snapshot_audit_handoffs_command", "manifest builds all-network snapshot audit handoff commands"),
         ("launch_gate_preflight_command", "manifest builds launch-gate preflight commands"),
+        ("operator_runbook_command", "manifest builds operator runbook commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
         ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
         ("launch_gate_preflight_text", "manifest prints launch-gate preflight guidance"),
+        ("operator_runbook_text", "manifest prints operator runbook guidance"),
         ("blocker_type_readiness_summary_text", "manifest prints blocker-type-scoped readiness guidance"),
         ("blocker_type_later_blockers_text", "manifest prints blocker-type later blocker guidance"),
         ("readiness_gate_summary_text", "manifest prints readiness-gate-scoped readiness guidance"),
@@ -16569,6 +16767,7 @@ def main():
         ("snapshot_audit_handoff_json_text", "manifest prints snapshot audit handoff JSON guidance"),
         ("snapshot_audit_handoffs_json_text", "manifest prints snapshot audit handoffs JSON guidance"),
         ("launch_gate_preflight_json_text", "manifest prints launch-gate preflight JSON guidance"),
+        ("operator_runbook_json_text", "manifest prints operator runbook JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -16632,6 +16831,7 @@ def main():
         ("snapshot_audit_handoff_checklist_summary_by_network", "manifest status JSON summarizes snapshot audit handoff checklist by network"),
         ("snapshot_audit_handoffs_command", "manifest status JSON exposes snapshot audit handoffs command"),
         ("launch_gate_preflight_command", "manifest status JSON exposes launch-gate preflight command"),
+        ("operator_runbook_command", "manifest status JSON exposes operator runbook command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -17980,6 +18180,22 @@ def main():
         (
             "launch_gate_preflight_command",
             "public launch manifest status-json launch-gate preflight command documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --operator-runbook",
+            "public launch manifest operator runbook documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --operator-runbook",
+            "public launch manifest operator runbook JSON documentation",
+        ),
+        (
+            "ordered launch operator runbook",
+            "public launch manifest operator runbook contents documentation",
+        ),
+        (
+            "operator_runbook_command",
+            "public launch manifest status-json operator runbook command documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
