@@ -458,6 +458,10 @@ def require_public_launch_manifest_current():
         return "{} --next-action did not print a copyable snapshot apply command line".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "  - snapshot audit handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main" not in next_action_result.stdout:
+        return "{} --next-action did not print a copyable snapshot audit handoff command line".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "  - network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main" not in next_action_result.stdout:
         return "{} --next-action did not print a copyable network readiness-summary command line".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4197,6 +4201,10 @@ def require_public_launch_manifest_current():
             )
         if f"  - template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}" not in spaced_next_action_result.stdout:
             return "{} --next-action did not shell-quote a copyable staged template command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - snapshot audit handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main {quoted_manifest_path}" not in spaced_next_action_result.stdout:
+            return "{} --next-action did not shell-quote a copyable staged snapshot audit handoff command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - later blocker readiness summary commands: main.auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id {quoted_manifest_path}" not in spaced_next_action_result.stdout:

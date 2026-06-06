@@ -116,7 +116,9 @@ Both are intentionally present before behavior changes so tests and review can t
   At any point, run
   `contrib/devtools/zkcoin_public_launch_profile.py --next-action` to print
   the next unresolved blocker group, the matching handoff command template, and
-  blocker-scoped summary commands for later blockers;
+  blocker-scoped summary commands for later blockers; when the next blocker is
+  a Litecoin snapshot, it also prints the snapshot audit handoff checklist
+  command;
   run `contrib/devtools/zkcoin_public_launch_profile.py --action-plan` to print
   every unresolved blocker group and handoff command in launch order. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary` for a
