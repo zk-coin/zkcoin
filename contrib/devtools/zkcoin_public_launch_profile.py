@@ -4357,6 +4357,35 @@ def blocker_action_commands(blocker_id, manifest_path):
     raise ValueError(f"unknown blocker id: {blocker_id}")
 
 
+def blocker_json_check_command(blocker_id, manifest_path):
+    network, blocker = blocker_id.split(".", 1)
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    if blocker == "auxpow_chain_id":
+        return (
+            f"{tool_path} --json --check-auxpow {network} "
+            f"<chain_id> {manifest_path}"
+        )
+    if blocker == "public_network_identity":
+        return (
+            f"{tool_path} --json --check-identity {network} "
+            f"<message_start> <port> <pubkey> <script> <script2> <secret> "
+            f"<xpub> <xprv> <bech32_hrp> <mweb_hrp> {manifest_path}"
+        )
+    if blocker == "dns_seeds":
+        return (
+            f"{tool_path} --json --check-dns-seeds {network} "
+            f"<seed1.hostname>,<seed2.hostname> {manifest_path}"
+        )
+    return None
+
+
+def blocker_json_check_commands(blockers, manifest_path):
+    return {
+        blocker: blocker_json_check_command(blocker, manifest_path)
+        for blocker in blockers
+    }
+
+
 def blocker_template_fields(blocker_type):
     if blocker_type == "litecoin_snapshot":
         return list(SNAPSHOT_AUDIT_SUMMARY_FIELDS)
@@ -5809,8 +5838,13 @@ def network_value_selection_later_blockers_json_payload(manifest, manifest_path,
         network_progress,
     )
     groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    manifest_arg = shell_quote(display_path(manifest_path))
+    json_check_commands = blocker_json_check_commands(later_blockers, manifest_arg)
     later_groups = [
-        groups_by_blocker[blocker]
+        {
+            **groups_by_blocker[blocker],
+            "json_check_command": json_check_commands[blocker],
+        }
         for blocker in later_blockers
     ]
     next_group = network_progress["next_blocked_field_group"]
@@ -5831,6 +5865,8 @@ def network_value_selection_later_blockers_json_payload(manifest, manifest_path,
         "later_value_selection_blocker_fields": later_fields,
         "later_value_selection_blocker_field_count": len(later_fields),
         "later_value_selection_blocker_field_groups": later_groups,
+        "later_value_selection_json_check_commands": json_check_commands,
+        "later_value_selection_json_check_command_count": len(json_check_commands),
         "later_value_selection_blocker_readiness_summary_commands": (
             blocker_readiness_summary_commands(manifest_path, later_blockers)
         ),

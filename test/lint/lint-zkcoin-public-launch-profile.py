@@ -2021,6 +2021,12 @@ def require_public_launch_manifest_current():
         or network_value_selection_groups[2].get("candidate_constraints", {}).get("dns_seed_count_min") != 1
         or network_value_selection_groups[1].get("check_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_groups[0].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_groups[1].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_groups[2].get("json_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --network-value-selection-later-blockers --json did not expose queued blocker details".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2029,11 +2035,22 @@ def require_public_launch_manifest_current():
         "later_value_selection_blocker_readiness_summary_commands",
         {},
     )
+    network_value_selection_json_check_commands = network_value_selection_later_json.get(
+        "later_value_selection_json_check_commands",
+        {},
+    )
     if (
         network_value_selection_commands.get("main.auxpow_chain_id")
         != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or network_value_selection_commands.get("main.dns_seeds")
         != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_json_check_commands.get("main.auxpow_chain_id")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_json_check_commands.get("main.public_network_identity")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-identity main <message_start> <port> <pubkey> <script> <script2> <secret> <xpub> <xprv> <bech32_hrp> <mweb_hrp> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_json_check_commands.get("main.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("later_value_selection_json_check_command_count") != 3
         or network_value_selection_later_json.get("network_readiness_summary_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or network_value_selection_later_json.get("network_handoff_bundle_command")
@@ -15783,6 +15800,9 @@ def main():
         ("action_command_values", "manifest builds current action command value aliases"),
         ("action_command_pairs", "manifest builds current action command pair aliases"),
         ("blocker_action_commands", "manifest builds machine-readable blocker commands"),
+        ("blocker_json_check_command", "manifest builds JSON candidate check command templates"),
+        ("blocker_json_check_commands", "manifest builds JSON candidate check command maps"),
+        ("later_value_selection_json_check_commands", "manifest exposes value-selection JSON candidate check command maps"),
         ("next_action_text", "manifest prints next action guidance"),
         ("append_blocker_command_lines", "manifest prints copyable blocker command lines"),
         ("append_blocker_field_lines", "manifest prints human-readable blocked field paths"),
@@ -17149,6 +17169,10 @@ def main():
         (
             "machine-readable queued AuxPoW chain-id",
             "public launch manifest network value-selection later blockers JSON contents documentation",
+        ),
+        (
+            "JSON-capable\ncandidate check command templates",
+            "public launch manifest network value-selection JSON command documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
