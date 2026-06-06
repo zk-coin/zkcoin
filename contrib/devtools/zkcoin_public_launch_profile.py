@@ -8031,6 +8031,9 @@ def release_evidence_handoff_summary_payload(
         verified,
     )
     publication_blockers = release_evidence_publication_blockers(handoff_artifacts)
+    next_publication_blocker = (
+        publication_blockers[0] if publication_blockers else None
+    )
     return {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
@@ -8051,6 +8054,22 @@ def release_evidence_handoff_summary_payload(
         "ready_for_publication": not publication_blockers,
         "publication_blocker_count": len(publication_blockers),
         "publication_blockers": publication_blockers,
+        "next_publication_blocker": next_publication_blocker,
+        "next_publication_blocker_id": (
+            next_publication_blocker["id"]
+            if next_publication_blocker is not None
+            else None
+        ),
+        "next_publication_blocker_path": (
+            next_publication_blocker["path"]
+            if next_publication_blocker is not None
+            else None
+        ),
+        "next_publication_blocker_command": (
+            next_publication_blocker["command"]
+            if next_publication_blocker is not None
+            else None
+        ),
         "first_mismatch": release_evidence_handoff_first_mismatch(
             bundle_gate,
             archive_gate,
@@ -8138,11 +8157,10 @@ def release_evidence_handoff_summary_text_from_payload(payload):
             f"  - handoff artifact {artifact['step']} command: {artifact['command']}",
         ])
     if payload["publication_blockers"]:
-        blocker = payload["publication_blockers"][0]
         lines.extend([
-            f"  - first publication blocker: {blocker['id']}",
-            f"  - first publication blocker path: {blocker['path']}",
-            f"  - first publication blocker command: {blocker['command']}",
+            f"  - next publication blocker: {payload['next_publication_blocker_id']}",
+            f"  - next publication blocker path: {payload['next_publication_blocker_path']}",
+            f"  - next publication blocker command: {payload['next_publication_blocker_command']}",
         ])
     if payload["first_mismatch"] is not None:
         mismatch = payload["first_mismatch"]
