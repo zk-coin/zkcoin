@@ -224,6 +224,11 @@ Both are intentionally present before behavior changes so tests and review can t
   commit, gate command, gate result, and timestamp fields to retain with the
   launch evidence archive.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-release-evidence-archive <release_evidence_archive_record.json> <release_evidence_bundle.json>`
+  after that archive record is filled to verify the required fields, bundle
+  SHA-256, manifest path, and stored gate result against the current bundle gate
+  output without choosing production constants.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -253,6 +258,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_bundle_gate_json_command`,
   `release_evidence_archive_checklist_command`,
   `release_evidence_archive_checklist_json_command`,
+  `check_release_evidence_archive_command`,
+  `check_release_evidence_archive_json_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -345,6 +352,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_archive_checklist_command` and
   `release_evidence_archive_checklist_json_command` expose the archive record
   checklist for retaining the verified bundle location and gate evidence.
+  `check_release_evidence_archive_command` and
+  `check_release_evidence_archive_json_command` expose the filled archive record
+  verifier so dashboards can confirm the stored SHA-256, required fields, and
+  gate result still match the checked bundle.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -967,6 +978,17 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-release-evidence-archive <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --check-release-evidence-archive <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1179,6 +1201,10 @@ stdout.
 Use `--release-evidence-archive-checklist --json` when automation needs the
 required archive record fields and exact gate command to store alongside a
 verified release evidence bundle.
+Use `--check-release-evidence-archive --json` when automation needs a
+machine-readable verification of a filled release evidence archive record,
+including required field coverage, bundle SHA-256, stored gate result, and
+compact mismatch paths.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
