@@ -9221,7 +9221,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -12364,6 +12364,119 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    check_identity_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--check-identity",
+            "main",
+            "fa,bf,b5,d9",
+            "19445",
+            "75",
+            "76",
+            "77",
+            "178",
+            "04202431",
+            "04202432",
+            "zk",
+            "zkmweb",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_identity_json_result.returncode != 0:
+        return "{} --check-identity --json failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_identity_json_result.stderr.strip()
+            or check_identity_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        check_identity_json = json.loads(check_identity_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --check-identity --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        check_identity_json.get("schema_version") != 1
+        or check_identity_json.get("network") != "main"
+        or check_identity_json.get("blocker") != "main.public_network_identity"
+        or check_identity_json.get("readiness_gate") != "value_selection"
+        or check_identity_json.get("verified") is not True
+        or check_identity_json.get("ready_to_apply") is not True
+    ):
+        return "{} --check-identity --json did not expose candidate identity".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_identity_json_candidate = check_identity_json.get("candidate", {})
+    check_identity_json_base58 = check_identity_json_candidate.get("base58_prefixes", {})
+    if (
+        check_identity_json_candidate.get("message_start") != [250, 191, 181, 217]
+        or check_identity_json_candidate.get("default_port") != 19445
+        or check_identity_json_candidate.get("dns_seeds") != []
+        or check_identity_json_candidate.get("fixed_seeds") != []
+        or check_identity_json_base58.get("pubkey_address") != [75]
+        or check_identity_json_base58.get("script_address") != [76]
+        or check_identity_json_base58.get("script_address2") != [77]
+        or check_identity_json_base58.get("secret_key") != [178]
+        or check_identity_json_base58.get("ext_public_key") != [4, 32, 36, 49]
+        or check_identity_json_base58.get("ext_secret_key") != [4, 32, 36, 50]
+        or check_identity_json_candidate.get("bech32_hrp") != "zk"
+        or check_identity_json_candidate.get("mweb_hrp") != "zkmweb"
+    ):
+        return "{} --check-identity --json did not expose candidate values".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        check_identity_json.get("candidate_constraints") != expected_public_identity_constraints
+        or check_identity_json.get("candidate_constraint_count") != len(expected_public_identity_constraints)
+    ):
+        return "{} --check-identity --json did not expose candidate constraints".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_identity_json_commands = check_identity_json.get("commands", {})
+    if (
+        check_identity_json_commands.get("apply")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-identity main 250,191,181,217 19445 75 76 77 178 04202431 04202432 zk zkmweb --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_identity_json_commands.get("recheck")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-identity main 250,191,181,217 19445 75 76 77 178 04202431 04202432 zk zkmweb contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_identity_json_commands.get("network_handoff_bundle")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_identity_json_commands.get("current_blocker_readiness_summary")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.public_network_identity contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-identity --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_identity_json_post_apply = check_identity_json.get("post_apply", {})
+    if (
+        check_identity_json_post_apply.get("remaining_blocker_count") != 7
+        or check_identity_json_post_apply.get("remaining_blocker_count_for_network") != 3
+        or check_identity_json_post_apply.get("remaining_blocked_field_count") != 36
+        or check_identity_json_post_apply.get("remaining_blocked_field_count_for_network") != 13
+        or check_identity_json_post_apply.get("next_blocker") != "main.litecoin_snapshot"
+        or check_identity_json_post_apply.get("next_blocker_network") != "main"
+        or check_identity_json_post_apply.get("next_blocker_type") != "litecoin_snapshot"
+    ):
+        return "{} --check-identity --json did not expose post-apply progress".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_identity_json_next_commands = check_identity_json_post_apply.get("next_commands", {})
+    if (
+        check_identity_json_next_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_identity_json_next_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-identity --json did not expose next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     with tempfile.TemporaryDirectory() as temp_dir:
         readonly_identity_manifest_path = Path(temp_dir) / "read-only-identity-manifest.json"
         readonly_identity_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
@@ -12400,6 +12513,41 @@ def require_public_launch_manifest_current():
             )
         if readonly_identity_manifest_path.read_bytes() != readonly_identity_manifest_bytes:
             return "{} --check-identity modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        readonly_identity_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-identity",
+                "main",
+                "fa,bf,b5,d9",
+                "19445",
+                "75",
+                "76",
+                "77",
+                "178",
+                "04202431",
+                "04202432",
+                "zk",
+                "zkmweb",
+                str(readonly_identity_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_identity_json_result.returncode != 0:
+            return "{} --check-identity --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_identity_json_result.stderr.strip()
+                or readonly_identity_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_identity_manifest_path.read_bytes() != readonly_identity_manifest_bytes:
+            return "{} --check-identity --json modified the manifest during a read-only check".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -15972,9 +16120,12 @@ def main():
         ("identity_profile_from_args", "manifest builds public identity profiles from checked inputs"),
         ("checked_identity_candidate", "manifest checks public identity candidates without writing"),
         ("identity_apply_command", "manifest prints public identity apply commands after read-only checks"),
+        ("identity_check_command", "manifest prints public identity recheck commands after read-only checks"),
+        ("identity_json_payload", "manifest builds public identity candidate check JSON payloads"),
+        ("identity_check_json_text", "manifest prints machine-readable public identity candidate checks"),
         ("identity_check_text", "manifest prints public identity candidate check summaries"),
         (
-            "identity_check_text(args.check_identity[0], identity, candidate, args.manifest)",
+            "identity_check_json_text\n            if args.json\n            else identity_check_text",
             "manifest reports public identity candidate progress",
         ),
         ("remove_blocker(manifest, f\"{network}.public_network_identity\")", "manifest removes resolved public identity blocker"),
@@ -16864,8 +17015,16 @@ def main():
             "public launch manifest identity read-only check documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py --json --check-identity NETWORK",
+            "public launch manifest identity read-only JSON check documentation",
+        ),
+        (
             "read-only identity check reports the exact apply command, remaining blocker",
             "public launch manifest identity candidate-progress documentation",
+        ),
+        (
+            "JSON form exposes the same identity values, constraints, commands",
+            "public launch manifest identity JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-identity NETWORK",

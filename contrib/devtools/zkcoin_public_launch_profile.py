@@ -3637,6 +3637,105 @@ def identity_apply_command(network, identity, manifest_path):
     )
 
 
+def identity_check_command(network, identity, manifest_path):
+    base58 = identity["base58_prefixes"]
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    args = [
+        network,
+        identity_byte_arg(identity["message_start"]),
+        str(identity["default_port"]),
+        identity_byte_arg(base58["pubkey_address"]),
+        identity_byte_arg(base58["script_address"]),
+        identity_byte_arg(base58["script_address2"]),
+        identity_byte_arg(base58["secret_key"]),
+        identity_hex_arg(base58["ext_public_key"]),
+        identity_hex_arg(base58["ext_secret_key"]),
+        identity["bech32_hrp"],
+        identity["mweb_hrp"],
+    ]
+    return (
+        f"{tool_path} --check-identity "
+        + " ".join(shell_quote(arg) for arg in args)
+        + f" {manifest_path}"
+    )
+
+
+def identity_json_payload(network, identity, candidate, manifest_path):
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    blocker_counts_by_network = item_counts_by_network(blockers)
+    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
+    next_blocker = blockers[0] if blockers else None
+    if next_blocker is None:
+        next_blocker_network = None
+        next_blocker_type = None
+        next_blocker_commands = None
+    else:
+        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
+        next_blocker_commands = blocker_action_commands(
+            next_blocker,
+            shell_quote(display_path(manifest_path)),
+        )
+    constraints = blocker_candidate_constraints("public_network_identity")
+
+    return {
+        "schema_version": 1,
+        "network": network,
+        "blocker": f"{network}.public_network_identity",
+        "readiness_gate": blocker_type_readiness_gate("public_network_identity"),
+        "verified": True,
+        "ready_to_apply": True,
+        "candidate": identity,
+        "candidate_constraints": constraints,
+        "candidate_constraint_count": len(constraints),
+        "commands": {
+            "apply": identity_apply_command(network, identity, manifest_path),
+            "recheck": identity_check_command(network, identity, manifest_path),
+            "network_handoff_bundle": network_handoff_bundle_command(manifest_path, network),
+            "current_blocker_readiness_summary": blocker_readiness_summary_command(
+                manifest_path,
+                f"{network}.public_network_identity",
+            ),
+        },
+        "post_apply": {
+            "remaining_blocker_count": len(blockers),
+            "remaining_blocker_count_for_network": blocker_counts_by_network[network],
+            "remaining_blocker_counts_by_network": blocker_counts_by_network,
+            "remaining_blockers": blockers,
+            "remaining_blockers_by_network": items_by_network(blockers),
+            "remaining_blocked_field_count": len(blocked_fields),
+            "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[network],
+            "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
+            "remaining_blocked_fields": blocked_fields,
+            "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
+            "next_action_command": next_action_command(manifest_path),
+            "readiness_summary_command": readiness_summary_command(manifest_path),
+            "network_readiness_summary_command": network_readiness_summary_command(
+                manifest_path,
+                network,
+            ),
+            "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
+                manifest_path,
+                "public_network_identity",
+            ),
+            "next_blocker": next_blocker,
+            "next_blocker_network": next_blocker_network,
+            "next_blocker_type": next_blocker_type,
+            "next_commands": next_blocker_commands,
+        },
+    }
+
+
+def identity_check_json_text(network, identity, candidate, manifest_path):
+    return json.dumps(
+        identity_json_payload(network, identity, candidate, manifest_path),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def identity_check_text(network, identity, candidate, manifest_path):
     base58 = identity["base58_prefixes"]
     return "\n".join((
@@ -6770,6 +6869,7 @@ def main():
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
         and args.check_dns_seeds is None
+        and args.check_identity is None
         and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
@@ -6786,6 +6886,7 @@ def main():
             "--snapshot-audit-template-diff, "
             "--snapshot-audit-preflight, --check-snapshot-audit, "
             "--snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, "
+            "--check-identity, "
             "--readiness-summary, --network-handoff-bundle, "
             "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, --network-readiness-summary, "
@@ -6999,7 +7100,12 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
-        print(identity_check_text(args.check_identity[0], identity, candidate, args.manifest))
+        check_text = (
+            identity_check_json_text
+            if args.json
+            else identity_check_text
+        )
+        print(check_text(args.check_identity[0], identity, candidate, args.manifest))
         return 0
 
     updated_launch_fields = (
