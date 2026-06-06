@@ -4766,6 +4766,86 @@ def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
     return "\n".join(lines)
 
 
+def blocker_readiness_summary_json_payload(manifest, manifest_path, check, blocker_id):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    actions_by_id = {
+        action["id"]: action
+        for action in actions
+        if action["kind"] == "blocker"
+    }
+    action = actions_by_id.get(blocker_id)
+    if action is None:
+        if blockers:
+            raise ValueError(
+                "blocker must be an unresolved blocker: " + ", ".join(blockers)
+            )
+        raise ValueError("manifest has no unresolved blocker summaries")
+
+    step = action["step"]
+    network_blockers = items_by_network(blockers)[action["network"]]
+    blocker_type_blockers = blockers_by_blocker_type(blockers)[action["blocker_type"]]
+    earlier_blockers = blockers[:step - 1]
+    later_blockers = blockers[step:]
+    commands = action_command_fields(action)
+    return {
+        "schema_version": 1,
+        "blocker": blocker_id,
+        "unresolved": True,
+        "network": action["network"],
+        "blocker_type": action["blocker_type"],
+        "readiness_gate": blocker_type_readiness_gate(action["blocker_type"]),
+        "launch_order": {
+            "step": step,
+            "count": len(blockers),
+        },
+        "network_launch_order": {
+            "step": network_blockers.index(blocker_id) + 1,
+            "count": len(network_blockers),
+        },
+        "blocker_type_launch_order": {
+            "step": blocker_type_blockers.index(blocker_id) + 1,
+            "count": len(blocker_type_blockers),
+        },
+        "blocked_fields": action["fields"],
+        "blocked_field_count": action["field_count"],
+        "action": {
+            **action,
+            "commands": commands,
+        },
+        "commands": commands,
+        "template_fields": action.get("template_fields"),
+        "template_field_count": action.get("template_field_count", 0),
+        "candidate_constraints": action.get("candidate_constraints"),
+        "candidate_constraint_count": action.get("candidate_constraint_count", 0),
+        "earlier_blockers": earlier_blockers,
+        "earlier_blocker_count": len(earlier_blockers),
+        "earlier_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, earlier_blockers)
+        ),
+        "later_blockers": later_blockers,
+        "later_blocker_count": len(later_blockers),
+        "later_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+    }
+
+
+def blocker_readiness_summary_json_text(manifest, manifest_path, check, blocker_id):
+    return json.dumps(
+        blocker_readiness_summary_json_payload(
+            manifest,
+            manifest_path,
+            check,
+            blocker_id,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def status_json_text(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -5490,11 +5570,12 @@ def main():
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
         and args.network_handoff_bundle is None
+        and args.blocker_readiness_summary is None
     ):
         print(
             "error: --json is only supported with --snapshot-audit-preflight, "
-            "--check-snapshot-audit, --snapshot-audit-handoff, or "
-            "--network-handoff-bundle",
+            "--check-snapshot-audit, --snapshot-audit-handoff, "
+            "--network-handoff-bundle, or --blocker-readiness-summary",
             file=sys.stderr,
         )
         return 1
@@ -5934,8 +6015,13 @@ def main():
             print("error: --blocker-readiness-summary does not write the manifest", file=sys.stderr)
             return 1
         try:
+            summary_text = (
+                blocker_readiness_summary_json_text
+                if args.json
+                else blocker_readiness_summary_text
+            )
             print(
-                blocker_readiness_summary_text(
+                summary_text(
                     manifest,
                     args.manifest,
                     check,
