@@ -4050,6 +4050,12 @@ def operator_runbook_command(manifest_path):
     return f"{tool_path} --operator-runbook {manifest_path}"
 
 
+def release_evidence_bundle_command(manifest_path):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    return f"{tool_path} --release-evidence-bundle {manifest_path}"
+
+
 def next_action_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -4741,6 +4747,7 @@ def readiness_summary_text(manifest, manifest_path, check):
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
+        f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
         f"  - blocked networks: {list_summary(blocked_networks(network_progress))}",
         f"  - ready networks: {list_summary(ready_networks(network_progress))}",
         f"  - blocked networks by blocker type: {blocker_type_list_summary(blocked_networks_by_blocker_type(blocked_field_groups))}",
@@ -4873,6 +4880,9 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
             manifest_path,
         ),
         "operator_runbook_command": operator_runbook_command(
+            manifest_path,
+        ),
+        "release_evidence_bundle_command": release_evidence_bundle_command(
             manifest_path,
         ),
         "blocked_networks": blocked_networks(network_progress),
@@ -6564,6 +6574,7 @@ def operator_runbook_text(manifest, manifest_path, check):
         "zkCoin public launch profile operator runbook:",
         f"  - status: {manifest.get('status')}",
         f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
+        f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
         f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
@@ -6601,6 +6612,9 @@ def operator_runbook_json_payload(manifest, manifest_path, check):
         "manifest": display_path(manifest_path),
         "status": manifest.get("status"),
         "operator_runbook_command": operator_runbook_command(manifest_path),
+        "release_evidence_bundle_command": release_evidence_bundle_command(
+            manifest_path,
+        ),
         "launch_gate_preflight_command": launch_gate_preflight_command(
             manifest_path,
         ),
@@ -6633,6 +6647,176 @@ def operator_runbook_json_payload(manifest, manifest_path, check):
 def operator_runbook_json_text(manifest, manifest_path, check):
     return json.dumps(
         operator_runbook_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
+def release_evidence_payload_entries(manifest_path):
+    return [
+        {
+            "step": 1,
+            "id": "operator-runbook",
+            "payload_key": "operator_runbook",
+            "command": operator_runbook_command(manifest_path),
+            "schema_version": 1,
+            "required_before_launch": True,
+        },
+        {
+            "step": 2,
+            "id": "launch-gate-preflight",
+            "payload_key": "launch_gate_preflight",
+            "command": launch_gate_preflight_command(manifest_path),
+            "schema_version": 1,
+            "required_before_launch": True,
+        },
+        {
+            "step": 3,
+            "id": "snapshot-audit-handoffs",
+            "payload_key": "snapshot_audit_handoffs",
+            "command": snapshot_audit_handoffs_command(manifest_path),
+            "schema_version": 1,
+            "required_before_launch": True,
+        },
+        {
+            "step": 4,
+            "id": "value-selection-checklists",
+            "payload_key": "value_selection_checklists",
+            "command": value_selection_checklists_command(manifest_path),
+            "schema_version": 1,
+            "required_before_launch": True,
+        },
+    ]
+
+
+def release_evidence_bundle_state(manifest, manifest_path, check):
+    operator_payload = operator_runbook_json_payload(manifest, manifest_path, check)
+    return {
+        "payload_entries": release_evidence_payload_entries(manifest_path),
+        "operator_runbook": operator_payload,
+        "launch_gate_preflight": launch_gate_preflight_json_payload(
+            manifest,
+            manifest_path,
+            check,
+        ),
+        "snapshot_audit_handoffs": snapshot_audit_handoffs_json_payload(
+            manifest,
+            manifest_path,
+            check,
+        ),
+        "value_selection_checklists": value_selection_checklists_json_payload(
+            manifest,
+            manifest_path,
+            check,
+        ),
+        "operator_summary": operator_payload["summary"],
+    }
+
+
+def release_evidence_bundle_summary(bundle_state):
+    operator_summary = bundle_state["operator_summary"]
+    return {
+        "evidence_payload_count": len(bundle_state["payload_entries"]),
+        "readiness_gate_count": operator_summary["readiness_gate_count"],
+        "blocked_gate_count": operator_summary["blocked_gate_count"],
+        "blocked_gates": operator_summary["blocked_gates"],
+        "ready_gate_count": operator_summary["ready_gate_count"],
+        "ready_gates": operator_summary["ready_gates"],
+        "unresolved_blocker_count": operator_summary["unresolved_blocker_count"],
+        "blocked_field_count": operator_summary["blocked_field_count"],
+        "required_external_artifact_count": (
+            operator_summary["required_external_artifact_count"]
+        ),
+        "required_json_check_count": operator_summary["required_json_check_count"],
+        "checklist_step_count": operator_summary["checklist_step_count"],
+        "runbook_step_count": operator_summary["step_count"],
+        "embedded_payload_schema_versions": {
+            entry["payload_key"]: entry["schema_version"]
+            for entry in bundle_state["payload_entries"]
+        },
+    }
+
+
+def release_evidence_bundle_text(manifest, manifest_path, check):
+    bundle_state = release_evidence_bundle_state(manifest, manifest_path, check)
+    summary = release_evidence_bundle_summary(bundle_state)
+    operator_payload = bundle_state["operator_runbook"]
+    lines = [
+        "zkCoin public launch profile release evidence bundle:",
+        f"  - status: {manifest.get('status')}",
+        f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
+        f"  - operator runbook command: {operator_runbook_command(manifest_path)}",
+        f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
+        f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
+        f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
+        f"  - evidence payloads: {summary['evidence_payload_count']}",
+        f"  - readiness gates: {list_summary(READINESS_GATES)}",
+        f"  - blocked gates: {list_summary(summary['blocked_gates'])}",
+        f"  - ready gates: {list_summary(summary['ready_gates'])}",
+        f"  - unresolved blockers: {summary['unresolved_blocker_count']}",
+        f"  - blocked fields: {summary['blocked_field_count']}",
+        f"  - required external artifacts: {summary['required_external_artifact_count']}",
+        f"  - required JSON checks: {summary['required_json_check_count']}",
+        f"  - checklist steps: {summary['checklist_step_count']}",
+        f"  - runbook steps: {summary['runbook_step_count']}",
+    ]
+    for entry in bundle_state["payload_entries"]:
+        lines.extend([
+            f"  - evidence {entry['step']}: {entry['id']}",
+            f"  - evidence {entry['step']} command: {entry['command']}",
+        ])
+    if operator_payload["next_blocker"] is not None:
+        lines.extend([
+            f"  - next blocker: {operator_payload['next_blocker']}",
+            (
+                "  - next recommended handoff command: "
+                f"{operator_payload['next_blocker_handoff_command']}"
+            ),
+        ])
+    return "\n".join(lines)
+
+
+def release_evidence_bundle_json_payload(manifest, manifest_path, check):
+    bundle_state = release_evidence_bundle_state(manifest, manifest_path, check)
+    operator_payload = bundle_state["operator_runbook"]
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "release_evidence_bundle_command": release_evidence_bundle_command(
+            manifest_path,
+        ),
+        "operator_runbook_command": operator_runbook_command(manifest_path),
+        "launch_gate_preflight_command": launch_gate_preflight_command(
+            manifest_path,
+        ),
+        "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
+            manifest_path,
+        ),
+        "value_selection_checklists_command": value_selection_checklists_command(
+            manifest_path,
+        ),
+        "evidence_payloads": bundle_state["payload_entries"],
+        "evidence_payload_count": len(bundle_state["payload_entries"]),
+        "next_blocker": operator_payload["next_blocker"],
+        "next_blocker_handoff_command": (
+            operator_payload["next_blocker_handoff_command"]
+        ),
+        "evidence": {
+            "operator_runbook": operator_payload,
+            "launch_gate_preflight": bundle_state["launch_gate_preflight"],
+            "snapshot_audit_handoffs": bundle_state["snapshot_audit_handoffs"],
+            "value_selection_checklists": (
+                bundle_state["value_selection_checklists"]
+            ),
+        },
+        "summary": release_evidence_bundle_summary(bundle_state),
+    }
+
+
+def release_evidence_bundle_json_text(manifest, manifest_path, check):
+    return json.dumps(
+        release_evidence_bundle_json_payload(manifest, manifest_path, check),
         indent=2,
         sort_keys=False,
     )
@@ -7283,6 +7467,9 @@ def status_json_text(manifest, manifest_path, check):
                 manifest_path,
             ),
             "operator_runbook_command": operator_runbook_command(manifest_path),
+            "release_evidence_bundle_command": release_evidence_bundle_command(
+                manifest_path,
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -7574,6 +7761,8 @@ def selected_primary_actions(args):
         actions.append("--launch-gate-preflight")
     if args.operator_runbook:
         actions.append("--operator-runbook")
+    if args.release_evidence_bundle:
+        actions.append("--release-evidence-bundle")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -7635,6 +7824,7 @@ def main():
     parser.add_argument("--readiness-summary", action="store_true", help="print a compact human-readable public launch-profile readiness summary")
     parser.add_argument("--launch-gate-preflight", action="store_true", help="print compact launch-gate preflight handoffs for external artifacts and value selection")
     parser.add_argument("--operator-runbook", action="store_true", help="print ordered public launch-profile operator runbook commands")
+    parser.add_argument("--release-evidence-bundle", action="store_true", help="print bundled launch-profile release evidence payloads")
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
     parser.add_argument("--network-later-blockers", metavar="NETWORK", help="print the queued later blockers for one public network")
@@ -7784,6 +7974,7 @@ def main():
         and not args.snapshot_audit_handoffs
         and not args.launch_gate_preflight
         and not args.operator_runbook
+        and not args.release_evidence_bundle
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -7815,6 +8006,7 @@ def main():
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
             "--readiness-gate-summary, --readiness-gate-later-blockers, "
             "--launch-gate-preflight, --operator-runbook, "
+            "--release-evidence-bundle, "
             "or --value-selection-checklists",
             file=sys.stderr,
         )
@@ -7966,6 +8158,10 @@ def main():
         if args.in_place:
             print("error: --operator-runbook does not write the manifest", file=sys.stderr)
             return 1
+    if args.release_evidence_bundle:
+        if args.in_place:
+            print("error: --release-evidence-bundle does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -8075,6 +8271,8 @@ def main():
     if args.launch_gate_preflight:
         allow_blocked = True
     if args.operator_runbook:
+        allow_blocked = True
+    if args.release_evidence_bundle:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -8196,6 +8394,15 @@ def main():
             else operator_runbook_text
         )
         print(runbook_text(manifest, args.manifest, check))
+        return 0
+
+    if args.release_evidence_bundle:
+        evidence_text = (
+            release_evidence_bundle_json_text
+            if args.json
+            else release_evidence_bundle_text
+        )
+        print(evidence_text(manifest, args.manifest, check))
         return 0
 
     if args.network_readiness_summary is not None:
