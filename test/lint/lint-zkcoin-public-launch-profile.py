@@ -1335,6 +1335,8 @@ def require_public_launch_manifest_current():
         "  - release evidence archive gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence handoff summary command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence publication index template command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence publication index template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - blocked networks: main, testnet",
         "  - ready networks: none",
         "  - blocked networks by blocker type: litecoin_snapshot=main, testnet; auxpow_chain_id=main, testnet; public_network_identity=main, testnet; dns_seeds=main, testnet",
@@ -1563,6 +1565,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_summary_json.get("release_evidence_handoff_summary_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("release_evidence_publication_index_template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or readiness_summary_json.get("release_evidence_publication_index_template_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("template_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or readiness_current_commands.get("blocker_readiness_summary_command")
@@ -2893,6 +2899,8 @@ def require_public_launch_manifest_current():
         "  - release evidence archive gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence handoff summary command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence publication index template command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - release evidence publication index template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - operator runbook command: contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - launch-gate preflight command: contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - snapshot audit handoffs command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -2976,6 +2984,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("release_evidence_handoff_summary_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or release_evidence_json.get("release_evidence_publication_index_template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or release_evidence_json.get("release_evidence_publication_index_template_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("operator_runbook_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("launch_gate_preflight_command")
@@ -3224,6 +3236,8 @@ def require_public_launch_manifest_current():
             f"  - release evidence archive gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive <release_evidence_archive_record.json> {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence handoff summary command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence publication index template command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence publication index template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - archive record fields: {archive_fields_text}",
             "  - required gate verified: yes",
@@ -3319,6 +3333,14 @@ def require_public_launch_manifest_current():
             )
             or release_evidence_archive_json.get("release_evidence_handoff_summary_json_command")
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary <release_evidence_archive_record.json> {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_bundle_path
+            )
+            or release_evidence_archive_json.get("release_evidence_publication_index_template_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_bundle_path
+            )
+            or release_evidence_archive_json.get("release_evidence_publication_index_template_json_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
                 quoted_bundle_path
             )
             or release_evidence_archive_json.get("evidence_payload_count") != 4
@@ -3505,6 +3527,20 @@ def require_public_launch_manifest_current():
                 quoted_archive_record_path,
                 quoted_bundle_path,
             )
+            or release_evidence_archive_check_json.get(
+                "release_evidence_publication_index_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or release_evidence_archive_check_json.get(
+                "release_evidence_publication_index_template_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
         ):
             return "{} --check-release-evidence-archive --json did not verify a fresh archive record".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3593,6 +3629,8 @@ def require_public_launch_manifest_current():
             f"  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence archive gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence publication index template command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence publication index template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - handoff artifact 1: release-evidence-bundle",
             f"  - handoff artifact 1 path: {release_evidence_bundle_path}",
             "  - handoff artifact 1 verified: yes",
@@ -3679,8 +3717,171 @@ def require_public_launch_manifest_current():
                 quoted_archive_record_path,
                 quoted_bundle_path,
             )
+            or release_evidence_handoff_summary_json.get(
+                "release_evidence_publication_index_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or release_evidence_handoff_summary_json.get(
+                "release_evidence_publication_index_template_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or release_evidence_handoff_summary_json.get("commands", {}).get(
+                "release_evidence_publication_index_template_json"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
         ):
             return "{} --release-evidence-handoff-summary --json did not verify a fresh archive record".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        publication_index_fields = [
+            "schema_version",
+            "release_evidence_bundle_uri",
+            "release_evidence_archive_record_uri",
+            "release_evidence_handoff_summary_uri",
+            "manifest_commit",
+            "published_at",
+            "publisher",
+        ]
+        publication_index_fields_text = ", ".join(publication_index_fields)
+        publication_index_template = {
+            "schema_version": 1,
+            "release_evidence_bundle_uri": "<release_evidence_bundle_uri>",
+            "release_evidence_archive_record_uri": (
+                "<release_evidence_archive_record_uri>"
+            ),
+            "release_evidence_handoff_summary_uri": (
+                "<release_evidence_handoff_summary_uri>"
+            ),
+            "manifest_commit": "<manifest_commit>",
+            "published_at": "<published_at_rfc3339>",
+            "publisher": "<publisher>",
+        }
+        release_evidence_publication_index_template_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--release-evidence-publication-index-template",
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_index_template_result.returncode != 0:
+            return "{} --release-evidence-publication-index-template failed for a fresh archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_index_template_result.stderr.strip()
+                or release_evidence_publication_index_template_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "zkCoin public launch profile release evidence publication index template:",
+            f"  - release evidence archive record: {release_evidence_archive_record_path}",
+            f"  - release evidence bundle: {release_evidence_bundle_path}",
+            "  - verified: yes",
+            "  - ready for publication: yes",
+            "  - publication blockers: 0",
+            "  - handoff artifacts: 3",
+            "  - verified handoff artifacts: 3",
+            "  - publication index schema version: 1",
+            f"  - required publication index fields: {publication_index_fields_text}",
+            f"  - release evidence publication index template command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence publication index template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            f"  - release evidence handoff summary JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-handoff-summary {quoted_archive_record_path} {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - publication index schema_version: 1",
+            "  - publication index release_evidence_bundle_uri: <release_evidence_bundle_uri>",
+            "  - publication index release_evidence_archive_record_uri: <release_evidence_archive_record_uri>",
+            "  - publication index release_evidence_handoff_summary_uri: <release_evidence_handoff_summary_uri>",
+            "  - publication index manifest_commit: <manifest_commit>",
+            "  - publication index published_at: <published_at_rfc3339>",
+            "  - publication index publisher: <publisher>",
+        ):
+            if expected not in release_evidence_publication_index_template_result.stdout:
+                return "{} --release-evidence-publication-index-template did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        release_evidence_publication_index_template_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--release-evidence-publication-index-template",
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_index_template_json_result.returncode != 0:
+            return "{} --release-evidence-publication-index-template --json failed for a fresh archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_index_template_json_result.stderr.strip()
+                or release_evidence_publication_index_template_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            release_evidence_publication_index_template_json = json.loads(
+                release_evidence_publication_index_template_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-publication-index-template --json fresh output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            release_evidence_publication_index_template_json.get("schema_version") != 1
+            or release_evidence_publication_index_template_json.get("verified") is not True
+            or release_evidence_publication_index_template_json.get("ready_for_publication") is not True
+            or release_evidence_publication_index_template_json.get("publication_blocker_count") != 0
+            or release_evidence_publication_index_template_json.get("handoff_artifact_count") != 3
+            or release_evidence_publication_index_template_json.get("verified_handoff_artifact_count") != 3
+            or release_evidence_publication_index_template_json.get("publication_index_schema_version") != 1
+            or release_evidence_publication_index_template_json.get("required_publication_index_field_count") != 7
+            or release_evidence_publication_index_template_json.get("required_publication_index_fields")
+            != publication_index_fields
+            or release_evidence_publication_index_template_json.get("publication_index_template")
+            != publication_index_template
+            or release_evidence_publication_index_template_json.get(
+                "release_evidence_publication_index_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or release_evidence_publication_index_template_json.get(
+                "release_evidence_publication_index_template_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or release_evidence_publication_index_template_json.get("commands", {}).get(
+                "release_evidence_publication_index_template_json"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+        ):
+            return "{} --release-evidence-publication-index-template --json did not emit the expected fresh publication index template".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -3819,6 +4020,63 @@ def require_public_launch_manifest_current():
             or stale_first_mismatch.get("kind") != "value"
         ):
             return "{} --release-evidence-handoff-summary --json did not summarize a stale archive record".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        stale_release_evidence_publication_index_template_json_result = (
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--json",
+                    "--release-evidence-publication-index-template",
+                    str(stale_release_evidence_archive_record_path),
+                    str(release_evidence_bundle_path),
+                    str(PUBLIC_LAUNCH_MANIFEST),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+        if stale_release_evidence_publication_index_template_json_result.returncode != 0:
+            return "{} --release-evidence-publication-index-template --json failed for a stale archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                stale_release_evidence_publication_index_template_json_result.stderr.strip()
+                or stale_release_evidence_publication_index_template_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            stale_release_evidence_publication_index_template_json = json.loads(
+                stale_release_evidence_publication_index_template_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-publication-index-template --json stale output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            stale_release_evidence_publication_index_template_json.get("verified") is not False
+            or stale_release_evidence_publication_index_template_json.get("ready_for_publication") is not False
+            or stale_release_evidence_publication_index_template_json.get("publication_blocker_count") != 2
+            or stale_release_evidence_publication_index_template_json.get("next_publication_blocker_id")
+            != "release-evidence-archive-record"
+            or stale_release_evidence_publication_index_template_json.get("next_publication_blocker_path")
+            != str(stale_release_evidence_archive_record_path)
+            or stale_release_evidence_publication_index_template_json.get(
+                "next_publication_blocker_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_stale_archive_record_path,
+                quoted_bundle_path,
+            )
+            or stale_release_evidence_publication_index_template_json.get(
+                "publication_index_template"
+            )
+            != publication_index_template
+        ):
+            return "{} --release-evidence-publication-index-template --json did not report the stale archive publication blocker".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -5882,6 +6140,24 @@ def require_public_launch_manifest_current():
         "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the release evidence handoff summary JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_index_template_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--release-evidence-publication-index-template "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication index template command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_index_template_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --json "
+        "--release-evidence-publication-index-template "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication index template JSON command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -9221,6 +9497,30 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged release evidence handoff summary JSON commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            "--release-evidence-publication-index-template "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "release_evidence_publication_index_template_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication index template commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "--json --release-evidence-publication-index-template "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "release_evidence_publication_index_template_json_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication index template JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -10116,6 +10416,30 @@ def require_public_launch_manifest_current():
         )
     if "--release-evidence-handoff-summary does not write the manifest" not in release_evidence_handoff_summary_in_place_result.stderr:
         return "{} --release-evidence-handoff-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    release_evidence_publication_index_template_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--release-evidence-publication-index-template",
+            str(PUBLIC_LAUNCH_MANIFEST),
+            str(PUBLIC_LAUNCH_MANIFEST),
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if release_evidence_publication_index_template_in_place_result.returncode == 0:
+        return "{} --release-evidence-publication-index-template accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--release-evidence-publication-index-template does not write the manifest" not in release_evidence_publication_index_template_in_place_result.stderr:
+        return "{} --release-evidence-publication-index-template did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -11768,7 +12092,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -18020,6 +18344,8 @@ def main():
         ("release_evidence_archive_checklist_command", "manifest builds release evidence archive checklist commands"),
         ("--release-evidence-handoff-summary", "manifest release evidence handoff summary flag"),
         ("release_evidence_handoff_summary_command", "manifest builds release evidence handoff summary commands"),
+        ("--release-evidence-publication-index-template", "manifest release evidence publication index template flag"),
+        ("release_evidence_publication_index_template_command", "manifest builds release evidence publication index template commands"),
         ("release_evidence_bundle_state", "manifest builds release evidence bundle state"),
         ("release_evidence_bundle_summary", "manifest summarizes release evidence bundle state"),
         ("release_evidence_bundle_text", "manifest prints release evidence bundle guidance"),
@@ -18043,6 +18369,10 @@ def main():
         ("release_evidence_handoff_summary_payload", "manifest builds release evidence handoff summary payloads"),
         ("release_evidence_handoff_summary_text", "manifest prints release evidence handoff summary guidance"),
         ("release_evidence_handoff_summary_json_text", "manifest prints release evidence handoff summary JSON guidance"),
+        ("release_evidence_publication_index_template_values", "manifest builds release evidence publication index placeholder values"),
+        ("release_evidence_publication_index_template_payload", "manifest builds release evidence publication index template payloads"),
+        ("release_evidence_publication_index_template_text", "manifest prints release evidence publication index template guidance"),
+        ("release_evidence_publication_index_template_json_text", "manifest prints release evidence publication index template JSON guidance"),
         ("release_evidence_archive_check_json_text", "manifest prints release evidence archive check JSON guidance"),
         ("release_evidence_archive_checklist_steps", "manifest builds release evidence archive checklist steps"),
         ("release_evidence_archive_checklist_payload", "manifest builds release evidence archive checklist JSON payloads"),
@@ -18441,6 +18771,7 @@ def main():
         ("check_release_evidence_archive_command", "manifest builds release evidence archive check commands"),
         ("release_evidence_archive_gate_command", "manifest builds release evidence archive gate commands"),
         ("release_evidence_handoff_summary_command", "manifest builds release evidence handoff summary commands"),
+        ("release_evidence_publication_index_template_command", "manifest builds release evidence publication index template commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
         ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
@@ -18538,6 +18869,7 @@ def main():
         ("check_release_evidence_archive_command", "manifest status JSON exposes release evidence archive check command"),
         ("release_evidence_archive_gate_command", "manifest status JSON exposes release evidence archive gate command"),
         ("release_evidence_handoff_summary_command", "manifest status JSON exposes release evidence handoff summary command"),
+        ("release_evidence_publication_index_template_command", "manifest status JSON exposes release evidence publication index template command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -19960,6 +20292,14 @@ def main():
             "public launch manifest release evidence handoff summary JSON documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --release-evidence-publication-index-template <release_evidence_archive_record.json>",
+            "public launch manifest release evidence publication index template documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --release-evidence-publication-index-template <release_evidence_archive_record.json>",
+            "public launch manifest release evidence publication index template JSON documentation",
+        ),
+        (
             "release evidence bundle freshness",
             "public launch manifest release evidence bundle freshness documentation",
         ),
@@ -20000,6 +20340,10 @@ def main():
             "public launch manifest status-json release evidence handoff summary command documentation",
         ),
         (
+            "release_evidence_publication_index_template_command",
+            "public launch manifest status-json release evidence publication index template command documentation",
+        ),
+        (
             "handoff_artifacts",
             "public launch manifest release evidence handoff artifact checklist documentation",
         ),
@@ -20010,6 +20354,14 @@ def main():
         (
             "next_publication_blocker",
             "public launch manifest release evidence next publication blocker documentation",
+        ),
+        (
+            "release_evidence_publication_index_template",
+            "public launch manifest release evidence publication index command documentation",
+        ),
+        (
+            "release_evidence_archive_record_uri",
+            "public launch manifest release evidence publication index placeholder documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",
