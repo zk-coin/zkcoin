@@ -9221,7 +9221,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --check-dns-seeds, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -11832,6 +11832,99 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    check_dns_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--check-dns-seeds",
+            "main",
+            "seed1.zkcoin.net,seed2.zkcoin.net",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_dns_json_result.returncode != 0:
+        return "{} --check-dns-seeds --json failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_dns_json_result.stderr.strip()
+            or check_dns_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        check_dns_json = json.loads(check_dns_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --check-dns-seeds --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        check_dns_json.get("schema_version") != 1
+        or check_dns_json.get("network") != "main"
+        or check_dns_json.get("blocker") != "main.dns_seeds"
+        or check_dns_json.get("readiness_gate") != "value_selection"
+        or check_dns_json.get("verified") is not True
+        or check_dns_json.get("ready_to_apply") is not True
+    ):
+        return "{} --check-dns-seeds --json did not expose candidate identity".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_dns_json_candidate = check_dns_json.get("candidate", {})
+    if (
+        check_dns_json_candidate.get("seeds") != ["seed1.zkcoin.net", "seed2.zkcoin.net"]
+        or check_dns_json_candidate.get("seed_count") != 2
+    ):
+        return "{} --check-dns-seeds --json did not expose candidate values".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        check_dns_json.get("candidate_constraints") != expected_dns_seed_constraints
+        or check_dns_json.get("candidate_constraint_count") != len(expected_dns_seed_constraints)
+    ):
+        return "{} --check-dns-seeds --json did not expose candidate constraints".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_dns_json_commands = check_dns_json.get("commands", {})
+    if (
+        check_dns_json_commands.get("apply")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main seed1.zkcoin.net,seed2.zkcoin.net --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_dns_json_commands.get("recheck")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-dns-seeds main seed1.zkcoin.net,seed2.zkcoin.net contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_dns_json_commands.get("network_handoff_bundle")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_dns_json_commands.get("current_blocker_readiness_summary")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-dns-seeds --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_dns_json_post_apply = check_dns_json.get("post_apply", {})
+    if (
+        check_dns_json_post_apply.get("remaining_blocker_count") != 7
+        or check_dns_json_post_apply.get("remaining_blocker_count_for_network") != 3
+        or check_dns_json_post_apply.get("remaining_blocked_field_count") != 45
+        or check_dns_json_post_apply.get("remaining_blocked_field_count_for_network") != 22
+        or check_dns_json_post_apply.get("next_blocker") != "main.litecoin_snapshot"
+        or check_dns_json_post_apply.get("next_blocker_network") != "main"
+        or check_dns_json_post_apply.get("next_blocker_type") != "litecoin_snapshot"
+    ):
+        return "{} --check-dns-seeds --json did not expose post-apply progress".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_dns_json_next_commands = check_dns_json_post_apply.get("next_commands", {})
+    if (
+        check_dns_json_next_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_dns_json_next_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-dns-seeds --json did not expose next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     with tempfile.TemporaryDirectory() as temp_dir:
         readonly_dns_manifest_path = Path(temp_dir) / "read-only-dns-manifest.json"
         readonly_dns_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
@@ -11859,6 +11952,32 @@ def require_public_launch_manifest_current():
             )
         if readonly_dns_manifest_path.read_bytes() != readonly_dns_manifest_bytes:
             return "{} --check-dns-seeds modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        readonly_dns_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-dns-seeds",
+                "main",
+                "seed1.zkcoin.net,seed2.zkcoin.net",
+                str(readonly_dns_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_dns_json_result.returncode != 0:
+            return "{} --check-dns-seeds --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_dns_json_result.stderr.strip()
+                or readonly_dns_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_dns_manifest_path.read_bytes() != readonly_dns_manifest_bytes:
+            return "{} --check-dns-seeds --json modified the manifest during a read-only check".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -15841,9 +15960,12 @@ def main():
         ("set_auxpow", "manifest updates AuxPoW chain id"),
         ("set_dns_seeds", "manifest updates DNS seeds"),
         ("checked_dns_seeds_candidate", "manifest checks DNS seed candidates without writing"),
+        ("dns_seeds_check_command", "manifest prints DNS seed recheck commands after read-only checks"),
+        ("dns_seeds_json_payload", "manifest builds DNS seed candidate check JSON payloads"),
+        ("dns_seeds_check_json_text", "manifest prints machine-readable DNS seed candidate checks"),
         ("dns_seeds_check_text", "manifest prints DNS seed candidate check summaries"),
         (
-            "dns_seeds_check_text(args.check_dns_seeds[0], dns_seeds, candidate, args.manifest)",
+            "dns_seeds_check_json_text\n            if args.json\n            else dns_seeds_check_text",
             "manifest reports DNS seed candidate progress",
         ),
         ("set_identity", "manifest updates public network identity"),
@@ -16718,8 +16840,16 @@ def main():
             "public launch manifest DNS seed read-only check documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py --json --check-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
+            "public launch manifest DNS seed read-only JSON check documentation",
+        ),
+        (
             "read-only DNS seed check reports the exact apply command, remaining blocker",
             "public launch manifest DNS seed candidate-progress documentation",
+        ),
+        (
+            "JSON form exposes the same seed list, constraints, commands",
+            "public launch manifest DNS seed JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --set-dns-seeds NETWORK <seed1.hostname>,<seed2.hostname>",
