@@ -326,7 +326,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `external_artifact_counts_by_network_and_blocker_type` similarly expose the
   required external handoff artifacts, starting with the Litecoin snapshot audit
   JSON argument and the snapshot file referenced from that audit, while blocker
-  types that do not require external files report empty artifact lists.
+  types that do not require external files report empty artifact lists. The
+  snapshot audit JSON and referenced snapshot file both list the read-only check,
+  read-only preflight, and apply command fields that depend on them.
   `readiness_gates`, `readiness_gate_count`, `readiness_gate_by_blocker`,
   `readiness_gate_by_blocker_type`, `readiness_gate_by_network_and_blocker_type`,
   `blocker_types_by_readiness_gate`, `blocker_type_counts_by_readiness_gate`,
