@@ -231,6 +231,11 @@ Both are intentionally present before behavior changes so tests and review can t
   Add `--require-release-evidence-archive-match` to make the archive check a CI
   gate that exits nonzero when the filled archive record drifts.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-handoff-summary <release_evidence_archive_record.json> <release_evidence_bundle.json>`
+  when release dashboards need one compact read-only handoff payload covering
+  both the bundle gate and the filled archive record gate without adding a new
+  failing gate path.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -264,6 +269,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `check_release_evidence_archive_json_command`,
   `release_evidence_archive_gate_command`,
   `release_evidence_archive_gate_json_command`,
+  `release_evidence_handoff_summary_command`,
+  `release_evidence_handoff_summary_json_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -363,6 +370,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_archive_gate_command` and
   `release_evidence_archive_gate_json_command` expose the CI gate form that
   requires an exact archive record match and exits nonzero on drift.
+  `release_evidence_handoff_summary_command` and
+  `release_evidence_handoff_summary_json_command` expose the read-only handoff
+  summary that reports the bundle gate, archive gate, and combined required
+  match exit code in one payload.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -1009,6 +1020,17 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-handoff-summary <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-handoff-summary <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1228,6 +1250,9 @@ compact mismatch paths.
 Add `--require-release-evidence-archive-match` to that command when CI should
 fail on archive evidence drift while still receiving the same JSON payload on
 stdout.
+Use `--release-evidence-handoff-summary --json` when automation needs a compact
+combined handoff view with `bundle_gate`, `archive_gate`, `verified`, and
+`required_match_exit_code` fields after the archive record has been filled.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
