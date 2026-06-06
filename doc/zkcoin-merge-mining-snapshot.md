@@ -202,6 +202,11 @@ Both are intentionally present before behavior changes so tests and review can t
   ties external-artifact snapshot handoffs and value-selection JSON checklists
   together without choosing production constants.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook`
+  when release operators need the ordered launch operator runbook from the
+  launch-gate preflight through the all-network snapshot audit handoff and
+  value-selection checklist exports without choosing production constants.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -223,7 +228,7 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_command_pair_counts`, `command_field_order`, `command_field_count`,
   `action_plan_command`, `readiness_summary_command`, `status_json_command`,
   `value_selection_checklists_command`, `snapshot_audit_handoffs_command`,
-  `launch_gate_preflight_command`,
+  `launch_gate_preflight_command`, `operator_runbook_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -300,6 +305,9 @@ Both are intentionally present before behavior changes so tests and review can t
   audit handoff export command for dashboards that should not reconstruct it.
   `launch_gate_preflight_command` exposes the compact launch-gate preflight
   export command for dashboards that need gate-level handoff routing.
+  `operator_runbook_command` exposes the ordered launch operator runbook command
+  for dashboards that need launch-gate preflight, snapshot handoff, and
+  value-selection checklist routing in one compact view.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -875,6 +883,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --operator-runbook \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --operator-runbook \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1072,6 +1089,9 @@ Use `--launch-gate-preflight --json` when automation needs gate-level readiness,
 blocked-field counts, snapshot artifact counts, value-selection JSON check
 counts, and the copyable all-network handoff commands in one compact launch-gate
 preflight payload.
+Use `--operator-runbook --json` when automation needs the ordered launch-gate
+preflight, snapshot-audit handoff, and value-selection checklist commands plus
+gate summary counts in one compact operator runbook payload.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
