@@ -763,17 +763,20 @@ def require_public_launch_manifest_current():
         "  - next check commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit testnet <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next preflight commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight testnet <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next apply commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit testnet <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next snapshot audit handoff commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next template commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
         "  - next check commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "auxpow_chain_id=contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main <chain_id> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next preflight commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
         "  - next apply commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - next snapshot audit handoff commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --set-dns-seeds main <seed1.hostname>,<seed2.hostname> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next network readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker type readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next preflight commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=none",
+        "  - next snapshot audit handoff commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=none",
         "  - next readiness gate summary commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json; value_selection=contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary value_selection contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "dns_seeds=contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -4358,6 +4361,10 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote staged per-network next apply commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - next snapshot audit handoff commands by network: main=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main {quoted_manifest_path}; testnet=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff testnet {quoted_manifest_path}" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged per-network next snapshot audit handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - next template commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main {quoted_manifest_path}; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged blocker-type next template commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4374,8 +4381,16 @@ def require_public_launch_manifest_current():
             return "{} --readiness-summary did not shell-quote staged blocker-type next apply commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if f"  - next snapshot audit handoff commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main {quoted_manifest_path}; auxpow_chain_id=none; public_network_identity=none; dns_seeds=none" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged blocker-type next snapshot audit handoff commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if f"  - next preflight commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> {quoted_manifest_path}; value_selection=none" not in spaced_readiness_result.stdout:
             return "{} --readiness-summary did not shell-quote staged readiness-gate next preflight commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if f"  - next snapshot audit handoff commands by readiness gate: external_artifact=contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main {quoted_manifest_path}; value_selection=none" not in spaced_readiness_result.stdout:
+            return "{} --readiness-summary did not shell-quote staged readiness-gate next snapshot audit handoff commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
         if f"  - next network readiness summary commands by blocker type: litecoin_snapshot=contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main {quoted_manifest_path}" not in spaced_readiness_result.stdout:
