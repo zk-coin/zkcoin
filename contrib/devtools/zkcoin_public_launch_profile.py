@@ -593,6 +593,35 @@ def snapshot_audit_handoff_checklist_by_network(manifest_path, blocked_field_gro
     return checklist_by_network
 
 
+def snapshot_audit_handoff_checklist_summary_by_network(checklists_by_network):
+    summary_by_network = {}
+    for network, checklist in checklists_by_network.items():
+        steps = checklist["steps"]
+        summary_by_network[network] = {
+            "blocker": checklist["blocker"],
+            "state": checklist["state"],
+            "unresolved": checklist["unresolved"],
+            "blocked_field_count": checklist["blocked_field_count"],
+            "step_ids": [step["id"] for step in steps],
+            "step_count": len(steps),
+            "command_step_count": sum(1 for step in steps if step["kind"] == "command"),
+            "external_artifact_step_count": sum(
+                1
+                for step in steps
+                if step["kind"] == "external_artifact"
+            ),
+            "required_artifact_ids": checklist["artifact_ids"],
+            "required_artifact_count": checklist["required_artifact_count"],
+            "available_command_count": checklist["available_command_count"],
+            "requires_preflight_step_ids": [
+                step["id"]
+                for step in steps
+                if step.get("requires_preflight")
+            ],
+        }
+    return summary_by_network
+
+
 def external_artifacts_by_blocker():
     artifacts_by_type = external_artifacts_by_blocker_type()
     return {
@@ -4671,6 +4700,9 @@ def status_json_text(manifest, manifest_path, check):
         manifest_path,
         blocked_field_groups,
     )
+    snapshot_audit_handoff_checklist_summary_by_network_map = snapshot_audit_handoff_checklist_summary_by_network(
+        snapshot_audit_handoff_checklist_by_network_map,
+    )
     commands = status_command_fields(manifest_path)
     command_keys = list(commands)
     command_values = list(commands.values())
@@ -4952,6 +4984,7 @@ def status_json_text(manifest, manifest_path, check):
             "snapshot_audit_external_artifact_counts_by_network": snapshot_audit_external_artifact_counts_by_network(),
             "snapshot_audit_handoff_readiness_by_network": snapshot_audit_handoff_readiness_by_network_map,
             "snapshot_audit_handoff_checklist_by_network": snapshot_audit_handoff_checklist_by_network_map,
+            "snapshot_audit_handoff_checklist_summary_by_network": snapshot_audit_handoff_checklist_summary_by_network_map,
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
             "next_blocker_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
