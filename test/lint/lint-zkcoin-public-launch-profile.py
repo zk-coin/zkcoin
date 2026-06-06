@@ -3653,6 +3653,10 @@ def require_public_launch_manifest_current():
             or release_evidence_handoff_summary_json.get("ready_for_publication") is not True
             or release_evidence_handoff_summary_json.get("publication_blocker_count") != 0
             or release_evidence_handoff_summary_json.get("publication_blockers") != []
+            or release_evidence_handoff_summary_json.get("next_publication_blocker") is not None
+            or release_evidence_handoff_summary_json.get("next_publication_blocker_id") is not None
+            or release_evidence_handoff_summary_json.get("next_publication_blocker_path") is not None
+            or release_evidence_handoff_summary_json.get("next_publication_blocker_command") is not None
             or release_evidence_handoff_summary_json.get("first_mismatch") is not None
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or release_evidence_handoff_summary_json.get("bundle_gate", {}).get("mismatch_count") != 0
@@ -3682,6 +3686,9 @@ def require_public_launch_manifest_current():
 
         stale_release_evidence_archive_record_path = (
             Path(temp_dir) / "stale-release-evidence-archive-record.json"
+        )
+        quoted_stale_archive_record_path = shlex.quote(
+            str(stale_release_evidence_archive_record_path)
         )
         stale_release_evidence_archive_record = dict(release_evidence_archive_record)
         stale_release_evidence_archive_record["release_evidence_bundle_sha256"] = (
@@ -3794,6 +3801,17 @@ def require_public_launch_manifest_current():
                 "release-evidence-archive-record",
                 "release-evidence-handoff-summary-json",
             ]
+            or stale_release_evidence_handoff_summary_json.get("next_publication_blocker", {}).get("id")
+            != "release-evidence-archive-record"
+            or stale_release_evidence_handoff_summary_json.get("next_publication_blocker_id")
+            != "release-evidence-archive-record"
+            or stale_release_evidence_handoff_summary_json.get("next_publication_blocker_path")
+            != str(stale_release_evidence_archive_record_path)
+            or stale_release_evidence_handoff_summary_json.get("next_publication_blocker_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-archive-match --check-release-evidence-archive {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_stale_archive_record_path,
+                quoted_bundle_path,
+            )
             or stale_release_evidence_handoff_summary_json.get("bundle_gate", {}).get("verified") is not True
             or stale_release_evidence_handoff_summary_json.get("archive_gate", {}).get("verified") is not False
             or stale_first_mismatch.get("source") != "archive_gate"
@@ -19988,6 +20006,10 @@ def main():
         (
             "ready_for_publication",
             "public launch manifest release evidence publication readiness documentation",
+        ),
+        (
+            "next_publication_blocker",
+            "public launch manifest release evidence next publication blocker documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

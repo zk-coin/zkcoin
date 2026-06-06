@@ -1261,6 +1261,9 @@ archive record, and generated handoff summary JSON as one publication checklist.
 It also exposes `ready_for_publication`, `publication_blocker_count`, and
 `publication_blockers` so dashboards can decide whether the retained evidence
 set is publishable without inferring that state from individual gate counters.
+When publication is blocked, `next_publication_blocker`,
+`next_publication_blocker_id`, `next_publication_blocker_path`, and
+`next_publication_blocker_command` point at the first artifact handoff to fix.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
