@@ -845,6 +845,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --readiness-summary \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --network-readiness-summary NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -931,6 +936,10 @@ Add `--json` to the network handoff bundle when automation needs
 machine-readable current blocker state, current commands, queued
 value-selection blockers, blocked fields, and per-blocker readiness summary
 commands without parsing the human handoff text.
+Add `--json` to the readiness-summary command when automation needs
+machine-readable top-level launch readiness state, per-network, per-blocker-type,
+and per-readiness-gate progress, current blocker details, later blockers, and
+command shortcuts.
 Add `--json` to the network readiness-summary command when automation needs
 machine-readable current blocker state for one network, blocked fields,
 blocked and ready blocker types, candidate constraints, and command shortcuts.

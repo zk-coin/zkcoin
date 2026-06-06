@@ -4165,6 +4165,181 @@ def readiness_summary_text(manifest, manifest_path, check):
     return "\n".join(lines)
 
 
+def readiness_summary_json_payload(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )
+    blocker_type_progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
+    readiness_gate_progress = readiness_gate_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )
+    status = manifest.get("status")
+    ready_for_chainparams = status == "ready-for-chainparams" and not blockers
+    next_action = actions[0] if actions else None
+    current_blocker = blocked_field_groups[0] if blocked_field_groups else None
+    later_blockers = blockers[1:] if blockers else []
+    commands = status_command_fields(manifest_path)
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": status,
+        "ready_for_chainparams": ready_for_chainparams,
+        "commands": commands,
+        "action_plan_command": commands["action_plan"],
+        "next_action_command": commands["next_action"],
+        "readiness_summary_command": commands["readiness_summary"],
+        "status_json_command": commands["status_json"],
+        "blocked_networks": blocked_networks(network_progress),
+        "blocked_network_count": len(blocked_networks(network_progress)),
+        "ready_networks": ready_networks(network_progress),
+        "ready_network_count": len(ready_networks(network_progress)),
+        "blocked_networks_by_blocker_type": blocked_networks_by_blocker_type(
+            blocked_field_groups,
+        ),
+        "ready_networks_by_blocker_type": ready_networks_by_blocker_type(
+            blocked_field_groups,
+        ),
+        "blocker_types_by_readiness_gate": blocker_types_by_readiness_gate(),
+        "blocker_type_counts_by_readiness_gate": (
+            blocker_type_counts_by_readiness_gate()
+        ),
+        "unresolved_blockers": blockers,
+        "unresolved_blocker_count": len(blockers),
+        "unresolved_blockers_by_network": items_by_network(blockers),
+        "unresolved_blocker_counts_by_network": item_counts_by_network(blockers),
+        "unresolved_blockers_by_blocker_type": blockers_by_blocker_type(blockers),
+        "unresolved_blocker_counts_by_blocker_type": (
+            blocker_counts_by_blocker_type(blockers)
+        ),
+        "unresolved_blockers_by_readiness_gate": (
+            blockers_by_readiness_gate(blockers)
+        ),
+        "unresolved_blocker_counts_by_readiness_gate": (
+            blocker_counts_by_readiness_gate(blockers)
+        ),
+        "unresolved_blockers_by_network_and_blocker_type": (
+            blockers_by_network_and_blocker_type(blockers)
+        ),
+        "unresolved_blocker_counts_by_network_and_blocker_type": (
+            blocker_counts_by_network_and_blocker_type(blockers)
+        ),
+        "blocked_fields": check.blockers,
+        "blocked_field_count": len(check.blockers),
+        "blocked_fields_by_network": items_by_network(check.blockers),
+        "blocked_field_counts_by_network": item_counts_by_network(check.blockers),
+        "blocked_fields_by_blocker_type": blocked_fields_by_blocker_type(
+            blocked_field_groups,
+        ),
+        "blocked_field_counts_by_blocker_type": (
+            blocked_field_counts_by_blocker_type(blocked_field_groups)
+        ),
+        "blocked_fields_by_readiness_gate": blocked_fields_by_readiness_gate(
+            blocked_field_groups,
+        ),
+        "blocked_field_counts_by_readiness_gate": (
+            blocked_field_counts_by_readiness_gate(blocked_field_groups)
+        ),
+        "blocked_fields_by_network_and_blocker_type": (
+            blocked_fields_by_network_and_blocker_type(blocked_field_groups)
+        ),
+        "blocked_field_counts_by_network_and_blocker_type": (
+            blocked_field_counts_by_network_and_blocker_type(blocked_field_groups)
+        ),
+        "blocked_field_groups": blocked_field_groups,
+        "blocked_field_group_count": len(blocked_field_groups),
+        "blocked_field_groups_by_readiness_gate": (
+            blocked_field_groups_by_readiness_gate(blocked_field_groups)
+        ),
+        "blocked_field_group_counts_by_readiness_gate": (
+            blocked_field_group_counts_by_readiness_gate(blocked_field_groups)
+        ),
+        "network_progress": network_progress,
+        "blocker_type_progress": blocker_type_progress,
+        "readiness_gate_progress": readiness_gate_progress,
+        "next_action": next_action,
+        "next_action_id": next_action["id"] if next_action is not None else None,
+        "next_action_kind": next_action["kind"] if next_action is not None else None,
+        "next_action_commands": action_command_fields(next_action),
+        "current_blocker": current_blocker,
+        "current_blocker_id": (
+            current_blocker["id"] if current_blocker is not None else None
+        ),
+        "current_blocker_field_count": (
+            current_blocker["field_count"] if current_blocker is not None else 0
+        ),
+        "current_commands": action_command_fields(current_blocker),
+        "later_blockers": later_blockers,
+        "later_blocker_count": len(later_blockers),
+        "later_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+        "later_blockers_by_readiness_gate": later_blockers_by_readiness_gate(
+            blockers,
+        ),
+        "later_blocker_counts_by_readiness_gate": (
+            later_blocker_counts_by_readiness_gate(blockers)
+        ),
+        "later_blocker_readiness_summary_commands_by_readiness_gate": (
+            later_blocker_readiness_summary_commands_by_readiness_gate(
+                manifest_path,
+                blockers,
+            )
+        ),
+        "next_commands_by_network": network_next_command_fields(network_progress),
+        "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
+        "next_commands_by_readiness_gate": next_commands_by_readiness_gate(
+            actions,
+        ),
+        "snapshot_audit_handoff_commands_by_network": (
+            snapshot_audit_handoff_commands(manifest_path)
+        ),
+        "network_readiness_summary_commands_by_network": (
+            network_readiness_summary_commands(manifest_path)
+        ),
+        "network_handoff_bundle_commands_by_network": (
+            network_handoff_bundle_commands(manifest_path)
+        ),
+        "network_later_blockers_commands_by_network": (
+            network_later_blockers_commands(manifest_path)
+        ),
+        "network_value_selection_later_blockers_commands_by_network": (
+            network_value_selection_later_blockers_commands(manifest_path)
+        ),
+        "blocker_type_readiness_summary_commands_by_blocker_type": (
+            blocker_type_readiness_summary_commands(manifest_path)
+        ),
+        "blocker_type_later_blockers_commands_by_blocker_type": (
+            blocker_type_later_blockers_commands(manifest_path)
+        ),
+        "readiness_gate_summary_commands_by_readiness_gate": (
+            readiness_gate_summary_commands(manifest_path)
+        ),
+        "readiness_gate_later_blockers_commands_by_readiness_gate": (
+            readiness_gate_later_blockers_commands(manifest_path)
+        ),
+    }
+
+
+def readiness_summary_json_text(manifest, manifest_path, check):
+    return json.dumps(
+        readiness_summary_json_payload(manifest, manifest_path, check),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def snapshot_audit_handoff_text(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -6082,6 +6257,7 @@ def main():
         and args.snapshot_audit_preflight is None
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
+        and not args.readiness_summary
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
         and args.network_value_selection_later_blockers is None
@@ -6095,7 +6271,8 @@ def main():
         print(
             "error: --json is only supported with --snapshot-audit-preflight, "
             "--check-snapshot-audit, --snapshot-audit-handoff, "
-            "--network-handoff-bundle, --blocker-readiness-summary, "
+            "--readiness-summary, --network-handoff-bundle, "
+            "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, --network-readiness-summary, "
             "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
@@ -6362,7 +6539,12 @@ def main():
         if args.in_place:
             print("error: --readiness-summary does not write the manifest", file=sys.stderr)
             return 1
-        print(readiness_summary_text(manifest, args.manifest, check))
+        summary_text = (
+            readiness_summary_json_text
+            if args.json
+            else readiness_summary_text
+        )
+        print(summary_text(manifest, args.manifest, check))
         return 0
 
     if args.snapshot_audit_handoff is not None:
