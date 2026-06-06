@@ -1557,6 +1557,119 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    blocker_type_readiness_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--blocker-type-readiness-summary",
+            "litecoin_snapshot",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if blocker_type_readiness_json_result.returncode != 0:
+        return "{} --blocker-type-readiness-summary --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            blocker_type_readiness_json_result.stderr.strip()
+            or blocker_type_readiness_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        blocker_type_readiness_json = json.loads(blocker_type_readiness_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --blocker-type-readiness-summary --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        blocker_type_readiness_json.get("schema_version") != 1
+        or blocker_type_readiness_json.get("blocker_type") != "litecoin_snapshot"
+        or blocker_type_readiness_json.get("readiness_gate") != "external_artifact"
+        or blocker_type_readiness_json.get("ready_for_launch_profile") is not False
+        or blocker_type_readiness_json.get("unresolved_blockers") != ["main.litecoin_snapshot", "testnet.litecoin_snapshot"]
+        or blocker_type_readiness_json.get("unresolved_blocker_count") != 2
+        or blocker_type_readiness_json.get("blocked_field_count") != 22
+        or blocker_type_readiness_json.get("blocked_networks") != ["main", "testnet"]
+        or blocker_type_readiness_json.get("ready_networks") != []
+        or blocker_type_readiness_json.get("current_blocker_id") != "main.litecoin_snapshot"
+        or blocker_type_readiness_json.get("current_blocker_field_count") != 11
+    ):
+        return "{} --blocker-type-readiness-summary --json did not expose blocker-type state".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    current_blocker = blocker_type_readiness_json.get("current_blocker", {})
+    if (
+        current_blocker.get("id") != "main.litecoin_snapshot"
+        or current_blocker.get("network") != "main"
+        or current_blocker.get("template_field_count") != 11
+        or current_blocker.get("candidate_constraints", {}).get("snapshot_file_must_be_regular_file") is not True
+        or "main.litecoin_snapshot.audit.total_amount" not in current_blocker.get("fields", [])
+        or "testnet.litecoin_snapshot.audit.total_amount" not in blocker_type_readiness_json.get("blocked_fields", [])
+    ):
+        return "{} --blocker-type-readiness-summary --json did not expose current blocker details".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    current_commands = blocker_type_readiness_json.get("current_commands", {})
+    later_commands = blocker_type_readiness_json.get(
+        "later_blocker_readiness_summary_commands",
+        {},
+    )
+    if (
+        current_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or current_commands.get("blocker_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or blocker_type_readiness_json.get("later_blockers") != ["testnet.litecoin_snapshot"]
+        or blocker_type_readiness_json.get("later_blocker_count") != 1
+        or later_commands.get("testnet.litecoin_snapshot")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary testnet.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or blocker_type_readiness_json.get("blocker_type_later_blockers_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-later-blockers litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or blocker_type_readiness_json.get("readiness_gate_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-summary external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or blocker_type_readiness_json.get("readiness_gate_later_blockers_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --readiness-gate-later-blockers external_artifact contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --blocker-type-readiness-summary --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_blocker_type_readiness_json_manifest_path = Path(temp_dir) / "read-only-blocker-type-readiness-json-manifest.json"
+        readonly_blocker_type_readiness_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_blocker_type_readiness_json_manifest_path.write_bytes(
+            readonly_blocker_type_readiness_json_manifest_bytes
+        )
+        readonly_blocker_type_readiness_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--blocker-type-readiness-summary",
+                "litecoin_snapshot",
+                str(readonly_blocker_type_readiness_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_blocker_type_readiness_json_result.returncode != 0:
+            return "{} --blocker-type-readiness-summary --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_blocker_type_readiness_json_result.stderr.strip()
+                or readonly_blocker_type_readiness_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_blocker_type_readiness_json_manifest_path.read_bytes() != readonly_blocker_type_readiness_json_manifest_bytes:
+            return "{} --blocker-type-readiness-summary --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     blocker_type_later_result = subprocess.run(
         [
             sys.executable,
@@ -8424,7 +8537,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-later-blockers, --blocker-type-later-blockers, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -14247,6 +14360,8 @@ def main():
         ("network_value_selection_later_blockers_json_payload", "manifest network value-selection later blockers JSON payload helper"),
         ("network_value_selection_later_blockers_json_text", "manifest network value-selection later blockers JSON renderer"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
+        ("blocker_type_readiness_summary_json_payload", "manifest blocker-type readiness summary JSON payload helper"),
+        ("blocker_type_readiness_summary_json_text", "manifest blocker-type readiness summary JSON renderer"),
         ("--blocker-type-later-blockers", "manifest blocker-type later blockers flag"),
         ("blocker_type_later_blockers_json_payload", "manifest blocker-type later blockers JSON payload helper"),
         ("blocker_type_later_blockers_json_text", "manifest blocker-type later blockers JSON renderer"),
@@ -15843,6 +15958,14 @@ def main():
         (
             "zkcoin_public_launch_profile.py --blocker-type-readiness-summary BLOCKER_TYPE",
             "public launch manifest blocker-type readiness-summary documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --blocker-type-readiness-summary BLOCKER_TYPE",
+            "public launch manifest blocker-type readiness-summary JSON documentation",
+        ),
+        (
+            "machine-readable current blocker state for one blocker type",
+            "public launch manifest blocker-type readiness-summary JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --json \\\n  --blocker-type-later-blockers BLOCKER_TYPE",
