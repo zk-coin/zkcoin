@@ -978,7 +978,8 @@ summary commands without parsing the human handoff text.
 Add `--json` to the readiness-summary command when automation needs
 machine-readable top-level launch readiness state, per-network, per-blocker-type,
 and per-readiness-gate progress, current blocker details, later blockers, and
-command shortcuts.
+command shortcuts, plus queued value-selection JSON check command maps and
+pre-apply checklist summaries by network.
 Add `--json` to the network readiness-summary command when automation needs
 machine-readable current blocker state for one network, blocked fields,
 blocked and ready blocker types, candidate constraints, and command shortcuts.

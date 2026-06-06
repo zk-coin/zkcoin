@@ -4820,6 +4820,11 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
     current_blocker = blocked_field_groups[0] if blocked_field_groups else None
     later_blockers = blockers[1:] if blockers else []
     commands = status_command_fields(manifest_path)
+    value_selection_states = network_value_selection_json_states(
+        blocked_field_groups,
+        network_progress,
+        manifest_path,
+    )
     return {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
@@ -4946,6 +4951,22 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         "network_value_selection_later_blockers_commands_by_network": (
             network_value_selection_later_blockers_commands(manifest_path)
         ),
+        "queued_value_selection_json_check_commands_by_network": {
+            network: state["json_check_commands"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_json_check_command_counts_by_network": {
+            network: state["json_check_command_count"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_candidate_checklists_by_network": {
+            network: state["candidate_checklist"]
+            for network, state in value_selection_states.items()
+        },
+        "queued_value_selection_candidate_checklist_summaries_by_network": {
+            network: state["candidate_checklist_summary"]
+            for network, state in value_selection_states.items()
+        },
         "blocker_type_readiness_summary_commands_by_blocker_type": (
             blocker_type_readiness_summary_commands(manifest_path)
         ),
@@ -5865,6 +5886,47 @@ def value_selection_candidate_checklist_summary(checklist):
             step["blocker"]
             for step in checklist
         ],
+    }
+
+
+def network_value_selection_json_state(blocked_field_groups, network_progress, manifest_path, network):
+    later_blockers, later_fields = network_value_selection_later_blocker_state(
+        blocked_field_groups,
+        network_progress[network],
+    )
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    manifest_arg = shell_quote(display_path(manifest_path))
+    json_check_commands = blocker_json_check_commands(later_blockers, manifest_arg)
+    later_groups = [
+        {
+            **groups_by_blocker[blocker],
+            "json_check_command": json_check_commands[blocker],
+        }
+        for blocker in later_blockers
+    ]
+    checklist = value_selection_candidate_checklist(later_groups)
+    return {
+        "blockers": later_blockers,
+        "fields": later_fields,
+        "field_groups": later_groups,
+        "json_check_commands": json_check_commands,
+        "json_check_command_count": len(json_check_commands),
+        "candidate_checklist": checklist,
+        "candidate_checklist_summary": (
+            value_selection_candidate_checklist_summary(checklist)
+        ),
+    }
+
+
+def network_value_selection_json_states(blocked_field_groups, network_progress, manifest_path):
+    return {
+        network: network_value_selection_json_state(
+            blocked_field_groups,
+            network_progress,
+            manifest_path,
+            network,
+        )
+        for network in NETWORKS
     }
 
 
