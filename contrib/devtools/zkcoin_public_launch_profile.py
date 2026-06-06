@@ -4628,6 +4628,93 @@ def network_handoff_bundle_text(manifest, manifest_path, check, network):
     return "\n".join(lines)
 
 
+def network_handoff_bundle_json_payload(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    next_group = progress["next_blocked_field_group"]
+    later_blockers, later_fields = network_value_selection_later_blocker_state(
+        blocked_field_groups,
+        progress,
+    )
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_groups = [
+        groups_by_blocker[blocker]
+        for blocker in later_blockers
+    ]
+    current_commands = action_command_fields(next_group)
+    current_blocker = None
+    if next_group is not None:
+        current_blocker = {
+            **next_group,
+            "commands": current_commands,
+        }
+    current_blocker_id = next_group["id"] if next_group is not None else None
+    return {
+        "schema_version": 1,
+        "network": network,
+        "ready_for_launch_profile": progress["ready_for_launch_profile"],
+        "unresolved_blockers": progress["unresolved_blockers"],
+        "unresolved_blocker_count": progress["unresolved_blocker_count"],
+        "blocked_fields": progress["blocked_fields"],
+        "blocked_field_count": progress["blocked_field_count"],
+        "current_blocker": current_blocker,
+        "current_blocker_id": current_blocker_id,
+        "current_blocker_field_count": (
+            next_group["field_count"] if next_group is not None else 0
+        ),
+        "current_commands": current_commands,
+        "current_snapshot_audit_handoff_command": (
+            snapshot_audit_handoff_command(manifest_path, network)
+            if next_group is not None
+            and next_group["blocker_type"] == "litecoin_snapshot"
+            else None
+        ),
+        "current_blocker_readiness_summary_command": (
+            blocker_readiness_summary_command(manifest_path, current_blocker_id)
+            if current_blocker_id is not None
+            else None
+        ),
+        "network_readiness_summary_command": network_readiness_summary_command(
+            manifest_path,
+            network,
+        ),
+        "network_handoff_bundle_command": network_handoff_bundle_command(
+            manifest_path,
+            network,
+        ),
+        "network_value_selection_later_blockers_command": (
+            network_value_selection_later_blockers_command(manifest_path, network)
+        ),
+        "queued_value_selection_blocker_types": list(
+            blocker_types_by_readiness_gate()["value_selection"]
+        ),
+        "queued_value_selection_blockers": later_blockers,
+        "queued_value_selection_blocker_count": len(later_blockers),
+        "queued_value_selection_blocker_fields": later_fields,
+        "queued_value_selection_blocker_field_count": len(later_fields),
+        "queued_value_selection_blocker_field_groups": later_groups,
+        "queued_value_selection_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+    }
+
+
+def network_handoff_bundle_json_text(manifest, manifest_path, check, network):
+    return json.dumps(
+        network_handoff_bundle_json_payload(manifest, manifest_path, check, network),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def blocker_readiness_summary_text(manifest, manifest_path, check, blocker_id):
     blockers = ordered_unresolved_blocker_ids(manifest)
     actions = action_plan_entries(manifest, manifest_path)
@@ -5278,7 +5365,7 @@ def main():
     parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
-    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON for snapshot audit read-only output")
+    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON for supported read-only output")
     parser.add_argument("--emit-chainparams", action="store_true", help="emit chainparams.cpp assignment snippets from a ready manifest")
     parser.add_argument(
         "--snapshot-audit-template",
@@ -5402,10 +5489,12 @@ def main():
         and args.snapshot_audit_preflight is None
         and args.check_snapshot_audit is None
         and args.snapshot_audit_handoff is None
+        and args.network_handoff_bundle is None
     ):
         print(
             "error: --json is only supported with --snapshot-audit-preflight, "
-            "--check-snapshot-audit, or --snapshot-audit-handoff",
+            "--check-snapshot-audit, --snapshot-audit-handoff, or "
+            "--network-handoff-bundle",
             file=sys.stderr,
         )
         return 1
@@ -5714,8 +5803,13 @@ def main():
             print("error: --network-handoff-bundle does not write the manifest", file=sys.stderr)
             return 1
         try:
+            handoff_text = (
+                network_handoff_bundle_json_text
+                if args.json
+                else network_handoff_bundle_text
+            )
             print(
-                network_handoff_bundle_text(
+                handoff_text(
                     manifest,
                     args.manifest,
                     check,

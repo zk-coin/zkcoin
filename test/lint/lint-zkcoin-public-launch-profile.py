@@ -1108,6 +1108,137 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    network_handoff_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--network-handoff-bundle",
+            "main",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_handoff_json_result.returncode != 0:
+        return "{} --network-handoff-bundle --json failed for blocked manifest: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            network_handoff_json_result.stderr.strip()
+            or network_handoff_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        network_handoff_json = json.loads(network_handoff_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --network-handoff-bundle --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        network_handoff_json.get("schema_version") != 1
+        or network_handoff_json.get("network") != "main"
+        or network_handoff_json.get("ready_for_launch_profile") is not False
+        or network_handoff_json.get("current_blocker_id") != "main.litecoin_snapshot"
+        or network_handoff_json.get("current_blocker_field_count") != 11
+    ):
+        return "{} --network-handoff-bundle --json did not report main handoff state".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    network_handoff_current = network_handoff_json.get("current_blocker", {})
+    network_handoff_current_commands = network_handoff_json.get("current_commands", {})
+    if (
+        network_handoff_current.get("id") != "main.litecoin_snapshot"
+        or network_handoff_current.get("blocker_type") != "litecoin_snapshot"
+        or "main.litecoin_snapshot.audit.snapshot_file_sha256" not in network_handoff_current.get("fields", [])
+        or network_handoff_current.get("commands", {}).get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_current_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_current_commands.get("preflight_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-preflight main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_current_commands.get("apply_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json> --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_current_commands.get("snapshot_audit_handoff_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --network-handoff-bundle --json did not expose current blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        network_handoff_json.get("current_snapshot_audit_handoff_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json.get("current_blocker_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json.get("network_readiness_summary_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json.get("network_handoff_bundle_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_json.get("network_value_selection_later_blockers_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-later-blockers main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --network-handoff-bundle --json did not expose handoff command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        network_handoff_json.get("queued_value_selection_blocker_types")
+        != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+        or network_handoff_json.get("queued_value_selection_blockers")
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or network_handoff_json.get("queued_value_selection_blocker_count") != 3
+        or network_handoff_json.get("queued_value_selection_blocker_field_count") != 12
+        or [group.get("id") for group in network_handoff_json.get("queued_value_selection_blocker_field_groups", [])]
+        != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+        or "main.public_network_identity.default_port" not in network_handoff_json.get("queued_value_selection_blocker_fields", [])
+    ):
+        return "{} --network-handoff-bundle --json did not expose queued value-selection blockers".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    network_handoff_queued_commands = network_handoff_json.get(
+        "queued_value_selection_blocker_readiness_summary_commands",
+        {},
+    )
+    if (
+        network_handoff_queued_commands.get("main.auxpow_chain_id")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_handoff_queued_commands.get("main.dns_seeds")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.dns_seeds contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --network-handoff-bundle --json did not expose queued readiness commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        readonly_network_handoff_json_manifest_path = Path(temp_dir) / "read-only-network-handoff-json-manifest.json"
+        readonly_network_handoff_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_network_handoff_json_manifest_path.write_bytes(readonly_network_handoff_json_manifest_bytes)
+        readonly_network_handoff_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--network-handoff-bundle",
+                "main",
+                str(readonly_network_handoff_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_network_handoff_json_result.returncode != 0:
+            return "{} --network-handoff-bundle --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_network_handoff_json_result.stderr.strip()
+                or readonly_network_handoff_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_network_handoff_json_manifest_path.read_bytes() != readonly_network_handoff_json_manifest_bytes:
+            return "{} --network-handoff-bundle --json modified the manifest during a read-only handoff".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     network_value_selection_later_result = subprocess.run(
         [
             sys.executable,
@@ -7705,7 +7836,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, or --snapshot-audit-handoff" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, or --network-handoff-bundle" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -13519,6 +13650,8 @@ def main():
         ("--readiness-summary", "manifest readiness summary flag"),
         ("--network-readiness-summary", "manifest network readiness summary flag"),
         ("--network-handoff-bundle", "manifest network handoff bundle flag"),
+        ("network_handoff_bundle_json_payload", "manifest network handoff JSON payload helper"),
+        ("network_handoff_bundle_json_text", "manifest network handoff JSON renderer"),
         ("--network-later-blockers", "manifest network later blockers flag"),
         ("--network-value-selection-later-blockers", "manifest network value-selection later blockers flag"),
         ("--blocker-type-readiness-summary", "manifest blocker-type readiness summary flag"),
@@ -15098,6 +15231,10 @@ def main():
             "public launch manifest network handoff bundle documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --network-handoff-bundle NETWORK",
+            "public launch manifest network handoff JSON bundle documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py --blocker-type-readiness-summary BLOCKER_TYPE",
             "public launch manifest blocker-type readiness-summary documentation",
         ),
@@ -15170,8 +15307,12 @@ def main():
             "public launch manifest snapshot audit handoff documentation",
         ),
         (
-            "machine-readable\naudit summary fields",
+            "machine-readable audit summary fields",
             "public launch manifest snapshot audit handoff JSON documentation",
+        ),
+        (
+            "machine-readable current blocker state",
+            "public launch manifest network handoff JSON contents documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --check-snapshot-audit NETWORK <snapshot_audit.json>",
