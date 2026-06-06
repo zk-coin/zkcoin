@@ -823,6 +823,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --snapshot-audit-preflight NETWORK <snapshot_audit.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --set-snapshot-audit NETWORK <snapshot_audit.json> \
   --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -869,6 +874,10 @@ prints the exact apply and recheck commands, and reports the remaining blocker
 and blocked-field counts after the audit would be applied.
 The one-line form is
 `zkcoin_public_launch_profile.py --snapshot-audit-preflight NETWORK <snapshot_audit.json>`.
+Add `--json` to the preflight command when automation needs
+machine-readable `ready_to_apply`, audit metadata, apply/recheck commands, and
+`post_apply` remaining blocker and blocked-field counts without parsing the
+human handoff text.
 The read-only check also reports the exact apply command, remaining blocker
 count, target-network remaining blocker count, overall and target-network
 remaining blocked field counts, post-apply next-action command,

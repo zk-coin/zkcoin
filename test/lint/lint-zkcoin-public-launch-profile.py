@@ -7247,6 +7247,176 @@ def require_public_launch_manifest_current():
                     expected,
                 )
 
+        preflight_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-preflight",
+                "main",
+                str(audit_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if preflight_json_result.returncode != 0:
+            return "{} --snapshot-audit-preflight --json failed: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                preflight_json_result.stderr.strip()
+                or preflight_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            preflight_json = json.loads(preflight_json_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --snapshot-audit-preflight --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if preflight_json.get("schema_version") != 1:
+            return "{} --snapshot-audit-preflight --json did not report schema_version 1".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if preflight_json.get("network") != "main" or preflight_json.get("ready_to_apply") is not True:
+            return "{} --snapshot-audit-preflight --json did not report main ready-to-apply status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if preflight_json.get("audit_path") != str(audit_path):
+            return "{} --snapshot-audit-preflight --json did not preserve the audit path".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        preflight_json_audit = preflight_json.get("audit", {})
+        if (
+            preflight_json_audit.get("height") != 777
+            or preflight_json_audit.get("block_hash") != "55" * 32
+            or preflight_json_audit.get("source_chain") != "main"
+            or preflight_json_audit.get("snapshot_file_size") != len(snapshot_artifact)
+            or preflight_json_audit.get("snapshot_file_sha256") != snapshot_artifact_sha256
+            or preflight_json_audit.get("snapshot_file") != str(snapshot_artifact_path)
+            or preflight_json_audit.get("total_amount") != "50.00000000"
+        ):
+            return "{} --snapshot-audit-preflight --json did not preserve audit metadata".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        expected_preflight_apply_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--set-snapshot-audit main {shlex.quote(str(audit_path))} "
+            "--in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        expected_preflight_recheck_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--check-snapshot-audit main {shlex.quote(str(audit_path))} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        preflight_json_commands = preflight_json.get("commands", {})
+        if (
+            preflight_json_commands.get("apply") != expected_preflight_apply_command
+            or preflight_json_commands.get("recheck") != expected_preflight_recheck_command
+            or preflight_json_commands.get("network_handoff_bundle")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or preflight_json_commands.get("current_blocker_readiness_summary")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ):
+            return "{} --snapshot-audit-preflight --json did not expose preflight commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        preflight_json_post_apply = preflight_json.get("post_apply", {})
+        if (
+            preflight_json_post_apply.get("remaining_blocker_count") != 7
+            or preflight_json_post_apply.get("remaining_blocker_count_for_network") != 3
+            or preflight_json_post_apply.get("remaining_blocker_counts_by_network")
+            != {"main": 3, "testnet": 4}
+            or preflight_json_post_apply.get("remaining_blocked_field_count") != 35
+            or preflight_json_post_apply.get("remaining_blocked_field_count_for_network") != 12
+            or preflight_json_post_apply.get("remaining_blocked_field_counts_by_network")
+            != {"main": 12, "testnet": 23}
+        ):
+            return "{} --snapshot-audit-preflight --json did not expose post-apply blocker deltas".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            preflight_json_post_apply.get("remaining_blockers", [None])[0]
+            != "main.auxpow_chain_id"
+            or preflight_json_post_apply.get("remaining_blockers_by_network", {}).get("main")
+            != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+            or preflight_json_post_apply.get("remaining_blocked_fields_by_network", {}).get("main", [None])[0]
+            != "main.auxpow.chain_id"
+        ):
+            return "{} --snapshot-audit-preflight --json did not group remaining post-apply blockers".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        expected_post_apply_next_commands = {
+            "template_command": None,
+            "check_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--check-auxpow main <chain_id> "
+                "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "preflight_command": None,
+            "apply_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--set-auxpow main <chain_id> --in-place "
+                "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "snapshot_audit_handoff_command": None,
+            "readiness_summary_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "network_readiness_summary_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "blocker_type_readiness_summary_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--blocker-type-readiness-summary auxpow_chain_id "
+                "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "readiness_gate_summary_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--readiness-gate-summary value_selection "
+                "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+            "blocker_readiness_summary_command": (
+                "contrib/devtools/zkcoin_public_launch_profile.py "
+                "--blocker-readiness-summary main.auxpow_chain_id "
+                "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            ),
+        }
+        if (
+            preflight_json_post_apply.get("next_blocker") != "main.auxpow_chain_id"
+            or preflight_json_post_apply.get("next_blocker_network") != "main"
+            or preflight_json_post_apply.get("next_blocker_type") != "auxpow_chain_id"
+            or preflight_json_post_apply.get("next_commands") != expected_post_apply_next_commands
+        ):
+            return "{} --snapshot-audit-preflight --json did not expose post-apply next commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        json_without_preflight_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if json_without_preflight_result.returncode == 0:
+            return "{} --json was accepted without --snapshot-audit-preflight".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "--json is only supported with --snapshot-audit-preflight" not in json_without_preflight_result.stderr:
+            return "{} --json without --snapshot-audit-preflight did not explain the restriction".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         readonly_check_manifest_path = Path(temp_dir) / "read-only-check-manifest.json"
         readonly_check_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
         readonly_check_manifest_path.write_bytes(readonly_check_manifest_bytes)
@@ -7302,6 +7472,36 @@ def require_public_launch_manifest_current():
             )
         if readonly_preflight_manifest_path.read_bytes() != readonly_preflight_manifest_bytes:
             return "{} --snapshot-audit-preflight modified the manifest during a read-only preflight".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        readonly_preflight_json_manifest_path = Path(temp_dir) / "read-only-preflight-json-manifest.json"
+        readonly_preflight_json_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_preflight_json_manifest_path.write_bytes(readonly_preflight_json_manifest_bytes)
+        readonly_preflight_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--snapshot-audit-preflight",
+                "main",
+                str(audit_path),
+                str(readonly_preflight_json_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_preflight_json_result.returncode != 0:
+            return "{} --snapshot-audit-preflight --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_preflight_json_result.stderr.strip()
+                or readonly_preflight_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_preflight_json_manifest_path.read_bytes() != readonly_preflight_json_manifest_bytes:
+            return "{} --snapshot-audit-preflight --json modified the manifest during a read-only preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -13018,6 +13218,7 @@ def main():
         ("--set-snapshot-audit", "manifest verified snapshot audit update flag"),
         ("--snapshot-audit-preflight", "manifest verified snapshot audit preflight flag"),
         ("--check-snapshot-audit", "manifest verified snapshot audit read-only check flag"),
+        ("--json", "manifest snapshot audit preflight JSON output flag"),
         ("--set-auxpow", "manifest AuxPoW update flag"),
         ("--check-auxpow", "manifest AuxPoW read-only check flag"),
         ("--set-dns-seeds", "manifest DNS seed update flag"),
@@ -13056,6 +13257,7 @@ def main():
         ("checked_snapshot_audit_candidate", "manifest checks snapshot audit candidates without writing"),
         ("snapshot_audit_apply_command", "manifest prints snapshot audit apply commands after read-only checks"),
         ("snapshot_audit_check_text", "manifest prints verified snapshot audit check summaries"),
+        ("snapshot_audit_preflight_json_text", "manifest prints machine-readable snapshot audit preflight summaries"),
         ("candidate_next_step_text", "manifest reports snapshot audit candidate progress"),
         ("candidate_next_step_text(candidate, \"audit\", manifest_path, network, \"litecoin_snapshot\")", "manifest reports snapshot audit candidate blocker count"),
         ("next network readiness summary command after applying", "manifest prints next network summaries after candidate checks"),
