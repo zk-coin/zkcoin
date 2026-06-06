@@ -4374,6 +4374,74 @@ def network_later_blockers_text(manifest, manifest_path, check, network):
     return "\n".join(lines)
 
 
+def network_later_blockers_json_payload(manifest, manifest_path, check, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    network_progress = network_progress_entries(
+        blockers,
+        check.blockers,
+        blocked_field_groups,
+    )[network]
+    later_blockers = network_progress["unresolved_blockers"][1:]
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_groups = [
+        groups_by_blocker[blocker]
+        for blocker in later_blockers
+    ]
+    later_fields = [
+        field
+        for group in later_groups
+        for field in group.get("fields", [])
+    ]
+    next_group = network_progress["next_blocked_field_group"]
+    current_blocker_id = next_group["id"] if next_group is not None else None
+    return {
+        "schema_version": 1,
+        "network": network,
+        "ready_for_launch_profile": network_progress["ready_for_launch_profile"],
+        "current_blocker": current_blocker_id,
+        "current_blocker_field_count": (
+            next_group["field_count"] if next_group is not None else 0
+        ),
+        "later_blockers": later_blockers,
+        "later_blocker_count": len(later_blockers),
+        "later_blocker_fields": later_fields,
+        "later_blocker_field_count": len(later_fields),
+        "later_blocker_field_groups": later_groups,
+        "later_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+        "network_readiness_summary_command": network_readiness_summary_command(
+            manifest_path,
+            network,
+        ),
+        "network_handoff_bundle_command": network_handoff_bundle_command(
+            manifest_path,
+            network,
+        ),
+        "network_later_blockers_command": network_later_blockers_command(
+            manifest_path,
+            network,
+        ),
+    }
+
+
+def network_later_blockers_json_text(manifest, manifest_path, check, network):
+    return json.dumps(
+        network_later_blockers_json_payload(
+            manifest,
+            manifest_path,
+            check,
+            network,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def blocker_type_readiness_summary_text(manifest, manifest_path, check, blocker_type):
     if blocker_type not in BLOCKER_TYPES:
         raise ValueError("blocker type must be one of: " + ", ".join(BLOCKER_TYPES))
@@ -5640,12 +5708,13 @@ def main():
         and args.network_handoff_bundle is None
         and args.blocker_readiness_summary is None
         and args.network_value_selection_later_blockers is None
+        and args.network_later_blockers is None
     ):
         print(
             "error: --json is only supported with --snapshot-audit-preflight, "
             "--check-snapshot-audit, --snapshot-audit-handoff, "
-            "--network-handoff-bundle, --blocker-readiness-summary, or "
-            "--network-value-selection-later-blockers",
+            "--network-handoff-bundle, --blocker-readiness-summary, "
+            "--network-value-selection-later-blockers, or --network-later-blockers",
             file=sys.stderr,
         )
         return 1
@@ -5977,8 +6046,13 @@ def main():
             print("error: --network-later-blockers does not write the manifest", file=sys.stderr)
             return 1
         try:
+            later_text = (
+                network_later_blockers_json_text
+                if args.json
+                else network_later_blockers_text
+            )
             print(
-                network_later_blockers_text(
+                later_text(
                     manifest,
                     args.manifest,
                     check,
