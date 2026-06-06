@@ -192,6 +192,11 @@ Both are intentionally present before behavior changes so tests and review can t
   when CI or release dashboards need one compact all-network pre-apply checklist
   of the queued value-selection JSON checks without parsing full status JSON.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs`
+  when CI or release dashboards need one compact all-network snapshot audit
+  handoff export with per-network readiness, blocked fields, artifact
+  requirements, checklist steps, and copyable per-network handoff commands.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -212,7 +217,7 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_command_value_counts`, `action_command_pairs`,
   `action_command_pair_counts`, `command_field_order`, `command_field_count`,
   `action_plan_command`, `readiness_summary_command`, `status_json_command`,
-  `value_selection_checklists_command`,
+  `value_selection_checklists_command`, `snapshot_audit_handoffs_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -285,6 +290,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `snapshot_audit_handoff_commands_by_network` and
   `snapshot_audit_handoff_command_count` expose the per-network snapshot audit
   field/artifact checklist commands and their map size.
+  `snapshot_audit_handoffs_command` exposes the compact all-network snapshot
+  audit handoff export command for dashboards that should not reconstruct it.
   `network_handoff_bundle_commands_by_network` and
   `network_handoff_bundle_command_count` expose the compact per-network handoff
   bundles and their map size,
@@ -842,6 +849,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --snapshot-audit-handoffs \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --snapshot-audit-handoffs \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1031,6 +1047,10 @@ Use `--value-selection-checklists --json` when automation needs the same
 pre-apply value-selection checklist data for every public network in one compact
 payload, including per-network blocker counts, field counts, JSON check command
 maps, ordered candidate checklist steps, and aggregate summary counts.
+Use `--snapshot-audit-handoffs --json` when automation needs the all-network
+snapshot audit handoff readiness, checklist, command, and external-artifact maps
+in one compact payload; this is the compact all-network snapshot audit handoff
+view for launch dashboards.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
