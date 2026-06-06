@@ -337,7 +337,11 @@ Both are intentionally present before behavior changes so tests and review can t
   operator checklist as derived command steps and external artifact steps,
   including which commands require the audit JSON and referenced snapshot file;
   it does not mark runtime checks as completed until operators supply and verify
-  real audited artifacts. The
+  real audited artifacts.
+  `snapshot_audit_handoff_checklist_summary_by_network` mirrors the checklist as
+  compact per-network step ids, step counts, required artifact ids, available
+  command counts, and preflight-gated step ids for dashboards that should not
+  scan every checklist entry. The
   snapshot audit JSON and referenced snapshot file both list the read-only check,
   read-only preflight, and apply command fields that depend on them.
   `readiness_gates`, `readiness_gate_count`, `readiness_gate_by_blocker`,
