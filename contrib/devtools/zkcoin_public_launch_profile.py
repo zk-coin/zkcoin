@@ -4518,6 +4518,83 @@ def blocker_type_later_blockers_text(manifest, manifest_path, check, blocker_typ
     return "\n".join(lines)
 
 
+def blocker_type_later_blockers_json_payload(manifest, manifest_path, check, blocker_type):
+    if blocker_type not in BLOCKER_TYPES:
+        raise ValueError("blocker type must be one of: " + ", ".join(BLOCKER_TYPES))
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    actions = action_plan_entries(manifest, manifest_path)
+    blocked_field_groups = blocked_field_group_entries(blockers, check.blockers, actions)
+    actions = actions_with_blocked_fields(actions, blocked_field_groups)
+    progress = blocker_type_progress_entries(
+        actions,
+        blockers,
+        blocked_field_groups,
+    )[blocker_type]
+    later_blockers = progress["unresolved_blockers"][1:]
+    groups_by_blocker = blocked_field_groups_by_blocker(blocked_field_groups)
+    later_groups = [
+        groups_by_blocker[blocker]
+        for blocker in later_blockers
+    ]
+    later_fields = [
+        field
+        for group in later_groups
+        for field in group.get("fields", [])
+    ]
+    current_action = progress["next_action"]
+    current_blocker_id = current_action["id"] if current_action is not None else None
+    readiness_gate = blocker_type_readiness_gate(blocker_type)
+    return {
+        "schema_version": 1,
+        "blocker_type": blocker_type,
+        "readiness_gate": readiness_gate,
+        "ready_for_launch_profile": progress["ready_for_launch_profile"],
+        "blocked_networks": blocked_networks_by_blocker_type(blocked_field_groups)[blocker_type],
+        "ready_networks": ready_networks_by_blocker_type(blocked_field_groups)[blocker_type],
+        "current_blocker": current_blocker_id,
+        "current_blocker_field_count": (
+            current_action["field_count"] if current_action is not None else 0
+        ),
+        "later_blockers": later_blockers,
+        "later_blocker_count": len(later_blockers),
+        "later_blocker_fields": later_fields,
+        "later_blocker_field_count": len(later_fields),
+        "later_blocker_field_groups": later_groups,
+        "later_blocker_readiness_summary_commands": (
+            blocker_readiness_summary_commands(manifest_path, later_blockers)
+        ),
+        "blocker_type_readiness_summary_command": blocker_type_readiness_summary_command(
+            manifest_path,
+            blocker_type,
+        ),
+        "blocker_type_later_blockers_command": blocker_type_later_blockers_command(
+            manifest_path,
+            blocker_type,
+        ),
+        "readiness_gate_summary_command": readiness_gate_summary_command(
+            manifest_path,
+            readiness_gate,
+        ),
+        "readiness_gate_later_blockers_command": readiness_gate_later_blockers_command(
+            manifest_path,
+            readiness_gate,
+        ),
+    }
+
+
+def blocker_type_later_blockers_json_text(manifest, manifest_path, check, blocker_type):
+    return json.dumps(
+        blocker_type_later_blockers_json_payload(
+            manifest,
+            manifest_path,
+            check,
+            blocker_type,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
 def readiness_gate_summary_text(manifest, manifest_path, check, readiness_gate):
     if readiness_gate not in READINESS_GATES:
         raise ValueError("readiness gate must be one of: " + ", ".join(READINESS_GATES))
@@ -5709,12 +5786,14 @@ def main():
         and args.blocker_readiness_summary is None
         and args.network_value_selection_later_blockers is None
         and args.network_later_blockers is None
+        and args.blocker_type_later_blockers is None
     ):
         print(
             "error: --json is only supported with --snapshot-audit-preflight, "
             "--check-snapshot-audit, --snapshot-audit-handoff, "
             "--network-handoff-bundle, --blocker-readiness-summary, "
-            "--network-value-selection-later-blockers, or --network-later-blockers",
+            "--network-value-selection-later-blockers, --network-later-blockers, "
+            "or --blocker-type-later-blockers",
             file=sys.stderr,
         )
         return 1
@@ -6087,8 +6166,13 @@ def main():
             print("error: --blocker-type-later-blockers does not write the manifest", file=sys.stderr)
             return 1
         try:
+            later_text = (
+                blocker_type_later_blockers_json_text
+                if args.json
+                else blocker_type_later_blockers_text
+            )
             print(
-                blocker_type_later_blockers_text(
+                later_text(
                     manifest,
                     args.manifest,
                     check,
