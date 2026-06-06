@@ -497,6 +497,32 @@ def snapshot_audit_external_artifact_counts_by_network():
     }
 
 
+def snapshot_audit_handoff_readiness_by_network(
+    network_progress,
+    blocked_field_groups,
+    next_snapshot_audit_handoff_commands_by_network,
+):
+    artifacts_by_network = snapshot_audit_external_artifacts_by_network()
+    artifact_counts_by_network = snapshot_audit_external_artifact_counts_by_network()
+    blocked_field_counts = blocked_field_counts_by_network_and_blocker_type(blocked_field_groups)
+    blocker_groups = blocked_field_groups_by_network_and_blocker_type(blocked_field_groups)
+    return {
+        network: {
+            "blocker": f"{network}.litecoin_snapshot",
+            "unresolved": bool(blocker_groups[network]["litecoin_snapshot"]),
+            "is_next_blocker": (
+                network_progress[network]["next_blocked_field_group"] is not None
+                and network_progress[network]["next_blocked_field_group"]["id"] == f"{network}.litecoin_snapshot"
+            ),
+            "blocked_field_count": blocked_field_counts[network]["litecoin_snapshot"],
+            "next_command": next_snapshot_audit_handoff_commands_by_network[network],
+            "external_artifacts": artifacts_by_network[network],
+            "external_artifact_count": artifact_counts_by_network[network],
+        }
+        for network in NETWORKS
+    }
+
+
 def external_artifacts_by_blocker():
     artifacts_by_type = external_artifacts_by_blocker_type()
     return {
@@ -4566,6 +4592,11 @@ def status_json_text(manifest, manifest_path, check):
         readiness_gate_next_commands,
         "snapshot_audit_handoff_command",
     )
+    snapshot_audit_handoff_readiness_by_network_map = snapshot_audit_handoff_readiness_by_network(
+        network_progress,
+        blocked_field_groups,
+        next_snapshot_audit_handoff_commands_by_network,
+    )
     commands = status_command_fields(manifest_path)
     command_keys = list(commands)
     command_values = list(commands.values())
@@ -4845,6 +4876,7 @@ def status_json_text(manifest, manifest_path, check):
             "external_artifact_counts_by_network_and_blocker_type": external_artifact_counts_by_network_and_blocker_type(),
             "snapshot_audit_external_artifacts_by_network": snapshot_audit_external_artifacts_by_network(),
             "snapshot_audit_external_artifact_counts_by_network": snapshot_audit_external_artifact_counts_by_network(),
+            "snapshot_audit_handoff_readiness_by_network": snapshot_audit_handoff_readiness_by_network_map,
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
             "next_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
             "next_blocker_commands_by_network_and_blocker_type": network_blocker_type_next_commands,

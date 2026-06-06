@@ -329,7 +329,10 @@ Both are intentionally present before behavior changes so tests and review can t
   required external handoff artifacts, starting with direct per-network aliases
   for the Litecoin snapshot audit JSON argument and the snapshot file referenced
   from that audit, while blocker types that do not require external files report
-  empty artifact lists. The
+  empty artifact lists. `snapshot_audit_handoff_readiness_by_network` combines
+  each network's snapshot blocker id, unresolved and next-blocker state, blocked
+  field count, next handoff command, and external artifact requirements into a
+  compact per-network object for dashboards and release checklists. The
   snapshot audit JSON and referenced snapshot file both list the read-only check,
   read-only preflight, and apply command fields that depend on them.
   `readiness_gates`, `readiness_gate_count`, `readiness_gate_by_blocker`,
