@@ -658,6 +658,20 @@ def next_commands_by_readiness_gate(actions):
     }
 
 
+def command_field_values_by_group(commands_by_group, command_field):
+    return {
+        group: commands.get(command_field) if commands is not None else None
+        for group, commands in commands_by_group.items()
+    }
+
+
+def command_field_counts_by_group(commands_by_group, command_field):
+    return {
+        group: 1 if commands is not None and commands.get(command_field) is not None else 0
+        for group, commands in commands_by_group.items()
+    }
+
+
 def next_blocked_field_groups_by_readiness_gate(blocked_field_groups):
     return {
         gate: groups[0] if groups else None
@@ -4509,6 +4523,34 @@ def status_json_text(manifest, manifest_path, check):
         manifest_path,
         blockers,
     )
+    network_next_commands = network_next_command_fields(network_progress)
+    blocker_type_next_commands = next_commands_by_blocker_type(actions)
+    readiness_gate_next_commands = next_commands_by_readiness_gate(actions)
+    network_blocker_type_next_commands = next_commands_by_network_and_blocker_type(actions)
+    next_snapshot_audit_handoff_commands_by_network = command_field_values_by_group(
+        network_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    next_snapshot_audit_handoff_command_counts_by_network = command_field_counts_by_group(
+        network_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    next_snapshot_audit_handoff_commands_by_blocker_type = command_field_values_by_group(
+        blocker_type_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    next_snapshot_audit_handoff_command_counts_by_blocker_type = command_field_counts_by_group(
+        blocker_type_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    next_snapshot_audit_handoff_commands_by_readiness_gate = command_field_values_by_group(
+        readiness_gate_next_commands,
+        "snapshot_audit_handoff_command",
+    )
+    next_snapshot_audit_handoff_command_counts_by_readiness_gate = command_field_counts_by_group(
+        readiness_gate_next_commands,
+        "snapshot_audit_handoff_command",
+    )
     commands = status_command_fields(manifest_path)
     command_keys = list(commands)
     command_values = list(commands.values())
@@ -4600,8 +4642,10 @@ def status_json_text(manifest, manifest_path, check):
             "blocker_readiness_summary_commands_by_blocker": blocker_readiness_commands,
             "blocker_readiness_summary_command_count": len(blocker_readiness_commands),
             "next_action_command": next_action_command(manifest_path),
-            "next_commands_by_network": network_next_command_fields(network_progress),
-            "next_blocker_commands_by_network": network_next_command_fields(network_progress),
+            "next_commands_by_network": network_next_commands,
+            "next_blocker_commands_by_network": network_next_commands,
+            "next_snapshot_audit_handoff_commands_by_network": next_snapshot_audit_handoff_commands_by_network,
+            "next_snapshot_audit_handoff_command_counts_by_network": next_snapshot_audit_handoff_command_counts_by_network,
             "next_blocked_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocker_field_groups_by_network": network_next_blocked_field_groups(network_progress),
             "next_blocked_fields_by_network": network_next_blocked_fields(network_progress),
@@ -4785,14 +4829,18 @@ def status_json_text(manifest, manifest_path, check):
             "external_artifacts_by_network_and_blocker_type": external_artifacts_by_network_and_blocker_type(),
             "external_artifact_counts_by_network_and_blocker_type": external_artifact_counts_by_network_and_blocker_type(),
             "next_actions_by_network_and_blocker_type": next_actions_by_network_and_blocker_type(actions),
-            "next_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
-            "next_blocker_commands_by_network_and_blocker_type": next_commands_by_network_and_blocker_type(actions),
+            "next_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
+            "next_blocker_commands_by_network_and_blocker_type": network_blocker_type_next_commands,
             "next_actions_by_blocker_type": next_actions_by_blocker_type(actions),
-            "next_commands_by_blocker_type": next_commands_by_blocker_type(actions),
-            "next_blocker_commands_by_blocker_type": next_commands_by_blocker_type(actions),
+            "next_commands_by_blocker_type": blocker_type_next_commands,
+            "next_blocker_commands_by_blocker_type": blocker_type_next_commands,
+            "next_snapshot_audit_handoff_commands_by_blocker_type": next_snapshot_audit_handoff_commands_by_blocker_type,
+            "next_snapshot_audit_handoff_command_counts_by_blocker_type": next_snapshot_audit_handoff_command_counts_by_blocker_type,
             "next_actions_by_readiness_gate": next_actions_by_readiness_gate(actions),
-            "next_commands_by_readiness_gate": next_commands_by_readiness_gate(actions),
-            "next_blocker_commands_by_readiness_gate": next_commands_by_readiness_gate(actions),
+            "next_commands_by_readiness_gate": readiness_gate_next_commands,
+            "next_blocker_commands_by_readiness_gate": readiness_gate_next_commands,
+            "next_snapshot_audit_handoff_commands_by_readiness_gate": next_snapshot_audit_handoff_commands_by_readiness_gate,
+            "next_snapshot_audit_handoff_command_counts_by_readiness_gate": next_snapshot_audit_handoff_command_counts_by_readiness_gate,
             "next": next_action,
             "next_action": next_action,
             "next_action_id": next_action_id,

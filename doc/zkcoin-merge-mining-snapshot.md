@@ -377,7 +377,16 @@ Both are intentionally present before behavior changes so tests and review can t
   workstream.
   `next_blocker_commands_by_blocker_type` mirrors those workstream command maps
   with the same `next_blocker` wording used by the human-readable readiness
-  summary. The payload also exposes
+  summary. For Litecoin snapshot checklist routing,
+  `next_snapshot_audit_handoff_commands_by_network`,
+  `next_snapshot_audit_handoff_command_counts_by_network`,
+  `next_snapshot_audit_handoff_commands_by_blocker_type`,
+  `next_snapshot_audit_handoff_command_counts_by_blocker_type`,
+  `next_snapshot_audit_handoff_commands_by_readiness_gate`, and
+  `next_snapshot_audit_handoff_command_counts_by_readiness_gate` expose the
+  next snapshot audit handoff command and 0/1 availability count from those
+  command maps without requiring dashboards to inspect every command field.
+  The payload also exposes
   `next_commands_by_network`, which mirrors the current command fields for each
   network's next blocker, including the network, blocker-type, and
   readiness-gate summary commands, so automation can dispatch scoped handoffs
