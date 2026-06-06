@@ -424,7 +424,7 @@ def blocker_external_artifacts(blocker_type):
             {
                 "id": "snapshot_audit_json",
                 "argument": "<snapshot_audit.json>",
-                "required_for_commands": ["check_command", "apply_command"],
+                "required_for_commands": ["check_command", "preflight_command", "apply_command"],
                 "source": "operator-generated snapshot audit summary",
                 "must_be_utf8_json_object": True,
                 "must_match_template_fields": list(SNAPSHOT_AUDIT_SUMMARY_FIELDS),
@@ -434,7 +434,7 @@ def blocker_external_artifacts(blocker_type):
                 "id": "snapshot_file",
                 "path_field": "snapshot_file",
                 "source": "snapshot audit JSON field",
-                "required_for_commands": ["check_command", "apply_command"],
+                "required_for_commands": ["check_command", "preflight_command", "apply_command"],
                 "must_be_local_regular_file": True,
                 "must_not_be_symlink": True,
                 "parent_must_not_be_symlink": True,
