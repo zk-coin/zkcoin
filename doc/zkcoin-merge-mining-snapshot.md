@@ -602,6 +602,8 @@ Both are intentionally present before behavior changes so tests and review can t
   After selecting a final AuxPoW child chain id, verify it without modifying
   the manifest with
   `contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow NETWORK <chain_id>`,
+  or `contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow NETWORK <chain_id>`
+  when automation needs machine-readable candidate and post-apply progress,
   then update the target profile with
   `contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow NETWORK <chain_id>`;
   the read-only AuxPoW check reports the exact apply command, remaining blocker
@@ -610,7 +612,10 @@ Both are intentionally present before behavior changes so tests and review can t
   post-apply readiness summary command,
   target-network readiness summary command, blocker-type readiness summary command,
   next blocker, next check/apply commands that would remain after applying
-  the candidate, and next scoped summary commands for that next blocker, so reviewers can verify blocker progress before changing the manifest;
+  the candidate, and next scoped summary commands for that next blocker; the
+  JSON form exposes the same candidate values, constraints, commands, and
+  post-apply blocker counts without parsing the human handoff text, so
+  reviewers can verify blocker progress before changing the manifest;
   the validator accepts decimal or `0x...` input but rejects zero, values outside
   the AuxPoW version field, the local launch placeholder `0x5a4b`, and the
   Litecoin parent versionbits-derived `0x2000..0x3fff` range. After provisioning

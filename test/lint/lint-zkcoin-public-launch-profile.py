@@ -9221,7 +9221,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --check-auxpow, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, or --readiness-gate-later-blockers" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -11404,6 +11404,102 @@ def require_public_launch_manifest_current():
                 expected,
             )
 
+    check_auxpow_json_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--json",
+            "--check-auxpow",
+            "main",
+            "0x5001",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if check_auxpow_json_result.returncode != 0:
+        return "{} --check-auxpow --json failed: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            check_auxpow_json_result.stderr.strip()
+            or check_auxpow_json_result.stdout.strip()
+            or "no output",
+        )
+    try:
+        check_auxpow_json = json.loads(check_auxpow_json_result.stdout)
+    except json.JSONDecodeError as exc:
+        return "{} --check-auxpow --json did not emit JSON: {}".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+            exc,
+        )
+    if (
+        check_auxpow_json.get("schema_version") != 1
+        or check_auxpow_json.get("network") != "main"
+        or check_auxpow_json.get("blocker") != "main.auxpow_chain_id"
+        or check_auxpow_json.get("readiness_gate") != "value_selection"
+        or check_auxpow_json.get("verified") is not True
+        or check_auxpow_json.get("ready_to_apply") is not True
+    ):
+        return "{} --check-auxpow --json did not expose candidate identity".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_auxpow_json_candidate = check_auxpow_json.get("candidate", {})
+    if (
+        check_auxpow_json_candidate.get("chain_id") != 0x5001
+        or check_auxpow_json_candidate.get("chain_id_hex") != "0x5001"
+        or check_auxpow_json_candidate.get("start_height") != 1
+        or check_auxpow_json_candidate.get("strict_chain_id") is not True
+        or check_auxpow_json_candidate.get("forbidden_parent_version_chain_id_range") != [8192, 16383]
+    ):
+        return "{} --check-auxpow --json did not expose candidate values".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        check_auxpow_json.get("candidate_constraints") != expected_auxpow_chain_id_constraints
+        or check_auxpow_json.get("candidate_constraint_count") != len(expected_auxpow_chain_id_constraints)
+    ):
+        return "{} --check-auxpow --json did not expose candidate constraints".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_auxpow_json_commands = check_auxpow_json.get("commands", {})
+    if (
+        check_auxpow_json_commands.get("apply")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --set-auxpow main 0x5001 --in-place contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_auxpow_json_commands.get("recheck")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-auxpow main 0x5001 contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_auxpow_json_commands.get("network_handoff_bundle")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --network-handoff-bundle main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_auxpow_json_commands.get("current_blocker_readiness_summary")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary main.auxpow_chain_id contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-auxpow --json did not expose command shortcuts".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_auxpow_json_post_apply = check_auxpow_json.get("post_apply", {})
+    if (
+        check_auxpow_json_post_apply.get("remaining_blocker_count") != 7
+        or check_auxpow_json_post_apply.get("remaining_blocker_count_for_network") != 3
+        or check_auxpow_json_post_apply.get("remaining_blocked_field_count") != 45
+        or check_auxpow_json_post_apply.get("remaining_blocked_field_count_for_network") != 22
+        or check_auxpow_json_post_apply.get("next_blocker") != "main.litecoin_snapshot"
+        or check_auxpow_json_post_apply.get("next_blocker_network") != "main"
+        or check_auxpow_json_post_apply.get("next_blocker_type") != "litecoin_snapshot"
+    ):
+        return "{} --check-auxpow --json did not expose post-apply progress".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    check_auxpow_json_next_commands = check_auxpow_json_post_apply.get("next_commands", {})
+    if (
+        check_auxpow_json_next_commands.get("template_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or check_auxpow_json_next_commands.get("check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --check-auxpow --json did not expose next blocker commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     with tempfile.TemporaryDirectory() as temp_dir:
         readonly_auxpow_manifest_path = Path(temp_dir) / "read-only-auxpow-manifest.json"
         readonly_auxpow_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
@@ -11431,6 +11527,32 @@ def require_public_launch_manifest_current():
             )
         if readonly_auxpow_manifest_path.read_bytes() != readonly_auxpow_manifest_bytes:
             return "{} --check-auxpow modified the manifest during a read-only check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        readonly_auxpow_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-auxpow",
+                "main",
+                "0x5001",
+                str(readonly_auxpow_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if readonly_auxpow_json_result.returncode != 0:
+            return "{} --check-auxpow --json failed against a writable manifest copy: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                readonly_auxpow_json_result.stderr.strip()
+                or readonly_auxpow_json_result.stdout.strip()
+                or "no output",
+            )
+        if readonly_auxpow_manifest_path.read_bytes() != readonly_auxpow_manifest_bytes:
+            return "{} --check-auxpow --json modified the manifest during a read-only check".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -15091,6 +15213,9 @@ def main():
         ("auxpow_profile_from_chain_id", "manifest builds AuxPoW profiles from checked chain ids"),
         ("checked_auxpow_candidate", "manifest checks AuxPoW candidates without writing"),
         ("auxpow_apply_command", "manifest prints AuxPoW apply commands after read-only checks"),
+        ("auxpow_check_command", "manifest prints AuxPoW recheck commands after read-only checks"),
+        ("auxpow_json_payload", "manifest builds AuxPoW candidate check JSON payloads"),
+        ("auxpow_check_json_text", "manifest prints machine-readable AuxPoW candidate checks"),
         ("action_plan_command", "manifest prints action-plan commands after read-only checks"),
         ("next_action_command", "manifest prints next-action commands after read-only checks"),
         ("readiness_summary_command", "manifest prints readiness-summary commands after read-only checks"),
@@ -16549,8 +16674,16 @@ def main():
             "public launch manifest AuxPoW read-only check documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py --json --check-auxpow NETWORK <chain_id>",
+            "public launch manifest AuxPoW read-only JSON check documentation",
+        ),
+        (
             "read-only AuxPoW check reports the exact apply command, remaining blocker",
             "public launch manifest AuxPoW candidate-progress documentation",
+        ),
+        (
+            "JSON form exposes the same candidate values, constraints, commands",
+            "public launch manifest AuxPoW JSON contents documentation",
         ),
         (
             "next check/apply commands that would remain",
