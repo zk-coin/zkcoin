@@ -876,6 +876,11 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 contrib/devtools/zkcoin_public_launch_profile.py \
   --blocker-readiness-summary NETWORK.litecoin_snapshot \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --blocker-readiness-summary NETWORK.litecoin_snapshot \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
 ```
 
 Replace `NETWORK` with `main` or `testnet` after choosing the target profile.
@@ -887,6 +892,10 @@ Add `--json` to the network handoff bundle when automation needs
 machine-readable current blocker state, current commands, queued
 value-selection blockers, blocked fields, and per-blocker readiness summary
 commands without parsing the human handoff text.
+Add `--json` to a blocker readiness summary when automation needs
+machine-readable blocker order, readiness gate, blocked fields, candidate
+constraints, command fields, and earlier/later blocker handoff commands for a
+single unresolved blocker.
 Use the read-only `--check-snapshot-audit` command first to verify the audit
 summary, source-chain mapping, snapshot file byte size, and snapshot file
 SHA-256, then stage the candidate through launch-manifest validation without
