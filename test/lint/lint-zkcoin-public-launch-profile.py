@@ -692,6 +692,7 @@ def require_public_launch_manifest_current():
         "     template command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-template main",
         "     check command: contrib/devtools/zkcoin_public_launch_profile.py --check-snapshot-audit main <snapshot_audit.json>",
         "     apply command: contrib/devtools/zkcoin_public_launch_profile.py --set-snapshot-audit main <snapshot_audit.json>",
+        "     snapshot audit handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     network readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --network-readiness-summary main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "     blocker type readiness summary command: contrib/devtools/zkcoin_public_launch_profile.py --blocker-type-readiness-summary litecoin_snapshot contrib/devtools/zkcoin_public_launch_profile_manifest.json",
@@ -1593,6 +1594,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose mainnet snapshot next commands by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--snapshot-audit-handoff main" not in next_commands_by_network_and_blocker_type.get("main", {}).get("litecoin_snapshot", {}).get("snapshot_audit_handoff_command", ""):
+        return "{} --status-json did not expose mainnet snapshot handoff command by network and blocker type".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--blocker-readiness-summary testnet.dns_seeds" not in next_commands_by_network_and_blocker_type.get("testnet", {}).get("dns_seeds", {}).get("blocker_readiness_summary_command", ""):
         return "{} --status-json did not expose testnet DNS seed next commands by network and blocker type".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -1702,6 +1707,10 @@ def require_public_launch_manifest_current():
     next_commands_by_readiness_gate = status_json.get("next_commands_by_readiness_gate", {})
     if "--check-snapshot-audit main <snapshot_audit.json>" not in next_commands_by_readiness_gate.get("external_artifact", {}).get("check_command", ""):
         return "{} --status-json did not expose external-artifact next commands by readiness gate".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--snapshot-audit-handoff main" not in next_commands_by_readiness_gate.get("external_artifact", {}).get("snapshot_audit_handoff_command", ""):
+        return "{} --status-json did not expose external-artifact snapshot handoff command by readiness gate".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if "--check-auxpow main <chain_id>" not in next_commands_by_readiness_gate.get("value_selection", {}).get("check_command", ""):
@@ -3052,6 +3061,7 @@ def require_public_launch_manifest_current():
         "check_command",
         "preflight_command",
         "apply_command",
+        "snapshot_audit_handoff_command",
         "readiness_summary_command",
         "network_readiness_summary_command",
         "blocker_type_readiness_summary_command",
@@ -3201,7 +3211,7 @@ def require_public_launch_manifest_current():
     actions_by_id = {action.get("id"): action for action in actions}
     for group in blocked_field_groups:
         action = actions_by_id.get(group.get("id"), {})
-        for command_field in ("template_command", "check_command", "preflight_command", "apply_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
+        for command_field in ("template_command", "check_command", "preflight_command", "apply_command", "snapshot_audit_handoff_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
             if command_field not in group:
                 return "{} --status-json blocker group {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -3836,6 +3846,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not include first action apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if "--snapshot-audit-handoff main" not in actions[0].get("snapshot_audit_handoff_command", ""):
+        return "{} --status-json did not include first action snapshot audit handoff command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if "--readiness-summary contrib/devtools/zkcoin_public_launch_profile_manifest.json" not in actions[0].get("readiness_summary_command", ""):
         return "{} --status-json did not include first action readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3866,7 +3880,7 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     for action in actions:
-        for command_field in ("template_command", "check_command", "preflight_command", "apply_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
+        for command_field in ("template_command", "check_command", "preflight_command", "apply_command", "snapshot_audit_handoff_command", "readiness_summary_command", "network_readiness_summary_command", "blocker_type_readiness_summary_command", "blocker_readiness_summary_command"):
             if command_field not in action:
                 return "{} --status-json action {} did not include {}".format(
                     PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
@@ -3875,6 +3889,11 @@ def require_public_launch_manifest_current():
                 )
         if action.get("blocker_type") != "litecoin_snapshot" and action.get("template_command") is not None:
             return "{} --status-json action {} did not report null template_command".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                action.get("id"),
+            )
+        if action.get("blocker_type") != "litecoin_snapshot" and action.get("snapshot_audit_handoff_command") is not None:
+            return "{} --status-json action {} did not report null snapshot_audit_handoff_command".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 action.get("id"),
             )
@@ -4019,6 +4038,10 @@ def require_public_launch_manifest_current():
         return "{} --status-json next_action did not expose the current apply command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("next_action", {}).get("snapshot_audit_handoff_command") != actions[0].get("snapshot_audit_handoff_command"):
+        return "{} --status-json next_action did not expose the current snapshot audit handoff command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("next_action", {}).get("readiness_summary_command") != actions[0].get("readiness_summary_command"):
         return "{} --status-json next_action did not expose the current readiness-summary command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -4050,6 +4073,10 @@ def require_public_launch_manifest_current():
         )
     if next_commands.get("apply_command") != actions[0].get("apply_command"):
         return "{} --status-json next_commands did not expose the current apply command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if next_commands.get("snapshot_audit_handoff_command") != actions[0].get("snapshot_audit_handoff_command"):
+        return "{} --status-json next_commands did not expose the current snapshot audit handoff command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if next_commands.get("readiness_summary_command") != actions[0].get("readiness_summary_command"):

@@ -247,6 +247,7 @@ def blocked_field_group_entries(blockers, blocked_fields, actions):
                 "check_command": action["check_command"],
                 "preflight_command": action["preflight_command"],
                 "apply_command": action["apply_command"],
+                "snapshot_audit_handoff_command": action["snapshot_audit_handoff_command"],
                 "readiness_summary_command": action["readiness_summary_command"],
                 "network_readiness_summary_command": action["network_readiness_summary_command"],
                 "blocker_type_readiness_summary_command": action["blocker_type_readiness_summary_command"],
@@ -1100,6 +1101,7 @@ COMMAND_FIELDS = (
     "check_command",
     "preflight_command",
     "apply_command",
+    "snapshot_audit_handoff_command",
     "readiness_summary_command",
     "network_readiness_summary_command",
     "blocker_type_readiness_summary_command",
@@ -3440,6 +3442,9 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --set-snapshot-audit {network} "
                 f"<snapshot_audit.json> --in-place {manifest_path}"
             ),
+            "snapshot_audit_handoff_command": (
+                f"{tool_path} --snapshot-audit-handoff {network} {manifest_path}"
+            ),
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
@@ -3456,6 +3461,7 @@ def blocker_action_commands(blocker_id, manifest_path):
             "apply_command": (
                 f"{tool_path} --set-auxpow {network} <chain_id> --in-place {manifest_path}"
             ),
+            "snapshot_audit_handoff_command": None,
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
@@ -3476,6 +3482,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"<pubkey> <script> <script2> <secret> <xpub> <xprv> "
                 f"<bech32_hrp> <mweb_hrp> --in-place {manifest_path}"
             ),
+            "snapshot_audit_handoff_command": None,
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
@@ -3494,6 +3501,7 @@ def blocker_action_commands(blocker_id, manifest_path):
                 f"{tool_path} --set-dns-seeds {network} "
                 f"<seed1.hostname>,<seed2.hostname> --in-place {manifest_path}"
             ),
+            "snapshot_audit_handoff_command": None,
             "readiness_summary_command": readiness_command,
             "network_readiness_summary_command": network_summary_command,
             "blocker_type_readiness_summary_command": blocker_type_summary_command,
@@ -3640,6 +3648,11 @@ def append_blocker_handoff_command_lines(lines, commands, prefix):
     if commands["preflight_command"] is not None:
         lines.append(f"{prefix}preflight command: {commands['preflight_command']}")
     lines.append(f"{prefix}apply command: {commands['apply_command']}")
+    if commands.get("snapshot_audit_handoff_command") is not None:
+        lines.append(
+            f"{prefix}snapshot audit handoff command: "
+            f"{commands['snapshot_audit_handoff_command']}"
+        )
 
 
 def append_blocker_command_lines(lines, commands, prefix):
@@ -3678,7 +3691,6 @@ def next_action_text(manifest, manifest_path):
     lines = ["zkCoin public launch profile next action:"]
     if blockers:
         next_blocker = blockers[0]
-        network, blocker_type = next_blocker.split(".", 1)
         lines.append(f"  - next blocker: {next_blocker}")
         lines.append(f"  - action: {next_blocker_command(next_blocker, manifest_path)}")
         append_blocker_command_lines(
@@ -3686,11 +3698,6 @@ def next_action_text(manifest, manifest_path):
             blocker_action_commands(next_blocker, manifest_path),
             "  - ",
         )
-        if blocker_type == "litecoin_snapshot":
-            lines.append(
-                "  - snapshot audit handoff command: "
-                f"{tool_path} --snapshot-audit-handoff {network} {manifest_path}"
-            )
         if len(blockers) > 1:
             lines.append("  - later blockers: " + ", ".join(blockers[1:]))
             lines.append(

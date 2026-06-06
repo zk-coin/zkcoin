@@ -218,7 +218,8 @@ Both are intentionally present before behavior changes so tests and review can t
   key/value pairs expose the ordered map entries, and the list counts expose
   each component length directly; the action list aliases mirror the handoff
   queue order, blocker metadata, command maps, and non-null command key/value
-  availability, including `preflight_command` for Litecoin snapshot blockers;
+  availability, including `preflight_command` and
+  `snapshot_audit_handoff_command` for Litecoin snapshot blockers;
   `command_field_order` declares the stable order used by command
   maps, key/value lists, and key/value pairs, while `command_field_count`
   exposes that schema length directly; and the next-action aliases mirror the
