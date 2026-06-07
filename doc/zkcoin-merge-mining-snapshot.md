@@ -322,7 +322,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `action_command_value_counts`, `action_command_pairs`,
   `action_command_pair_counts`, `command_field_order`, `command_field_count`,
   `action_plan_command`, `readiness_summary_command`, `status_json_command`,
-  `value_selection_checklists_command`, `snapshot_audit_handoffs_command`,
+  `value_selection_checklists_command`,
+  `value_selection_candidate_artifact_status_command`,
+  `snapshot_audit_handoffs_command`,
   `launch_gate_preflight_command`, `operator_runbook_command`,
   `release_evidence_bundle_command`, `release_evidence_bundle_json_command`,
   `check_release_evidence_bundle_command`,
@@ -418,7 +420,8 @@ Both are intentionally present before behavior changes so tests and review can t
   value-selection checklist routing in one compact view.
   `release_evidence_bundle_command` exposes the compact release evidence bundle
   command for CI artifacts that need to archive the runbook, gate preflight,
-  snapshot handoff, and value-selection payloads together.
+  snapshot handoff, value-selection checklist, and candidate artifact status
+  payloads together.
   `check_release_evidence_bundle_command` and
   `check_release_evidence_bundle_json_command` expose the matching freshness
   checks so dashboards can verify an archived bundle against the current
@@ -1510,7 +1513,8 @@ preflight, snapshot-audit handoff, and value-selection checklist commands plus
 gate summary counts in one compact operator runbook payload.
 Use `--release-evidence-bundle --json` when CI needs one compact release
 evidence bundle with embedded operator-runbook, launch-gate preflight,
-snapshot-audit handoff, and value-selection checklist JSON payloads.
+snapshot-audit handoff, value-selection checklist, and value-selection candidate
+artifact status JSON payloads.
 Use `--check-release-evidence-bundle --json` when CI needs a machine-readable
 freshness check for an archived release evidence bundle, including a stable
 `verified` boolean and compact mismatch paths.

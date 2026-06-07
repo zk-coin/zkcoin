@@ -3494,15 +3494,21 @@ def require_public_launch_manifest_current():
         "  - launch-gate preflight command: contrib/devtools/zkcoin_public_launch_profile.py --launch-gate-preflight contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - snapshot audit handoffs command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - value-selection checklists command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json",
-        "  - evidence payloads: 4",
+        "  - value-selection candidate artifact status command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - evidence payloads: 5",
         "  - required external artifacts: 4",
         "  - required JSON checks: 6",
+        "  - value-selection candidate artifacts: 0/2",
+        "  - verified value-selection candidate artifacts: 0/2",
+        "  - value-selection candidate artifact errors: 0",
         "  - checklist steps: 18",
         "  - runbook steps: 3",
         "  - evidence 1: operator-runbook",
         "  - evidence 1 command: contrib/devtools/zkcoin_public_launch_profile.py --operator-runbook contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - evidence 4: value-selection-checklists",
         "  - evidence 4 command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - evidence 5: value-selection-candidate-artifact-status",
+        "  - evidence 5 command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - next blocker: main.litecoin_snapshot",
         "  - next recommended handoff command: contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoff main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
@@ -3585,19 +3591,22 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --snapshot-audit-handoffs contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or release_evidence_json.get("value_selection_checklists_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or release_evidence_json.get("value_selection_candidate_artifact_status_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --release-evidence-bundle --json did not expose command routing".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if (
-        release_evidence_json.get("evidence_payload_count") != 4
-        or len(release_evidence_payloads) != 4
+        release_evidence_json.get("evidence_payload_count") != 5
+        or len(release_evidence_payloads) != 5
         or [entry.get("id") for entry in release_evidence_payloads]
         != [
             "operator-runbook",
             "launch-gate-preflight",
             "snapshot-audit-handoffs",
             "value-selection-checklists",
+            "value-selection-candidate-artifact-status",
         ]
         or [entry.get("payload_key") for entry in release_evidence_payloads]
         != [
@@ -3605,21 +3614,27 @@ def require_public_launch_manifest_current():
             "launch_gate_preflight",
             "snapshot_audit_handoffs",
             "value_selection_checklists",
+            "value_selection_candidate_artifact_status",
         ]
         or release_evidence_payloads[0].get("schema_version") != 1
-        or release_evidence_payloads[3].get("required_before_launch") is not True
+        or release_evidence_payloads[4].get("required_before_launch") is not True
     ):
         return "{} --release-evidence-bundle --json did not expose evidence payload order".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if (
-        release_evidence_summary.get("evidence_payload_count") != 4
+        release_evidence_summary.get("evidence_payload_count") != 5
         or release_evidence_summary.get("runbook_step_count") != 3
         or release_evidence_summary.get("blocked_gate_count") != 2
         or release_evidence_summary.get("unresolved_blocker_count") != 8
         or release_evidence_summary.get("blocked_field_count") != 46
         or release_evidence_summary.get("required_external_artifact_count") != 4
         or release_evidence_summary.get("required_json_check_count") != 6
+        or release_evidence_summary.get("candidate_artifact_count") != 2
+        or release_evidence_summary.get("provided_candidate_artifact_count") != 0
+        or release_evidence_summary.get("missing_candidate_artifact_count") != 2
+        or release_evidence_summary.get("verified_candidate_artifact_count") != 0
+        or release_evidence_summary.get("error_candidate_artifact_count") != 0
         or release_evidence_summary.get("checklist_step_count") != 18
         or release_evidence_summary.get("embedded_payload_schema_versions")
         != {
@@ -3627,6 +3642,7 @@ def require_public_launch_manifest_current():
             "launch_gate_preflight": 1,
             "snapshot_audit_handoffs": 1,
             "value_selection_checklists": 1,
+            "value_selection_candidate_artifact_status": 1,
         }
         or release_evidence_json.get("next_blocker") != "main.litecoin_snapshot"
         or release_evidence_json.get("next_blocker_handoff_command")
@@ -3640,6 +3656,9 @@ def require_public_launch_manifest_current():
         or release_evidence_payload.get("launch_gate_preflight", {}).get("summary", {}).get("checklist_step_count") != 18
         or release_evidence_payload.get("snapshot_audit_handoffs", {}).get("summary", {}).get("required_artifact_count") != 4
         or release_evidence_payload.get("value_selection_checklists", {}).get("summary", {}).get("required_json_check_count") != 6
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_count") != 2
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("provided_candidate_count") != 0
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_statuses_by_network", {}).get("main", {}).get("status") != "missing-artifact"
     ):
         return "{} --release-evidence-bundle --json did not embed evidence payload summaries".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3683,8 +3702,8 @@ def require_public_launch_manifest_current():
             f"  - check release evidence bundle JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence bundle gate command: contrib/devtools/zkcoin_public_launch_profile.py --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             f"  - release evidence bundle gate JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-bundle-match --check-release-evidence-bundle {quoted_bundle_path} contrib/devtools/zkcoin_public_launch_profile_manifest.json",
-            "  - expected evidence payloads: 4",
-            "  - actual evidence payloads: 4",
+            "  - expected evidence payloads: 5",
+            "  - actual evidence payloads: 5",
             "  - expected next blocker: main.litecoin_snapshot",
             "  - actual next blocker: main.litecoin_snapshot",
         ):
@@ -3741,8 +3760,8 @@ def require_public_launch_manifest_current():
                 quoted_bundle_path
             )
             or release_evidence_check_json.get("actual_schema_version") != 1
-            or release_evidence_check_json.get("expected_evidence_payload_count") != 4
-            or release_evidence_check_json.get("actual_evidence_payload_count") != 4
+            or release_evidence_check_json.get("expected_evidence_payload_count") != 5
+            or release_evidence_check_json.get("actual_evidence_payload_count") != 5
             or release_evidence_check_json.get("expected_summary", {}).get("runbook_step_count") != 3
             or release_evidence_check_json.get("actual_summary", {}).get("runbook_step_count") != 3
         ):
@@ -3949,7 +3968,7 @@ def require_public_launch_manifest_current():
             "  - required gate verified: yes",
             "  - required gate mismatches: 0",
             "  - required gate exit code: 0",
-            "  - evidence payloads: 4",
+            "  - evidence payloads: 5",
             "  - checklist steps: 4",
             "  - step 1: generate-release-evidence-bundle",
             "  - step 2: verify-release-evidence-bundle-gate",
@@ -4049,7 +4068,7 @@ def require_public_launch_manifest_current():
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-index-template <release_evidence_archive_record.json> {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
                 quoted_bundle_path
             )
-            or release_evidence_archive_json.get("evidence_payload_count") != 4
+            or release_evidence_archive_json.get("evidence_payload_count") != 5
             or release_evidence_archive_json.get("checklist_step_count") != 4
             or [step.get("id") for step in release_evidence_archive_json.get("checklist_steps", [])]
             != [
@@ -24952,6 +24971,10 @@ def main():
         (
             "compact release evidence bundle",
             "public launch manifest release evidence bundle contents documentation",
+        ),
+        (
+            "value-selection candidate\nartifact status JSON payloads",
+            "public launch manifest release evidence bundle candidate artifact status documentation",
         ),
         (
             "release_evidence_bundle_command",
