@@ -4418,6 +4418,62 @@ def require_public_launch_manifest_current():
             quoted_archive_record_path,
             quoted_bundle_path,
         )
+        release_evidence_publication_closeout_path = (
+            Path(temp_dir) / "release-evidence-publication-closeout.json"
+        )
+        quoted_publication_closeout_path = shlex.quote(
+            str(release_evidence_publication_closeout_path)
+        )
+        publication_closeout_check_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--check-release-evidence-publication-closeout "
+            "{} {} {} {} {} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ).format(
+            quoted_publication_closeout_path,
+            quoted_publication_index_archive_record_path,
+            quoted_publication_index_path,
+            quoted_archive_record_path,
+            quoted_bundle_path,
+        )
+        publication_closeout_check_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--check-release-evidence-publication-closeout "
+            "{} {} {} {} {} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ).format(
+            quoted_publication_closeout_path,
+            quoted_publication_index_archive_record_path,
+            quoted_publication_index_path,
+            quoted_archive_record_path,
+            quoted_bundle_path,
+        )
+        publication_closeout_gate_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--require-release-evidence-publication-closeout-match "
+            "--check-release-evidence-publication-closeout "
+            "{} {} {} {} {} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ).format(
+            quoted_publication_closeout_path,
+            quoted_publication_index_archive_record_path,
+            quoted_publication_index_path,
+            quoted_archive_record_path,
+            quoted_bundle_path,
+        )
+        publication_closeout_gate_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--require-release-evidence-publication-closeout-match "
+            "--check-release-evidence-publication-closeout "
+            "{} {} {} {} {} "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ).format(
+            quoted_publication_closeout_path,
+            quoted_publication_index_archive_record_path,
+            quoted_publication_index_path,
+            quoted_archive_record_path,
+            quoted_bundle_path,
+        )
         release_evidence_publication_index_archive_record = {
             "release_evidence_publication_index_uri": str(
                 release_evidence_publication_index_path
@@ -4893,6 +4949,259 @@ def require_public_launch_manifest_current():
             ]
         ):
             return "{} --release-evidence-publication-closeout-checklist --json did not summarize a verified publication closeout".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        release_evidence_publication_closeout_path.write_text(
+            release_evidence_publication_closeout_json_result.stdout,
+            encoding="utf8",
+        )
+        release_evidence_publication_closeout_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-release-evidence-publication-closeout",
+                str(release_evidence_publication_closeout_path),
+                str(release_evidence_publication_index_archive_record_path),
+                str(release_evidence_publication_index_path),
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_closeout_check_result.returncode != 0:
+            return "{} --check-release-evidence-publication-closeout failed for a generated closeout: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_closeout_check_result.stderr.strip()
+                or release_evidence_publication_closeout_check_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "zkCoin public launch profile release evidence publication closeout check:",
+            "  - verified: yes",
+            "  - require match: no",
+            "  - required-match exit code: 0",
+            f"  - release evidence publication closeout: {release_evidence_publication_closeout_path}",
+            f"  - release evidence publication index archive record: {release_evidence_publication_index_archive_record_path}",
+            f"  - release evidence publication index: {release_evidence_publication_index_path}",
+            f"  - release evidence archive record: {release_evidence_archive_record_path}",
+            f"  - release evidence bundle: {release_evidence_bundle_path}",
+            "  - expected closeout artifacts: 6",
+            "  - actual closeout artifacts: 6",
+            "  - expected verified closeout artifacts: 6",
+            "  - actual verified closeout artifacts: 6",
+            "  - expected ready for publication: yes",
+            "  - actual ready for publication: yes",
+            "  - mismatches: 0",
+            f"  - check release evidence publication closeout command: {publication_closeout_check_command}",
+            f"  - check release evidence publication closeout JSON command: {publication_closeout_check_json_command}",
+            f"  - release evidence publication closeout gate command: {publication_closeout_gate_command}",
+            f"  - release evidence publication closeout gate JSON command: {publication_closeout_gate_json_command}",
+            f"  - release evidence publication closeout checklist JSON command: {publication_closeout_checklist_json_command}",
+        ):
+            if expected not in release_evidence_publication_closeout_check_result.stdout:
+                return "{} --check-release-evidence-publication-closeout did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        release_evidence_publication_closeout_check_json_result = (
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--json",
+                    "--check-release-evidence-publication-closeout",
+                    str(release_evidence_publication_closeout_path),
+                    str(release_evidence_publication_index_archive_record_path),
+                    str(release_evidence_publication_index_path),
+                    str(release_evidence_archive_record_path),
+                    str(release_evidence_bundle_path),
+                    str(PUBLIC_LAUNCH_MANIFEST),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+        if release_evidence_publication_closeout_check_json_result.returncode != 0:
+            return "{} --check-release-evidence-publication-closeout --json failed for a generated closeout: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_closeout_check_json_result.stderr.strip()
+                or release_evidence_publication_closeout_check_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            publication_closeout_check_json = json.loads(
+                release_evidence_publication_closeout_check_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --check-release-evidence-publication-closeout --json output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            publication_closeout_check_json.get("schema_version") != 1
+            or publication_closeout_check_json.get("verified") is not True
+            or publication_closeout_check_json.get("require_match") is not False
+            or publication_closeout_check_json.get("required_match_exit_code") != 0
+            or publication_closeout_check_json.get("mismatch_count") != 0
+            or publication_closeout_check_json.get("release_evidence_publication_closeout")
+            != str(release_evidence_publication_closeout_path)
+            or publication_closeout_check_json.get("actual_closeout_values")
+            != publication_closeout_json
+            or publication_closeout_check_json.get("expected_closeout_values")
+            != publication_closeout_json
+            or publication_closeout_check_json.get("expected_closeout_artifact_count") != 6
+            or publication_closeout_check_json.get("actual_closeout_artifact_count") != 6
+            or publication_closeout_check_json.get("expected_ready_for_publication") is not True
+            or publication_closeout_check_json.get("actual_ready_for_publication") is not True
+            or publication_closeout_check_json.get("check_release_evidence_publication_closeout_command")
+            != publication_closeout_check_command
+            or publication_closeout_check_json.get("check_release_evidence_publication_closeout_json_command")
+            != publication_closeout_check_json_command
+            or publication_closeout_check_json.get("release_evidence_publication_closeout_gate_json_command")
+            != publication_closeout_gate_json_command
+        ):
+            return "{} --check-release-evidence-publication-closeout --json did not verify a generated closeout".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        release_evidence_publication_closeout_gate_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--require-release-evidence-publication-closeout-match",
+                "--check-release-evidence-publication-closeout",
+                str(release_evidence_publication_closeout_path),
+                str(release_evidence_publication_index_archive_record_path),
+                str(release_evidence_publication_index_path),
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_closeout_gate_result.returncode != 0:
+            return "{} --require-release-evidence-publication-closeout-match failed for a generated closeout: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_closeout_gate_result.stderr.strip()
+                or release_evidence_publication_closeout_gate_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            publication_closeout_gate_json = json.loads(
+                release_evidence_publication_closeout_gate_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --require-release-evidence-publication-closeout-match output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            publication_closeout_gate_json.get("verified") is not True
+            or publication_closeout_gate_json.get("require_match") is not True
+            or publication_closeout_gate_json.get("required_match_exit_code") != 0
+        ):
+            return "{} --require-release-evidence-publication-closeout-match did not verify a generated closeout".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        stale_release_evidence_publication_closeout_path = (
+            Path(temp_dir) / "stale-release-evidence-publication-closeout.json"
+        )
+        quoted_stale_publication_closeout_path = shlex.quote(
+            str(stale_release_evidence_publication_closeout_path)
+        )
+        stale_publication_closeout = json.loads(
+            json.dumps(publication_closeout_json)
+        )
+        stale_publication_closeout["verified_closeout_artifact_count"] = 5
+        stale_release_evidence_publication_closeout_path.write_text(
+            json.dumps(stale_publication_closeout, indent=2, sort_keys=False),
+            encoding="utf8",
+        )
+        stale_closeout_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-release-evidence-publication-closeout",
+                str(stale_release_evidence_publication_closeout_path),
+                str(release_evidence_publication_index_archive_record_path),
+                str(release_evidence_publication_index_path),
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if stale_closeout_check_result.returncode != 0:
+            return "{} --check-release-evidence-publication-closeout --json failed for a stale closeout: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                stale_closeout_check_result.stderr.strip()
+                or stale_closeout_check_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            stale_closeout_check_json = json.loads(stale_closeout_check_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --check-release-evidence-publication-closeout --json stale output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        stale_closeout_mismatch = stale_closeout_check_json.get("mismatches", [{}])[0]
+        if (
+            stale_closeout_check_json.get("verified") is not False
+            or stale_closeout_check_json.get("required_match_exit_code") != 1
+            or stale_closeout_check_json.get("mismatch_count", 0) < 1
+            or stale_closeout_mismatch.get("path")
+            != "$.verified_closeout_artifact_count"
+            or stale_closeout_mismatch.get("kind") != "value"
+            or stale_closeout_mismatch.get("actual") != 5
+            or stale_closeout_mismatch.get("expected") != 6
+        ):
+            return "{} --check-release-evidence-publication-closeout --json did not report a stale closeout mismatch".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        stale_closeout_gate_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--require-release-evidence-publication-closeout-match",
+                "--check-release-evidence-publication-closeout",
+                str(stale_release_evidence_publication_closeout_path),
+                str(release_evidence_publication_index_archive_record_path),
+                str(release_evidence_publication_index_path),
+                str(release_evidence_archive_record_path),
+                str(release_evidence_bundle_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if stale_closeout_gate_result.returncode == 0:
+            return "{} --require-release-evidence-publication-closeout-match accepted a stale closeout".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "release evidence publication closeout does not match the current closeout checklist" not in stale_closeout_gate_result.stderr:
+            return "{} --require-release-evidence-publication-closeout-match did not explain stale closeout rejection".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -7728,6 +8037,56 @@ def require_public_launch_manifest_current():
         "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the release evidence publication closeout checklist JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("check_release_evidence_publication_closeout_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--check-release-evidence-publication-closeout "
+        "<release_evidence_publication_closeout.json> "
+        "<release_evidence_publication_index_archive_record.json> "
+        "<release_evidence_publication_index.json> "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication closeout check command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("check_release_evidence_publication_closeout_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --json "
+        "--check-release-evidence-publication-closeout "
+        "<release_evidence_publication_closeout.json> "
+        "<release_evidence_publication_index_archive_record.json> "
+        "<release_evidence_publication_index.json> "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication closeout check JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_closeout_gate_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--require-release-evidence-publication-closeout-match "
+        "--check-release-evidence-publication-closeout "
+        "<release_evidence_publication_closeout.json> "
+        "<release_evidence_publication_index_archive_record.json> "
+        "<release_evidence_publication_index.json> "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication closeout gate command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_closeout_gate_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --json "
+        "--require-release-evidence-publication-closeout-match "
+        "--check-release-evidence-publication-closeout "
+        "<release_evidence_publication_closeout.json> "
+        "<release_evidence_publication_index_archive_record.json> "
+        "<release_evidence_publication_index.json> "
+        "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication closeout gate JSON command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -11285,6 +11644,68 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged release evidence publication closeout checklist JSON commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            "--check-release-evidence-publication-closeout "
+            + "<release_evidence_publication_closeout.json> "
+            + "<release_evidence_publication_index_archive_record.json> "
+            + "<release_evidence_publication_index.json> "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "check_release_evidence_publication_closeout_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication closeout check commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "--json --check-release-evidence-publication-closeout "
+            + "<release_evidence_publication_closeout.json> "
+            + "<release_evidence_publication_index_archive_record.json> "
+            + "<release_evidence_publication_index.json> "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "check_release_evidence_publication_closeout_json_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication closeout check JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "--require-release-evidence-publication-closeout-match "
+            + "--check-release-evidence-publication-closeout "
+            + "<release_evidence_publication_closeout.json> "
+            + "<release_evidence_publication_index_archive_record.json> "
+            + "<release_evidence_publication_index.json> "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "release_evidence_publication_closeout_gate_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication closeout gate commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            "--json --require-release-evidence-publication-closeout-match "
+            + "--check-release-evidence-publication-closeout "
+            + "<release_evidence_publication_closeout.json> "
+            + "<release_evidence_publication_index_archive_record.json> "
+            + "<release_evidence_publication_index.json> "
+            + "<release_evidence_archive_record.json> <release_evidence_bundle.json> "
+            + quoted_manifest_path
+            not in spaced_status_json.get(
+                "release_evidence_publication_closeout_gate_json_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication closeout gate JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -12343,6 +12764,35 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    release_evidence_publication_closeout_check_in_place_result = (
+        subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-release-evidence-publication-closeout",
+                str(PUBLIC_LAUNCH_MANIFEST),
+                str(PUBLIC_LAUNCH_MANIFEST),
+                str(PUBLIC_LAUNCH_MANIFEST),
+                str(PUBLIC_LAUNCH_MANIFEST),
+                str(PUBLIC_LAUNCH_MANIFEST),
+                "--in-place",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    )
+    if release_evidence_publication_closeout_check_in_place_result.returncode == 0:
+        return "{} --check-release-evidence-publication-closeout accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-release-evidence-publication-closeout does not write the manifest" not in release_evidence_publication_closeout_check_in_place_result.stderr:
+        return "{} --check-release-evidence-publication-closeout did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     release_evidence_gate_without_check_result = subprocess.run(
         [
             sys.executable,
@@ -12426,6 +12876,29 @@ def require_public_launch_manifest_current():
         )
     if "--require-release-evidence-publication-index-archive-match requires --check-release-evidence-publication-index-archive" not in release_evidence_publication_index_archive_gate_without_check_result.stderr:
         return "{} --require-release-evidence-publication-index-archive-match did not explain its required check action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    release_evidence_publication_closeout_gate_without_check_result = (
+        subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--require-release-evidence-publication-closeout-match",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    )
+    if release_evidence_publication_closeout_gate_without_check_result.returncode == 0:
+        return "{} --require-release-evidence-publication-closeout-match was accepted without a closeout check".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--require-release-evidence-publication-closeout-match requires --check-release-evidence-publication-closeout" not in release_evidence_publication_closeout_gate_without_check_result.stderr:
+        return "{} --require-release-evidence-publication-closeout-match did not explain its required check action".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -14036,7 +14509,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -20304,6 +20777,10 @@ def main():
         ("release_evidence_publication_index_archive_handoff_summary_command", "manifest builds release evidence publication index archive handoff summary commands"),
         ("--release-evidence-publication-closeout-checklist", "manifest release evidence publication closeout checklist flag"),
         ("release_evidence_publication_closeout_checklist_command", "manifest builds release evidence publication closeout checklist commands"),
+        ("--check-release-evidence-publication-closeout", "manifest release evidence publication closeout check flag"),
+        ("--require-release-evidence-publication-closeout-match", "manifest release evidence publication closeout gate flag"),
+        ("check_release_evidence_publication_closeout_command", "manifest builds release evidence publication closeout check commands"),
+        ("release_evidence_publication_closeout_gate_command", "manifest builds release evidence publication closeout gate commands"),
         ("release_evidence_bundle_state", "manifest builds release evidence bundle state"),
         ("release_evidence_bundle_summary", "manifest summarizes release evidence bundle state"),
         ("release_evidence_bundle_text", "manifest prints release evidence bundle guidance"),
@@ -20359,6 +20836,10 @@ def main():
         ("release_evidence_publication_closeout_checklist_payload", "manifest builds release evidence publication closeout checklist JSON payloads"),
         ("release_evidence_publication_closeout_checklist_text", "manifest prints release evidence publication closeout checklist guidance"),
         ("release_evidence_publication_closeout_checklist_json_text", "manifest prints release evidence publication closeout checklist JSON guidance"),
+        ("read_release_evidence_publication_closeout", "manifest reads release evidence publication closeout JSON"),
+        ("release_evidence_publication_closeout_check_payload", "manifest builds release evidence publication closeout check JSON payloads"),
+        ("release_evidence_publication_closeout_check_text", "manifest prints release evidence publication closeout check guidance"),
+        ("release_evidence_publication_closeout_check_json_text", "manifest prints release evidence publication closeout check JSON guidance"),
         ("release_evidence_archive_check_json_text", "manifest prints release evidence archive check JSON guidance"),
         ("release_evidence_archive_checklist_steps", "manifest builds release evidence archive checklist steps"),
         ("release_evidence_archive_checklist_payload", "manifest builds release evidence archive checklist JSON payloads"),
@@ -20765,6 +21246,8 @@ def main():
         ("release_evidence_publication_index_archive_gate_command", "manifest builds release evidence publication index archive gate commands"),
         ("release_evidence_publication_index_archive_handoff_summary_command", "manifest builds release evidence publication index archive handoff summary commands"),
         ("release_evidence_publication_closeout_checklist_command", "manifest builds release evidence publication closeout checklist commands"),
+        ("check_release_evidence_publication_closeout_command", "manifest builds release evidence publication closeout check commands"),
+        ("release_evidence_publication_closeout_gate_command", "manifest builds release evidence publication closeout gate commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
         ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
@@ -20801,6 +21284,8 @@ def main():
         ("release_evidence_publication_index_archive_handoff_summary_json_text", "manifest prints release evidence publication index archive handoff summary JSON guidance"),
         ("release_evidence_publication_closeout_checklist_text", "manifest prints release evidence publication closeout checklist guidance"),
         ("release_evidence_publication_closeout_checklist_json_text", "manifest prints release evidence publication closeout checklist JSON guidance"),
+        ("release_evidence_publication_closeout_check_text", "manifest prints release evidence publication closeout check guidance"),
+        ("release_evidence_publication_closeout_check_json_text", "manifest prints release evidence publication closeout check JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -20880,6 +21365,8 @@ def main():
         ("release_evidence_publication_index_archive_gate_command", "manifest status JSON exposes release evidence publication index archive gate command"),
         ("release_evidence_publication_index_archive_handoff_summary_command", "manifest status JSON exposes release evidence publication index archive handoff summary command"),
         ("release_evidence_publication_closeout_checklist_command", "manifest status JSON exposes release evidence publication closeout checklist command"),
+        ("check_release_evidence_publication_closeout_command", "manifest status JSON exposes release evidence publication closeout check command"),
+        ("release_evidence_publication_closeout_gate_command", "manifest status JSON exposes release evidence publication closeout gate command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -22346,6 +22833,14 @@ def main():
             "public launch manifest release evidence publication closeout checklist JSON documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --check-release-evidence-publication-closeout <release_evidence_publication_closeout.json>",
+            "public launch manifest release evidence publication closeout check documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --require-release-evidence-publication-closeout-match \\\n  --check-release-evidence-publication-closeout <release_evidence_publication_closeout.json>",
+            "public launch manifest release evidence publication closeout gate JSON documentation",
+        ),
+        (
             "release evidence bundle freshness",
             "public launch manifest release evidence bundle freshness documentation",
         ),
@@ -22412,6 +22907,14 @@ def main():
         (
             "release_evidence_publication_closeout_checklist_command",
             "public launch manifest status-json release evidence publication closeout checklist command documentation",
+        ),
+        (
+            "check_release_evidence_publication_closeout_command",
+            "public launch manifest status-json release evidence publication closeout check command documentation",
+        ),
+        (
+            "release_evidence_publication_closeout_gate_command",
+            "public launch manifest status-json release evidence publication closeout gate command documentation",
         ),
         (
             "handoff_artifacts",
