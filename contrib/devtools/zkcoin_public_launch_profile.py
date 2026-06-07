@@ -5018,6 +5018,19 @@ def release_evidence_publication_closeout_archive_handoff_summary_command(
     )
 
 
+def release_evidence_publication_status_command(
+    manifest_path,
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}"
+        f"--release-evidence-publication-status {manifest_path}"
+    )
+
+
 def next_action_command(manifest_path):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -12221,6 +12234,405 @@ def release_evidence_publication_closeout_archive_handoff_summary_json_text(
     )
 
 
+def release_evidence_publication_status_step(
+    step,
+    step_id,
+    kind,
+    description,
+    command,
+    json_command,
+    input_artifacts=None,
+    output_artifact=None,
+    requires_operator_values=False,
+    operator_fields=None,
+):
+    return {
+        "step": step,
+        "id": step_id,
+        "kind": kind,
+        "description": description,
+        "input_artifacts": list(input_artifacts or []),
+        "input_artifact_count": len(input_artifacts or []),
+        "output_artifact": output_artifact,
+        "requires_operator_values": requires_operator_values,
+        "operator_fields": list(operator_fields or []),
+        "operator_field_count": len(operator_fields or []),
+        "command": command,
+        "json_command": json_command,
+    }
+
+
+def release_evidence_publication_status_steps(manifest_path):
+    bundle = "<release_evidence_bundle.json>"
+    archive = "<release_evidence_archive_record.json>"
+    handoff = "<release_evidence_handoff_summary.json>"
+    index = "<release_evidence_publication_index.json>"
+    index_archive = (
+        "<release_evidence_publication_index_archive_record.json>"
+    )
+    index_archive_handoff = (
+        "<release_evidence_publication_index_archive_handoff_summary.json>"
+    )
+    closeout = "<release_evidence_publication_closeout.json>"
+    closeout_archive = (
+        "<release_evidence_publication_closeout_archive_record.json>"
+    )
+    closeout_archive_handoff = (
+        "<release_evidence_publication_closeout_archive_handoff_summary.json>"
+    )
+    return [
+        release_evidence_publication_status_step(
+            1,
+            "release-evidence-bundle",
+            "generate",
+            "Generate the deterministic launch-profile release evidence bundle.",
+            release_evidence_bundle_command(manifest_path),
+            release_evidence_bundle_json_command(manifest_path),
+            output_artifact=bundle,
+        ),
+        release_evidence_publication_status_step(
+            2,
+            "release-evidence-archive-checklist",
+            "operator-record",
+            "Prepare the archive record fields for the retained bundle.",
+            release_evidence_archive_checklist_command(manifest_path),
+            release_evidence_archive_checklist_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[bundle],
+            output_artifact=archive,
+            requires_operator_values=True,
+            operator_fields=[
+                "release_evidence_bundle_uri",
+                "manifest_commit",
+                "gate_checked_at",
+            ],
+        ),
+        release_evidence_publication_status_step(
+            3,
+            "release-evidence-archive-gate",
+            "gate",
+            "Verify the filled release evidence archive record.",
+            release_evidence_archive_gate_command(manifest_path),
+            release_evidence_archive_gate_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[archive, bundle],
+        ),
+        release_evidence_publication_status_step(
+            4,
+            "release-evidence-handoff-summary",
+            "handoff",
+            "Summarize the bundle and archive gates for publication.",
+            release_evidence_handoff_summary_command(manifest_path),
+            release_evidence_handoff_summary_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[archive, bundle],
+            output_artifact=handoff,
+        ),
+        release_evidence_publication_status_step(
+            5,
+            "release-evidence-publication-index-template",
+            "operator-record",
+            "Prepare the publication index after the first handoff verifies.",
+            release_evidence_publication_index_template_command(manifest_path),
+            release_evidence_publication_index_template_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[archive, bundle],
+            output_artifact=index,
+            requires_operator_values=True,
+            operator_fields=[
+                "release_evidence_bundle_uri",
+                "release_evidence_archive_record_uri",
+                "release_evidence_handoff_summary_uri",
+                "manifest_commit",
+                "published_at",
+                "publisher",
+            ],
+        ),
+        release_evidence_publication_status_step(
+            6,
+            "release-evidence-publication-index-gate",
+            "gate",
+            "Verify the filled release evidence publication index.",
+            release_evidence_publication_index_gate_command(manifest_path),
+            release_evidence_publication_index_gate_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[index, archive, bundle],
+        ),
+        release_evidence_publication_status_step(
+            7,
+            "release-evidence-publication-index-archive-checklist",
+            "operator-record",
+            "Prepare the archive record for the retained publication index.",
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path
+            ),
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[index, archive, bundle],
+            output_artifact=index_archive,
+            requires_operator_values=True,
+            operator_fields=[
+                "release_evidence_publication_index_uri",
+                "manifest_commit",
+                "gate_checked_at",
+            ],
+        ),
+        release_evidence_publication_status_step(
+            8,
+            "release-evidence-publication-index-archive-gate",
+            "gate",
+            "Verify the filled publication index archive record.",
+            release_evidence_publication_index_archive_gate_command(
+                manifest_path
+            ),
+            release_evidence_publication_index_archive_gate_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[index_archive, index, archive, bundle],
+        ),
+        release_evidence_publication_status_step(
+            9,
+            "release-evidence-publication-index-archive-handoff-summary",
+            "handoff",
+            "Summarize the publication index and archive gates.",
+            release_evidence_publication_index_archive_handoff_summary_command(
+                manifest_path
+            ),
+            release_evidence_publication_index_archive_handoff_summary_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[index_archive, index, archive, bundle],
+            output_artifact=index_archive_handoff,
+        ),
+        release_evidence_publication_status_step(
+            10,
+            "release-evidence-publication-closeout-checklist",
+            "handoff",
+            "Build the final closeout checklist for retained publication evidence.",
+            release_evidence_publication_closeout_checklist_command(
+                manifest_path
+            ),
+            release_evidence_publication_closeout_checklist_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[index_archive, index, archive, bundle],
+            output_artifact=closeout,
+        ),
+        release_evidence_publication_status_step(
+            11,
+            "release-evidence-publication-closeout-gate",
+            "gate",
+            "Verify the retained release evidence publication closeout JSON.",
+            release_evidence_publication_closeout_gate_command(manifest_path),
+            release_evidence_publication_closeout_gate_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[closeout, index_archive, index, archive, bundle],
+        ),
+        release_evidence_publication_status_step(
+            12,
+            "release-evidence-publication-closeout-archive-gate",
+            "gate",
+            "Verify the filled publication closeout archive record.",
+            release_evidence_publication_closeout_archive_gate_command(
+                manifest_path
+            ),
+            release_evidence_publication_closeout_archive_gate_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[
+                closeout_archive,
+                closeout,
+                index_archive,
+                index,
+                archive,
+                bundle,
+            ],
+        ),
+        release_evidence_publication_status_step(
+            13,
+            "release-evidence-publication-closeout-archive-handoff-summary",
+            "handoff",
+            "Summarize the retained closeout and closeout archive gates.",
+            release_evidence_publication_closeout_archive_handoff_summary_command(
+                manifest_path
+            ),
+            release_evidence_publication_closeout_archive_handoff_summary_command(
+                manifest_path,
+                json_output=True,
+            ),
+            input_artifacts=[
+                closeout_archive,
+                closeout,
+                index_archive,
+                index,
+                archive,
+                bundle,
+            ],
+            output_artifact=closeout_archive_handoff,
+        ),
+    ]
+
+
+def release_evidence_publication_status_payload(manifest, manifest_path, check):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    steps = release_evidence_publication_status_steps(manifest_path)
+    operator_value_steps = [
+        step["id"]
+        for step in steps
+        if step["requires_operator_values"]
+    ]
+    gate_steps = [
+        step["id"]
+        for step in steps
+        if step["kind"] == "gate"
+    ]
+    handoff_steps = [
+        step["id"]
+        for step in steps
+        if step["kind"] == "handoff"
+    ]
+    status_command = release_evidence_publication_status_command(
+        manifest_path
+    )
+    status_json_command = release_evidence_publication_status_command(
+        manifest_path,
+        json_output=True,
+    )
+    command_by_step = {
+        step["id"]: step["command"]
+        for step in steps
+    }
+    json_command_by_step = {
+        step["id"]: step["json_command"]
+        for step in steps
+    }
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "launch_profile_blocked": bool(blockers),
+        "unresolved_blocker_count": len(blockers),
+        "unresolved_blockers": blockers,
+        "ready_for_chainparams": (
+            manifest.get("status") == "ready-for-chainparams"
+            and not blockers
+        ),
+        "publication_step_count": len(steps),
+        "gate_step_count": len(gate_steps),
+        "gate_steps": gate_steps,
+        "handoff_step_count": len(handoff_steps),
+        "handoff_steps": handoff_steps,
+        "operator_value_step_count": len(operator_value_steps),
+        "operator_value_steps": operator_value_steps,
+        "final_handoff_step_id": (
+            "release-evidence-publication-closeout-archive-handoff-summary"
+        ),
+        "publication_steps": steps,
+        "release_evidence_publication_status_command": status_command,
+        "release_evidence_publication_status_json_command": (
+            status_json_command
+        ),
+        "command_by_step": command_by_step,
+        "json_command_by_step": json_command_by_step,
+        "commands": {
+            "release_evidence_publication_status": status_command,
+            "release_evidence_publication_status_json": status_json_command,
+            "by_step": command_by_step,
+            "json_by_step": json_command_by_step,
+        },
+    }
+
+
+def release_evidence_publication_status_text_from_payload(payload):
+    lines = [
+        "zkCoin public launch profile release evidence publication status:",
+        f"  - manifest: {payload['manifest']}",
+        f"  - launch profile blocked: {yes_no(payload['launch_profile_blocked'])}",
+        f"  - unresolved blockers: {payload['unresolved_blocker_count']}",
+        f"  - ready for chainparams: {yes_no(payload['ready_for_chainparams'])}",
+        f"  - publication steps: {payload['publication_step_count']}",
+        f"  - gate steps: {payload['gate_step_count']}",
+        f"  - handoff steps: {payload['handoff_step_count']}",
+        f"  - operator-value steps: {payload['operator_value_step_count']}",
+        f"  - final handoff step: {payload['final_handoff_step_id']}",
+        f"  - release evidence publication status command: {payload['release_evidence_publication_status_command']}",
+        f"  - release evidence publication status JSON command: {payload['release_evidence_publication_status_json_command']}",
+    ]
+    if payload["unresolved_blockers"]:
+        lines.append(
+            "  - unresolved blocker ids: "
+            + list_summary(payload["unresolved_blockers"])
+        )
+    for step in payload["publication_steps"]:
+        lines.extend([
+            f"  - publication step {step['step']}: {step['id']}",
+            f"  - publication step {step['step']} kind: {step['kind']}",
+            (
+                f"  - publication step {step['step']} input artifacts: "
+                f"{list_summary(step['input_artifacts'])}"
+            ),
+            (
+                f"  - publication step {step['step']} output artifact: "
+                f"{step['output_artifact'] or 'none'}"
+            ),
+            (
+                f"  - publication step {step['step']} requires operator values: "
+                f"{yes_no(step['requires_operator_values'])}"
+            ),
+            (
+                f"  - publication step {step['step']} operator fields: "
+                f"{list_summary(step['operator_fields'])}"
+            ),
+            f"  - publication step {step['step']} command: {step['command']}",
+            (
+                f"  - publication step {step['step']} JSON command: "
+                f"{step['json_command']}"
+            ),
+        ])
+    return "\n".join(lines)
+
+
+def release_evidence_publication_status_text(manifest, manifest_path, check):
+    return release_evidence_publication_status_text_from_payload(
+        release_evidence_publication_status_payload(
+            manifest,
+            manifest_path,
+            check,
+        )
+    )
+
+
+def release_evidence_publication_status_json_text_from_payload(payload):
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def release_evidence_publication_status_json_text(manifest, manifest_path, check):
+    return release_evidence_publication_status_json_text_from_payload(
+        release_evidence_publication_status_payload(
+            manifest,
+            manifest_path,
+            check,
+        )
+    )
+
+
 def network_value_selection_later_blockers_json_payload(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -13057,6 +13469,15 @@ def status_json_text(manifest, manifest_path, check):
                     json_output=True,
                 )
             ),
+            "release_evidence_publication_status_command": (
+                release_evidence_publication_status_command(manifest_path)
+            ),
+            "release_evidence_publication_status_json_command": (
+                release_evidence_publication_status_command(
+                    manifest_path,
+                    json_output=True,
+                )
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -13383,6 +13804,8 @@ def selected_primary_actions(args):
         actions.append(
             "--release-evidence-publication-closeout-archive-handoff-summary"
         )
+    if args.release_evidence_publication_status:
+        actions.append("--release-evidence-publication-status")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -13598,6 +14021,11 @@ def main():
         ),
         type=Path,
         help="summarize retained publication closeout and closeout archive readiness",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-status",
+        action="store_true",
+        help="print the ordered release evidence publication command pipeline",
     )
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
@@ -13831,6 +14259,7 @@ def main():
             args.release_evidence_publication_closeout_archive_handoff_summary
             is None
         )
+        and not args.release_evidence_publication_status
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -13874,6 +14303,7 @@ def main():
             "--check-release-evidence-publication-closeout, "
             "--check-release-evidence-publication-closeout-archive, "
             "--release-evidence-publication-closeout-archive-handoff-summary, "
+            "--release-evidence-publication-status, "
             "--release-evidence-archive-checklist, "
             "or --value-selection-checklists",
             file=sys.stderr,
@@ -14085,6 +14515,10 @@ def main():
         if args.in_place:
             print("error: --release-evidence-publication-closeout-archive-handoff-summary does not write the manifest", file=sys.stderr)
             return 1
+    if args.release_evidence_publication_status:
+        if args.in_place:
+            print("error: --release-evidence-publication-status does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -14225,6 +14659,8 @@ def main():
         args.release_evidence_publication_closeout_archive_handoff_summary
         is not None
     ):
+        allow_blocked = True
+    if args.release_evidence_publication_status:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -14797,6 +15233,15 @@ def main():
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+        return 0
+
+    if args.release_evidence_publication_status:
+        publication_status_text = (
+            release_evidence_publication_status_json_text
+            if args.json
+            else release_evidence_publication_status_text
+        )
+        print(publication_status_text(manifest, args.manifest, check))
         return 0
 
     if args.network_readiness_summary is not None:
