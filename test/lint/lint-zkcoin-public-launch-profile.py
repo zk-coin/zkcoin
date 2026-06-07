@@ -2361,6 +2361,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or network_value_selection_later_json.get("network_value_selection_candidate_template_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("network_value_selection_candidate_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_later_json.get("network_value_selection_candidate_check_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --network-value-selection-later-blockers --json did not expose command shortcuts".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2458,6 +2462,8 @@ def require_public_launch_manifest_current():
         "  - required JSON checks: 3",
         "  - candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         '      "auxpow_chain_id": "<chain_id>",',
         '          "ext_public_key": "<xpub>",',
         '      "<seed1.hostname>",',
@@ -2533,6 +2539,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or network_value_selection_template_json.get("network_value_selection_candidate_template_json_command")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_template_json.get("network_value_selection_candidate_check_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or network_value_selection_template_json.get("network_value_selection_candidate_check_json_command")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --network-value-selection-candidate-template --json did not expose candidate template metadata".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -2570,6 +2580,178 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        candidate_path = Path(temp_dir) / "value-selection-candidate.json"
+        candidate = {
+            "schema_version": 1,
+            "network": "main",
+            "auxpow_chain_id": "0x5001",
+            "public_network_identity": {
+                "message_start": "250,191,181,217",
+                "default_port": "19445",
+                "base58_prefixes": {
+                    "pubkey_address": "75",
+                    "script_address": "76",
+                    "script_address2": "77",
+                    "secret_key": "178",
+                    "ext_public_key": "04202431",
+                    "ext_secret_key": "04202432",
+                },
+                "bech32_hrp": "zk",
+                "mweb_hrp": "zkmweb",
+            },
+            "dns_seeds": ["seed1.zkcoin.org", "seed2.zkcoin.net"],
+        }
+        candidate_path.write_text(json.dumps(candidate, indent=2), encoding="utf8")
+        readonly_candidate_manifest_path = Path(temp_dir) / "read-only-candidate-manifest.json"
+        readonly_candidate_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
+        readonly_candidate_manifest_path.write_bytes(readonly_candidate_manifest_bytes)
+
+        candidate_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-network-value-selection-candidate",
+                "main",
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_check_result.returncode != 0:
+            return "{} --check-network-value-selection-candidate failed for a filled candidate: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_check_result.stderr.strip()
+                or candidate_check_result.stdout.strip()
+                or "no output",
+            )
+        candidate_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--check-network-value-selection-candidate main {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            f"--json --check-network-value-selection-candidate main {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        for expected in (
+            "zkCoin public launch profile network value-selection candidate check:",
+            "  - network: main",
+            "  - candidate network: main",
+            "  - verified: yes",
+            "  - ready to apply: yes",
+            "  - verified sections: 3/3",
+            f"  - candidate check command: {candidate_command}",
+            f"  - candidate check JSON command: {candidate_json_command}",
+            "  - post-apply remaining blockers: 5",
+            "  - post-apply remaining blockers for network: 1",
+            "  - post-apply next blocker: main.litecoin_snapshot",
+            "  - main.auxpow_chain_id section: auxpow_chain_id",
+            "    - JSON check command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-auxpow main 0x5001",
+            "  - main.dns_seeds section: dns_seeds",
+        ):
+            if expected not in candidate_check_result.stdout:
+                return "{} --check-network-value-selection-candidate did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+        if readonly_candidate_manifest_path.read_bytes() != readonly_candidate_manifest_bytes:
+            return "{} --check-network-value-selection-candidate modified the manifest during a read-only candidate check".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        candidate_check_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-network-value-selection-candidate",
+                "main",
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_check_json_result.returncode != 0:
+            return "{} --check-network-value-selection-candidate --json failed for a filled candidate: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_check_json_result.stderr.strip()
+                or candidate_check_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_check_json = json.loads(candidate_check_json_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --check-network-value-selection-candidate --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        sections = candidate_check_json.get("sections", [])
+        if (
+            candidate_check_json.get("schema_version") != 1
+            or candidate_check_json.get("network") != "main"
+            or candidate_check_json.get("candidate_path") != str(candidate_path)
+            or candidate_check_json.get("verified") is not True
+            or candidate_check_json.get("ready_to_apply") is not True
+            or candidate_check_json.get("section_ids")
+            != ["auxpow_chain_id", "public_network_identity", "dns_seeds"]
+            or candidate_check_json.get("section_blockers")
+            != ["main.auxpow_chain_id", "main.public_network_identity", "main.dns_seeds"]
+            or candidate_check_json.get("verified_section_count") != 3
+            or candidate_check_json.get("commands", {}).get("candidate_check") != candidate_command
+            or candidate_check_json.get("commands", {}).get("candidate_check_json") != candidate_json_command
+            or candidate_check_json.get("post_apply", {}).get("remaining_blocker_count") != 5
+            or candidate_check_json.get("post_apply", {}).get("remaining_blocker_count_for_network") != 1
+            or candidate_check_json.get("post_apply", {}).get("next_blocker") != "main.litecoin_snapshot"
+            or sections[0].get("candidate", {}).get("chain_id_hex") != "0x5001"
+            or sections[1].get("candidate", {}).get("default_port") != 19445
+            or sections[2].get("candidate", {}).get("seed_count") != 2
+            or sections[2].get("json_check_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds main seed1.zkcoin.org,seed2.zkcoin.net {}".format(
+                readonly_candidate_manifest_path
+            )
+        ):
+            return "{} --check-network-value-selection-candidate --json did not expose filled candidate verification details".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        placeholder_candidate = json.loads(json.dumps(candidate))
+        placeholder_candidate["auxpow_chain_id"] = "<chain_id>"
+        placeholder_candidate_path = Path(temp_dir) / "placeholder-candidate.json"
+        placeholder_candidate_path.write_text(
+            json.dumps(placeholder_candidate, indent=2),
+            encoding="utf8",
+        )
+        placeholder_candidate_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-network-value-selection-candidate",
+                "main",
+                str(placeholder_candidate_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if placeholder_candidate_result.returncode == 0:
+            return "{} --check-network-value-selection-candidate accepted an unfilled placeholder candidate".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "still contains placeholder <chain_id>" not in placeholder_candidate_result.stderr:
+            return "{} --check-network-value-selection-candidate did not explain placeholder rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
     value_selection_checklists_result = subprocess.run(
         [
             sys.executable,
@@ -2595,8 +2777,10 @@ def require_public_launch_manifest_current():
         "  - required JSON checks: 6",
         "  - main queued value-selection blockers: main.auxpow_chain_id, main.public_network_identity, main.dns_seeds",
         "  - main candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - main candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "  - testnet required JSON checks: 3",
         "  - testnet candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "  - testnet candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate testnet <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
         "    - testnet.dns_seeds: contrib/devtools/zkcoin_public_launch_profile.py --json --check-dns-seeds testnet <seed1.hostname>,<seed2.hostname> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
     ):
         if expected not in value_selection_checklists_result.stdout:
@@ -2678,6 +2862,10 @@ def require_public_launch_manifest_current():
         != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
         or value_selection_checklists_json.get("network_value_selection_candidate_template_json_commands_by_network", {}).get("testnet")
         != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template testnet contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or value_selection_checklists_json.get("network_value_selection_candidate_check_commands_by_network", {}).get("main")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        or value_selection_checklists_json.get("network_value_selection_candidate_check_json_commands_by_network", {}).get("testnet")
+        != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate testnet <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --value-selection-checklists --json did not expose all-network value-selection checklists".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -9265,6 +9453,32 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count network value-selection candidate-template JSON commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("network_value_selection_candidate_check_commands_by_network") != {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate testnet <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose network value-selection candidate check commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_value_selection_candidate_check_command_count") != len(
+        status_json.get("network_value_selection_candidate_check_commands_by_network", {})
+    ):
+        return "{} --status-json did not count network value-selection candidate check commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_value_selection_candidate_check_json_commands_by_network") != {
+        "main": "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        "testnet": "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate testnet <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+    }:
+        return "{} --status-json did not expose network value-selection candidate check JSON commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("network_value_selection_candidate_check_json_command_count") != len(
+        status_json.get("network_value_selection_candidate_check_json_commands_by_network", {})
+    ):
+        return "{} --status-json did not count network value-selection candidate check JSON commands".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     status_value_selection_json_commands = status_json.get(
         "queued_value_selection_json_check_commands_by_network",
         {},
@@ -13628,6 +13842,30 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    network_value_selection_candidate_check_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-network-value-selection-candidate",
+            "main",
+            "<value_selection_candidate.json>",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if network_value_selection_candidate_check_in_place_result.returncode == 0:
+        return "{} --check-network-value-selection-candidate accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-network-value-selection-candidate does not write the manifest" not in network_value_selection_candidate_check_in_place_result.stderr:
+        return "{} --check-network-value-selection-candidate did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     value_selection_checklists_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -15866,7 +16104,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --check-network-value-selection-candidate, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -22084,6 +22322,15 @@ def main():
         ("network_value_selection_later_blockers_json_payload", "manifest network value-selection later blockers JSON payload helper"),
         ("network_value_selection_later_blockers_json_text", "manifest network value-selection later blockers JSON renderer"),
         ("--network-value-selection-candidate-template", "manifest network value-selection candidate template flag"),
+        ("--check-network-value-selection-candidate", "manifest network value-selection candidate check flag"),
+        ("VALUE_SELECTION_CANDIDATE_MAX_BYTES", "manifest bounds value-selection candidate artifacts"),
+        ("read_value_selection_candidate_json", "manifest reads value-selection candidate artifacts as JSON"),
+        ("value_selection_candidate_args", "manifest parses value-selection candidate artifacts"),
+        ("checked_network_value_selection_candidate", "manifest verifies filled value-selection candidate artifacts"),
+        ("network_value_selection_candidate_check_command", "manifest builds value-selection candidate check commands"),
+        ("network_value_selection_candidate_check_json_payload", "manifest network value-selection candidate check JSON payload helper"),
+        ("network_value_selection_candidate_check_text", "manifest network value-selection candidate check text renderer"),
+        ("network_value_selection_candidate_check_json_text", "manifest network value-selection candidate check JSON renderer"),
         ("value_selection_candidate_template", "manifest builds value-selection candidate templates"),
         ("network_value_selection_candidate_template_json_payload", "manifest network value-selection candidate template JSON payload helper"),
         ("network_value_selection_candidate_template_text", "manifest network value-selection candidate template text renderer"),
@@ -22609,6 +22856,9 @@ def main():
         ("network_value_selection_candidate_template_commands", "manifest builds network value-selection candidate template command maps"),
         ("network_value_selection_candidate_template_commands_by_network", "manifest status JSON exposes value-selection candidate template command maps"),
         ("network_value_selection_candidate_template_json_commands_by_network", "manifest status JSON exposes value-selection candidate template JSON command maps"),
+        ("network_value_selection_candidate_check_commands", "manifest builds network value-selection candidate check command maps"),
+        ("network_value_selection_candidate_check_commands_by_network", "manifest status JSON exposes value-selection candidate check command maps"),
+        ("network_value_selection_candidate_check_json_commands_by_network", "manifest status JSON exposes value-selection candidate check JSON command maps"),
         ("queued_value_selection_json_check_commands", "manifest exposes network handoff JSON candidate check command maps"),
         ("queued_value_selection_candidate_checklist", "manifest exposes network handoff value-selection checklist JSON"),
         ("queued_value_selection_json_check_commands_by_network", "manifest readiness summary exposes value-selection JSON check command maps"),
@@ -24100,6 +24350,18 @@ def main():
             "public launch manifest network value-selection candidate template contents documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --check-network-value-selection-candidate NETWORK value-selection-candidate.json",
+            "public launch manifest network value-selection candidate check documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --check-network-value-selection-candidate NETWORK value-selection-candidate.json",
+            "public launch manifest network value-selection candidate JSON check documentation",
+        ),
+        (
+            "verify a filled candidate artifact for one network",
+            "public launch manifest network value-selection candidate check contents documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py \\\n  --value-selection-checklists",
             "public launch manifest all-network value-selection checklist documentation",
         ),
@@ -25074,6 +25336,22 @@ def main():
         (
             "network_value_selection_candidate_template_json_command_count",
             "public launch manifest status-json network value-selection candidate template JSON command count documentation",
+        ),
+        (
+            "network_value_selection_candidate_check_commands_by_network",
+            "public launch manifest status-json network value-selection candidate check command documentation",
+        ),
+        (
+            "network_value_selection_candidate_check_command_count",
+            "public launch manifest status-json network value-selection candidate check command count documentation",
+        ),
+        (
+            "network_value_selection_candidate_check_json_commands_by_network",
+            "public launch manifest status-json network value-selection candidate check JSON command documentation",
+        ),
+        (
+            "network_value_selection_candidate_check_json_command_count",
+            "public launch manifest status-json network value-selection candidate check JSON command count documentation",
         ),
         (
             "queued_value_selection_json_check_commands_by_network",

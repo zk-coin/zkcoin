@@ -66,6 +66,7 @@ SNAPSHOT_MAX_MONEY = 84000000 * SNAPSHOT_COIN
 SNAPSHOT_MAX_MONEY_TEXT = "84000000.00000000"
 SNAPSHOT_AUDIT_SUMMARY_MAX_BYTES = 64 * 1024
 LAUNCH_MANIFEST_MAX_BYTES = 256 * 1024
+VALUE_SELECTION_CANDIDATE_MAX_BYTES = 64 * 1024
 RELEASE_EVIDENCE_BUNDLE_MAX_BYTES = 512 * 1024
 RELEASE_EVIDENCE_ARCHIVE_RECORD_MAX_BYTES = 64 * 1024
 RELEASE_EVIDENCE_PUBLICATION_INDEX_ARCHIVE_RECORD_MAX_BYTES = (
@@ -2580,6 +2581,82 @@ def read_launch_manifest_text(manifest_path):
         raise ValueError(f"{manifest_path} is not valid UTF-8") from None
 
 
+def value_selection_candidate_too_large_error(candidate_path):
+    return (
+        "value-selection candidate must not exceed "
+        f"{VALUE_SELECTION_CANDIDATE_MAX_BYTES} bytes: {candidate_path}"
+    )
+
+
+def read_value_selection_candidate_text(candidate_path):
+    fd, candidate_stat = open_regular_file_no_symlink(
+        candidate_path,
+        symlink_error="value-selection candidate path must not be a symlink",
+        missing_error="cannot read value-selection candidate",
+        not_regular_error="value-selection candidate path must be a regular file",
+        open_error="cannot read value-selection candidate",
+        parent_symlink_error=(
+            "value-selection candidate parent directory must not be a symlink"
+        ),
+    )
+    if candidate_stat.st_size > VALUE_SELECTION_CANDIDATE_MAX_BYTES:
+        os.close(fd)
+        raise ValueError(value_selection_candidate_too_large_error(candidate_path))
+
+    chunks = []
+    total_bytes = 0
+    try:
+        while total_bytes <= VALUE_SELECTION_CANDIDATE_MAX_BYTES:
+            chunk = os.read(
+                fd,
+                min(65536, VALUE_SELECTION_CANDIDATE_MAX_BYTES + 1 - total_bytes),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+        if total_bytes > VALUE_SELECTION_CANDIDATE_MAX_BYTES:
+            raise ValueError(value_selection_candidate_too_large_error(candidate_path))
+        require_regular_file_stable(
+            candidate_path,
+            candidate_stat,
+            fd,
+            "value-selection candidate changed during read",
+            parent_symlink_error=(
+                "value-selection candidate parent directory must not be a symlink"
+            ),
+        )
+    except OSError as exc:
+        raise ValueError(f"cannot read value-selection candidate: {exc}") from None
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError("value-selection candidate is not valid UTF-8") from None
+
+
+def read_value_selection_candidate_json(candidate_path):
+    candidate_text = read_value_selection_candidate_text(candidate_path)
+    try:
+        candidate = json.loads(
+            candidate_text,
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
+    except DuplicateJSONFieldError as exc:
+        raise ValueError(
+            f"value-selection candidate contains duplicate field: {exc}"
+        ) from None
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"value-selection candidate is not valid JSON: {exc}"
+        ) from None
+    if not isinstance(candidate, dict):
+        raise ValueError("value-selection candidate must be a JSON object")
+    return candidate
+
+
 def release_evidence_bundle_too_large_error(bundle_path):
     return (
         "release evidence bundle must not exceed "
@@ -3797,10 +3874,14 @@ def auxpow_apply_command(network, auxpow, manifest_path):
     )
 
 
-def auxpow_check_command(network, auxpow, manifest_path):
+def auxpow_check_command(network, auxpow, manifest_path, json_output=False):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
-    return f"{tool_path} --check-auxpow {network} 0x{auxpow['chain_id']:x} {manifest_path}"
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}--check-auxpow "
+        f"{network} 0x{auxpow['chain_id']:x} {manifest_path}"
+    )
 
 
 def auxpow_json_payload(network, auxpow, candidate, manifest_path):
@@ -3950,11 +4031,15 @@ def dns_seeds_apply_command(network, dns_seeds, manifest_path):
     )
 
 
-def dns_seeds_check_command(network, dns_seeds, manifest_path):
+def dns_seeds_check_command(network, dns_seeds, manifest_path, json_output=False):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
     dns_seed_arg = shell_quote(",".join(dns_seeds))
-    return f"{tool_path} --check-dns-seeds {network} {dns_seed_arg} {manifest_path}"
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}--check-dns-seeds "
+        f"{network} {dns_seed_arg} {manifest_path}"
+    )
 
 
 def dns_seeds_json_payload(network, dns_seeds, candidate, manifest_path):
@@ -4172,10 +4257,11 @@ def identity_apply_command(network, identity, manifest_path):
     )
 
 
-def identity_check_command(network, identity, manifest_path):
+def identity_check_command(network, identity, manifest_path, json_output=False):
     base58 = identity["base58_prefixes"]
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
+    json_flag = "--json " if json_output else ""
     args = [
         network,
         identity_byte_arg(identity["message_start"]),
@@ -4190,7 +4276,7 @@ def identity_check_command(network, identity, manifest_path):
         identity["mweb_hrp"],
     ]
     return (
-        f"{tool_path} --check-identity "
+        f"{tool_path} {json_flag}--check-identity "
         + " ".join(shell_quote(arg) for arg in args)
         + f" {manifest_path}"
     )
@@ -4288,6 +4374,466 @@ def identity_check_text(network, identity, candidate, manifest_path):
         f"  apply command: {identity_apply_command(network, identity, manifest_path)}",
         candidate_next_step_text(candidate, "candidate", manifest_path, network, "public_network_identity"),
     ))
+
+
+def require_value_selection_candidate_fields(candidate, network):
+    expected = value_selection_candidate_template(network)
+    expected_fields = list(expected)
+    if list(candidate) != expected_fields:
+        raise ValueError(
+            "value-selection candidate fields must match template order: "
+            + ", ".join(expected_fields)
+        )
+    if candidate.get("schema_version") != expected["schema_version"]:
+        raise ValueError("value-selection candidate schema_version must be 1")
+    if candidate.get("network") != network:
+        raise ValueError(
+            f"value-selection candidate network must match requested network: {network}"
+        )
+
+    identity = candidate.get("public_network_identity")
+    if not isinstance(identity, dict):
+        raise ValueError(
+            "value-selection candidate public_network_identity must be a JSON object"
+        )
+    expected_identity_fields = list(expected["public_network_identity"])
+    if list(identity) != expected_identity_fields:
+        raise ValueError(
+            "value-selection candidate public_network_identity fields must match "
+            "template order: " + ", ".join(expected_identity_fields)
+        )
+
+    base58 = identity.get("base58_prefixes")
+    if not isinstance(base58, dict):
+        raise ValueError(
+            "value-selection candidate public_network_identity.base58_prefixes "
+            "must be a JSON object"
+        )
+    expected_base58_fields = list(expected["public_network_identity"]["base58_prefixes"])
+    if list(base58) != expected_base58_fields:
+        raise ValueError(
+            "value-selection candidate base58_prefixes fields must match template "
+            "order: " + ", ".join(expected_base58_fields)
+        )
+
+
+def value_selection_candidate_scalar_arg(candidate, field_path):
+    current = candidate
+    for field in field_path.split("."):
+        if not isinstance(current, dict) or field not in current:
+            raise ValueError(f"value-selection candidate missing field: {field_path}")
+        current = current[field]
+    if isinstance(current, bool) or current is None:
+        raise ValueError(
+            f"value-selection candidate {field_path} must be a string or integer"
+        )
+    if isinstance(current, int):
+        return str(current)
+    if not isinstance(current, str):
+        raise ValueError(
+            f"value-selection candidate {field_path} must be a string or integer"
+        )
+    value = current.strip()
+    if not value:
+        raise ValueError(f"value-selection candidate {field_path} must not be empty")
+    if value.startswith("<") and value.endswith(">"):
+        raise ValueError(
+            f"value-selection candidate {field_path} still contains placeholder {value}"
+        )
+    return value
+
+
+def value_selection_candidate_dns_seed_arg(candidate):
+    dns_seeds = candidate.get("dns_seeds")
+    if not isinstance(dns_seeds, list) or not dns_seeds:
+        raise ValueError(
+            "value-selection candidate dns_seeds must be a non-empty JSON array"
+        )
+    values = []
+    for index, seed in enumerate(dns_seeds, 1):
+        if not isinstance(seed, str):
+            raise ValueError(
+                f"value-selection candidate dns_seeds[{index}] must be a string"
+            )
+        value = seed.strip()
+        if not value:
+            raise ValueError(
+                f"value-selection candidate dns_seeds[{index}] must not be empty"
+            )
+        if value.startswith("<") and value.endswith(">"):
+            raise ValueError(
+                "value-selection candidate "
+                f"dns_seeds[{index}] still contains placeholder {value}"
+            )
+        values.append(value)
+    return ",".join(values)
+
+
+def value_selection_candidate_args(candidate, network):
+    if network not in NETWORKS:
+        raise ValueError("network must be one of: " + ", ".join(NETWORKS))
+    require_value_selection_candidate_fields(candidate, network)
+    identity_prefix = "public_network_identity"
+    base58_prefix = f"{identity_prefix}.base58_prefixes"
+    return {
+        "auxpow_chain_id": value_selection_candidate_scalar_arg(
+            candidate,
+            "auxpow_chain_id",
+        ),
+        "identity_args": [
+            value_selection_candidate_scalar_arg(candidate, f"{identity_prefix}.message_start"),
+            value_selection_candidate_scalar_arg(candidate, f"{identity_prefix}.default_port"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.pubkey_address"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.script_address"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.script_address2"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.secret_key"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.ext_public_key"),
+            value_selection_candidate_scalar_arg(candidate, f"{base58_prefix}.ext_secret_key"),
+            value_selection_candidate_scalar_arg(candidate, f"{identity_prefix}.bech32_hrp"),
+            value_selection_candidate_scalar_arg(candidate, f"{identity_prefix}.mweb_hrp"),
+        ],
+        "dns_seeds": value_selection_candidate_dns_seed_arg(candidate),
+    }
+
+
+def checked_network_value_selection_candidate(manifest, network, candidate_path):
+    candidate_json = read_value_selection_candidate_json(Path(candidate_path))
+    args = value_selection_candidate_args(candidate_json, network)
+    auxpow, _ = checked_auxpow_candidate(
+        manifest,
+        network,
+        args["auxpow_chain_id"],
+    )
+    identity, _ = checked_identity_candidate(
+        manifest,
+        network,
+        *args["identity_args"],
+    )
+    dns_seeds, _ = checked_dns_seeds_candidate(
+        manifest,
+        network,
+        args["dns_seeds"],
+    )
+
+    candidate = json.loads(json.dumps(manifest))
+    set_auxpow(candidate, network, args["auxpow_chain_id"])
+    set_identity(candidate, network, *args["identity_args"])
+    set_dns_seeds(candidate, network, args["dns_seeds"])
+    check = validate_manifest(candidate, allow_blocked=True)
+    if check.errors:
+        raise ValueError(
+            validation_failure_message(
+                "value-selection candidate failed validation:",
+                check,
+            )
+        )
+    return candidate_json, auxpow, identity, dns_seeds, candidate
+
+
+def value_selection_candidate_post_apply_payload(candidate, manifest_path, network):
+    candidate_check = validate_manifest(candidate, allow_blocked=True)
+    blockers = ordered_unresolved_blocker_ids(candidate)
+    blocked_fields = candidate_check.blockers
+    blocker_counts_by_network = item_counts_by_network(blockers)
+    blocked_field_counts_by_network = item_counts_by_network(blocked_fields)
+    next_blocker = blockers[0] if blockers else None
+    if next_blocker is None:
+        next_blocker_network = None
+        next_blocker_type = None
+        next_blocker_commands = None
+    else:
+        next_blocker_network, next_blocker_type = next_blocker.split(".", 1)
+        next_blocker_commands = blocker_action_commands(
+            next_blocker,
+            shell_quote(display_path(manifest_path)),
+        )
+
+    return {
+        "remaining_blocker_count": len(blockers),
+        "remaining_blocker_count_for_network": blocker_counts_by_network[network],
+        "remaining_blocker_counts_by_network": blocker_counts_by_network,
+        "remaining_blockers": blockers,
+        "remaining_blockers_by_network": items_by_network(blockers),
+        "remaining_blocked_field_count": len(blocked_fields),
+        "remaining_blocked_field_count_for_network": blocked_field_counts_by_network[
+            network
+        ],
+        "remaining_blocked_field_counts_by_network": blocked_field_counts_by_network,
+        "remaining_blocked_fields": blocked_fields,
+        "remaining_blocked_fields_by_network": items_by_network(blocked_fields),
+        "next_action_command": next_action_command(manifest_path),
+        "readiness_summary_command": readiness_summary_command(manifest_path),
+        "network_readiness_summary_command": network_readiness_summary_command(
+            manifest_path,
+            network,
+        ),
+        "network_handoff_bundle_command": network_handoff_bundle_command(
+            manifest_path,
+            network,
+        ),
+        "next_blocker": next_blocker,
+        "next_blocker_network": next_blocker_network,
+        "next_blocker_type": next_blocker_type,
+        "next_commands": next_blocker_commands,
+    }
+
+
+def value_selection_candidate_section_payloads(
+    network,
+    auxpow,
+    identity,
+    dns_seeds,
+    manifest_path,
+):
+    return [
+        {
+            "id": "auxpow_chain_id",
+            "blocker": f"{network}.auxpow_chain_id",
+            "readiness_gate": blocker_type_readiness_gate("auxpow_chain_id"),
+            "verified": True,
+            "ready_to_apply": True,
+            "candidate": {
+                "chain_id": auxpow["chain_id"],
+                "chain_id_hex": f"0x{auxpow['chain_id']:x}",
+            },
+            "candidate_constraints": blocker_candidate_constraints(
+                "auxpow_chain_id"
+            ),
+            "check_command": auxpow_check_command(network, auxpow, manifest_path),
+            "json_check_command": auxpow_check_command(
+                network,
+                auxpow,
+                manifest_path,
+                json_output=True,
+            ),
+            "apply_command": auxpow_apply_command(network, auxpow, manifest_path),
+        },
+        {
+            "id": "public_network_identity",
+            "blocker": f"{network}.public_network_identity",
+            "readiness_gate": blocker_type_readiness_gate("public_network_identity"),
+            "verified": True,
+            "ready_to_apply": True,
+            "candidate": identity,
+            "candidate_constraints": blocker_candidate_constraints(
+                "public_network_identity"
+            ),
+            "check_command": identity_check_command(network, identity, manifest_path),
+            "json_check_command": identity_check_command(
+                network,
+                identity,
+                manifest_path,
+                json_output=True,
+            ),
+            "apply_command": identity_apply_command(network, identity, manifest_path),
+        },
+        {
+            "id": "dns_seeds",
+            "blocker": f"{network}.dns_seeds",
+            "readiness_gate": blocker_type_readiness_gate("dns_seeds"),
+            "verified": True,
+            "ready_to_apply": True,
+            "candidate": {
+                "seeds": list(dns_seeds),
+                "seed_count": len(dns_seeds),
+            },
+            "candidate_constraints": blocker_candidate_constraints("dns_seeds"),
+            "check_command": dns_seeds_check_command(
+                network,
+                dns_seeds,
+                manifest_path,
+            ),
+            "json_check_command": dns_seeds_check_command(
+                network,
+                dns_seeds,
+                manifest_path,
+                json_output=True,
+            ),
+            "apply_command": dns_seeds_apply_command(
+                network,
+                dns_seeds,
+                manifest_path,
+            ),
+        },
+    ]
+
+
+def network_value_selection_candidate_check_json_payload(
+    manifest,
+    manifest_path,
+    network,
+    candidate_path,
+    candidate_json,
+    auxpow,
+    identity,
+    dns_seeds,
+    candidate,
+):
+    sections = value_selection_candidate_section_payloads(
+        network,
+        auxpow,
+        identity,
+        dns_seeds,
+        manifest_path,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "network": network,
+        "candidate_path": display_path(candidate_path),
+        "candidate_schema_version": candidate_json.get("schema_version"),
+        "candidate_network": candidate_json.get("network"),
+        "candidate_template_schema_version": value_selection_candidate_template(
+            network
+        )["schema_version"],
+        "verified": True,
+        "ready_to_apply": True,
+        "section_count": len(sections),
+        "verified_section_count": sum(1 for section in sections if section["verified"]),
+        "sections": sections,
+        "section_ids": [section["id"] for section in sections],
+        "section_blockers": [section["blocker"] for section in sections],
+        "candidate_constraints_by_blocker": {
+            section["blocker"]: section["candidate_constraints"]
+            for section in sections
+        },
+        "commands": {
+            "candidate_check": network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+                candidate_path,
+            ),
+            "candidate_check_json": network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+                candidate_path,
+                json_output=True,
+            ),
+            "candidate_template": network_value_selection_candidate_template_command(
+                manifest_path,
+                network,
+            ),
+            "candidate_template_json": network_value_selection_candidate_template_command(
+                manifest_path,
+                network,
+                json_output=True,
+            ),
+            "network_readiness_summary": network_readiness_summary_command(
+                manifest_path,
+                network,
+            ),
+            "network_handoff_bundle": network_handoff_bundle_command(
+                manifest_path,
+                network,
+            ),
+        },
+        "post_apply": value_selection_candidate_post_apply_payload(
+            candidate,
+            manifest_path,
+            network,
+        ),
+    }
+
+
+def network_value_selection_candidate_check_json_text(
+    manifest,
+    manifest_path,
+    network,
+    candidate_path,
+    candidate_json,
+    auxpow,
+    identity,
+    dns_seeds,
+    candidate,
+):
+    return json.dumps(
+        network_value_selection_candidate_check_json_payload(
+            manifest,
+            manifest_path,
+            network,
+            candidate_path,
+            candidate_json,
+            auxpow,
+            identity,
+            dns_seeds,
+            candidate,
+        ),
+        indent=2,
+        sort_keys=False,
+    )
+
+
+def network_value_selection_candidate_check_text(
+    manifest,
+    manifest_path,
+    network,
+    candidate_path,
+    candidate_json,
+    auxpow,
+    identity,
+    dns_seeds,
+    candidate,
+):
+    payload = network_value_selection_candidate_check_json_payload(
+        manifest,
+        manifest_path,
+        network,
+        candidate_path,
+        candidate_json,
+        auxpow,
+        identity,
+        dns_seeds,
+        candidate,
+    )
+    post_apply = payload["post_apply"]
+    lines = [
+        "zkCoin public launch profile network value-selection candidate check:",
+        f"  - manifest: {payload['manifest']}",
+        f"  - status: {payload['status']}",
+        f"  - network: {network}",
+        f"  - candidate: {payload['candidate_path']}",
+        f"  - candidate network: {payload['candidate_network']}",
+        f"  - verified: {yes_no(payload['verified'])}",
+        f"  - ready to apply: {yes_no(payload['ready_to_apply'])}",
+        (
+            "  - verified sections: "
+            f"{payload['verified_section_count']}/{payload['section_count']}"
+        ),
+        f"  - candidate check command: {payload['commands']['candidate_check']}",
+        (
+            "  - candidate check JSON command: "
+            + payload["commands"]["candidate_check_json"]
+        ),
+        (
+            "  - candidate template command: "
+            + payload["commands"]["candidate_template"]
+        ),
+        (
+            "  - network readiness summary command: "
+            + payload["commands"]["network_readiness_summary"]
+        ),
+        (
+            "  - post-apply remaining blockers: "
+            f"{post_apply['remaining_blocker_count']}"
+        ),
+        (
+            "  - post-apply remaining blockers for network: "
+            f"{post_apply['remaining_blocker_count_for_network']}"
+        ),
+        (
+            "  - post-apply next blocker: "
+            + (post_apply["next_blocker"] or "none")
+        ),
+    ]
+    for section in payload["sections"]:
+        lines.extend([
+            f"  - {section['blocker']} section: {section['id']}",
+            f"    - verified: {yes_no(section['verified'])}",
+            f"    - JSON check command: {section['json_check_command']}",
+            f"    - apply command: {section['apply_command']}",
+        ])
+    return "\n".join(lines)
 
 
 def validation_failure_message(prefix, check):
@@ -5159,6 +5705,23 @@ def network_value_selection_candidate_template_command(manifest_path, network, j
     )
 
 
+def network_value_selection_candidate_check_command(
+    manifest_path,
+    network,
+    candidate_path="<value_selection_candidate.json>",
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    candidate_path = command_path_arg(candidate_path)
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}"
+        f"--check-network-value-selection-candidate "
+        f"{network} {candidate_path} {manifest_path}"
+    )
+
+
 def blocker_type_readiness_summary_command(manifest_path, blocker_type):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -5227,6 +5790,17 @@ def network_value_selection_later_blockers_commands(manifest_path):
 def network_value_selection_candidate_template_commands(manifest_path, json_output=False):
     return {
         network: network_value_selection_candidate_template_command(
+            manifest_path,
+            network,
+            json_output=json_output,
+        )
+        for network in NETWORKS
+    }
+
+
+def network_value_selection_candidate_check_commands(manifest_path, json_output=False):
+    return {
+        network: network_value_selection_candidate_check_command(
             manifest_path,
             network,
             json_output=json_output,
@@ -6585,6 +7159,16 @@ def network_readiness_summary_json_payload(manifest, manifest_path, check, netwo
                 json_output=True,
             )
         ),
+        "network_value_selection_candidate_check_command": (
+            network_value_selection_candidate_check_command(manifest_path, network)
+        ),
+        "network_value_selection_candidate_check_json_command": (
+            network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+                json_output=True,
+            )
+        ),
     }
 
 
@@ -7208,6 +7792,10 @@ def network_value_selection_later_blockers_text(manifest, manifest_path, check, 
             "  - value-selection candidate template command: "
             + network_value_selection_candidate_template_command(manifest_path, network)
         ),
+        (
+            "  - value-selection candidate check command: "
+            + network_value_selection_candidate_check_command(manifest_path, network)
+        ),
     ]
     return "\n".join(lines)
 
@@ -7374,14 +7962,21 @@ def value_selection_checklists_text(manifest, manifest_path, check):
             f"  - {network} queued value-selection blockers: {list_summary(state['blockers'])}",
             f"  - {network} queued value-selection blocker fields: {len(state['fields'])}",
             f"  - {network} required JSON checks: {state['json_check_command_count']}",
-            (
-                f"  - {network} candidate template command: "
-                + network_value_selection_candidate_template_command(
-                    manifest_path,
-                    network,
-                )
-            ),
-        ])
+        (
+            f"  - {network} candidate template command: "
+            + network_value_selection_candidate_template_command(
+                manifest_path,
+                network,
+            )
+        ),
+        (
+            f"  - {network} candidate check command: "
+            + network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+            )
+        ),
+    ])
         for blocker, command in state["json_check_commands"].items():
             lines.append(f"    - {blocker}: {command}")
     return "\n".join(lines)
@@ -7446,6 +8041,15 @@ def value_selection_checklists_json_payload(manifest, manifest_path, check):
         ),
         "network_value_selection_candidate_template_json_commands_by_network": (
             network_value_selection_candidate_template_commands(
+                manifest_path,
+                json_output=True,
+            )
+        ),
+        "network_value_selection_candidate_check_commands_by_network": (
+            network_value_selection_candidate_check_commands(manifest_path)
+        ),
+        "network_value_selection_candidate_check_json_commands_by_network": (
+            network_value_selection_candidate_check_commands(
                 manifest_path,
                 json_output=True,
             )
@@ -7547,6 +8151,16 @@ def network_value_selection_candidate_template_json_payload(manifest, manifest_p
                 json_output=True,
             )
         ),
+        "network_value_selection_candidate_check_command": (
+            network_value_selection_candidate_check_command(manifest_path, network)
+        ),
+        "network_value_selection_candidate_check_json_command": (
+            network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+                json_output=True,
+            )
+        ),
         "network_value_selection_later_blockers_command": (
             network_value_selection_later_blockers_command(manifest_path, network)
         ),
@@ -7600,6 +8214,14 @@ def network_value_selection_candidate_template_text(manifest, manifest_path, che
         (
             "  - candidate template JSON command: "
             + payload["network_value_selection_candidate_template_json_command"]
+        ),
+        (
+            "  - candidate check command: "
+            + payload["network_value_selection_candidate_check_command"]
+        ),
+        (
+            "  - candidate check JSON command: "
+            + payload["network_value_selection_candidate_check_json_command"]
         ),
         (
             "  - value-selection later blockers command: "
@@ -13611,6 +14233,16 @@ def network_value_selection_later_blockers_json_payload(manifest, manifest_path,
                 json_output=True,
             )
         ),
+        "network_value_selection_candidate_check_command": (
+            network_value_selection_candidate_check_command(manifest_path, network)
+        ),
+        "network_value_selection_candidate_check_json_command": (
+            network_value_selection_candidate_check_command(
+                manifest_path,
+                network,
+                json_output=True,
+            )
+        ),
     }
 
 
@@ -13674,6 +14306,13 @@ def network_handoff_bundle_text(manifest, manifest_path, check, network):
         (
             "  - network value-selection candidate template command: "
             + network_value_selection_candidate_template_command(
+                manifest_path,
+                network,
+            )
+        ),
+        (
+            "  - network value-selection candidate check command: "
+            + network_value_selection_candidate_check_command(
                 manifest_path,
                 network,
             )
@@ -13765,6 +14404,16 @@ def network_handoff_bundle_json_payload(manifest, manifest_path, check, network)
         ),
         "network_value_selection_candidate_template_json_command": (
             network_value_selection_candidate_template_command(
+                manifest_path,
+                network,
+                json_output=True,
+            )
+        ),
+        "network_value_selection_candidate_check_command": (
+            network_value_selection_candidate_check_command(manifest_path, network)
+        ),
+        "network_value_selection_candidate_check_json_command": (
+            network_value_selection_candidate_check_command(
                 manifest_path,
                 network,
                 json_output=True,
@@ -14079,6 +14728,11 @@ def status_json_text(manifest, manifest_path, check):
     network_value_selection_later_commands = network_value_selection_later_blockers_commands(manifest_path)
     network_value_selection_candidate_template_commands_by_network = network_value_selection_candidate_template_commands(manifest_path)
     network_value_selection_candidate_template_json_commands_by_network = network_value_selection_candidate_template_commands(
+        manifest_path,
+        json_output=True,
+    )
+    network_value_selection_candidate_check_commands_by_network = network_value_selection_candidate_check_commands(manifest_path)
+    network_value_selection_candidate_check_json_commands_by_network = network_value_selection_candidate_check_commands(
         manifest_path,
         json_output=True,
     )
@@ -14457,6 +15111,18 @@ def status_json_text(manifest, manifest_path, check):
             "network_value_selection_candidate_template_json_command_count": len(
                 network_value_selection_candidate_template_json_commands_by_network
             ),
+            "network_value_selection_candidate_check_commands_by_network": (
+                network_value_selection_candidate_check_commands_by_network
+            ),
+            "network_value_selection_candidate_check_command_count": len(
+                network_value_selection_candidate_check_commands_by_network
+            ),
+            "network_value_selection_candidate_check_json_commands_by_network": (
+                network_value_selection_candidate_check_json_commands_by_network
+            ),
+            "network_value_selection_candidate_check_json_command_count": len(
+                network_value_selection_candidate_check_json_commands_by_network
+            ),
             "queued_value_selection_json_check_commands_by_network": {
                 network: state["json_check_commands"]
                 for network, state in value_selection_states.items()
@@ -14807,6 +15473,8 @@ def selected_primary_actions(args):
         actions.append("--network-value-selection-later-blockers")
     if args.network_value_selection_candidate_template is not None:
         actions.append("--network-value-selection-candidate-template")
+    if args.check_network_value_selection_candidate is not None:
+        actions.append("--check-network-value-selection-candidate")
     if args.value_selection_checklists:
         actions.append("--value-selection-checklists")
     if args.blocker_readiness_summary is not None:
@@ -15034,6 +15702,12 @@ def main():
     parser.add_argument("--readiness-gate-later-blockers", metavar="READINESS_GATE", help="print the queued later blockers for one launch readiness gate")
     parser.add_argument("--network-value-selection-later-blockers", metavar="NETWORK", help="print queued later value-selection blockers for one public network")
     parser.add_argument("--network-value-selection-candidate-template", metavar="NETWORK", help="print the value-selection candidate JSON template for one public network")
+    parser.add_argument(
+        "--check-network-value-selection-candidate",
+        nargs=2,
+        metavar=("NETWORK", "CANDIDATE_JSON"),
+        help="verify a filled value-selection candidate JSON artifact without updating the manifest",
+    )
     parser.add_argument("--value-selection-checklists", action="store_true", help="print queued value-selection JSON checklists for all public networks")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
@@ -15270,6 +15944,7 @@ def main():
         and args.blocker_readiness_summary is None
         and args.network_value_selection_later_blockers is None
         and args.network_value_selection_candidate_template is None
+        and args.check_network_value_selection_candidate is None
         and args.network_readiness_summary is None
         and args.network_later_blockers is None
         and args.blocker_type_readiness_summary is None
@@ -15289,6 +15964,7 @@ def main():
             "--blocker-readiness-summary, "
             "--network-value-selection-later-blockers, "
             "--network-value-selection-candidate-template, "
+            "--check-network-value-selection-candidate, "
             "--network-readiness-summary, "
             "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
@@ -15602,6 +16278,47 @@ def main():
             else identity_check_text
         )
         print(check_text(args.check_identity[0], identity, candidate, args.manifest))
+        return 0
+
+    if args.check_network_value_selection_candidate is not None:
+        if args.in_place:
+            print("error: --check-network-value-selection-candidate does not write the manifest", file=sys.stderr)
+            return 1
+        candidate_network = args.check_network_value_selection_candidate[0]
+        candidate_path = Path(args.check_network_value_selection_candidate[1])
+        try:
+            (
+                candidate_json,
+                auxpow,
+                identity,
+                dns_seeds,
+                candidate,
+            ) = checked_network_value_selection_candidate(
+                manifest,
+                candidate_network,
+                candidate_path,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        check_text = (
+            network_value_selection_candidate_check_json_text
+            if args.json
+            else network_value_selection_candidate_check_text
+        )
+        print(
+            check_text(
+                manifest,
+                args.manifest,
+                candidate_network,
+                candidate_path,
+                candidate_json,
+                auxpow,
+                identity,
+                dns_seeds,
+                candidate,
+            )
+        )
         return 0
 
     updated_launch_fields = (
