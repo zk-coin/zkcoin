@@ -1092,6 +1092,21 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-index-archive-handoff-summary <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-publication-index-archive-handoff-summary <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1358,6 +1373,17 @@ payload on stdout. Status JSON exposes
 `check_release_evidence_publication_index_archive_command` and
 `release_evidence_publication_index_archive_gate_command` so dashboards can
 discover the verifier and gate without choosing archive URIs or timestamps.
+Use `--release-evidence-publication-index-archive-handoff-summary --json` after
+the publication index archive record verifies to produce a final
+machine-readable publication handoff. The payload includes
+`handoff_artifacts`, `verified_handoff_artifact_count`,
+`ready_for_publication`, `publication_blockers`,
+`next_publication_blocker`, `publication_index_gate`, and
+`publication_index_archive_gate` so release dashboards can retain the filled
+publication index, archive record, and generated summary JSON as one final
+evidence set. Status JSON exposes
+`release_evidence_publication_index_archive_handoff_summary_command` for
+dashboards that need to discover this final release-evidence publication step.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
