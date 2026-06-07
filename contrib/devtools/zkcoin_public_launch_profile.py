@@ -197,6 +197,38 @@ RELEASE_EVIDENCE_PUBLICATION_INDEX_FIELDS = (
     "published_at",
     "publisher",
 )
+RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS = (
+    (
+        "release-evidence-bundle",
+        "--release-evidence-bundle-path",
+        "<release_evidence_bundle.json>",
+    ),
+    (
+        "release-evidence-archive-record",
+        "--release-evidence-archive-record-path",
+        "<release_evidence_archive_record.json>",
+    ),
+    (
+        "release-evidence-publication-index",
+        "--release-evidence-publication-index-path",
+        "<release_evidence_publication_index.json>",
+    ),
+    (
+        "release-evidence-publication-index-archive-record",
+        "--release-evidence-publication-index-archive-record-path",
+        "<release_evidence_publication_index_archive_record.json>",
+    ),
+    (
+        "release-evidence-publication-closeout",
+        "--release-evidence-publication-closeout-path",
+        "<release_evidence_publication_closeout.json>",
+    ),
+    (
+        "release-evidence-publication-closeout-archive-record",
+        "--release-evidence-publication-closeout-archive-record-path",
+        "<release_evidence_publication_closeout_archive_record.json>",
+    ),
+)
 
 
 class DuplicateJSONFieldError(ValueError):
@@ -5029,6 +5061,41 @@ def release_evidence_publication_status_command(
         f"{tool_path} {json_flag}"
         f"--release-evidence-publication-status {manifest_path}"
     )
+
+
+def release_evidence_publication_artifact_status_command(
+    manifest_path,
+    bundle_path=None,
+    archive_record_path=None,
+    publication_index_path=None,
+    publication_index_archive_record_path=None,
+    closeout_path=None,
+    closeout_archive_record_path=None,
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    args = [str(tool_path)]
+    if json_output:
+        args.append("--json")
+    args.append("--release-evidence-publication-artifact-status")
+    artifact_paths = (
+        bundle_path,
+        archive_record_path,
+        publication_index_path,
+        publication_index_archive_record_path,
+        closeout_path,
+        closeout_archive_record_path,
+    )
+    for (_, flag, _), artifact_path in zip(
+        RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS,
+        artifact_paths,
+    ):
+        if artifact_path is None:
+            continue
+        args.extend([flag, command_path_arg(artifact_path)])
+    args.append(manifest_path)
+    return " ".join(args)
 
 
 def next_action_command(manifest_path):
@@ -12633,6 +12700,631 @@ def release_evidence_publication_status_json_text(manifest, manifest_path, check
     )
 
 
+def release_evidence_publication_artifact_arg(
+    artifact_paths,
+    artifact_placeholders,
+    artifact_id,
+):
+    artifact_path = artifact_paths[artifact_id]
+    return artifact_path if artifact_path is not None else artifact_placeholders[artifact_id]
+
+
+def release_evidence_publication_artifact_entry(
+    step,
+    artifact_id,
+    flag,
+    placeholder,
+    artifact_path,
+    verification_id,
+):
+    return {
+        "step": step,
+        "id": artifact_id,
+        "flag": flag,
+        "placeholder": placeholder,
+        "path": display_path(artifact_path) if artifact_path is not None else None,
+        "provided": artifact_path is not None,
+        "verification_id": verification_id,
+        "verified": False,
+        "status": "missing-artifact" if artifact_path is None else "pending",
+    }
+
+
+def release_evidence_publication_artifact_verification_entry(
+    step,
+    verification_id,
+    artifact_id,
+    description,
+    required_artifact_ids,
+    command,
+    json_command,
+    payload_builder,
+):
+    missing_artifacts = [
+        required_artifact_id
+        for required_artifact_id, required_path in required_artifact_ids
+        if required_path is None
+    ]
+    if missing_artifacts:
+        return {
+            "step": step,
+            "id": verification_id,
+            "artifact_id": artifact_id,
+            "description": description,
+            "required_artifacts": [
+                required_artifact_id
+                for required_artifact_id, _ in required_artifact_ids
+            ],
+            "missing_artifacts": missing_artifacts,
+            "status": "missing-artifact",
+            "verified": False,
+            "mismatch_count": None,
+            "required_match_exit_code": None,
+            "error": None,
+            "first_mismatch": None,
+            "command": command,
+            "json_command": json_command,
+        }
+
+    try:
+        payload = payload_builder()
+    except ValueError as exc:
+        return {
+            "step": step,
+            "id": verification_id,
+            "artifact_id": artifact_id,
+            "description": description,
+            "required_artifacts": [
+                required_artifact_id
+                for required_artifact_id, _ in required_artifact_ids
+            ],
+            "missing_artifacts": [],
+            "status": "error",
+            "verified": False,
+            "mismatch_count": None,
+            "required_match_exit_code": None,
+            "error": str(exc),
+            "first_mismatch": None,
+            "command": command,
+            "json_command": json_command,
+        }
+
+    mismatches = payload.get("mismatches", [])
+    verified = bool(payload.get("verified"))
+    return {
+        "step": step,
+        "id": verification_id,
+        "artifact_id": artifact_id,
+        "description": description,
+        "required_artifacts": [
+            required_artifact_id
+            for required_artifact_id, _ in required_artifact_ids
+        ],
+        "missing_artifacts": [],
+        "status": "verified" if verified else "mismatch",
+        "verified": verified,
+        "mismatch_count": payload.get("mismatch_count"),
+        "required_match_exit_code": payload.get("required_match_exit_code"),
+        "error": None,
+        "first_mismatch": mismatches[0] if mismatches else None,
+        "command": command,
+        "json_command": json_command,
+    }
+
+
+def release_evidence_publication_artifact_status_payload(
+    manifest,
+    manifest_path,
+    check,
+    bundle_path=None,
+    archive_record_path=None,
+    publication_index_path=None,
+    publication_index_archive_record_path=None,
+    closeout_path=None,
+    closeout_archive_record_path=None,
+):
+    blockers = ordered_unresolved_blocker_ids(manifest)
+    artifact_paths = {
+        "release-evidence-bundle": bundle_path,
+        "release-evidence-archive-record": archive_record_path,
+        "release-evidence-publication-index": publication_index_path,
+        "release-evidence-publication-index-archive-record": (
+            publication_index_archive_record_path
+        ),
+        "release-evidence-publication-closeout": closeout_path,
+        "release-evidence-publication-closeout-archive-record": (
+            closeout_archive_record_path
+        ),
+    }
+    artifact_placeholders = {
+        artifact_id: placeholder
+        for artifact_id, _, placeholder in RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS
+    }
+    artifact_entries = [
+        release_evidence_publication_artifact_entry(
+            step,
+            artifact_id,
+            flag,
+            placeholder,
+            artifact_paths[artifact_id],
+            verification_id,
+        )
+        for step, ((artifact_id, flag, placeholder), verification_id) in enumerate(
+            zip(
+                RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS,
+                (
+                    "release-evidence-bundle-gate",
+                    "release-evidence-archive-gate",
+                    "release-evidence-publication-index-gate",
+                    "release-evidence-publication-index-archive-gate",
+                    "release-evidence-publication-closeout-gate",
+                    "release-evidence-publication-closeout-archive-gate",
+                ),
+            ),
+            1,
+        )
+    ]
+
+    artifact_arg = lambda artifact_id: release_evidence_publication_artifact_arg(
+        artifact_paths,
+        artifact_placeholders,
+        artifact_id,
+    )
+    bundle_arg = artifact_arg("release-evidence-bundle")
+    archive_arg = artifact_arg("release-evidence-archive-record")
+    publication_index_arg = artifact_arg("release-evidence-publication-index")
+    publication_index_archive_arg = artifact_arg(
+        "release-evidence-publication-index-archive-record"
+    )
+    closeout_arg = artifact_arg("release-evidence-publication-closeout")
+    closeout_archive_arg = artifact_arg(
+        "release-evidence-publication-closeout-archive-record"
+    )
+
+    verification_entries = [
+        release_evidence_publication_artifact_verification_entry(
+            1,
+            "release-evidence-bundle-gate",
+            "release-evidence-bundle",
+            "Verify the retained release evidence bundle.",
+            [("release-evidence-bundle", bundle_path)],
+            release_evidence_bundle_gate_command(manifest_path, bundle_arg),
+            release_evidence_bundle_gate_command(
+                manifest_path,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_bundle_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+        release_evidence_publication_artifact_verification_entry(
+            2,
+            "release-evidence-archive-gate",
+            "release-evidence-archive-record",
+            "Verify the retained release evidence archive record.",
+            [
+                ("release-evidence-archive-record", archive_record_path),
+                ("release-evidence-bundle", bundle_path),
+            ],
+            release_evidence_archive_gate_command(
+                manifest_path,
+                archive_arg,
+                bundle_arg,
+            ),
+            release_evidence_archive_gate_command(
+                manifest_path,
+                archive_arg,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_archive_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                archive_record_path,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+        release_evidence_publication_artifact_verification_entry(
+            3,
+            "release-evidence-publication-index-gate",
+            "release-evidence-publication-index",
+            "Verify the retained release evidence publication index.",
+            [
+                (
+                    "release-evidence-publication-index",
+                    publication_index_path,
+                ),
+                ("release-evidence-archive-record", archive_record_path),
+                ("release-evidence-bundle", bundle_path),
+            ],
+            release_evidence_publication_index_gate_command(
+                manifest_path,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+            ),
+            release_evidence_publication_index_gate_command(
+                manifest_path,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_publication_index_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+        release_evidence_publication_artifact_verification_entry(
+            4,
+            "release-evidence-publication-index-archive-gate",
+            "release-evidence-publication-index-archive-record",
+            "Verify the retained publication index archive record.",
+            [
+                (
+                    "release-evidence-publication-index-archive-record",
+                    publication_index_archive_record_path,
+                ),
+                (
+                    "release-evidence-publication-index",
+                    publication_index_path,
+                ),
+                ("release-evidence-archive-record", archive_record_path),
+                ("release-evidence-bundle", bundle_path),
+            ],
+            release_evidence_publication_index_archive_gate_command(
+                manifest_path,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+            ),
+            release_evidence_publication_index_archive_gate_command(
+                manifest_path,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_publication_index_archive_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                publication_index_archive_record_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+        release_evidence_publication_artifact_verification_entry(
+            5,
+            "release-evidence-publication-closeout-gate",
+            "release-evidence-publication-closeout",
+            "Verify the retained release evidence publication closeout.",
+            [
+                ("release-evidence-publication-closeout", closeout_path),
+                (
+                    "release-evidence-publication-index-archive-record",
+                    publication_index_archive_record_path,
+                ),
+                (
+                    "release-evidence-publication-index",
+                    publication_index_path,
+                ),
+                ("release-evidence-archive-record", archive_record_path),
+                ("release-evidence-bundle", bundle_path),
+            ],
+            release_evidence_publication_closeout_gate_command(
+                manifest_path,
+                closeout_arg,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+            ),
+            release_evidence_publication_closeout_gate_command(
+                manifest_path,
+                closeout_arg,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_publication_closeout_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                closeout_path,
+                publication_index_archive_record_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+        release_evidence_publication_artifact_verification_entry(
+            6,
+            "release-evidence-publication-closeout-archive-gate",
+            "release-evidence-publication-closeout-archive-record",
+            "Verify the retained publication closeout archive record.",
+            [
+                (
+                    "release-evidence-publication-closeout-archive-record",
+                    closeout_archive_record_path,
+                ),
+                ("release-evidence-publication-closeout", closeout_path),
+                (
+                    "release-evidence-publication-index-archive-record",
+                    publication_index_archive_record_path,
+                ),
+                (
+                    "release-evidence-publication-index",
+                    publication_index_path,
+                ),
+                ("release-evidence-archive-record", archive_record_path),
+                ("release-evidence-bundle", bundle_path),
+            ],
+            release_evidence_publication_closeout_archive_gate_command(
+                manifest_path,
+                closeout_archive_arg,
+                closeout_arg,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+            ),
+            release_evidence_publication_closeout_archive_gate_command(
+                manifest_path,
+                closeout_archive_arg,
+                closeout_arg,
+                publication_index_archive_arg,
+                publication_index_arg,
+                archive_arg,
+                bundle_arg,
+                json_output=True,
+            ),
+            lambda: release_evidence_publication_closeout_archive_check_payload(
+                manifest,
+                manifest_path,
+                check,
+                closeout_archive_record_path,
+                closeout_path,
+                publication_index_archive_record_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                require_match=True,
+            ),
+        ),
+    ]
+    verifications_by_artifact = {
+        verification["artifact_id"]: verification
+        for verification in verification_entries
+    }
+    for artifact_entry in artifact_entries:
+        verification = verifications_by_artifact[artifact_entry["id"]]
+        artifact_entry["verified"] = verification["verified"]
+        artifact_entry["status"] = verification["status"]
+
+    provided_artifact_count = sum(
+        1 for artifact in artifact_entries if artifact["provided"]
+    )
+    verified_artifact_count = sum(
+        1 for artifact in artifact_entries if artifact["verified"]
+    )
+    publication_gate_entries = verification_entries[1:]
+    verified_publication_gate_count = sum(
+        1 for verification in publication_gate_entries if verification["verified"]
+    )
+    next_missing_artifact = next(
+        (
+            artifact["id"]
+            for artifact in artifact_entries
+            if not artifact["provided"]
+        ),
+        None,
+    )
+    next_unverified_verification = next(
+        (
+            verification["id"]
+            for verification in verification_entries
+            if not verification["verified"]
+        ),
+        None,
+    )
+    status_command = release_evidence_publication_artifact_status_command(
+        manifest_path,
+        bundle_path,
+        archive_record_path,
+        publication_index_path,
+        publication_index_archive_record_path,
+        closeout_path,
+        closeout_archive_record_path,
+    )
+    status_json_command = release_evidence_publication_artifact_status_command(
+        manifest_path,
+        bundle_path,
+        archive_record_path,
+        publication_index_path,
+        publication_index_archive_record_path,
+        closeout_path,
+        closeout_archive_record_path,
+        json_output=True,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "launch_profile_blocked": bool(blockers),
+        "unresolved_blocker_count": len(blockers),
+        "unresolved_blockers": blockers,
+        "artifact_count": len(artifact_entries),
+        "provided_artifact_count": provided_artifact_count,
+        "missing_artifact_count": (
+            len(artifact_entries) - provided_artifact_count
+        ),
+        "verified_artifact_count": verified_artifact_count,
+        "artifact_verification_count": len(verification_entries),
+        "verified_artifact_verification_count": verified_artifact_count,
+        "publication_gate_count": len(publication_gate_entries),
+        "verified_publication_gate_count": verified_publication_gate_count,
+        "ready_for_final_handoff": verification_entries[-1]["verified"],
+        "next_missing_artifact": next_missing_artifact,
+        "next_unverified_verification": next_unverified_verification,
+        "artifact_statuses": artifact_entries,
+        "artifact_verifications": verification_entries,
+        "artifact_path_flags": [
+            {
+                "artifact_id": artifact_id,
+                "flag": flag,
+                "placeholder": placeholder,
+            }
+            for artifact_id, flag, placeholder in (
+                RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS
+            )
+        ],
+        "release_evidence_publication_artifact_status_command": status_command,
+        "release_evidence_publication_artifact_status_json_command": (
+            status_json_command
+        ),
+        "commands": {
+            "release_evidence_publication_artifact_status": status_command,
+            "release_evidence_publication_artifact_status_json": (
+                status_json_command
+            ),
+        },
+    }
+
+
+def release_evidence_publication_artifact_status_text_from_payload(payload):
+    lines = [
+        "zkCoin public launch profile release evidence publication artifact status:",
+        f"  - manifest: {payload['manifest']}",
+        f"  - launch profile blocked: {yes_no(payload['launch_profile_blocked'])}",
+        f"  - unresolved blockers: {payload['unresolved_blocker_count']}",
+        f"  - supplied artifacts: {payload['provided_artifact_count']}/{payload['artifact_count']}",
+        f"  - verified artifacts: {payload['verified_artifact_count']}/{payload['artifact_count']}",
+        f"  - verified publication gates: {payload['verified_publication_gate_count']}/{payload['publication_gate_count']}",
+        f"  - ready for final handoff: {yes_no(payload['ready_for_final_handoff'])}",
+        f"  - next missing artifact: {payload['next_missing_artifact'] or 'none'}",
+        f"  - next unverified verification: {payload['next_unverified_verification'] or 'none'}",
+        f"  - release evidence publication artifact status command: {payload['release_evidence_publication_artifact_status_command']}",
+        f"  - release evidence publication artifact status JSON command: {payload['release_evidence_publication_artifact_status_json_command']}",
+    ]
+    for artifact in payload["artifact_statuses"]:
+        lines.extend([
+            f"  - artifact {artifact['step']}: {artifact['id']}",
+            f"  - artifact {artifact['step']} flag: {artifact['flag']}",
+            (
+                f"  - artifact {artifact['step']} path: "
+                f"{artifact['path'] or artifact['placeholder']}"
+            ),
+            f"  - artifact {artifact['step']} supplied: {yes_no(artifact['provided'])}",
+            f"  - artifact {artifact['step']} status: {artifact['status']}",
+            f"  - artifact {artifact['step']} verified: {yes_no(artifact['verified'])}",
+        ])
+    for verification in payload["artifact_verifications"]:
+        lines.extend([
+            f"  - verification {verification['step']}: {verification['id']}",
+            f"  - verification {verification['step']} status: {verification['status']}",
+            f"  - verification {verification['step']} verified: {yes_no(verification['verified'])}",
+            (
+                f"  - verification {verification['step']} missing artifacts: "
+                f"{list_summary(verification['missing_artifacts'])}"
+            ),
+            (
+                f"  - verification {verification['step']} mismatches: "
+                f"{verification['mismatch_count'] if verification['mismatch_count'] is not None else 'not checked'}"
+            ),
+            f"  - verification {verification['step']} command: {verification['command']}",
+            (
+                f"  - verification {verification['step']} JSON command: "
+                f"{verification['json_command']}"
+            ),
+        ])
+        if verification["error"]:
+            lines.append(
+                f"  - verification {verification['step']} error: {verification['error']}"
+            )
+        if verification["first_mismatch"] is not None:
+            mismatch = verification["first_mismatch"]
+            lines.extend([
+                f"  - verification {verification['step']} first mismatch path: {mismatch['path']}",
+                f"  - verification {verification['step']} first mismatch kind: {mismatch['kind']}",
+            ])
+    return "\n".join(lines)
+
+
+def release_evidence_publication_artifact_status_text(
+    manifest,
+    manifest_path,
+    check,
+    bundle_path=None,
+    archive_record_path=None,
+    publication_index_path=None,
+    publication_index_archive_record_path=None,
+    closeout_path=None,
+    closeout_archive_record_path=None,
+):
+    return release_evidence_publication_artifact_status_text_from_payload(
+        release_evidence_publication_artifact_status_payload(
+            manifest,
+            manifest_path,
+            check,
+            bundle_path,
+            archive_record_path,
+            publication_index_path,
+            publication_index_archive_record_path,
+            closeout_path,
+            closeout_archive_record_path,
+        )
+    )
+
+
+def release_evidence_publication_artifact_status_json_text_from_payload(payload):
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def release_evidence_publication_artifact_status_json_text(
+    manifest,
+    manifest_path,
+    check,
+    bundle_path=None,
+    archive_record_path=None,
+    publication_index_path=None,
+    publication_index_archive_record_path=None,
+    closeout_path=None,
+    closeout_archive_record_path=None,
+):
+    return release_evidence_publication_artifact_status_json_text_from_payload(
+        release_evidence_publication_artifact_status_payload(
+            manifest,
+            manifest_path,
+            check,
+            bundle_path,
+            archive_record_path,
+            publication_index_path,
+            publication_index_archive_record_path,
+            closeout_path,
+            closeout_archive_record_path,
+        )
+    )
+
+
 def network_value_selection_later_blockers_json_payload(manifest, manifest_path, check, network):
     if network not in NETWORKS:
         raise ValueError("network must be one of: " + ", ".join(NETWORKS))
@@ -13478,6 +14170,17 @@ def status_json_text(manifest, manifest_path, check):
                     json_output=True,
                 )
             ),
+            "release_evidence_publication_artifact_status_command": (
+                release_evidence_publication_artifact_status_command(
+                    manifest_path
+                )
+            ),
+            "release_evidence_publication_artifact_status_json_command": (
+                release_evidence_publication_artifact_status_command(
+                    manifest_path,
+                    json_output=True,
+                )
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -13806,6 +14509,8 @@ def selected_primary_actions(args):
         )
     if args.release_evidence_publication_status:
         actions.append("--release-evidence-publication-status")
+    if args.release_evidence_publication_artifact_status:
+        actions.append("--release-evidence-publication-artifact-status")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -14026,6 +14731,41 @@ def main():
         "--release-evidence-publication-status",
         action="store_true",
         help="print the ordered release evidence publication command pipeline",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-artifact-status",
+        action="store_true",
+        help="print supplied/missing release evidence publication artifacts",
+    )
+    parser.add_argument(
+        "--release-evidence-bundle-path",
+        type=Path,
+        help="release evidence bundle JSON for artifact status",
+    )
+    parser.add_argument(
+        "--release-evidence-archive-record-path",
+        type=Path,
+        help="release evidence archive record JSON for artifact status",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-index-path",
+        type=Path,
+        help="release evidence publication index JSON for artifact status",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-index-archive-record-path",
+        type=Path,
+        help="release evidence publication index archive record JSON for artifact status",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-closeout-path",
+        type=Path,
+        help="release evidence publication closeout JSON for artifact status",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-closeout-archive-record-path",
+        type=Path,
+        help="release evidence publication closeout archive record JSON for artifact status",
     )
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
@@ -14260,6 +15000,7 @@ def main():
             is None
         )
         and not args.release_evidence_publication_status
+        and not args.release_evidence_publication_artifact_status
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -14304,6 +15045,7 @@ def main():
             "--check-release-evidence-publication-closeout-archive, "
             "--release-evidence-publication-closeout-archive-handoff-summary, "
             "--release-evidence-publication-status, "
+            "--release-evidence-publication-artifact-status, "
             "--release-evidence-archive-checklist, "
             "or --value-selection-checklists",
             file=sys.stderr,
@@ -14519,6 +15261,10 @@ def main():
         if args.in_place:
             print("error: --release-evidence-publication-status does not write the manifest", file=sys.stderr)
             return 1
+    if args.release_evidence_publication_artifact_status:
+        if args.in_place:
+            print("error: --release-evidence-publication-artifact-status does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -14661,6 +15407,8 @@ def main():
     ):
         allow_blocked = True
     if args.release_evidence_publication_status:
+        allow_blocked = True
+    if args.release_evidence_publication_artifact_status:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -15242,6 +15990,27 @@ def main():
             else release_evidence_publication_status_text
         )
         print(publication_status_text(manifest, args.manifest, check))
+        return 0
+
+    if args.release_evidence_publication_artifact_status:
+        artifact_status_text = (
+            release_evidence_publication_artifact_status_json_text
+            if args.json
+            else release_evidence_publication_artifact_status_text
+        )
+        print(
+            artifact_status_text(
+                manifest,
+                args.manifest,
+                check,
+                args.release_evidence_bundle_path,
+                args.release_evidence_archive_record_path,
+                args.release_evidence_publication_index_path,
+                args.release_evidence_publication_index_archive_record_path,
+                args.release_evidence_publication_closeout_path,
+                args.release_evidence_publication_closeout_archive_record_path,
+            )
+        )
         return 0
 
     if args.network_readiness_summary is not None:
