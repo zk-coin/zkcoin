@@ -4879,6 +4879,383 @@ def network_value_selection_candidate_check_text(
     return "\n".join(lines)
 
 
+def value_selection_candidate_artifact_status_entry(
+    manifest,
+    manifest_path,
+    step,
+    network,
+    candidate_path,
+):
+    template_command = network_value_selection_candidate_template_command(
+        manifest_path,
+        network,
+    )
+    template_json_command = network_value_selection_candidate_template_command(
+        manifest_path,
+        network,
+        json_output=True,
+    )
+    if candidate_path is None:
+        check_command = network_value_selection_candidate_check_command(
+            manifest_path,
+            network,
+        )
+        check_json_command = network_value_selection_candidate_check_command(
+            manifest_path,
+            network,
+            json_output=True,
+        )
+        return {
+            "step": step,
+            "network": network,
+            "candidate_path": None,
+            "provided": False,
+            "status": "missing-artifact",
+            "verified": False,
+            "ready_to_apply": False,
+            "error": None,
+            "candidate_artifact": None,
+            "candidate_size": None,
+            "candidate_sha256": None,
+            "candidate_max_bytes": None,
+            "candidate_schema_version": None,
+            "candidate_network": None,
+            "section_count": 0,
+            "verified_section_count": 0,
+            "section_ids": [],
+            "section_blockers": [],
+            "post_apply": None,
+            "candidate_template_command": template_command,
+            "candidate_template_json_command": template_json_command,
+            "candidate_check_command": check_command,
+            "candidate_check_json_command": check_json_command,
+            "commands": {
+                "candidate_template": template_command,
+                "candidate_template_json": template_json_command,
+                "candidate_check": check_command,
+                "candidate_check_json": check_json_command,
+            },
+        }
+
+    check_command = network_value_selection_candidate_check_command(
+        manifest_path,
+        network,
+        candidate_path,
+    )
+    check_json_command = network_value_selection_candidate_check_command(
+        manifest_path,
+        network,
+        candidate_path,
+        json_output=True,
+    )
+    try:
+        (
+            candidate_json,
+            candidate_metadata,
+            auxpow,
+            identity,
+            dns_seeds,
+            candidate,
+        ) = checked_network_value_selection_candidate(
+            manifest,
+            network,
+            candidate_path,
+        )
+    except ValueError as exc:
+        return {
+            "step": step,
+            "network": network,
+            "candidate_path": display_path(candidate_path),
+            "provided": True,
+            "status": "error",
+            "verified": False,
+            "ready_to_apply": False,
+            "error": str(exc),
+            "candidate_artifact": None,
+            "candidate_size": None,
+            "candidate_sha256": None,
+            "candidate_max_bytes": None,
+            "candidate_schema_version": None,
+            "candidate_network": None,
+            "section_count": 0,
+            "verified_section_count": 0,
+            "section_ids": [],
+            "section_blockers": [],
+            "post_apply": None,
+            "candidate_template_command": template_command,
+            "candidate_template_json_command": template_json_command,
+            "candidate_check_command": check_command,
+            "candidate_check_json_command": check_json_command,
+            "commands": {
+                "candidate_template": template_command,
+                "candidate_template_json": template_json_command,
+                "candidate_check": check_command,
+                "candidate_check_json": check_json_command,
+            },
+        }
+
+    check_payload = network_value_selection_candidate_check_json_payload(
+        manifest,
+        manifest_path,
+        network,
+        candidate_path,
+        candidate_json,
+        candidate_metadata,
+        auxpow,
+        identity,
+        dns_seeds,
+        candidate,
+    )
+    return {
+        "step": step,
+        "network": network,
+        "candidate_path": display_path(candidate_path),
+        "provided": True,
+        "status": "verified",
+        "verified": True,
+        "ready_to_apply": check_payload["ready_to_apply"],
+        "error": None,
+        "candidate_artifact": check_payload["candidate_artifact"],
+        "candidate_size": check_payload["candidate_size"],
+        "candidate_sha256": check_payload["candidate_sha256"],
+        "candidate_max_bytes": check_payload["candidate_max_bytes"],
+        "candidate_schema_version": check_payload["candidate_schema_version"],
+        "candidate_network": check_payload["candidate_network"],
+        "section_count": check_payload["section_count"],
+        "verified_section_count": check_payload["verified_section_count"],
+        "section_ids": check_payload["section_ids"],
+        "section_blockers": check_payload["section_blockers"],
+        "sections": check_payload["sections"],
+        "post_apply": check_payload["post_apply"],
+        "candidate_template_command": template_command,
+        "candidate_template_json_command": template_json_command,
+        "candidate_check_command": check_command,
+        "candidate_check_json_command": check_json_command,
+        "commands": {
+            "candidate_template": template_command,
+            "candidate_template_json": template_json_command,
+            "candidate_check": check_command,
+            "candidate_check_json": check_json_command,
+        },
+    }
+
+
+def value_selection_candidate_artifact_status_payload(
+    manifest,
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+):
+    candidate_paths = {
+        "main": main_candidate_path,
+        "testnet": testnet_candidate_path,
+    }
+    entries = [
+        value_selection_candidate_artifact_status_entry(
+            manifest,
+            manifest_path,
+            step,
+            network,
+            candidate_paths.get(network),
+        )
+        for step, network in enumerate(NETWORKS, 1)
+    ]
+    provided_candidate_count = sum(1 for entry in entries if entry["provided"])
+    verified_candidate_count = sum(1 for entry in entries if entry["verified"])
+    error_candidate_count = sum(1 for entry in entries if entry["status"] == "error")
+    missing_candidate_count = sum(
+        1 for entry in entries if entry["status"] == "missing-artifact"
+    )
+    status_command = value_selection_candidate_artifact_status_command(
+        manifest_path,
+        main_candidate_path,
+        testnet_candidate_path,
+    )
+    status_json_command = value_selection_candidate_artifact_status_command(
+        manifest_path,
+        main_candidate_path,
+        testnet_candidate_path,
+        json_output=True,
+    )
+    next_missing_candidate = next(
+        (entry["network"] for entry in entries if not entry["provided"]),
+        None,
+    )
+    next_unverified_candidate = next(
+        (entry["network"] for entry in entries if not entry["verified"]),
+        None,
+    )
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "status": manifest.get("status"),
+        "network_count": len(NETWORKS),
+        "candidate_count": len(entries),
+        "provided_candidate_count": provided_candidate_count,
+        "missing_candidate_count": missing_candidate_count,
+        "verified_candidate_count": verified_candidate_count,
+        "error_candidate_count": error_candidate_count,
+        "all_required_candidates_verified": verified_candidate_count == len(entries),
+        "next_missing_candidate": next_missing_candidate,
+        "next_unverified_candidate": next_unverified_candidate,
+        "candidate_statuses": entries,
+        "candidate_statuses_by_network": {
+            entry["network"]: entry
+            for entry in entries
+        },
+        "network_value_selection_candidate_template_commands_by_network": (
+            network_value_selection_candidate_template_commands(manifest_path)
+        ),
+        "network_value_selection_candidate_template_json_commands_by_network": (
+            network_value_selection_candidate_template_commands(
+                manifest_path,
+                json_output=True,
+            )
+        ),
+        "network_value_selection_candidate_check_commands_by_network": (
+            network_value_selection_candidate_check_commands(manifest_path)
+        ),
+        "network_value_selection_candidate_check_json_commands_by_network": (
+            network_value_selection_candidate_check_commands(
+                manifest_path,
+                json_output=True,
+            )
+        ),
+        "value_selection_candidate_artifact_status_command": status_command,
+        "value_selection_candidate_artifact_status_json_command": (
+            status_json_command
+        ),
+        "commands": {
+            "value_selection_candidate_artifact_status": status_command,
+            "value_selection_candidate_artifact_status_json": (
+                status_json_command
+            ),
+        },
+    }
+
+
+def value_selection_candidate_artifact_status_text_from_payload(payload):
+    lines = [
+        "zkCoin public launch profile value-selection candidate artifact status:",
+        f"  - manifest: {payload['manifest']}",
+        f"  - status: {payload['status']}",
+        (
+            "  - supplied candidates: "
+            f"{payload['provided_candidate_count']}/{payload['candidate_count']}"
+        ),
+        (
+            "  - verified candidates: "
+            f"{payload['verified_candidate_count']}/{payload['candidate_count']}"
+        ),
+        (
+            "  - candidate errors: "
+            f"{payload['error_candidate_count']}"
+        ),
+        (
+            "  - all required candidates verified: "
+            f"{yes_no(payload['all_required_candidates_verified'])}"
+        ),
+        (
+            "  - next missing candidate: "
+            f"{payload['next_missing_candidate'] or 'none'}"
+        ),
+        (
+            "  - next unverified candidate: "
+            f"{payload['next_unverified_candidate'] or 'none'}"
+        ),
+        (
+            "  - value-selection candidate artifact status command: "
+            + payload["value_selection_candidate_artifact_status_command"]
+        ),
+        (
+            "  - value-selection candidate artifact status JSON command: "
+            + payload["value_selection_candidate_artifact_status_json_command"]
+        ),
+    ]
+    for entry in payload["candidate_statuses"]:
+        lines.extend([
+            f"  - {entry['network']} candidate status: {entry['status']}",
+            f"    - supplied: {yes_no(entry['provided'])}",
+            (
+                "    - path: "
+                + (entry["candidate_path"] or "<value_selection_candidate.json>")
+            ),
+            f"    - verified: {yes_no(entry['verified'])}",
+            (
+                "    - candidate check command: "
+                + entry["candidate_check_command"]
+            ),
+            (
+                "    - candidate check JSON command: "
+                + entry["candidate_check_json_command"]
+            ),
+            (
+                "    - candidate template command: "
+                + entry["candidate_template_command"]
+            ),
+        ])
+        if entry["candidate_size"] is not None:
+            lines.extend([
+                f"    - candidate size: {entry['candidate_size']}",
+                f"    - candidate sha256: {entry['candidate_sha256']}",
+                f"    - candidate network: {entry['candidate_network']}",
+                (
+                    "    - verified sections: "
+                    f"{entry['verified_section_count']}/{entry['section_count']}"
+                ),
+            ])
+        if entry["post_apply"] is not None:
+            lines.extend([
+                (
+                    "    - post-apply remaining blockers: "
+                    f"{entry['post_apply']['remaining_blocker_count']}"
+                ),
+                (
+                    "    - post-apply next blocker: "
+                    + (entry["post_apply"]["next_blocker"] or "none")
+                ),
+            ])
+        if entry["error"]:
+            lines.append(f"    - error: {entry['error']}")
+    return "\n".join(lines)
+
+
+def value_selection_candidate_artifact_status_text(
+    manifest,
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+):
+    return value_selection_candidate_artifact_status_text_from_payload(
+        value_selection_candidate_artifact_status_payload(
+            manifest,
+            manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+        )
+    )
+
+
+def value_selection_candidate_artifact_status_json_text_from_payload(payload):
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def value_selection_candidate_artifact_status_json_text(
+    manifest,
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+):
+    return value_selection_candidate_artifact_status_json_text_from_payload(
+        value_selection_candidate_artifact_status_payload(
+            manifest,
+            manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+        )
+    )
+
+
 def validation_failure_message(prefix, check):
     lines = [prefix]
     for error in check.errors:
@@ -5765,6 +6142,32 @@ def network_value_selection_candidate_check_command(
     )
 
 
+def value_selection_candidate_artifact_status_command(
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    args = [str(tool_path)]
+    if json_output:
+        args.append("--json")
+    args.append("--value-selection-candidate-artifact-status")
+    if main_candidate_path is not None:
+        args.extend([
+            "--main-value-selection-candidate",
+            command_path_arg(main_candidate_path),
+        ])
+    if testnet_candidate_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate",
+            command_path_arg(testnet_candidate_path),
+        ])
+    args.append(manifest_path)
+    return " ".join(args)
+
+
 def blocker_type_readiness_summary_command(manifest_path, blocker_type):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
@@ -6571,6 +6974,15 @@ def readiness_summary_json_payload(manifest, manifest_path, check):
         "status_json_command": commands["status_json"],
         "value_selection_checklists_command": value_selection_checklists_command(
             manifest_path,
+        ),
+        "value_selection_candidate_artifact_status_command": (
+            value_selection_candidate_artifact_status_command(manifest_path)
+        ),
+        "value_selection_candidate_artifact_status_json_command": (
+            value_selection_candidate_artifact_status_command(
+                manifest_path,
+                json_output=True,
+            )
         ),
         "snapshot_audit_handoffs_command": snapshot_audit_handoffs_command(
             manifest_path,
@@ -14779,6 +15191,13 @@ def status_json_text(manifest, manifest_path, check):
         manifest_path,
         json_output=True,
     )
+    value_selection_candidate_artifact_status = value_selection_candidate_artifact_status_command(
+        manifest_path,
+    )
+    value_selection_candidate_artifact_status_json = value_selection_candidate_artifact_status_command(
+        manifest_path,
+        json_output=True,
+    )
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     blocker_type_later_blockers_commands_by_type = blocker_type_later_blockers_commands(manifest_path)
     readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
@@ -15166,6 +15585,12 @@ def status_json_text(manifest, manifest_path, check):
             "network_value_selection_candidate_check_json_command_count": len(
                 network_value_selection_candidate_check_json_commands_by_network
             ),
+            "value_selection_candidate_artifact_status_command": (
+                value_selection_candidate_artifact_status
+            ),
+            "value_selection_candidate_artifact_status_json_command": (
+                value_selection_candidate_artifact_status_json
+            ),
             "queued_value_selection_json_check_commands_by_network": {
                 network: state["json_check_commands"]
                 for network, state in value_selection_states.items()
@@ -15518,6 +15943,8 @@ def selected_primary_actions(args):
         actions.append("--network-value-selection-candidate-template")
     if args.check_network_value_selection_candidate is not None:
         actions.append("--check-network-value-selection-candidate")
+    if args.value_selection_candidate_artifact_status:
+        actions.append("--value-selection-candidate-artifact-status")
     if args.value_selection_checklists:
         actions.append("--value-selection-checklists")
     if args.blocker_readiness_summary is not None:
@@ -15751,6 +16178,23 @@ def main():
         metavar=("NETWORK", "CANDIDATE_JSON"),
         help="verify a filled value-selection candidate JSON artifact without updating the manifest",
     )
+    parser.add_argument(
+        "--value-selection-candidate-artifact-status",
+        action="store_true",
+        help="print supplied/missing value-selection candidate artifact status for public networks",
+    )
+    parser.add_argument(
+        "--main-value-selection-candidate",
+        metavar="CANDIDATE_JSON",
+        type=Path,
+        help="mainnet value-selection candidate JSON artifact for status reporting",
+    )
+    parser.add_argument(
+        "--testnet-value-selection-candidate",
+        metavar="CANDIDATE_JSON",
+        type=Path,
+        help="testnet value-selection candidate JSON artifact for status reporting",
+    )
     parser.add_argument("--value-selection-checklists", action="store_true", help="print queued value-selection JSON checklists for all public networks")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
@@ -15951,6 +16395,21 @@ def main():
         return 1
 
     if (
+        (
+            args.main_value_selection_candidate is not None
+            or args.testnet_value_selection_candidate is not None
+        )
+        and not args.value_selection_candidate_artifact_status
+    ):
+        print(
+            "error: --main-value-selection-candidate and "
+            "--testnet-value-selection-candidate require "
+            "--value-selection-candidate-artifact-status",
+            file=sys.stderr,
+        )
+        return 1
+
+    if (
         args.json
         and args.snapshot_audit_preflight is None
         and args.check_snapshot_audit is None
@@ -15988,6 +16447,7 @@ def main():
         and args.network_value_selection_later_blockers is None
         and args.network_value_selection_candidate_template is None
         and args.check_network_value_selection_candidate is None
+        and not args.value_selection_candidate_artifact_status
         and args.network_readiness_summary is None
         and args.network_later_blockers is None
         and args.blocker_type_readiness_summary is None
@@ -16008,6 +16468,7 @@ def main():
             "--network-value-selection-later-blockers, "
             "--network-value-selection-candidate-template, "
             "--check-network-value-selection-candidate, "
+            "--value-selection-candidate-artifact-status, "
             "--network-readiness-summary, "
             "--network-later-blockers, "
             "--blocker-type-readiness-summary, --blocker-type-later-blockers, "
@@ -16365,6 +16826,10 @@ def main():
             )
         )
         return 0
+    if args.value_selection_candidate_artifact_status:
+        if args.in_place:
+            print("error: --value-selection-candidate-artifact-status does not write the manifest", file=sys.stderr)
+            return 1
 
     updated_launch_fields = (
         args.set_snapshot is not None
@@ -16455,6 +16920,8 @@ def main():
     if args.network_value_selection_later_blockers is not None:
         allow_blocked = True
     if args.network_value_selection_candidate_template is not None:
+        allow_blocked = True
+    if args.value_selection_candidate_artifact_status:
         allow_blocked = True
     if args.value_selection_checklists:
         allow_blocked = True
@@ -17035,6 +17502,22 @@ def main():
                 args.release_evidence_publication_index_archive_record_path,
                 args.release_evidence_publication_closeout_path,
                 args.release_evidence_publication_closeout_archive_record_path,
+            )
+        )
+        return 0
+
+    if args.value_selection_candidate_artifact_status:
+        candidate_artifact_status_text = (
+            value_selection_candidate_artifact_status_json_text
+            if args.json
+            else value_selection_candidate_artifact_status_text
+        )
+        print(
+            candidate_artifact_status_text(
+                manifest,
+                args.manifest,
+                args.main_value_selection_candidate,
+                args.testnet_value_selection_candidate,
             )
         )
         return 0
