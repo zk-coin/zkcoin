@@ -271,6 +271,12 @@ Both are intentionally present before behavior changes so tests and review can t
   should fail on closeout archive drift while still emitting the same JSON
   payload.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-closeout-archive-handoff-summary <release_evidence_publication_closeout_archive_record.json> <release_evidence_publication_closeout.json> <release_evidence_publication_index_archive_record.json> <release_evidence_publication_index.json> <release_evidence_archive_record.json> <release_evidence_bundle.json>`
+  after the closeout archive record verifies when release dashboards need one
+  final read-only handoff tying the retained closeout JSON, closeout archive
+  record, and closeout archive handoff summary JSON together without choosing
+  publication URIs, timestamps, publishers, or release commits.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -1181,6 +1187,25 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-closeout-archive-handoff-summary <release_evidence_publication_closeout_archive_record.json> \
+  <release_evidence_publication_closeout.json> \
+  <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-publication-closeout-archive-handoff-summary <release_evidence_publication_closeout_archive_record.json> \
+  <release_evidence_publication_closeout.json> \
+  <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1485,6 +1510,16 @@ current closeout gate and only requires operator-supplied URI, commit, and
 timestamp fields to be non-empty. Status JSON exposes
 `check_release_evidence_publication_closeout_archive_command` and
 `release_evidence_publication_closeout_archive_gate_command` for dashboards.
+Use `--release-evidence-publication-closeout-archive-handoff-summary --json`
+after the closeout archive gate verifies when dashboards need one final
+machine-readable handoff for retained public-release evidence. The payload
+includes `handoff_artifacts`, `verified_handoff_artifact_count`,
+`ready_for_publication`, `publication_blockers`, `next_publication_blocker`,
+`closeout_gate`, and `closeout_archive_gate` so release operators can retain
+the closeout JSON, closeout archive record, and generated summary JSON as the
+final closeout archive evidence set. Status JSON exposes
+`release_evidence_publication_closeout_archive_handoff_summary_command` for
+dashboards that need to discover this final read-only handoff step.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
