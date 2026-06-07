@@ -283,6 +283,13 @@ Both are intentionally present before behavior changes so tests and review can t
   and the final closeout archive handoff, without selecting production
   constants or reading unreleased publication artifacts.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-artifact-status --release-evidence-bundle-path <release_evidence_bundle.json>`
+  when operators need a read-only matrix of supplied, missing, and verified
+  publication artifacts. Add the archive record, publication index,
+  publication index archive record, closeout, and closeout archive record path
+  flags as those retained artifacts become available; the command verifies only
+  gates whose prerequisite artifact chain is present.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -1221,6 +1228,22 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-artifact-status \
+  --release-evidence-bundle-path <release_evidence_bundle.json> \
+  --release-evidence-archive-record-path <release_evidence_archive_record.json> \
+  --release-evidence-publication-index-path <release_evidence_publication_index.json> \
+  --release-evidence-publication-index-archive-record-path <release_evidence_publication_index_archive_record.json> \
+  --release-evidence-publication-closeout-path <release_evidence_publication_closeout.json> \
+  --release-evidence-publication-closeout-archive-record-path <release_evidence_publication_closeout_archive_record.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-publication-artifact-status \
+  --release-evidence-bundle-path <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1544,6 +1567,20 @@ commands, per-step JSON commands, and
 handoff step. Status JSON exposes
 `release_evidence_publication_status_command` for dashboards that need to
 discover the pipeline inventory without hard-coding the command string.
+Use `--release-evidence-publication-artifact-status --json` when automation
+needs to reconcile retained publication artifacts against the ordered pipeline.
+The payload reports supplied and missing artifact counts, verified artifact
+counts, publication gate counts, `ready_for_final_handoff`,
+`next_missing_artifact`, and per-gate errors or first mismatches. Path flags
+are optional, so dashboards can call it before every artifact exists and add
+`--release-evidence-bundle-path`,
+`--release-evidence-archive-record-path`,
+`--release-evidence-publication-index-path`,
+`--release-evidence-publication-index-archive-record-path`,
+`--release-evidence-publication-closeout-path`, and
+`--release-evidence-publication-closeout-archive-record-path` as operators
+retain those files. Status JSON exposes
+`release_evidence_publication_artifact_status_command` for dashboard discovery.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
