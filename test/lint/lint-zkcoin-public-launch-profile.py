@@ -3944,6 +3944,11 @@ def require_public_launch_manifest_current():
             ),
             encoding="utf8",
         )
+        release_evidence_publication_index_sha256 = hashlib.sha256(
+            release_evidence_publication_index_path.read_text(
+                encoding="utf8",
+            ).encode("utf8")
+        ).hexdigest()
         release_evidence_publication_index_check_result = subprocess.run(
             [
                 sys.executable,
@@ -3972,6 +3977,7 @@ def require_public_launch_manifest_current():
             "  - require match: no",
             "  - required-match exit code: 0",
             f"  - release evidence publication index: {release_evidence_publication_index_path}",
+            f"  - release evidence publication index sha256: {release_evidence_publication_index_sha256}",
             f"  - release evidence archive record: {release_evidence_archive_record_path}",
             f"  - release evidence bundle: {release_evidence_bundle_path}",
             "  - ready for publication: yes",
@@ -4040,6 +4046,10 @@ def require_public_launch_manifest_current():
             or release_evidence_publication_index_check_json.get("mismatch_count") != 0
             or release_evidence_publication_index_check_json.get("release_evidence_publication_index")
             != str(release_evidence_publication_index_path)
+            or release_evidence_publication_index_check_json.get(
+                "release_evidence_publication_index_sha256"
+            )
+            != release_evidence_publication_index_sha256
             or release_evidence_publication_index_check_json.get("release_evidence_archive_record")
             != str(release_evidence_archive_record_path)
             or release_evidence_publication_index_check_json.get("release_evidence_bundle")
@@ -18899,6 +18909,7 @@ def main():
         ("RELEASE_EVIDENCE_PUBLICATION_INDEX_MAX_BYTES", "manifest bounds release evidence publication indexes"),
         ("release_evidence_publication_index_too_large_error", "manifest describes overlarge release evidence publication indexes"),
         ("read_release_evidence_publication_index_text", "manifest safely reads release evidence publication indexes"),
+        ("parse_release_evidence_publication_index", "manifest parses captured release evidence publication index text"),
         ("read_release_evidence_publication_index", "manifest parses release evidence publication indexes"),
         ("release_evidence_bundle_sha256", "manifest hashes release evidence bundles for archive checks"),
         ("release_evidence_archive_check_payload", "manifest builds release evidence archive check JSON payloads"),
@@ -18914,6 +18925,7 @@ def main():
         ("release_evidence_publication_index_template_json_text", "manifest prints release evidence publication index template JSON guidance"),
         ("release_evidence_publication_index_placeholder_fields", "manifest detects placeholder release evidence publication index fields"),
         ("release_evidence_publication_index_check_payload", "manifest builds release evidence publication index check JSON payloads"),
+        ("release_evidence_publication_index_sha256", "manifest includes release evidence publication index digests"),
         ("release_evidence_publication_index_check_text", "manifest prints release evidence publication index check guidance"),
         ("release_evidence_publication_index_check_json_text", "manifest prints release evidence publication index check JSON guidance"),
         ("release_evidence_archive_check_json_text", "manifest prints release evidence archive check JSON guidance"),
@@ -20927,6 +20939,10 @@ def main():
         (
             "placeholder fields",
             "public launch manifest release evidence publication index placeholder verification documentation",
+        ),
+        (
+            "publication index SHA256",
+            "public launch manifest release evidence publication index digest documentation",
         ),
         (
             "zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID",

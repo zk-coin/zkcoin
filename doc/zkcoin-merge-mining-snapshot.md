@@ -1312,8 +1312,8 @@ Status JSON exposes the same command as
 the template action without hard-coding the CLI form.
 Use `--check-release-evidence-publication-index --json` when automation needs a
 machine-readable verification of the filled publication index, including
-required field coverage, placeholder fields, compact mismatch paths, and the
-current handoff publication blockers. Add
+required field coverage, placeholder fields, the publication index SHA256,
+compact mismatch paths, and the current handoff publication blockers. Add
 `--require-release-evidence-publication-index-match` to make that check a CI
 gate once operators have filled the publication index. Status JSON exposes
 `check_release_evidence_publication_index_command` for dashboards that need to
