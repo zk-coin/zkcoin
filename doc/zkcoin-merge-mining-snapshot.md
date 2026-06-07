@@ -1076,6 +1076,22 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-release-evidence-publication-index-archive <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --require-release-evidence-publication-index-archive-match \
+  --check-release-evidence-publication-index-archive <release_evidence_publication_index_archive_record.json> \
+  <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1331,6 +1347,17 @@ for the immutable publication index archive. Status JSON exposes
 `release_evidence_publication_index_archive_checklist_command` so dashboards can
 discover the archive-preparation step without choosing archive URIs or
 timestamps.
+Use `--check-release-evidence-publication-index-archive --json` when automation
+needs a machine-readable verification of the filled publication index archive
+record. The publication index archive record check includes required field
+coverage, the stored publication index SHA256, the recorded gate command/result,
+and compact mismatch paths. Add
+`--require-release-evidence-publication-index-archive-match` when CI should
+fail on publication index archive drift while still emitting the same JSON
+payload on stdout. Status JSON exposes
+`check_release_evidence_publication_index_archive_command` and
+`release_evidence_publication_index_archive_gate_command` so dashboards can
+discover the verifier and gate without choosing archive URIs or timestamps.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
