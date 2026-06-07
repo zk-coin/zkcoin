@@ -243,6 +243,13 @@ Both are intentionally present before behavior changes so tests and review can t
   handoff artifacts are ready, without having the tool choose publication URIs,
   timestamps, publishers, or release commits.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-release-evidence-publication-index <release_evidence_publication_index.json> <release_evidence_archive_record.json> <release_evidence_bundle.json>`
+  after operators fill that index to verify the required fields, placeholder
+  replacement, bundle URI, manifest commit, and current handoff readiness
+  without resolving or selecting external publication values.
+  Add `--require-release-evidence-publication-index-match` when CI should fail
+  on publication index drift while still emitting the same JSON payload.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -1049,6 +1056,20 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-release-evidence-publication-index <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --require-release-evidence-publication-index-match \
+  --check-release-evidence-publication-index <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1289,6 +1310,14 @@ handoff summary is ready. The template keeps
 Status JSON exposes the same command as
 `release_evidence_publication_index_template_command` so dashboards can discover
 the template action without hard-coding the CLI form.
+Use `--check-release-evidence-publication-index --json` when automation needs a
+machine-readable verification of the filled publication index, including
+required field coverage, placeholder fields, compact mismatch paths, and the
+current handoff publication blockers. Add
+`--require-release-evidence-publication-index-match` to make that check a CI
+gate once operators have filled the publication index. Status JSON exposes
+`check_release_evidence_publication_index_command` for dashboards that need to
+discover the verifier after producing the template.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
