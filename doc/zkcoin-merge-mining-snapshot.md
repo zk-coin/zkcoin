@@ -1070,6 +1070,12 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-index-archive-checklist <release_evidence_publication_index.json> \
+  <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1318,6 +1324,13 @@ compact mismatch paths, and the current handoff publication blockers. Add
 gate once operators have filled the publication index. Status JSON exposes
 `check_release_evidence_publication_index_command` for dashboards that need to
 discover the verifier after producing the template.
+Use `--release-evidence-publication-index-archive-checklist --json` after a
+filled index verifies to produce the required archive-record fields, expected
+publication index SHA256, gate command, and remaining operator-supplied fields
+for the immutable publication index archive. Status JSON exposes
+`release_evidence_publication_index_archive_checklist_command` so dashboards can
+discover the archive-preparation step without choosing archive URIs or
+timestamps.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

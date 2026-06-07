@@ -159,6 +159,17 @@ RELEASE_EVIDENCE_ARCHIVE_RECORD_FIELDS = (
     "gate_mismatch_count",
     "gate_checked_at",
 )
+RELEASE_EVIDENCE_PUBLICATION_INDEX_ARCHIVE_RECORD_FIELDS = (
+    "release_evidence_publication_index_uri",
+    "release_evidence_publication_index_sha256",
+    "release_evidence_publication_index_schema_version",
+    "manifest_path",
+    "manifest_commit",
+    "gate_command",
+    "gate_verified",
+    "gate_mismatch_count",
+    "gate_checked_at",
+)
 RELEASE_EVIDENCE_PUBLICATION_INDEX_FIELDS = (
     "schema_version",
     "release_evidence_bundle_uri",
@@ -4431,6 +4442,27 @@ def release_evidence_publication_index_gate_command(
         bundle_path,
         json_output=json_output,
         require_match=True,
+    )
+
+
+def release_evidence_publication_index_archive_checklist_command(
+    manifest_path,
+    publication_index_path="<release_evidence_publication_index.json>",
+    archive_record_path="<release_evidence_archive_record.json>",
+    bundle_path="<release_evidence_bundle.json>",
+    json_output=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    publication_index_path = command_path_arg(publication_index_path)
+    archive_record_path = command_path_arg(archive_record_path)
+    bundle_path = command_path_arg(bundle_path)
+    json_flag = "--json " if json_output else ""
+    return (
+        f"{tool_path} {json_flag}"
+        "--release-evidence-publication-index-archive-checklist "
+        f"{publication_index_path} {archive_record_path} "
+        f"{bundle_path} {manifest_path}"
     )
 
 
@@ -9059,6 +9091,23 @@ def release_evidence_publication_index_check_payload(
         "release_evidence_handoff_summary_json_command": (
             handoff_summary["release_evidence_handoff_summary_json_command"]
         ),
+        "release_evidence_publication_index_archive_checklist_command": (
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+            )
+        ),
+        "release_evidence_publication_index_archive_checklist_json_command": (
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                json_output=True,
+            )
+        ),
     }
 
 
@@ -9092,6 +9141,8 @@ def release_evidence_publication_index_check_text_from_payload(payload):
         f"  - release evidence publication index template command: {payload['release_evidence_publication_index_template_command']}",
         f"  - release evidence publication index template JSON command: {payload['release_evidence_publication_index_template_json_command']}",
         f"  - release evidence handoff summary JSON command: {payload['release_evidence_handoff_summary_json_command']}",
+        f"  - release evidence publication index archive checklist command: {payload['release_evidence_publication_index_archive_checklist_command']}",
+        f"  - release evidence publication index archive checklist JSON command: {payload['release_evidence_publication_index_archive_checklist_json_command']}",
     ]
     if payload["publication_blockers"]:
         lines.extend([
@@ -9152,6 +9203,247 @@ def release_evidence_publication_index_check_json_text(
             archive_record_path,
             bundle_path,
             require_match=require_match,
+        )
+    )
+
+
+def release_evidence_publication_index_archive_checklist_steps(
+    manifest_path,
+    publication_index_path,
+    archive_record_path,
+    bundle_path,
+):
+    archive_fields = list(RELEASE_EVIDENCE_PUBLICATION_INDEX_ARCHIVE_RECORD_FIELDS)
+    return [
+        {
+            "step": 1,
+            "id": "verify-release-evidence-publication-index-gate",
+            "description": (
+                "Verify the filled publication index matches the current "
+                "release evidence handoff."
+            ),
+            "command": release_evidence_publication_index_gate_command(
+                manifest_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                json_output=True,
+            ),
+            "required_verified": True,
+            "required_mismatch_count": 0,
+            "required_exit_code": 0,
+            "required_before_launch": True,
+        },
+        {
+            "step": 2,
+            "id": "archive-release-evidence-publication-index-record",
+            "description": (
+                "Archive the filled publication index and record its immutable "
+                "location plus gate output."
+            ),
+            "required_archive_record_fields": archive_fields,
+            "required_archive_record_field_count": len(archive_fields),
+            "required_before_launch": True,
+        },
+        {
+            "step": 3,
+            "id": "publish-release-evidence-publication-index-archive-record",
+            "description": (
+                "Attach the publication index archive record to the release "
+                "handoff without adding production constants."
+            ),
+            "required_before_launch": True,
+        },
+    ]
+
+
+def release_evidence_publication_index_archive_checklist_payload(
+    manifest,
+    manifest_path,
+    check,
+    publication_index_path,
+    archive_record_path,
+    bundle_path,
+):
+    publication_index_gate = release_evidence_publication_index_check_payload(
+        manifest,
+        manifest_path,
+        check,
+        publication_index_path,
+        archive_record_path,
+        bundle_path,
+        require_match=True,
+    )
+    archive_fields = list(RELEASE_EVIDENCE_PUBLICATION_INDEX_ARCHIVE_RECORD_FIELDS)
+    steps = release_evidence_publication_index_archive_checklist_steps(
+        manifest_path,
+        publication_index_path,
+        archive_record_path,
+        bundle_path,
+    )
+    expected_archive_record_values = {
+        "release_evidence_publication_index_sha256": (
+            publication_index_gate["release_evidence_publication_index_sha256"]
+        ),
+        "release_evidence_publication_index_schema_version": (
+            publication_index_gate["publication_index_schema_version"]
+        ),
+        "manifest_path": display_path(manifest_path),
+        "manifest_commit": publication_index_gate[
+            "expected_publication_index_values"
+        ].get("manifest_commit"),
+        "gate_command": (
+            publication_index_gate[
+                "release_evidence_publication_index_gate_json_command"
+            ]
+        ),
+        "gate_verified": True,
+        "gate_mismatch_count": 0,
+    }
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "release_evidence_publication_index": (
+            publication_index_gate["release_evidence_publication_index"]
+        ),
+        "release_evidence_publication_index_sha256": (
+            publication_index_gate["release_evidence_publication_index_sha256"]
+        ),
+        "release_evidence_archive_record": display_path(archive_record_path),
+        "release_evidence_bundle": display_path(bundle_path),
+        "release_evidence_publication_index_archive_checklist_command": (
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+            )
+        ),
+        "release_evidence_publication_index_archive_checklist_json_command": (
+            release_evidence_publication_index_archive_checklist_command(
+                manifest_path,
+                publication_index_path,
+                archive_record_path,
+                bundle_path,
+                json_output=True,
+            )
+        ),
+        "release_evidence_publication_index_gate_json_command": (
+            publication_index_gate[
+                "release_evidence_publication_index_gate_json_command"
+            ]
+        ),
+        "publication_index_gate_verified": publication_index_gate["verified"],
+        "publication_index_gate_mismatch_count": (
+            publication_index_gate["mismatch_count"]
+        ),
+        "publication_index_gate_required_match_exit_code": (
+            publication_index_gate["required_match_exit_code"]
+        ),
+        "publication_index_gate_mismatches": publication_index_gate["mismatches"],
+        "ready_for_archive": publication_index_gate["verified"],
+        "archive_record_schema_version": 1,
+        "required_archive_record_fields": archive_fields,
+        "required_archive_record_field_count": len(archive_fields),
+        "required_operator_supplied_archive_record_fields": [
+            "release_evidence_publication_index_uri",
+            "gate_checked_at",
+        ],
+        "expected_archive_record_values": expected_archive_record_values,
+        "required_gate_result": {
+            "verified": True,
+            "mismatch_count": 0,
+            "required_match_exit_code": 0,
+        },
+        "checklist_steps": steps,
+        "checklist_step_count": len(steps),
+    }
+
+
+def release_evidence_publication_index_archive_checklist_text_from_payload(payload):
+    lines = [
+        "zkCoin public launch profile release evidence publication index archive checklist:",
+        f"  - manifest: {payload['manifest']}",
+        f"  - release evidence publication index: {payload['release_evidence_publication_index']}",
+        f"  - release evidence publication index sha256: {payload['release_evidence_publication_index_sha256']}",
+        f"  - release evidence archive record: {payload['release_evidence_archive_record']}",
+        f"  - release evidence bundle: {payload['release_evidence_bundle']}",
+        f"  - ready for archive: {yes_no(payload['ready_for_archive'])}",
+        f"  - publication index gate verified: {yes_no(payload['publication_index_gate_verified'])}",
+        f"  - publication index gate mismatches: {payload['publication_index_gate_mismatch_count']}",
+        f"  - publication index gate required-match exit code: {payload['publication_index_gate_required_match_exit_code']}",
+        f"  - release evidence publication index archive checklist command: {payload['release_evidence_publication_index_archive_checklist_command']}",
+        f"  - release evidence publication index archive checklist JSON command: {payload['release_evidence_publication_index_archive_checklist_json_command']}",
+        f"  - release evidence publication index gate JSON command: {payload['release_evidence_publication_index_gate_json_command']}",
+        f"  - archive record schema version: {payload['archive_record_schema_version']}",
+        f"  - archive record fields: {list_summary(payload['required_archive_record_fields'])}",
+        f"  - operator-supplied archive record fields: {list_summary(payload['required_operator_supplied_archive_record_fields'])}",
+        "  - required gate verified: yes",
+        "  - required gate mismatches: 0",
+        "  - required gate exit code: 0",
+        f"  - expected archive record release_evidence_publication_index_sha256: {payload['expected_archive_record_values']['release_evidence_publication_index_sha256']}",
+        f"  - expected archive record manifest_commit: {payload['expected_archive_record_values']['manifest_commit']}",
+        f"  - expected archive record gate_command: {payload['expected_archive_record_values']['gate_command']}",
+        f"  - checklist steps: {payload['checklist_step_count']}",
+    ]
+    for step in payload["checklist_steps"]:
+        lines.append(f"  - step {step['step']}: {step['id']}")
+        if step.get("command") is not None:
+            lines.append(f"  - step {step['step']} command: {step['command']}")
+        if step.get("required_archive_record_fields") is not None:
+            lines.append(
+                f"  - step {step['step']} required fields: "
+                f"{list_summary(step['required_archive_record_fields'])}"
+            )
+    if payload["publication_index_gate_mismatches"]:
+        mismatch = payload["publication_index_gate_mismatches"][0]
+        lines.extend([
+            f"  - first mismatch path: {mismatch['path']}",
+            f"  - first mismatch kind: {mismatch['kind']}",
+        ])
+    return "\n".join(lines)
+
+
+def release_evidence_publication_index_archive_checklist_text(
+    manifest,
+    manifest_path,
+    check,
+    publication_index_path,
+    archive_record_path,
+    bundle_path,
+):
+    return release_evidence_publication_index_archive_checklist_text_from_payload(
+        release_evidence_publication_index_archive_checklist_payload(
+            manifest,
+            manifest_path,
+            check,
+            publication_index_path,
+            archive_record_path,
+            bundle_path,
+        )
+    )
+
+
+def release_evidence_publication_index_archive_checklist_json_text_from_payload(payload):
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def release_evidence_publication_index_archive_checklist_json_text(
+    manifest,
+    manifest_path,
+    check,
+    publication_index_path,
+    archive_record_path,
+    bundle_path,
+):
+    return release_evidence_publication_index_archive_checklist_json_text_from_payload(
+        release_evidence_publication_index_archive_checklist_payload(
+            manifest,
+            manifest_path,
+            check,
+            publication_index_path,
+            archive_record_path,
+            bundle_path,
         )
     )
 
@@ -9882,6 +10174,17 @@ def status_json_text(manifest, manifest_path, check):
                     json_output=True,
                 )
             ),
+            "release_evidence_publication_index_archive_checklist_command": (
+                release_evidence_publication_index_archive_checklist_command(
+                    manifest_path,
+                )
+            ),
+            "release_evidence_publication_index_archive_checklist_json_command": (
+                release_evidence_publication_index_archive_checklist_command(
+                    manifest_path,
+                    json_output=True,
+                )
+            ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
             "commands": commands,
@@ -10187,6 +10490,8 @@ def selected_primary_actions(args):
         actions.append("--release-evidence-publication-index-template")
     if args.check_release_evidence_publication_index is not None:
         actions.append("--check-release-evidence-publication-index")
+    if args.release_evidence_publication_index_archive_checklist is not None:
+        actions.append("--release-evidence-publication-index-archive-checklist")
     if args.snapshot_audit_template_diff is not None:
         actions.append("--snapshot-audit-template-diff")
     if args.set_auxpow is not None:
@@ -10303,6 +10608,13 @@ def main():
         "--require-release-evidence-publication-index-match",
         action="store_true",
         help="return a non-zero exit code when --check-release-evidence-publication-index detects mismatches",
+    )
+    parser.add_argument(
+        "--release-evidence-publication-index-archive-checklist",
+        nargs=3,
+        metavar=("INDEX_JSON", "ARCHIVE_JSON", "BUNDLE_JSON"),
+        type=Path,
+        help="print the publication index archive checklist for one filled publication index",
     )
     parser.add_argument("--network-readiness-summary", metavar="NETWORK", help="print a compact readiness summary for one public network")
     parser.add_argument("--network-handoff-bundle", metavar="NETWORK", help="print current and queued handoff commands for one public network")
@@ -10493,6 +10805,7 @@ def main():
         and args.release_evidence_handoff_summary is None
         and args.release_evidence_publication_index_template is None
         and args.check_release_evidence_publication_index is None
+        and args.release_evidence_publication_index_archive_checklist is None
         and args.snapshot_audit_template is None
         and args.snapshot_audit_template_diff is None
         and args.check_auxpow is None
@@ -10529,6 +10842,7 @@ def main():
             "--release-evidence-handoff-summary, "
             "--release-evidence-publication-index-template, "
             "--check-release-evidence-publication-index, "
+            "--release-evidence-publication-index-archive-checklist, "
             "--release-evidence-archive-checklist, "
             "or --value-selection-checklists",
             file=sys.stderr,
@@ -10709,6 +11023,10 @@ def main():
         if args.in_place:
             print("error: --check-release-evidence-publication-index does not write the manifest", file=sys.stderr)
             return 1
+    if args.release_evidence_publication_index_archive_checklist is not None:
+        if args.in_place:
+            print("error: --release-evidence-publication-index-archive-checklist does not write the manifest", file=sys.stderr)
+            return 1
 
     if args.set_auxpow is not None:
         try:
@@ -10832,6 +11150,8 @@ def main():
     if args.release_evidence_publication_index_template is not None:
         allow_blocked = True
     if args.check_release_evidence_publication_index is not None:
+        allow_blocked = True
+    if args.release_evidence_publication_index_archive_checklist is not None:
         allow_blocked = True
     if args.network_readiness_summary is not None:
         allow_blocked = True
@@ -11121,6 +11441,36 @@ def main():
                 "error: release evidence publication index does not match the current handoff",
                 file=sys.stderr,
             )
+            return 1
+        return 0
+
+    if args.release_evidence_publication_index_archive_checklist is not None:
+        publication_index_path, archive_record_path, bundle_path = (
+            args.release_evidence_publication_index_archive_checklist
+        )
+        try:
+            publication_index_archive_checklist_payload = (
+                release_evidence_publication_index_archive_checklist_payload(
+                    manifest,
+                    args.manifest,
+                    check,
+                    publication_index_path,
+                    archive_record_path,
+                    bundle_path,
+                )
+            )
+            publication_index_archive_checklist_text = (
+                release_evidence_publication_index_archive_checklist_json_text_from_payload
+                if args.json
+                else release_evidence_publication_index_archive_checklist_text_from_payload
+            )
+            print(
+                publication_index_archive_checklist_text(
+                    publication_index_archive_checklist_payload
+                )
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
             return 1
         return 0
 
