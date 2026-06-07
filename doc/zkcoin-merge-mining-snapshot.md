@@ -191,6 +191,9 @@ Both are intentionally present before behavior changes so tests and review can t
   `contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template NETWORK`
   when operators need a placeholder-only JSON shape for AuxPoW, public identity,
   and DNS seed candidates before choosing production values. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate NETWORK value-selection-candidate.json`
+  when operators need to verify a filled candidate artifact for one network
+  without applying its AuxPoW chain id, public identity, or DNS seed values. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists`
   when CI or release dashboards need one compact all-network pre-apply checklist
   of the queued value-selection JSON checks without parsing full status JSON.
@@ -446,6 +449,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `network_value_selection_candidate_template_json_command_count` expose the
   per-network value-selection candidate template commands and JSON command map
   sizes.
+  `network_value_selection_candidate_check_commands_by_network`,
+  `network_value_selection_candidate_check_command_count`,
+  `network_value_selection_candidate_check_json_commands_by_network`, and
+  `network_value_selection_candidate_check_json_command_count` expose the
+  per-network filled-candidate verification commands and JSON command map sizes.
   `queued_value_selection_json_check_commands_by_network`,
   `queued_value_selection_json_check_command_counts_by_network`,
   `queued_value_selection_candidate_checklists_by_network`, and
@@ -1375,6 +1383,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
 contrib/devtools/zkcoin_public_launch_profile.py \
   --json \
   --network-value-selection-candidate-template NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-network-value-selection-candidate NETWORK value-selection-candidate.json \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --check-network-value-selection-candidate NETWORK value-selection-candidate.json \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
