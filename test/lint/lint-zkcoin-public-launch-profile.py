@@ -2738,6 +2738,196 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        candidate_status_missing_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--value-selection-candidate-artifact-status",
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_missing_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status failed for missing candidates: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_missing_result.stderr.strip()
+                or candidate_status_missing_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "zkCoin public launch profile value-selection candidate artifact status:",
+            "  - supplied candidates: 0/2",
+            "  - verified candidates: 0/2",
+            "  - all required candidates verified: no",
+            "  - next missing candidate: main",
+            "  - main candidate status: missing-artifact",
+            "    - supplied: no",
+            "    - path: <value_selection_candidate.json>",
+            "    - candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main {}".format(
+                readonly_candidate_manifest_path
+            ),
+        ):
+            if expected not in candidate_status_missing_result.stdout:
+                return "{} --value-selection-candidate-artifact-status did not print missing-candidate detail {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        candidate_status_missing_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--value-selection-candidate-artifact-status",
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_missing_json_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status --json failed for missing candidates: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_missing_json_result.stderr.strip()
+                or candidate_status_missing_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_status_missing_json = json.loads(
+                candidate_status_missing_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --value-selection-candidate-artifact-status --json did not emit missing-candidate JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            candidate_status_missing_json.get("schema_version") != 1
+            or candidate_status_missing_json.get("provided_candidate_count") != 0
+            or candidate_status_missing_json.get("missing_candidate_count") != 2
+            or candidate_status_missing_json.get("verified_candidate_count") != 0
+            or candidate_status_missing_json.get("all_required_candidates_verified") is not False
+            or candidate_status_missing_json.get("candidate_statuses_by_network", {}).get("main", {}).get("status") != "missing-artifact"
+            or candidate_status_missing_json.get("candidate_statuses_by_network", {}).get("testnet", {}).get("status") != "missing-artifact"
+        ):
+            return "{} --value-selection-candidate-artifact-status --json did not expose missing-candidate status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        candidate_status_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--value-selection-candidate-artifact-status "
+            f"--main-value-selection-candidate {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_status_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--json --value-selection-candidate-artifact-status "
+            f"--main-value-selection-candidate {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_status_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status failed for a supplied main candidate: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_result.stderr.strip()
+                or candidate_status_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "  - supplied candidates: 1/2",
+            "  - verified candidates: 1/2",
+            "  - all required candidates verified: no",
+            "  - main candidate status: verified",
+            f"    - path: {candidate_path}",
+            f"    - candidate size: {candidate_size}",
+            f"    - candidate sha256: {candidate_sha256}",
+            "    - post-apply remaining blockers: 5",
+            "    - post-apply next blocker: main.litecoin_snapshot",
+            "  - testnet candidate status: missing-artifact",
+            f"  - value-selection candidate artifact status command: {candidate_status_command}",
+            f"  - value-selection candidate artifact status JSON command: {candidate_status_json_command}",
+        ):
+            if expected not in candidate_status_result.stdout:
+                return "{} --value-selection-candidate-artifact-status did not print supplied-candidate detail {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        candidate_status_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_json_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status --json failed for a supplied main candidate: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_json_result.stderr.strip()
+                or candidate_status_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_status_json = json.loads(candidate_status_json_result.stdout)
+        except json.JSONDecodeError as exc:
+            return "{} --value-selection-candidate-artifact-status --json did not emit supplied-candidate JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        main_candidate_status = candidate_status_json.get(
+            "candidate_statuses_by_network",
+            {},
+        ).get("main", {})
+        testnet_candidate_status = candidate_status_json.get(
+            "candidate_statuses_by_network",
+            {},
+        ).get("testnet", {})
+        if (
+            candidate_status_json.get("provided_candidate_count") != 1
+            or candidate_status_json.get("missing_candidate_count") != 1
+            or candidate_status_json.get("verified_candidate_count") != 1
+            or candidate_status_json.get("error_candidate_count") != 0
+            or candidate_status_json.get("all_required_candidates_verified") is not False
+            or candidate_status_json.get("value_selection_candidate_artifact_status_command") != candidate_status_command
+            or candidate_status_json.get("value_selection_candidate_artifact_status_json_command") != candidate_status_json_command
+            or main_candidate_status.get("status") != "verified"
+            or main_candidate_status.get("candidate_size") != candidate_size
+            or main_candidate_status.get("candidate_sha256") != candidate_sha256
+            or main_candidate_status.get("candidate_artifact", {}).get("path") != str(candidate_path)
+            or main_candidate_status.get("post_apply", {}).get("remaining_blocker_count") != 5
+            or main_candidate_status.get("post_apply", {}).get("next_blocker") != "main.litecoin_snapshot"
+            or testnet_candidate_status.get("status") != "missing-artifact"
+        ):
+            return "{} --value-selection-candidate-artifact-status --json did not expose supplied-candidate status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         placeholder_candidate = json.loads(json.dumps(candidate))
         placeholder_candidate["auxpow_chain_id"] = "<chain_id>"
         placeholder_candidate_path = Path(temp_dir) / "placeholder-candidate.json"
@@ -2765,6 +2955,51 @@ def require_public_launch_manifest_current():
             )
         if "still contains placeholder <chain_id>" not in placeholder_candidate_result.stderr:
             return "{} --check-network-value-selection-candidate did not explain placeholder rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        placeholder_candidate_status_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(placeholder_candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if placeholder_candidate_status_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status --json failed to report an invalid candidate as status: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                placeholder_candidate_status_result.stderr.strip()
+                or placeholder_candidate_status_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            placeholder_candidate_status = json.loads(
+                placeholder_candidate_status_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --value-selection-candidate-artifact-status --json did not emit invalid-candidate JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        placeholder_main_status = placeholder_candidate_status.get(
+            "candidate_statuses_by_network",
+            {},
+        ).get("main", {})
+        if (
+            placeholder_candidate_status.get("error_candidate_count") != 1
+            or placeholder_main_status.get("status") != "error"
+            or placeholder_main_status.get("verified") is not False
+            or "still contains placeholder <chain_id>" not in placeholder_main_status.get("error", "")
+        ):
+            return "{} --value-selection-candidate-artifact-status --json did not report invalid candidate status details".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -9495,6 +9730,22 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not count network value-selection candidate check JSON commands".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if status_json.get("value_selection_candidate_artifact_status_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--value-selection-candidate-artifact-status "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose value-selection candidate artifact status command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("value_selection_candidate_artifact_status_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--json --value-selection-candidate-artifact-status "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose value-selection candidate artifact status JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     status_value_selection_json_commands = status_json.get(
         "queued_value_selection_json_check_commands_by_network",
         {},
@@ -13133,6 +13384,26 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged release evidence publication artifact status JSON commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            f"--value-selection-candidate-artifact-status {quoted_manifest_path}"
+            not in spaced_status_json.get(
+                "value_selection_candidate_artifact_status_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged value-selection candidate artifact status commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            f"--json --value-selection-candidate-artifact-status {quoted_manifest_path}"
+            not in spaced_status_json.get(
+                "value_selection_candidate_artifact_status_json_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged value-selection candidate artifact status JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -13882,6 +14153,28 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    value_selection_candidate_artifact_status_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--value-selection-candidate-artifact-status",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if value_selection_candidate_artifact_status_in_place_result.returncode == 0:
+        return "{} --value-selection-candidate-artifact-status accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--value-selection-candidate-artifact-status does not write the manifest" not in value_selection_candidate_artifact_status_in_place_result.stderr:
+        return "{} --value-selection-candidate-artifact-status did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     value_selection_checklists_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -14510,6 +14803,28 @@ def require_public_launch_manifest_current():
         )
     if "--require-release-evidence-publication-closeout-archive-match requires --check-release-evidence-publication-closeout-archive" not in release_evidence_publication_closeout_archive_gate_without_check_result.stderr:
         return "{} --require-release-evidence-publication-closeout-archive-match did not explain its required check action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    candidate_status_path_without_action_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--main-value-selection-candidate",
+            "<value_selection_candidate.json>",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if candidate_status_path_without_action_result.returncode == 0:
+        return "{} --main-value-selection-candidate was accepted without artifact status".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--main-value-selection-candidate and --testnet-value-selection-candidate require --value-selection-candidate-artifact-status" not in candidate_status_path_without_action_result.stderr:
+        return "{} --main-value-selection-candidate did not explain its required status action".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -16120,7 +16435,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --check-network-value-selection-candidate, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --check-network-value-selection-candidate, --value-selection-candidate-artifact-status, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -22339,6 +22654,9 @@ def main():
         ("network_value_selection_later_blockers_json_text", "manifest network value-selection later blockers JSON renderer"),
         ("--network-value-selection-candidate-template", "manifest network value-selection candidate template flag"),
         ("--check-network-value-selection-candidate", "manifest network value-selection candidate check flag"),
+        ("--value-selection-candidate-artifact-status", "manifest value-selection candidate artifact status flag"),
+        ("--main-value-selection-candidate", "manifest main value-selection candidate artifact status path flag"),
+        ("--testnet-value-selection-candidate", "manifest testnet value-selection candidate artifact status path flag"),
         ("VALUE_SELECTION_CANDIDATE_MAX_BYTES", "manifest bounds value-selection candidate artifacts"),
         ("read_value_selection_candidate_bytes", "manifest reads value-selection candidate artifacts once for hashing"),
         ("value_selection_candidate_artifact_metadata", "manifest fingerprints value-selection candidate artifacts"),
@@ -22350,6 +22668,11 @@ def main():
         ("network_value_selection_candidate_check_json_payload", "manifest network value-selection candidate check JSON payload helper"),
         ("network_value_selection_candidate_check_text", "manifest network value-selection candidate check text renderer"),
         ("network_value_selection_candidate_check_json_text", "manifest network value-selection candidate check JSON renderer"),
+        ("value_selection_candidate_artifact_status_command", "manifest builds value-selection candidate artifact status commands"),
+        ("value_selection_candidate_artifact_status_entry", "manifest builds value-selection candidate artifact status entries"),
+        ("value_selection_candidate_artifact_status_payload", "manifest builds value-selection candidate artifact status payloads"),
+        ("value_selection_candidate_artifact_status_text", "manifest prints value-selection candidate artifact status guidance"),
+        ("value_selection_candidate_artifact_status_json_text", "manifest prints value-selection candidate artifact status JSON guidance"),
         ("value_selection_candidate_template", "manifest builds value-selection candidate templates"),
         ("network_value_selection_candidate_template_json_payload", "manifest network value-selection candidate template JSON payload helper"),
         ("network_value_selection_candidate_template_text", "manifest network value-selection candidate template text renderer"),
@@ -22878,6 +23201,8 @@ def main():
         ("network_value_selection_candidate_check_commands", "manifest builds network value-selection candidate check command maps"),
         ("network_value_selection_candidate_check_commands_by_network", "manifest status JSON exposes value-selection candidate check command maps"),
         ("network_value_selection_candidate_check_json_commands_by_network", "manifest status JSON exposes value-selection candidate check JSON command maps"),
+        ("value_selection_candidate_artifact_status_command", "manifest status JSON exposes value-selection candidate artifact status commands"),
+        ("value_selection_candidate_artifact_status_json_command", "manifest status JSON exposes value-selection candidate artifact status JSON commands"),
         ("queued_value_selection_json_check_commands", "manifest exposes network handoff JSON candidate check command maps"),
         ("queued_value_selection_candidate_checklist", "manifest exposes network handoff value-selection checklist JSON"),
         ("queued_value_selection_json_check_commands_by_network", "manifest readiness summary exposes value-selection JSON check command maps"),
@@ -24397,6 +24722,22 @@ def main():
             "public launch manifest value-selection candidate artifact metadata JSON documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --value-selection-candidate-artifact-status",
+            "public launch manifest value-selection candidate artifact status documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --value-selection-candidate-artifact-status",
+            "public launch manifest value-selection candidate artifact status JSON documentation",
+        ),
+        (
+            "--main-value-selection-candidate",
+            "public launch manifest value-selection candidate artifact status path documentation",
+        ),
+        (
+            "missing-artifact, verified, or error",
+            "public launch manifest value-selection candidate artifact status result documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py \\\n  --value-selection-checklists",
             "public launch manifest all-network value-selection checklist documentation",
         ),
@@ -24695,6 +25036,10 @@ def main():
         (
             "release_evidence_publication_artifact_status_command",
             "public launch manifest status-json release evidence publication artifact status command documentation",
+        ),
+        (
+            "value_selection_candidate_artifact_status_command",
+            "public launch manifest status-json value-selection candidate artifact status command documentation",
         ),
         (
             "handoff_artifacts",
@@ -25387,6 +25732,14 @@ def main():
         (
             "network_value_selection_candidate_check_json_command_count",
             "public launch manifest status-json network value-selection candidate check JSON command count documentation",
+        ),
+        (
+            "value_selection_candidate_artifact_status_command",
+            "public launch manifest status-json value-selection candidate artifact status command documentation",
+        ),
+        (
+            "value_selection_candidate_artifact_status_json_command",
+            "public launch manifest status-json value-selection candidate artifact status JSON command documentation",
         ),
         (
             "queued_value_selection_json_check_commands_by_network",
