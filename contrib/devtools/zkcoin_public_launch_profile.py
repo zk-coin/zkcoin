@@ -8793,8 +8793,7 @@ def release_evidence_publication_index_template_json_text(
     )
 
 
-def read_release_evidence_publication_index(index_path):
-    index_text = read_release_evidence_publication_index_text(index_path)
+def parse_release_evidence_publication_index(index_path, index_text):
     try:
         publication_index = json.loads(
             index_text,
@@ -8810,6 +8809,13 @@ def read_release_evidence_publication_index(index_path):
     if not isinstance(publication_index, dict):
         raise ValueError("release evidence publication index must be a JSON object")
     return publication_index
+
+
+def read_release_evidence_publication_index(index_path):
+    return parse_release_evidence_publication_index(
+        index_path,
+        read_release_evidence_publication_index_text(index_path),
+    )
 
 
 def release_evidence_publication_index_placeholder_fields(publication_index):
@@ -8831,9 +8837,16 @@ def release_evidence_publication_index_check_payload(
     bundle_path,
     require_match=False,
 ):
-    publication_index = read_release_evidence_publication_index(
+    publication_index_text = read_release_evidence_publication_index_text(
         publication_index_path
     )
+    publication_index = parse_release_evidence_publication_index(
+        publication_index_path,
+        publication_index_text,
+    )
+    publication_index_sha256 = hashlib.sha256(
+        publication_index_text.encode("utf8")
+    ).hexdigest()
     handoff_summary = release_evidence_handoff_summary_payload(
         manifest,
         manifest_path,
@@ -8948,6 +8961,7 @@ def release_evidence_publication_index_check_payload(
         "release_evidence_publication_index": display_path(
             publication_index_path,
         ),
+        "release_evidence_publication_index_sha256": publication_index_sha256,
         "release_evidence_archive_record": display_path(archive_record_path),
         "release_evidence_bundle": display_path(bundle_path),
         "verified": verified,
@@ -9056,6 +9070,7 @@ def release_evidence_publication_index_check_text_from_payload(payload):
         f"  - required-match exit code: {payload['required_match_exit_code']}",
         f"  - manifest: {payload['manifest']}",
         f"  - release evidence publication index: {payload['release_evidence_publication_index']}",
+        f"  - release evidence publication index sha256: {payload['release_evidence_publication_index_sha256']}",
         f"  - release evidence archive record: {payload['release_evidence_archive_record']}",
         f"  - release evidence bundle: {payload['release_evidence_bundle']}",
         f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
