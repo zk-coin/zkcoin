@@ -238,6 +238,11 @@ Both are intentionally present before behavior changes so tests and review can t
   the bundle JSON, filled archive record JSON, and generated handoff summary
   JSON.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json>`
+  when operators need the final publication index JSON shape after those
+  handoff artifacts are ready, without having the tool choose publication URIs,
+  timestamps, publishers, or release commits.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -1033,6 +1038,17 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-index-template <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-publication-index-template <release_evidence_archive_record.json> \
+  <release_evidence_bundle.json> \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1264,6 +1280,15 @@ set is publishable without inferring that state from individual gate counters.
 When publication is blocked, `next_publication_blocker`,
 `next_publication_blocker_id`, `next_publication_blocker_path`, and
 `next_publication_blocker_command` point at the first artifact handoff to fix.
+Use `--release-evidence-publication-index-template --json` when automation needs
+the operator-owned publication index schema and placeholder payload after the
+handoff summary is ready. The template keeps
+`release_evidence_bundle_uri`, `release_evidence_archive_record_uri`,
+`release_evidence_handoff_summary_uri`, `manifest_commit`, `published_at`, and
+`publisher` as placeholders so the release operator owns those external values.
+Status JSON exposes the same command as
+`release_evidence_publication_index_template_command` so dashboards can discover
+the template action without hard-coding the CLI form.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
