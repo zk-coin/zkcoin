@@ -188,6 +188,9 @@ Both are intentionally present before behavior changes so tests and review can t
   when release operators need only the queued AuxPoW, public identity, and DNS
   seed value-selection blockers for one public network after its current
   blocker. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template NETWORK`
+  when operators need a placeholder-only JSON shape for AuxPoW, public identity,
+  and DNS seed candidates before choosing production values. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists`
   when CI or release dashboards need one compact all-network pre-apply checklist
   of the queued value-selection JSON checks without parsing full status JSON.
@@ -437,6 +440,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `network_value_selection_later_blockers_commands_by_network` and
   `network_value_selection_later_blockers_command_count` expose the queued
   per-network value-selection handoff commands and their map size.
+  `network_value_selection_candidate_template_commands_by_network`,
+  `network_value_selection_candidate_template_command_count`,
+  `network_value_selection_candidate_template_json_commands_by_network`, and
+  `network_value_selection_candidate_template_json_command_count` expose the
+  per-network value-selection candidate template commands and JSON command map
+  sizes.
   `queued_value_selection_json_check_commands_by_network`,
   `queued_value_selection_json_check_command_counts_by_network`,
   `queued_value_selection_candidate_checklists_by_network`, and
@@ -1360,6 +1369,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --network-value-selection-candidate-template NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --network-value-selection-candidate-template NETWORK \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --value-selection-checklists \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1429,6 +1447,10 @@ automation needs machine-readable queued AuxPoW chain-id, public identity, and
 DNS seed blockers, their blocked fields, candidate constraints, JSON-capable
 candidate check command templates, ordered pre-apply candidate checklists, and
 readiness-summary command map for one network.
+Add `--json` to the network value-selection candidate-template command when
+automation needs the placeholder-only JSON shape for AuxPoW, public identity, and DNS seed candidates,
+candidate constraints, required candidate sections, and JSON check command
+templates for one network before any production values are selected.
 Use `--value-selection-checklists --json` when automation needs the same
 pre-apply value-selection checklist data for every public network in one compact
 payload, including per-network blocker counts, field counts, JSON check command
