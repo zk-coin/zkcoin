@@ -2602,7 +2602,11 @@ def require_public_launch_manifest_current():
             },
             "dns_seeds": ["seed1.zkcoin.org", "seed2.zkcoin.net"],
         }
-        candidate_path.write_text(json.dumps(candidate, indent=2), encoding="utf8")
+        candidate_text = json.dumps(candidate, indent=2)
+        candidate_bytes = candidate_text.encode("utf8")
+        candidate_size = len(candidate_bytes)
+        candidate_sha256 = hashlib.sha256(candidate_bytes).hexdigest()
+        candidate_path.write_text(candidate_text, encoding="utf8")
         readonly_candidate_manifest_path = Path(temp_dir) / "read-only-candidate-manifest.json"
         readonly_candidate_manifest_bytes = PUBLIC_LAUNCH_MANIFEST.read_bytes()
         readonly_candidate_manifest_path.write_bytes(readonly_candidate_manifest_bytes)
@@ -2644,6 +2648,8 @@ def require_public_launch_manifest_current():
             "  - candidate network: main",
             "  - verified: yes",
             "  - ready to apply: yes",
+            f"  - candidate size: {candidate_size}",
+            f"  - candidate sha256: {candidate_sha256}",
             "  - verified sections: 3/3",
             f"  - candidate check command: {candidate_command}",
             f"  - candidate check JSON command: {candidate_json_command}",
@@ -2698,6 +2704,16 @@ def require_public_launch_manifest_current():
             candidate_check_json.get("schema_version") != 1
             or candidate_check_json.get("network") != "main"
             or candidate_check_json.get("candidate_path") != str(candidate_path)
+            or candidate_check_json.get("candidate_size") != candidate_size
+            or candidate_check_json.get("candidate_sha256") != candidate_sha256
+            or candidate_check_json.get("candidate_max_bytes") != 65536
+            or candidate_check_json.get("candidate_artifact", {}).get("path") != str(candidate_path)
+            or candidate_check_json.get("candidate_artifact", {}).get("size") != candidate_size
+            or candidate_check_json.get("candidate_artifact", {}).get("sha256") != candidate_sha256
+            or candidate_check_json.get("candidate_artifact", {}).get("max_bytes") != 65536
+            or candidate_check_json.get("candidate_artifact", {}).get("must_be_utf8_json_object") is not True
+            or candidate_check_json.get("candidate_artifact", {}).get("rejects_duplicate_fields") is not True
+            or candidate_check_json.get("candidate_artifact", {}).get("must_remain_stable_during_verification") is not True
             or candidate_check_json.get("verified") is not True
             or candidate_check_json.get("ready_to_apply") is not True
             or candidate_check_json.get("section_ids")
@@ -22324,6 +22340,9 @@ def main():
         ("--network-value-selection-candidate-template", "manifest network value-selection candidate template flag"),
         ("--check-network-value-selection-candidate", "manifest network value-selection candidate check flag"),
         ("VALUE_SELECTION_CANDIDATE_MAX_BYTES", "manifest bounds value-selection candidate artifacts"),
+        ("read_value_selection_candidate_bytes", "manifest reads value-selection candidate artifacts once for hashing"),
+        ("value_selection_candidate_artifact_metadata", "manifest fingerprints value-selection candidate artifacts"),
+        ("read_value_selection_candidate_json_with_metadata", "manifest reads value-selection candidate JSON with metadata"),
         ("read_value_selection_candidate_json", "manifest reads value-selection candidate artifacts as JSON"),
         ("value_selection_candidate_args", "manifest parses value-selection candidate artifacts"),
         ("checked_network_value_selection_candidate", "manifest verifies filled value-selection candidate artifacts"),
@@ -24360,6 +24379,22 @@ def main():
         (
             "verify a filled candidate artifact for one network",
             "public launch manifest network value-selection candidate check contents documentation",
+        ),
+        (
+            "candidate artifact size and SHA-256",
+            "public launch manifest network value-selection candidate fingerprint documentation",
+        ),
+        (
+            "candidate_size",
+            "public launch manifest value-selection candidate size JSON documentation",
+        ),
+        (
+            "candidate_sha256",
+            "public launch manifest value-selection candidate SHA-256 JSON documentation",
+        ),
+        (
+            "candidate_artifact",
+            "public launch manifest value-selection candidate artifact metadata JSON documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --value-selection-checklists",

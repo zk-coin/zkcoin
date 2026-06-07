@@ -2588,7 +2588,7 @@ def value_selection_candidate_too_large_error(candidate_path):
     )
 
 
-def read_value_selection_candidate_text(candidate_path):
+def read_value_selection_candidate_bytes(candidate_path):
     fd, candidate_stat = open_regular_file_no_symlink(
         candidate_path,
         symlink_error="value-selection candidate path must not be a symlink",
@@ -2631,14 +2631,39 @@ def read_value_selection_candidate_text(candidate_path):
     finally:
         os.close(fd)
 
+    return b"".join(chunks)
+
+
+def value_selection_candidate_artifact_metadata(candidate_path, candidate_bytes):
+    return {
+        "path": display_path(candidate_path),
+        "size": len(candidate_bytes),
+        "sha256": hashlib.sha256(candidate_bytes).hexdigest(),
+        "max_bytes": VALUE_SELECTION_CANDIDATE_MAX_BYTES,
+        "must_be_utf8_json_object": True,
+        "rejects_duplicate_fields": True,
+        "must_remain_stable_during_verification": True,
+    }
+
+
+def read_value_selection_candidate_text(candidate_path):
+    candidate_bytes = read_value_selection_candidate_bytes(candidate_path)
     try:
-        return b"".join(chunks).decode("utf8")
+        return candidate_bytes.decode("utf8")
     except UnicodeDecodeError:
         raise ValueError("value-selection candidate is not valid UTF-8") from None
 
 
-def read_value_selection_candidate_json(candidate_path):
-    candidate_text = read_value_selection_candidate_text(candidate_path)
+def read_value_selection_candidate_json_with_metadata(candidate_path):
+    candidate_bytes = read_value_selection_candidate_bytes(candidate_path)
+    metadata = value_selection_candidate_artifact_metadata(
+        candidate_path,
+        candidate_bytes,
+    )
+    try:
+        candidate_text = candidate_bytes.decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError("value-selection candidate is not valid UTF-8") from None
     try:
         candidate = json.loads(
             candidate_text,
@@ -2654,6 +2679,11 @@ def read_value_selection_candidate_json(candidate_path):
         ) from None
     if not isinstance(candidate, dict):
         raise ValueError("value-selection candidate must be a JSON object")
+    return candidate, metadata
+
+
+def read_value_selection_candidate_json(candidate_path):
+    candidate, _ = read_value_selection_candidate_json_with_metadata(candidate_path)
     return candidate
 
 
@@ -4497,7 +4527,9 @@ def value_selection_candidate_args(candidate, network):
 
 
 def checked_network_value_selection_candidate(manifest, network, candidate_path):
-    candidate_json = read_value_selection_candidate_json(Path(candidate_path))
+    candidate_json, candidate_metadata = read_value_selection_candidate_json_with_metadata(
+        Path(candidate_path)
+    )
     args = value_selection_candidate_args(candidate_json, network)
     auxpow, _ = checked_auxpow_candidate(
         manifest,
@@ -4527,7 +4559,7 @@ def checked_network_value_selection_candidate(manifest, network, candidate_path)
                 check,
             )
         )
-    return candidate_json, auxpow, identity, dns_seeds, candidate
+    return candidate_json, candidate_metadata, auxpow, identity, dns_seeds, candidate
 
 
 def value_selection_candidate_post_apply_payload(candidate, manifest_path, network):
@@ -4664,6 +4696,7 @@ def network_value_selection_candidate_check_json_payload(
     network,
     candidate_path,
     candidate_json,
+    candidate_metadata,
     auxpow,
     identity,
     dns_seeds,
@@ -4682,6 +4715,10 @@ def network_value_selection_candidate_check_json_payload(
         "status": manifest.get("status"),
         "network": network,
         "candidate_path": display_path(candidate_path),
+        "candidate_artifact": candidate_metadata,
+        "candidate_size": candidate_metadata["size"],
+        "candidate_sha256": candidate_metadata["sha256"],
+        "candidate_max_bytes": candidate_metadata["max_bytes"],
         "candidate_schema_version": candidate_json.get("schema_version"),
         "candidate_network": candidate_json.get("network"),
         "candidate_template_schema_version": value_selection_candidate_template(
@@ -4742,6 +4779,7 @@ def network_value_selection_candidate_check_json_text(
     network,
     candidate_path,
     candidate_json,
+    candidate_metadata,
     auxpow,
     identity,
     dns_seeds,
@@ -4754,6 +4792,7 @@ def network_value_selection_candidate_check_json_text(
             network,
             candidate_path,
             candidate_json,
+            candidate_metadata,
             auxpow,
             identity,
             dns_seeds,
@@ -4770,6 +4809,7 @@ def network_value_selection_candidate_check_text(
     network,
     candidate_path,
     candidate_json,
+    candidate_metadata,
     auxpow,
     identity,
     dns_seeds,
@@ -4781,6 +4821,7 @@ def network_value_selection_candidate_check_text(
         network,
         candidate_path,
         candidate_json,
+        candidate_metadata,
         auxpow,
         identity,
         dns_seeds,
@@ -4793,6 +4834,8 @@ def network_value_selection_candidate_check_text(
         f"  - status: {payload['status']}",
         f"  - network: {network}",
         f"  - candidate: {payload['candidate_path']}",
+        f"  - candidate size: {payload['candidate_size']}",
+        f"  - candidate sha256: {payload['candidate_sha256']}",
         f"  - candidate network: {payload['candidate_network']}",
         f"  - verified: {yes_no(payload['verified'])}",
         f"  - ready to apply: {yes_no(payload['ready_to_apply'])}",
@@ -16289,6 +16332,7 @@ def main():
         try:
             (
                 candidate_json,
+                candidate_metadata,
                 auxpow,
                 identity,
                 dns_seeds,
@@ -16313,6 +16357,7 @@ def main():
                 candidate_network,
                 candidate_path,
                 candidate_json,
+                candidate_metadata,
                 auxpow,
                 identity,
                 dns_seeds,
