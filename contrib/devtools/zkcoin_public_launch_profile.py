@@ -9102,6 +9102,16 @@ def release_evidence_payload_entries(manifest_path):
             "schema_version": 1,
             "required_before_launch": True,
         },
+        {
+            "step": 5,
+            "id": "value-selection-candidate-artifact-status",
+            "payload_key": "value_selection_candidate_artifact_status",
+            "command": value_selection_candidate_artifact_status_command(
+                manifest_path,
+            ),
+            "schema_version": 1,
+            "required_before_launch": True,
+        },
     ]
 
 
@@ -9125,12 +9135,19 @@ def release_evidence_bundle_state(manifest, manifest_path, check):
             manifest_path,
             check,
         ),
+        "value_selection_candidate_artifact_status": (
+            value_selection_candidate_artifact_status_payload(
+                manifest,
+                manifest_path,
+            )
+        ),
         "operator_summary": operator_payload["summary"],
     }
 
 
 def release_evidence_bundle_summary(bundle_state):
     operator_summary = bundle_state["operator_summary"]
+    candidate_status = bundle_state["value_selection_candidate_artifact_status"]
     return {
         "evidence_payload_count": len(bundle_state["payload_entries"]),
         "readiness_gate_count": operator_summary["readiness_gate_count"],
@@ -9144,6 +9161,17 @@ def release_evidence_bundle_summary(bundle_state):
             operator_summary["required_external_artifact_count"]
         ),
         "required_json_check_count": operator_summary["required_json_check_count"],
+        "candidate_artifact_count": candidate_status["candidate_count"],
+        "provided_candidate_artifact_count": (
+            candidate_status["provided_candidate_count"]
+        ),
+        "missing_candidate_artifact_count": (
+            candidate_status["missing_candidate_count"]
+        ),
+        "verified_candidate_artifact_count": (
+            candidate_status["verified_candidate_count"]
+        ),
+        "error_candidate_artifact_count": candidate_status["error_candidate_count"],
         "checklist_step_count": operator_summary["checklist_step_count"],
         "runbook_step_count": operator_summary["step_count"],
         "embedded_payload_schema_versions": {
@@ -9184,6 +9212,7 @@ def release_evidence_bundle_text(manifest, manifest_path, check):
         f"  - launch-gate preflight command: {launch_gate_preflight_command(manifest_path)}",
         f"  - snapshot audit handoffs command: {snapshot_audit_handoffs_command(manifest_path)}",
         f"  - value-selection checklists command: {value_selection_checklists_command(manifest_path)}",
+        f"  - value-selection candidate artifact status command: {value_selection_candidate_artifact_status_command(manifest_path)}",
         f"  - evidence payloads: {summary['evidence_payload_count']}",
         f"  - readiness gates: {list_summary(READINESS_GATES)}",
         f"  - blocked gates: {list_summary(summary['blocked_gates'])}",
@@ -9192,6 +9221,9 @@ def release_evidence_bundle_text(manifest, manifest_path, check):
         f"  - blocked fields: {summary['blocked_field_count']}",
         f"  - required external artifacts: {summary['required_external_artifact_count']}",
         f"  - required JSON checks: {summary['required_json_check_count']}",
+        f"  - value-selection candidate artifacts: {summary['provided_candidate_artifact_count']}/{summary['candidate_artifact_count']}",
+        f"  - verified value-selection candidate artifacts: {summary['verified_candidate_artifact_count']}/{summary['candidate_artifact_count']}",
+        f"  - value-selection candidate artifact errors: {summary['error_candidate_artifact_count']}",
         f"  - checklist steps: {summary['checklist_step_count']}",
         f"  - runbook steps: {summary['runbook_step_count']}",
     ]
@@ -9297,6 +9329,9 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
         "value_selection_checklists_command": value_selection_checklists_command(
             manifest_path,
         ),
+        "value_selection_candidate_artifact_status_command": (
+            value_selection_candidate_artifact_status_command(manifest_path)
+        ),
         "evidence_payloads": bundle_state["payload_entries"],
         "evidence_payload_count": len(bundle_state["payload_entries"]),
         "next_blocker": operator_payload["next_blocker"],
@@ -9309,6 +9344,9 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
             "snapshot_audit_handoffs": bundle_state["snapshot_audit_handoffs"],
             "value_selection_checklists": (
                 bundle_state["value_selection_checklists"]
+            ),
+            "value_selection_candidate_artifact_status": (
+                bundle_state["value_selection_candidate_artifact_status"]
             ),
         },
         "summary": release_evidence_bundle_summary(bundle_state),
