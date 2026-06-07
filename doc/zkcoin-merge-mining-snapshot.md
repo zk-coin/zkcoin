@@ -277,6 +277,12 @@ Both are intentionally present before behavior changes so tests and review can t
   record, and closeout archive handoff summary JSON together without choosing
   publication URIs, timestamps, publishers, or release commits.
   Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-status`
+  when release operators need the full ordered release-evidence publication
+  command pipeline, including every gate, operator-owned artifact placeholder,
+  and the final closeout archive handoff, without selecting production
+  constants or reading unreleased publication artifacts.
+  Use
   `contrib/devtools/zkcoin_public_launch_profile.py --blocker-readiness-summary BLOCKER_ID`
   for the same read-only handoff detail scoped to one exact unresolved blocker,
   such as `main.litecoin_snapshot`, when release operators need to hand off a
@@ -1206,6 +1212,15 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --release-evidence-publication-status \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --release-evidence-publication-status \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --snapshot-audit-template NETWORK \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1520,6 +1535,15 @@ the closeout JSON, closeout archive record, and generated summary JSON as the
 final closeout archive evidence set. Status JSON exposes
 `release_evidence_publication_closeout_archive_handoff_summary_command` for
 dashboards that need to discover this final read-only handoff step.
+Use `--release-evidence-publication-status --json` when automation needs a
+machine-readable inventory of the release-evidence publication pipeline without
+requiring any operator-owned artifact path. The payload lists the 13 ordered
+publication steps, gate steps, handoff steps, operator-value steps, per-step
+commands, per-step JSON commands, and
+`release-evidence-publication-closeout-archive-handoff-summary` as the final
+handoff step. Status JSON exposes
+`release_evidence_publication_status_command` for dashboards that need to
+discover the pipeline inventory without hard-coding the command string.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a

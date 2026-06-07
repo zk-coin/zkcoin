@@ -5566,6 +5566,108 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        release_evidence_publication_status_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--release-evidence-publication-status",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_status_result.returncode != 0:
+            return "{} --release-evidence-publication-status failed for the launch manifest: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_status_result.stderr.strip()
+                or release_evidence_publication_status_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "zkCoin public launch profile release evidence publication status:",
+            "  - publication steps: 13",
+            "  - gate steps: 5",
+            "  - handoff steps: 4",
+            "  - operator-value steps: 3",
+            "  - final handoff step: release-evidence-publication-closeout-archive-handoff-summary",
+            "  - release evidence publication status command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - release evidence publication status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - publication step 13: release-evidence-publication-closeout-archive-handoff-summary",
+            "  - publication step 13 kind: handoff",
+            "  - publication step 13 command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-closeout-archive-handoff-summary <release_evidence_publication_closeout_archive_record.json> <release_evidence_publication_closeout.json> <release_evidence_publication_index_archive_record.json> <release_evidence_publication_index.json> <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+        ):
+            if expected not in release_evidence_publication_status_result.stdout:
+                return "{} --release-evidence-publication-status did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        release_evidence_publication_status_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--release-evidence-publication-status",
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_publication_status_json_result.returncode != 0:
+            return "{} --release-evidence-publication-status --json failed for the launch manifest: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_status_json_result.stderr.strip()
+                or release_evidence_publication_status_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            publication_status_json = json.loads(
+                release_evidence_publication_status_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-publication-status --json output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        publication_status_steps = publication_status_json.get("publication_steps", [])
+        if (
+            publication_status_json.get("schema_version") != 1
+            or publication_status_json.get("publication_step_count") != 13
+            or len(publication_status_steps) != 13
+            or publication_status_json.get("gate_step_count") != 5
+            or publication_status_json.get("handoff_step_count") != 4
+            or publication_status_json.get("operator_value_step_count") != 3
+            or publication_status_json.get("operator_value_steps")
+            != [
+                "release-evidence-archive-checklist",
+                "release-evidence-publication-index-template",
+                "release-evidence-publication-index-archive-checklist",
+            ]
+            or publication_status_json.get("final_handoff_step_id")
+            != "release-evidence-publication-closeout-archive-handoff-summary"
+            or [step.get("id") for step in publication_status_steps][0]
+            != "release-evidence-bundle"
+            or [step.get("id") for step in publication_status_steps][-1]
+            != "release-evidence-publication-closeout-archive-handoff-summary"
+            or publication_status_steps[-1].get("output_artifact")
+            != "<release_evidence_publication_closeout_archive_handoff_summary.json>"
+            or publication_status_json.get("command_by_step", {}).get(
+                "release-evidence-publication-closeout-archive-handoff-summary"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-closeout-archive-handoff-summary <release_evidence_publication_closeout_archive_record.json> <release_evidence_publication_closeout.json> <release_evidence_publication_index_archive_record.json> <release_evidence_publication_index.json> <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_status_json.get("commands", {}).get(
+                "release_evidence_publication_status_json"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        ):
+            return "{} --release-evidence-publication-status --json did not summarize the publication pipeline".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         stale_release_evidence_publication_closeout_archive_record_path = (
             Path(temp_dir)
             / "stale-release-evidence-publication-closeout-archive-record.json"
@@ -8719,6 +8821,22 @@ def require_public_launch_manifest_current():
         "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
     ):
         return "{} --status-json did not expose the release evidence publication closeout archive handoff summary JSON command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_status_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py "
+        "--release-evidence-publication-status "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication status command".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if status_json.get("release_evidence_publication_status_json_command") != (
+        "contrib/devtools/zkcoin_public_launch_profile.py --json "
+        "--release-evidence-publication-status "
+        "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+    ):
+        return "{} --status-json did not expose the release evidence publication status JSON command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
     if status_json.get("commands") != {
@@ -12436,6 +12554,26 @@ def require_public_launch_manifest_current():
             return "{} --status-json did not shell-quote staged release evidence publication closeout archive handoff summary JSON commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
+        if (
+            f"--release-evidence-publication-status {quoted_manifest_path}"
+            not in spaced_status_json.get(
+                "release_evidence_publication_status_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication status commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if (
+            f"--json --release-evidence-publication-status {quoted_manifest_path}"
+            not in spaced_status_json.get(
+                "release_evidence_publication_status_json_command",
+                "",
+            )
+        ):
+            return "{} --status-json did not shell-quote staged release evidence publication status JSON commands".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
         if quoted_manifest_path not in spaced_status_json.get("network_readiness_summary_commands_by_network", {}).get("main", ""):
             return "{} --status-json did not shell-quote staged network readiness-summary commands".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -13580,6 +13718,28 @@ def require_public_launch_manifest_current():
         )
     if "--release-evidence-publication-closeout-archive-handoff-summary does not write the manifest" not in release_evidence_publication_closeout_archive_handoff_summary_in_place_result.stderr:
         return "{} --release-evidence-publication-closeout-archive-handoff-summary did not explain --in-place rejection".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    release_evidence_publication_status_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--release-evidence-publication-status",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if release_evidence_publication_status_in_place_result.returncode == 0:
+        return "{} --release-evidence-publication-status accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--release-evidence-publication-status does not write the manifest" not in release_evidence_publication_status_in_place_result.stderr:
+        return "{} --release-evidence-publication-status did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -15322,7 +15482,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -21670,6 +21830,12 @@ def main():
         ("release_evidence_publication_closeout_archive_handoff_summary_payload", "manifest builds release evidence publication closeout archive handoff summary JSON payloads"),
         ("release_evidence_publication_closeout_archive_handoff_summary_text", "manifest prints release evidence publication closeout archive handoff summary guidance"),
         ("release_evidence_publication_closeout_archive_handoff_summary_json_text", "manifest prints release evidence publication closeout archive handoff summary JSON guidance"),
+        ("--release-evidence-publication-status", "manifest release evidence publication status flag"),
+        ("release_evidence_publication_status_command", "manifest builds release evidence publication status commands"),
+        ("release_evidence_publication_status_steps", "manifest builds release evidence publication status steps"),
+        ("release_evidence_publication_status_payload", "manifest builds release evidence publication status JSON payloads"),
+        ("release_evidence_publication_status_text", "manifest prints release evidence publication status guidance"),
+        ("release_evidence_publication_status_json_text", "manifest prints release evidence publication status JSON guidance"),
         ("release_evidence_archive_check_json_text", "manifest prints release evidence archive check JSON guidance"),
         ("release_evidence_archive_checklist_steps", "manifest builds release evidence archive checklist steps"),
         ("release_evidence_archive_checklist_payload", "manifest builds release evidence archive checklist JSON payloads"),
@@ -22081,6 +22247,7 @@ def main():
         ("check_release_evidence_publication_closeout_archive_command", "manifest builds release evidence publication closeout archive check commands"),
         ("release_evidence_publication_closeout_archive_gate_command", "manifest builds release evidence publication closeout archive gate commands"),
         ("release_evidence_publication_closeout_archive_handoff_summary_command", "manifest builds release evidence publication closeout archive handoff summary commands"),
+        ("release_evidence_publication_status_command", "manifest builds release evidence publication status commands"),
         ("network_value_selection_later_blockers_text", "manifest prints network value-selection later blocker guidance"),
         ("value_selection_checklists_text", "manifest prints all-network value-selection checklist guidance"),
         ("snapshot_audit_handoffs_text", "manifest prints all-network snapshot audit handoff guidance"),
@@ -22123,6 +22290,8 @@ def main():
         ("release_evidence_publication_closeout_archive_check_json_text", "manifest prints release evidence publication closeout archive check JSON guidance"),
         ("release_evidence_publication_closeout_archive_handoff_summary_text", "manifest prints release evidence publication closeout archive handoff summary guidance"),
         ("release_evidence_publication_closeout_archive_handoff_summary_json_text", "manifest prints release evidence publication closeout archive handoff summary JSON guidance"),
+        ("release_evidence_publication_status_text", "manifest prints release evidence publication status guidance"),
+        ("release_evidence_publication_status_json_text", "manifest prints release evidence publication status JSON guidance"),
         ("snapshot_audit_check_command", "manifest builds snapshot audit check commands"),
         ("snapshot_audit_preflight_text", "manifest prints snapshot audit preflight guidance"),
         ("schema_version", "manifest status JSON includes a schema version"),
@@ -22207,6 +22376,7 @@ def main():
         ("check_release_evidence_publication_closeout_archive_command", "manifest status JSON exposes release evidence publication closeout archive check command"),
         ("release_evidence_publication_closeout_archive_gate_command", "manifest status JSON exposes release evidence publication closeout archive gate command"),
         ("release_evidence_publication_closeout_archive_handoff_summary_command", "manifest status JSON exposes release evidence publication closeout archive handoff summary command"),
+        ("release_evidence_publication_status_command", "manifest status JSON exposes release evidence publication status command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
         ("readiness_gate_by_blocker", "manifest status JSON indexes readiness gates by blocker"),
@@ -23697,6 +23867,14 @@ def main():
             "public launch manifest release evidence publication closeout archive handoff summary JSON documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --release-evidence-publication-status",
+            "public launch manifest release evidence publication status documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --release-evidence-publication-status",
+            "public launch manifest release evidence publication status JSON documentation",
+        ),
+        (
             "release evidence bundle freshness",
             "public launch manifest release evidence bundle freshness documentation",
         ),
@@ -23783,6 +23961,10 @@ def main():
         (
             "release_evidence_publication_closeout_archive_handoff_summary_command",
             "public launch manifest status-json release evidence publication closeout archive handoff summary command documentation",
+        ),
+        (
+            "release_evidence_publication_status_command",
+            "public launch manifest status-json release evidence publication status command documentation",
         ),
         (
             "handoff_artifacts",
