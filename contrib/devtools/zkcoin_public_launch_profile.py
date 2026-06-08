@@ -2743,6 +2743,25 @@ def read_release_evidence_bundle_text(bundle_path):
         raise ValueError(f"{bundle_path} is not valid UTF-8") from None
 
 
+def read_release_evidence_bundle_json(bundle_path):
+    bundle_text = read_release_evidence_bundle_text(bundle_path)
+    try:
+        bundle = json.loads(
+            bundle_text,
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
+    except DuplicateJSONFieldError as exc:
+        raise ValueError(
+            f"{bundle_path} contains duplicate field: {exc}"
+        ) from None
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{bundle_path} is not valid JSON: {exc}") from None
+
+    if not isinstance(bundle, dict):
+        raise ValueError("release evidence bundle must be a JSON object")
+    return bundle
+
+
 def release_evidence_archive_record_too_large_error(record_path):
     return (
         "release evidence archive record must not exceed "
@@ -9432,22 +9451,7 @@ def release_evidence_bundle_check_payload(
     bundle_path,
     require_match=False,
 ):
-    bundle_text = read_release_evidence_bundle_text(bundle_path)
-    try:
-        actual = json.loads(
-            bundle_text,
-            object_pairs_hook=reject_duplicate_json_fields,
-        )
-    except DuplicateJSONFieldError as exc:
-        raise ValueError(
-            f"{bundle_path} contains duplicate field: {exc}"
-        ) from None
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{bundle_path} is not valid JSON: {exc}") from None
-
-    if not isinstance(actual, dict):
-        raise ValueError("release evidence bundle must be a JSON object")
-
+    actual = read_release_evidence_bundle_json(bundle_path)
     expected = release_evidence_bundle_json_payload(manifest, manifest_path, check)
     mismatches = release_evidence_bundle_mismatch_entries(actual, expected)
     verified = not mismatches
@@ -14139,6 +14143,109 @@ def release_evidence_publication_artifact_verification_entry(
     }
 
 
+def release_evidence_publication_candidate_artifact_status(
+    manifest_path,
+    bundle_path,
+    bundle_verification,
+):
+    status_command = value_selection_candidate_artifact_status_command(manifest_path)
+    status_json_command = value_selection_candidate_artifact_status_command(
+        manifest_path,
+        json_output=True,
+    )
+    base = {
+        "source_artifact": "release-evidence-bundle",
+        "source_path": display_path(bundle_path) if bundle_path is not None else None,
+        "source_verified": bool(bundle_verification["verified"]),
+        "available": False,
+        "status": None,
+        "error": None,
+        "candidate_count": 0,
+        "provided_candidate_count": 0,
+        "missing_candidate_count": 0,
+        "verified_candidate_count": 0,
+        "error_candidate_count": 0,
+        "all_required_candidates_verified": False,
+        "next_missing_candidate": None,
+        "next_unverified_candidate": None,
+        "candidate_statuses": [],
+        "candidate_statuses_by_network": {},
+        "value_selection_candidate_artifact_status_command": status_command,
+        "value_selection_candidate_artifact_status_json_command": status_json_command,
+    }
+    if bundle_path is None:
+        base["status"] = "missing-release-evidence-bundle"
+        return base
+
+    try:
+        bundle = read_release_evidence_bundle_json(bundle_path)
+    except ValueError as exc:
+        base["status"] = "error"
+        base["error"] = str(exc)
+        return base
+
+    evidence = bundle.get("evidence")
+    if not isinstance(evidence, dict):
+        base["status"] = "missing-evidence"
+        return base
+
+    candidate_status = evidence.get("value_selection_candidate_artifact_status")
+    if not isinstance(candidate_status, dict):
+        base["status"] = "missing-candidate-artifact-status"
+        return base
+
+    candidate_statuses = candidate_status.get("candidate_statuses", [])
+    if not isinstance(candidate_statuses, list):
+        candidate_statuses = []
+    candidate_statuses_by_network = candidate_status.get(
+        "candidate_statuses_by_network",
+        {},
+    )
+    if not isinstance(candidate_statuses_by_network, dict):
+        candidate_statuses_by_network = {}
+
+    base.update({
+        "available": True,
+        "status": "reported",
+        "candidate_count": candidate_status.get("candidate_count", 0),
+        "provided_candidate_count": candidate_status.get(
+            "provided_candidate_count",
+            0,
+        ),
+        "missing_candidate_count": candidate_status.get(
+            "missing_candidate_count",
+            0,
+        ),
+        "verified_candidate_count": candidate_status.get(
+            "verified_candidate_count",
+            0,
+        ),
+        "error_candidate_count": candidate_status.get("error_candidate_count", 0),
+        "all_required_candidates_verified": bool(
+            candidate_status.get("all_required_candidates_verified")
+        ),
+        "next_missing_candidate": candidate_status.get("next_missing_candidate"),
+        "next_unverified_candidate": candidate_status.get(
+            "next_unverified_candidate"
+        ),
+        "candidate_statuses": candidate_statuses,
+        "candidate_statuses_by_network": candidate_statuses_by_network,
+        "value_selection_candidate_artifact_status_command": (
+            candidate_status.get(
+                "value_selection_candidate_artifact_status_command",
+                status_command,
+            )
+        ),
+        "value_selection_candidate_artifact_status_json_command": (
+            candidate_status.get(
+                "value_selection_candidate_artifact_status_json_command",
+                status_json_command,
+            )
+        ),
+    })
+    return base
+
+
 def release_evidence_publication_artifact_status_payload(
     manifest,
     manifest_path,
@@ -14448,6 +14555,13 @@ def release_evidence_publication_artifact_status_payload(
         artifact_entry["verified"] = verification["verified"]
         artifact_entry["status"] = verification["status"]
 
+    candidate_artifact_status = (
+        release_evidence_publication_candidate_artifact_status(
+            manifest_path,
+            bundle_path,
+            verification_entries[0],
+        )
+    )
     provided_artifact_count = sum(
         1 for artifact in artifact_entries if artifact["provided"]
     )
@@ -14514,6 +14628,34 @@ def release_evidence_publication_artifact_status_payload(
         "next_unverified_verification": next_unverified_verification,
         "artifact_statuses": artifact_entries,
         "artifact_verifications": verification_entries,
+        "value_selection_candidate_artifact_status": candidate_artifact_status,
+        "value_selection_candidate_artifact_status_available": (
+            candidate_artifact_status["available"]
+        ),
+        "value_selection_candidate_artifact_source_verified": (
+            candidate_artifact_status["source_verified"]
+        ),
+        "value_selection_candidate_artifact_count": (
+            candidate_artifact_status["candidate_count"]
+        ),
+        "provided_value_selection_candidate_artifact_count": (
+            candidate_artifact_status["provided_candidate_count"]
+        ),
+        "verified_value_selection_candidate_artifact_count": (
+            candidate_artifact_status["verified_candidate_count"]
+        ),
+        "value_selection_candidate_artifact_error_count": (
+            candidate_artifact_status["error_candidate_count"]
+        ),
+        "all_value_selection_candidate_artifacts_verified": (
+            candidate_artifact_status["all_required_candidates_verified"]
+        ),
+        "next_missing_value_selection_candidate": (
+            candidate_artifact_status["next_missing_candidate"]
+        ),
+        "next_unverified_value_selection_candidate": (
+            candidate_artifact_status["next_unverified_candidate"]
+        ),
         "artifact_path_flags": [
             {
                 "artifact_id": artifact_id,
@@ -14549,9 +14691,47 @@ def release_evidence_publication_artifact_status_text_from_payload(payload):
         f"  - ready for final handoff: {yes_no(payload['ready_for_final_handoff'])}",
         f"  - next missing artifact: {payload['next_missing_artifact'] or 'none'}",
         f"  - next unverified verification: {payload['next_unverified_verification'] or 'none'}",
+        f"  - value-selection candidate artifact status available: {yes_no(payload['value_selection_candidate_artifact_status_available'])}",
+        f"  - value-selection candidate artifact source verified: {yes_no(payload['value_selection_candidate_artifact_source_verified'])}",
+        f"  - value-selection candidate artifacts: {payload['provided_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - verified value-selection candidate artifacts: {payload['verified_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - value-selection candidate artifact errors: {payload['value_selection_candidate_artifact_error_count']}",
+        f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
+        f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
+        f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
         f"  - release evidence publication artifact status command: {payload['release_evidence_publication_artifact_status_command']}",
         f"  - release evidence publication artifact status JSON command: {payload['release_evidence_publication_artifact_status_json_command']}",
     ]
+    candidate_artifact_status = payload["value_selection_candidate_artifact_status"]
+    if candidate_artifact_status["error"]:
+        lines.append(
+            "  - value-selection candidate artifact status error: "
+            + candidate_artifact_status["error"]
+        )
+    for candidate in candidate_artifact_status["candidate_statuses"]:
+        if not isinstance(candidate, dict):
+            continue
+        network = candidate.get("network", "unknown")
+        lines.extend([
+            (
+                "  - "
+                + network
+                + " value-selection candidate status: "
+                + str(candidate.get("status", "unknown"))
+            ),
+            (
+                "  - "
+                + network
+                + " value-selection candidate supplied: "
+                + yes_no(bool(candidate.get("provided")))
+            ),
+            (
+                "  - "
+                + network
+                + " value-selection candidate verified: "
+                + yes_no(bool(candidate.get("verified")))
+            ),
+        ])
     for artifact in payload["artifact_statuses"]:
         lines.extend([
             f"  - artifact {artifact['step']}: {artifact['id']}",
