@@ -3996,6 +3996,14 @@ def require_public_launch_manifest_current():
         "  - value-selection candidate artifact errors: 0",
         "  - value-selection candidate archive records ready: 0/2",
         "  - next value-selection candidate archive record network: main",
+        "  - supplied value-selection candidate archive records: 0/2",
+        "  - verified value-selection candidate archive records: 0/2",
+        "  - value-selection candidate archive record mismatches: 0",
+        "  - value-selection candidate archive record errors: 0",
+        "  - blocked value-selection candidate archive records: 0",
+        "  - all value-selection candidate archive records verified: no",
+        "  - next missing value-selection candidate archive record path network: none",
+        "  - next unverified value-selection candidate archive record network: none",
         "  - checklist steps: 18",
         "  - runbook steps: 3",
         "  - evidence 1: operator-runbook",
@@ -4133,6 +4141,14 @@ def require_public_launch_manifest_current():
         or release_evidence_summary.get("candidate_archive_record_count") != 2
         or release_evidence_summary.get("ready_candidate_archive_record_count") != 0
         or release_evidence_summary.get("next_candidate_archive_record_network") != "main"
+        or release_evidence_summary.get("provided_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("verified_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("mismatch_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("error_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("blocked_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("all_candidate_archive_records_verified") is not False
+        or release_evidence_summary.get("next_missing_candidate_archive_record_path_network") is not None
+        or release_evidence_summary.get("next_unverified_candidate_archive_record_network") is not None
         or release_evidence_summary.get("checklist_step_count") != 18
         or release_evidence_summary.get("embedded_payload_schema_versions")
         != {
@@ -4157,6 +4173,8 @@ def require_public_launch_manifest_current():
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_count") != 2
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("provided_candidate_count") != 0
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("ready_candidate_archive_record_count") != 0
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("provided_candidate_archive_record_count") != 0
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("next_missing_candidate_archive_record_path_network") is not None
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_archive_checklists_by_network", {}).get("main", {}).get("ready_to_archive") is not False
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_statuses_by_network", {}).get("main", {}).get("status") != "missing-artifact"
     ):
@@ -4350,6 +4368,14 @@ def require_public_launch_manifest_current():
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - value-selection candidate archive records ready: 0/2",
             "  - next value-selection candidate archive record network: main",
+            "  - supplied value-selection candidate archive records: 0/2",
+            "  - verified value-selection candidate archive records: 0/2",
+            "  - value-selection candidate archive record mismatches: 0",
+            "  - value-selection candidate archive record errors: 0",
+            "  - blocked value-selection candidate archive records: 0",
+            "  - all value-selection candidate archive records verified: no",
+            "  - next missing value-selection candidate archive record path network: none",
+            "  - next unverified value-selection candidate archive record network: none",
             "  - main value-selection candidate status: missing-artifact",
             "  - main value-selection candidate supplied: no",
             "  - main value-selection candidate verified: no",
@@ -4473,6 +4499,30 @@ def require_public_launch_manifest_current():
             or release_evidence_artifact_status_json.get(
                 "next_value_selection_candidate_archive_record_network"
             ) != "main"
+            or release_evidence_artifact_status_json.get(
+                "provided_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "verified_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "mismatch_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "error_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "blocked_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "all_value_selection_candidate_archive_records_verified"
+            ) is not False
+            or release_evidence_artifact_status_json.get(
+                "next_missing_value_selection_candidate_archive_record_path_network"
+            ) is not None
+            or release_evidence_artifact_status_json.get(
+                "next_unverified_value_selection_candidate_archive_record_network"
+            ) is not None
             or candidate_artifact_status.get("status") != "reported"
             or candidate_artifact_status.get("source_artifact")
             != "release-evidence-bundle"
@@ -4491,6 +4541,8 @@ def require_public_launch_manifest_current():
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or candidate_artifact_status.get("candidate_archive_record_count") != 2
             or candidate_artifact_status.get("ready_candidate_archive_record_count") != 0
+            or candidate_artifact_status.get("provided_candidate_archive_record_count") != 0
+            or candidate_artifact_status.get("next_missing_candidate_archive_record_path_network") is not None
             or candidate_artifact_status.get(
                 "candidate_archive_checklists_by_network",
                 {},
@@ -6277,6 +6329,14 @@ def require_public_launch_manifest_current():
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - value-selection candidate archive records ready: 0/2",
             "  - next value-selection candidate archive record network: main",
+            "  - supplied value-selection candidate archive records: 0/2",
+            "  - verified value-selection candidate archive records: 0/2",
+            "  - value-selection candidate archive record mismatches: 0",
+            "  - value-selection candidate archive record errors: 0",
+            "  - blocked value-selection candidate archive records: 0",
+            "  - all value-selection candidate archive records verified: no",
+            "  - next missing value-selection candidate archive record path network: none",
+            "  - next unverified value-selection candidate archive record network: none",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - release evidence handoff summary verified: yes",
@@ -6384,6 +6444,30 @@ def require_public_launch_manifest_current():
                 "next_value_selection_candidate_archive_record_network"
             ) != "main"
             or publication_closeout_json.get(
+                "provided_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "verified_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "mismatch_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "error_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "blocked_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "all_value_selection_candidate_archive_records_verified"
+            ) is not False
+            or publication_closeout_json.get(
+                "next_missing_value_selection_candidate_archive_record_path_network"
+            ) is not None
+            or publication_closeout_json.get(
+                "next_unverified_value_selection_candidate_archive_record_network"
+            ) is not None
+            or publication_closeout_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("candidate_count") != 2
@@ -6396,6 +6480,14 @@ def require_public_launch_manifest_current():
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("ready_candidate_archive_record_count") != 0
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("provided_candidate_archive_record_count") != 0
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("next_missing_candidate_archive_record_path_network") is not None
             or closeout_main_candidate_status.get("status") != "missing-artifact"
             or publication_closeout_json.get("ready_for_publication") is not True
             or publication_closeout_json.get("publication_blocker_count") != 0
@@ -6873,6 +6965,14 @@ def require_public_launch_manifest_current():
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - value-selection candidate archive records ready: 0/2",
             "  - next value-selection candidate archive record network: main",
+            "  - supplied value-selection candidate archive records: 0/2",
+            "  - verified value-selection candidate archive records: 0/2",
+            "  - value-selection candidate archive record mismatches: 0",
+            "  - value-selection candidate archive record errors: 0",
+            "  - blocked value-selection candidate archive records: 0",
+            "  - all value-selection candidate archive records verified: no",
+            "  - next missing value-selection candidate archive record path network: none",
+            "  - next unverified value-selection candidate archive record network: none",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - closeout gate verified: yes",
@@ -6990,6 +7090,30 @@ def require_public_launch_manifest_current():
                 "next_value_selection_candidate_archive_record_network"
             ) != "main"
             or publication_closeout_archive_handoff_summary_json.get(
+                "provided_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "verified_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "mismatch_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "error_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "blocked_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "all_value_selection_candidate_archive_records_verified"
+            ) is not False
+            or publication_closeout_archive_handoff_summary_json.get(
+                "next_missing_value_selection_candidate_archive_record_path_network"
+            ) is not None
+            or publication_closeout_archive_handoff_summary_json.get(
+                "next_unverified_value_selection_candidate_archive_record_network"
+            ) is not None
+            or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("next_missing_candidate") != "main"
@@ -7002,6 +7126,14 @@ def require_public_launch_manifest_current():
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("candidate_archive_record_count") != 2
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("provided_candidate_archive_record_count") != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("next_missing_candidate_archive_record_path_network") is not None
             or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status"
             ) != closeout_archive_handoff_candidate_status
@@ -23658,6 +23790,8 @@ def main():
         ("release_evidence_publication_artifact_status_payload", "manifest builds release evidence publication artifact status JSON payloads"),
         ("release_evidence_publication_artifact_status_text", "manifest prints release evidence publication artifact status guidance"),
         ("release_evidence_publication_artifact_status_json_text", "manifest prints release evidence publication artifact status JSON guidance"),
+        ("provided_value_selection_candidate_archive_record_count", "manifest reports release evidence candidate archive record path counts"),
+        ("next_missing_value_selection_candidate_archive_record_path_network", "manifest reports release evidence next missing candidate archive record path network"),
         ("release_evidence_archive_check_json_text", "manifest prints release evidence archive check JSON guidance"),
         ("release_evidence_archive_checklist_steps", "manifest builds release evidence archive checklist steps"),
         ("release_evidence_archive_checklist_payload", "manifest builds release evidence archive checklist JSON payloads"),
@@ -25580,6 +25714,10 @@ def main():
         (
             "provided_candidate_archive_record_count",
             "public launch manifest value-selection candidate archive record status count documentation",
+        ),
+        (
+            "provided_value_selection_candidate_archive_record_count",
+            "public launch manifest release evidence candidate archive record status count documentation",
         ),
         (
             "archive_record_status",
