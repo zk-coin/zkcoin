@@ -5040,6 +5040,165 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        release_evidence_archive_artifact_status_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--release-evidence-publication-artifact-status",
+                "--release-evidence-bundle-path",
+                str(release_evidence_bundle_path),
+                "--release-evidence-archive-record-path",
+                str(release_evidence_archive_record_path),
+                str(PUBLIC_LAUNCH_MANIFEST),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if release_evidence_archive_artifact_status_json_result.returncode != 0:
+            return "{} --release-evidence-publication-artifact-status --json failed for a fresh archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_archive_artifact_status_json_result.stderr.strip()
+                or release_evidence_archive_artifact_status_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            release_evidence_archive_artifact_status_json = json.loads(
+                release_evidence_archive_artifact_status_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-publication-artifact-status --json archive output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        archive_artifact_completion_summary = (
+            release_evidence_archive_artifact_status_json.get(
+                "completion_summary",
+                {},
+            )
+        )
+        archive_artifact_statuses = (
+            release_evidence_archive_artifact_status_json.get(
+                "artifact_statuses",
+                [],
+            )
+        )
+        archive_artifact_verifications = (
+            release_evidence_archive_artifact_status_json.get(
+                "artifact_verifications",
+                [],
+            )
+        )
+        if (
+            release_evidence_archive_artifact_status_json.get("schema_version") != 1
+            or release_evidence_archive_artifact_status_json.get(
+                "provided_artifact_count"
+            ) != 2
+            or release_evidence_archive_artifact_status_json.get(
+                "missing_artifact_count"
+            ) != 4
+            or release_evidence_archive_artifact_status_json.get(
+                "verified_artifact_count"
+            ) != 2
+            or release_evidence_archive_artifact_status_json.get(
+                "verified_publication_gate_count"
+            ) != 1
+            or release_evidence_archive_artifact_status_json.get(
+                "next_missing_artifact"
+            )
+            != "release-evidence-publication-index"
+            or release_evidence_archive_artifact_status_json.get(
+                "next_unverified_verification"
+            )
+            != "release-evidence-publication-index-gate"
+            or release_evidence_archive_artifact_status_json.get(
+                "next_operator_action_id"
+            )
+            != "release-evidence-publication-index-template"
+            or release_evidence_archive_artifact_status_json.get(
+                "next_operator_action_kind"
+            )
+            != "operator-record"
+            or release_evidence_archive_artifact_status_json.get(
+                "next_operator_action_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or archive_artifact_statuses[1].get("path")
+            != str(release_evidence_archive_record_path)
+            or archive_artifact_statuses[1].get("verified") is not True
+            or archive_artifact_verifications[1].get("status") != "verified"
+            or archive_artifact_verifications[1].get("mismatch_count") != 0
+            or archive_artifact_completion_summary.get("schema_version") != 1
+            or archive_artifact_completion_summary.get(
+                "provided_artifact_count"
+            ) != 2
+            or archive_artifact_completion_summary.get(
+                "missing_artifact_count"
+            ) != 4
+            or archive_artifact_completion_summary.get(
+                "verified_artifact_count"
+            ) != 2
+            or archive_artifact_completion_summary.get(
+                "verified_publication_gate_count"
+            ) != 1
+            or archive_artifact_completion_summary.get(
+                "ready_for_final_handoff"
+            ) is not False
+            or archive_artifact_completion_summary.get(
+                "next_missing_artifact"
+            )
+            != "release-evidence-publication-index"
+            or archive_artifact_completion_summary.get(
+                "next_unverified_verification"
+            )
+            != "release-evidence-publication-index-gate"
+            or archive_artifact_completion_summary.get(
+                "next_operator_action_reason"
+            )
+            != "missing-artifact"
+            or archive_artifact_completion_summary.get(
+                "next_operator_action_id"
+            )
+            != "release-evidence-publication-index-template"
+            or archive_artifact_completion_summary.get(
+                "next_operator_action_kind"
+            )
+            != "operator-record"
+            or archive_artifact_completion_summary.get(
+                "next_operator_action_target_artifact"
+            )
+            != "release-evidence-publication-index"
+            or archive_artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("input_artifact_count") != 2
+            or archive_artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("output_artifact")
+            != "<release_evidence_publication_index.json>"
+            or release_evidence_archive_artifact_status_json.get(
+                "completion_next_operator_action_id"
+            )
+            != "release-evidence-publication-index-template"
+            or release_evidence_archive_artifact_status_json.get(
+                "completion_next_operator_action_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-index-template <release_evidence_archive_record.json> <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or release_evidence_archive_artifact_status_json.get(
+                "release_evidence_publication_artifact_status_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-artifact-status --release-evidence-bundle-path {} --release-evidence-archive-record-path {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_bundle_path,
+                quoted_archive_record_path,
+            )
+        ):
+            return "{} --release-evidence-publication-artifact-status --json did not summarize a supplied archive record".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         release_evidence_handoff_summary_result = subprocess.run(
             [
                 sys.executable,
