@@ -4443,6 +4443,10 @@ def require_public_launch_manifest_current():
             "value_selection_candidate_artifact_status",
             {},
         )
+        artifact_completion_summary = release_evidence_artifact_status_json.get(
+            "completion_summary",
+            {},
+        )
         main_candidate_status = candidate_artifact_status.get(
             "candidate_statuses_by_network",
             {},
@@ -4584,6 +4588,59 @@ def require_public_launch_manifest_current():
                 {},
             ).get("main", {}).get("ready_to_archive") is not False
             or main_candidate_status.get("status") != "missing-artifact"
+            or artifact_completion_summary.get("schema_version") != 1
+            or artifact_completion_summary.get("artifact_count") != 6
+            or artifact_completion_summary.get("provided_artifact_count") != 1
+            or artifact_completion_summary.get("missing_artifact_count") != 5
+            or artifact_completion_summary.get("verified_artifact_count") != 1
+            or artifact_completion_summary.get("publication_gate_count") != 5
+            or artifact_completion_summary.get("verified_publication_gate_count") != 0
+            or artifact_completion_summary.get("ready_for_final_handoff") is not False
+            or artifact_completion_summary.get("next_missing_artifact")
+            != "release-evidence-archive-record"
+            or artifact_completion_summary.get("next_unverified_verification")
+            != "release-evidence-archive-gate"
+            or artifact_completion_summary.get("next_operator_action_reason")
+            != "missing-artifact"
+            or artifact_completion_summary.get("next_operator_action_id")
+            != "release-evidence-archive-checklist"
+            or artifact_completion_summary.get("next_operator_action_kind")
+            != "operator-record"
+            or artifact_completion_summary.get("next_operator_action_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("input_artifact_count") != 1
+            or artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("output_artifact") != "<release_evidence_archive_record.json>"
+            or artifact_completion_summary.get(
+                "value_selection_candidate_archive_record_count"
+            ) != 2
+            or release_evidence_artifact_status_json.get("completion_ready")
+            is not False
+            or release_evidence_artifact_status_json.get(
+                "completion_next_missing_artifact"
+            )
+            != "release-evidence-archive-record"
+            or release_evidence_artifact_status_json.get(
+                "completion_next_unverified_verification"
+            )
+            != "release-evidence-archive-gate"
+            or release_evidence_artifact_status_json.get(
+                "completion_next_operator_action_reason"
+            )
+            != "missing-artifact"
+            or release_evidence_artifact_status_json.get(
+                "completion_next_operator_action_id"
+            )
+            != "release-evidence-archive-checklist"
+            or release_evidence_artifact_status_json.get(
+                "completion_next_operator_action_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or release_evidence_artifact_status_json.get(
                 "release_evidence_publication_artifact_status_json_command"
             )
