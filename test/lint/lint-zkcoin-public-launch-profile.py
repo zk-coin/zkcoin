@@ -3321,6 +3321,199 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        candidate_release_evidence_bundle_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--release-evidence-bundle "
+            f"--main-value-selection-candidate {candidate_path} "
+            "--main-value-selection-candidate-artifact-archive-record "
+            f"{candidate_archive_record_path} {readonly_candidate_manifest_path}"
+        )
+        candidate_release_evidence_bundle_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--release-evidence-bundle",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                "--main-value-selection-candidate-artifact-archive-record",
+                str(candidate_archive_record_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_release_evidence_bundle_json_result.returncode != 0:
+            return "{} --release-evidence-bundle --json failed for a retained candidate archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_release_evidence_bundle_json_result.stderr.strip()
+                or candidate_release_evidence_bundle_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_release_evidence_bundle_json = json.loads(
+                candidate_release_evidence_bundle_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-bundle --json retained candidate output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        candidate_release_evidence_summary = (
+            candidate_release_evidence_bundle_json.get("summary", {})
+        )
+        candidate_release_evidence_payload = (
+            candidate_release_evidence_bundle_json.get("evidence", {})
+        )
+        candidate_release_evidence_status = (
+            candidate_release_evidence_payload.get(
+                "value_selection_candidate_artifact_status",
+                {},
+            )
+        )
+        if (
+            candidate_release_evidence_bundle_json.get(
+                "release_evidence_bundle_json_command"
+            )
+            != candidate_release_evidence_bundle_json_command
+            or candidate_release_evidence_bundle_json.get(
+                "release_evidence_bundle_gate_json_command"
+            )
+            != (
+                "contrib/devtools/zkcoin_public_launch_profile.py --json "
+                "--require-release-evidence-bundle-match "
+                "--check-release-evidence-bundle "
+                "<release_evidence_bundle.json> "
+                f"--main-value-selection-candidate {candidate_path} "
+                "--main-value-selection-candidate-artifact-archive-record "
+                f"{candidate_archive_record_path} {readonly_candidate_manifest_path}"
+            )
+            or candidate_release_evidence_summary.get(
+                "provided_candidate_artifact_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "verified_candidate_artifact_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "missing_candidate_artifact_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "ready_candidate_archive_record_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "provided_candidate_archive_record_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "verified_candidate_archive_record_count"
+            ) != 1
+            or candidate_release_evidence_summary.get(
+                "next_candidate_archive_record_network"
+            ) != "testnet"
+            or candidate_release_evidence_summary.get(
+                "next_missing_candidate_archive_record_path_network"
+            ) is not None
+            or candidate_release_evidence_summary.get(
+                "next_unverified_candidate_archive_record_network"
+            ) is not None
+            or candidate_release_evidence_status.get(
+                "provided_candidate_count"
+            ) != 1
+            or candidate_release_evidence_status.get(
+                "verified_candidate_count"
+            ) != 1
+            or candidate_release_evidence_status.get(
+                "provided_candidate_archive_record_count"
+            ) != 1
+            or candidate_release_evidence_status.get(
+                "verified_candidate_archive_record_count"
+            ) != 1
+            or candidate_release_evidence_status.get(
+                "value_selection_candidate_artifact_status_json_command"
+            ) != candidate_status_archive_json_command
+            or candidate_release_evidence_status.get(
+                "candidate_statuses_by_network",
+                {},
+            ).get("main", {}).get("status") != "verified"
+            or candidate_release_evidence_status.get(
+                "candidate_archive_checklists_by_network",
+                {},
+            ).get("main", {}).get("archive_record_status") != "verified"
+        ):
+            return "{} --release-evidence-bundle --json did not retain supplied value-selection candidate status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        candidate_release_evidence_bundle_path = (
+            Path(temp_dir) / "release-evidence-bundle-with-candidate.json"
+        )
+        candidate_release_evidence_bundle_path.write_text(
+            candidate_release_evidence_bundle_json_result.stdout,
+            encoding="utf8",
+        )
+        candidate_release_evidence_bundle_check_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--check-release-evidence-bundle "
+            f"{candidate_release_evidence_bundle_path} "
+            f"--main-value-selection-candidate {candidate_path} "
+            "--main-value-selection-candidate-artifact-archive-record "
+            f"{candidate_archive_record_path} {readonly_candidate_manifest_path}"
+        )
+        candidate_release_evidence_bundle_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-release-evidence-bundle",
+                str(candidate_release_evidence_bundle_path),
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                "--main-value-selection-candidate-artifact-archive-record",
+                str(candidate_archive_record_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_release_evidence_bundle_check_result.returncode != 0:
+            return "{} --check-release-evidence-bundle --json failed for a retained candidate archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_release_evidence_bundle_check_result.stderr.strip()
+                or candidate_release_evidence_bundle_check_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_release_evidence_bundle_check_json = json.loads(
+                candidate_release_evidence_bundle_check_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --check-release-evidence-bundle --json retained candidate output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            candidate_release_evidence_bundle_check_json.get("verified") is not True
+            or candidate_release_evidence_bundle_check_json.get("mismatch_count") != 0
+            or candidate_release_evidence_bundle_check_json.get(
+                "check_release_evidence_bundle_json_command"
+            )
+            != candidate_release_evidence_bundle_check_json_command
+            or candidate_release_evidence_bundle_check_json.get(
+                "actual_summary",
+                {},
+            ).get("provided_candidate_artifact_count") != 1
+            or candidate_release_evidence_bundle_check_json.get(
+                "expected_summary",
+                {},
+            ).get("verified_candidate_archive_record_count") != 1
+        ):
+            return "{} --check-release-evidence-bundle --json did not verify retained value-selection candidate status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         stale_candidate_archive_record_path = (
             Path(temp_dir)
             / "stale-value-selection-candidate-artifact-archive-record.json"

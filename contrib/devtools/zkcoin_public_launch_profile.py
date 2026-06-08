@@ -6110,16 +6110,59 @@ def operator_runbook_command(manifest_path):
     return f"{tool_path} --operator-runbook {manifest_path}"
 
 
-def release_evidence_bundle_command(manifest_path):
+def release_evidence_bundle_command(
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+    json_output=False,
+):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
-    return f"{tool_path} --release-evidence-bundle {manifest_path}"
+    args = [str(tool_path)]
+    if json_output:
+        args.append("--json")
+    args.append("--release-evidence-bundle")
+    if main_candidate_path is not None:
+        args.extend([
+            "--main-value-selection-candidate",
+            command_path_arg(main_candidate_path),
+        ])
+    if testnet_candidate_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate",
+            command_path_arg(testnet_candidate_path),
+        ])
+    if main_archive_record_path is not None:
+        args.extend([
+            "--main-value-selection-candidate-artifact-archive-record",
+            command_path_arg(main_archive_record_path),
+        ])
+    if testnet_archive_record_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate-artifact-archive-record",
+            command_path_arg(testnet_archive_record_path),
+        ])
+    args.append(manifest_path)
+    return " ".join(args)
 
 
-def release_evidence_bundle_json_command(manifest_path):
-    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
-    manifest_path = shell_quote(display_path(manifest_path))
-    return f"{tool_path} --json --release-evidence-bundle {manifest_path}"
+def release_evidence_bundle_json_command(
+    manifest_path,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+):
+    return release_evidence_bundle_command(
+        manifest_path,
+        main_candidate_path,
+        testnet_candidate_path,
+        main_archive_record_path,
+        testnet_archive_record_path,
+        json_output=True,
+    )
 
 
 def check_release_evidence_bundle_command(
@@ -6127,28 +6170,62 @@ def check_release_evidence_bundle_command(
     bundle_path="<release_evidence_bundle.json>",
     json_output=False,
     require_match=False,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
     manifest_path = shell_quote(display_path(manifest_path))
     bundle_path = command_path_arg(bundle_path)
-    json_flag = "--json " if json_output else ""
-    require_match_flag = "--require-release-evidence-bundle-match " if require_match else ""
-    return (
-        f"{tool_path} {json_flag}{require_match_flag}--check-release-evidence-bundle "
-        f"{bundle_path} {manifest_path}"
-    )
+    args = [str(tool_path)]
+    if json_output:
+        args.append("--json")
+    if require_match:
+        args.append("--require-release-evidence-bundle-match")
+    args.extend(["--check-release-evidence-bundle", bundle_path])
+    if main_candidate_path is not None:
+        args.extend([
+            "--main-value-selection-candidate",
+            command_path_arg(main_candidate_path),
+        ])
+    if testnet_candidate_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate",
+            command_path_arg(testnet_candidate_path),
+        ])
+    if main_archive_record_path is not None:
+        args.extend([
+            "--main-value-selection-candidate-artifact-archive-record",
+            command_path_arg(main_archive_record_path),
+        ])
+    if testnet_archive_record_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate-artifact-archive-record",
+            command_path_arg(testnet_archive_record_path),
+        ])
+    args.append(manifest_path)
+    return " ".join(args)
 
 
 def release_evidence_bundle_gate_command(
     manifest_path,
     bundle_path="<release_evidence_bundle.json>",
     json_output=False,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     return check_release_evidence_bundle_command(
         manifest_path,
         bundle_path,
         json_output=json_output,
         require_match=True,
+        main_candidate_path=main_candidate_path,
+        testnet_candidate_path=testnet_candidate_path,
+        main_archive_record_path=main_archive_record_path,
+        testnet_archive_record_path=testnet_archive_record_path,
     )
 
 
@@ -9725,7 +9802,15 @@ def release_evidence_payload_entries(manifest_path):
     ]
 
 
-def release_evidence_bundle_state(manifest, manifest_path, check):
+def release_evidence_bundle_state(
+    manifest,
+    manifest_path,
+    check,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+):
     operator_payload = operator_runbook_json_payload(manifest, manifest_path, check)
     return {
         "payload_entries": release_evidence_payload_entries(manifest_path),
@@ -9749,6 +9834,10 @@ def release_evidence_bundle_state(manifest, manifest_path, check):
             value_selection_candidate_artifact_status_payload(
                 manifest,
                 manifest_path,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
             )
         ),
         "operator_summary": operator_payload["summary"],
@@ -9824,19 +9913,35 @@ def release_evidence_bundle_summary(bundle_state):
     }
 
 
-def release_evidence_bundle_text(manifest, manifest_path, check):
-    bundle_state = release_evidence_bundle_state(manifest, manifest_path, check)
+def release_evidence_bundle_text(
+    manifest,
+    manifest_path,
+    check,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+):
+    bundle_state = release_evidence_bundle_state(
+        manifest,
+        manifest_path,
+        check,
+        main_candidate_path=main_candidate_path,
+        testnet_candidate_path=testnet_candidate_path,
+        main_archive_record_path=main_archive_record_path,
+        testnet_archive_record_path=testnet_archive_record_path,
+    )
     summary = release_evidence_bundle_summary(bundle_state)
     operator_payload = bundle_state["operator_runbook"]
     lines = [
         "zkCoin public launch profile release evidence bundle:",
         f"  - status: {manifest.get('status')}",
-        f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path)}",
-        f"  - release evidence bundle JSON command: {release_evidence_bundle_json_command(manifest_path)}",
-        f"  - check release evidence bundle command: {check_release_evidence_bundle_command(manifest_path)}",
-        f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True)}",
-        f"  - release evidence bundle gate command: {release_evidence_bundle_gate_command(manifest_path)}",
-        f"  - release evidence bundle gate JSON command: {release_evidence_bundle_gate_command(manifest_path, json_output=True)}",
+        f"  - release evidence bundle command: {release_evidence_bundle_command(manifest_path, main_candidate_path, testnet_candidate_path, main_archive_record_path, testnet_archive_record_path)}",
+        f"  - release evidence bundle JSON command: {release_evidence_bundle_json_command(manifest_path, main_candidate_path, testnet_candidate_path, main_archive_record_path, testnet_archive_record_path)}",
+        f"  - check release evidence bundle command: {check_release_evidence_bundle_command(manifest_path, main_candidate_path=main_candidate_path, testnet_candidate_path=testnet_candidate_path, main_archive_record_path=main_archive_record_path, testnet_archive_record_path=testnet_archive_record_path)}",
+        f"  - check release evidence bundle JSON command: {check_release_evidence_bundle_command(manifest_path, json_output=True, main_candidate_path=main_candidate_path, testnet_candidate_path=testnet_candidate_path, main_archive_record_path=main_archive_record_path, testnet_archive_record_path=testnet_archive_record_path)}",
+        f"  - release evidence bundle gate command: {release_evidence_bundle_gate_command(manifest_path, main_candidate_path=main_candidate_path, testnet_candidate_path=testnet_candidate_path, main_archive_record_path=main_archive_record_path, testnet_archive_record_path=testnet_archive_record_path)}",
+        f"  - release evidence bundle gate JSON command: {release_evidence_bundle_gate_command(manifest_path, json_output=True, main_candidate_path=main_candidate_path, testnet_candidate_path=testnet_candidate_path, main_archive_record_path=main_archive_record_path, testnet_archive_record_path=testnet_archive_record_path)}",
         f"  - release evidence archive checklist command: {release_evidence_archive_checklist_command(manifest_path)}",
         f"  - release evidence archive checklist JSON command: {release_evidence_archive_checklist_command(manifest_path, json_output=True)}",
         f"  - check release evidence archive command: {check_release_evidence_archive_command(manifest_path)}",
@@ -9896,8 +10001,24 @@ def release_evidence_bundle_text(manifest, manifest_path, check):
     return "\n".join(lines)
 
 
-def release_evidence_bundle_json_payload(manifest, manifest_path, check):
-    bundle_state = release_evidence_bundle_state(manifest, manifest_path, check)
+def release_evidence_bundle_json_payload(
+    manifest,
+    manifest_path,
+    check,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+):
+    bundle_state = release_evidence_bundle_state(
+        manifest,
+        manifest_path,
+        check,
+        main_candidate_path=main_candidate_path,
+        testnet_candidate_path=testnet_candidate_path,
+        main_archive_record_path=main_archive_record_path,
+        testnet_archive_record_path=testnet_archive_record_path,
+    )
     operator_payload = bundle_state["operator_runbook"]
     return {
         "schema_version": 1,
@@ -9905,21 +10026,55 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
         "status": manifest.get("status"),
         "release_evidence_bundle_command": release_evidence_bundle_command(
             manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         ),
         "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
             manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         ),
         "check_release_evidence_bundle_command": (
-            check_release_evidence_bundle_command(manifest_path)
+            check_release_evidence_bundle_command(
+                manifest_path,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "check_release_evidence_bundle_json_command": (
-            check_release_evidence_bundle_command(manifest_path, json_output=True)
+            check_release_evidence_bundle_command(
+                manifest_path,
+                json_output=True,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "release_evidence_bundle_gate_command": (
-            release_evidence_bundle_gate_command(manifest_path)
+            release_evidence_bundle_gate_command(
+                manifest_path,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "release_evidence_bundle_gate_json_command": (
-            release_evidence_bundle_gate_command(manifest_path, json_output=True)
+            release_evidence_bundle_gate_command(
+                manifest_path,
+                json_output=True,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "release_evidence_archive_checklist_command": (
             release_evidence_archive_checklist_command(manifest_path)
@@ -10006,9 +10161,25 @@ def release_evidence_bundle_json_payload(manifest, manifest_path, check):
     }
 
 
-def release_evidence_bundle_json_text(manifest, manifest_path, check):
+def release_evidence_bundle_json_text(
+    manifest,
+    manifest_path,
+    check,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
+):
     return json.dumps(
-        release_evidence_bundle_json_payload(manifest, manifest_path, check),
+        release_evidence_bundle_json_payload(
+            manifest,
+            manifest_path,
+            check,
+            main_candidate_path=main_candidate_path,
+            testnet_candidate_path=testnet_candidate_path,
+            main_archive_record_path=main_archive_record_path,
+            testnet_archive_record_path=testnet_archive_record_path,
+        ),
         indent=2,
         sort_keys=False,
     )
@@ -10084,9 +10255,21 @@ def release_evidence_bundle_check_payload(
     check,
     bundle_path,
     require_match=False,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     actual = read_release_evidence_bundle_json(bundle_path)
-    expected = release_evidence_bundle_json_payload(manifest, manifest_path, check)
+    expected = release_evidence_bundle_json_payload(
+        manifest,
+        manifest_path,
+        check,
+        main_candidate_path=main_candidate_path,
+        testnet_candidate_path=testnet_candidate_path,
+        main_archive_record_path=main_archive_record_path,
+        testnet_archive_record_path=testnet_archive_record_path,
+    )
     mismatches = release_evidence_bundle_mismatch_entries(actual, expected)
     verified = not mismatches
     return {
@@ -10104,28 +10287,58 @@ def release_evidence_bundle_check_payload(
         ),
         "release_evidence_bundle_command": release_evidence_bundle_command(
             manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         ),
         "release_evidence_bundle_json_command": release_evidence_bundle_json_command(
             manifest_path,
+            main_candidate_path,
+            testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         ),
         "check_release_evidence_bundle_command": (
-            check_release_evidence_bundle_command(manifest_path, bundle_path)
+            check_release_evidence_bundle_command(
+                manifest_path,
+                bundle_path,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "check_release_evidence_bundle_json_command": (
             check_release_evidence_bundle_command(
                 manifest_path,
                 bundle_path,
                 json_output=True,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
             )
         ),
         "release_evidence_bundle_gate_command": (
-            release_evidence_bundle_gate_command(manifest_path, bundle_path)
+            release_evidence_bundle_gate_command(
+                manifest_path,
+                bundle_path,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
+            )
         ),
         "release_evidence_bundle_gate_json_command": (
             release_evidence_bundle_gate_command(
                 manifest_path,
                 bundle_path,
                 json_output=True,
+                main_candidate_path=main_candidate_path,
+                testnet_candidate_path=testnet_candidate_path,
+                main_archive_record_path=main_archive_record_path,
+                testnet_archive_record_path=testnet_archive_record_path,
             )
         ),
         "expected_schema_version": expected.get("schema_version"),
@@ -10178,6 +10391,10 @@ def release_evidence_bundle_check_text(
     check,
     bundle_path,
     require_match=False,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     return release_evidence_bundle_check_text_from_payload(
         release_evidence_bundle_check_payload(
@@ -10186,6 +10403,10 @@ def release_evidence_bundle_check_text(
             check,
             bundle_path,
             require_match=require_match,
+            main_candidate_path=main_candidate_path,
+            testnet_candidate_path=testnet_candidate_path,
+            main_archive_record_path=main_archive_record_path,
+            testnet_archive_record_path=testnet_archive_record_path,
         )
     )
 
@@ -10200,6 +10421,10 @@ def release_evidence_bundle_check_json_text(
     check,
     bundle_path,
     require_match=False,
+    main_candidate_path=None,
+    testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     return json.dumps(
         release_evidence_bundle_check_payload(
@@ -10208,6 +10433,10 @@ def release_evidence_bundle_check_json_text(
             check,
             bundle_path,
             require_match=require_match,
+            main_candidate_path=main_candidate_path,
+            testnet_candidate_path=testnet_candidate_path,
+            main_archive_record_path=main_archive_record_path,
+            testnet_archive_record_path=testnet_archive_record_path,
         ),
         indent=2,
         sort_keys=False,
@@ -18949,12 +19178,17 @@ def main():
             args.main_value_selection_candidate is not None
             or args.testnet_value_selection_candidate is not None
         )
-        and not args.value_selection_candidate_artifact_status
+        and not (
+            args.value_selection_candidate_artifact_status
+            or args.release_evidence_bundle
+            or args.check_release_evidence_bundle is not None
+        )
     ):
         print(
             "error: --main-value-selection-candidate and "
             "--testnet-value-selection-candidate require "
-            "--value-selection-candidate-artifact-status",
+            "--value-selection-candidate-artifact-status, "
+            "--release-evidence-bundle, or --check-release-evidence-bundle",
             file=sys.stderr,
         )
         return 1
@@ -18967,12 +19201,17 @@ def main():
                 is not None
             )
         )
-        and not args.value_selection_candidate_artifact_status
+        and not (
+            args.value_selection_candidate_artifact_status
+            or args.release_evidence_bundle
+            or args.check_release_evidence_bundle is not None
+        )
     ):
         print(
             "error: --main-value-selection-candidate-artifact-archive-record "
             "and --testnet-value-selection-candidate-artifact-archive-record "
-            "require --value-selection-candidate-artifact-status",
+            "require --value-selection-candidate-artifact-status, "
+            "--release-evidence-bundle, or --check-release-evidence-bundle",
             file=sys.stderr,
         )
         return 1
@@ -19645,7 +19884,21 @@ def main():
             if args.json
             else release_evidence_bundle_text
         )
-        print(evidence_text(manifest, args.manifest, check))
+        print(
+            evidence_text(
+                manifest,
+                args.manifest,
+                check,
+                main_candidate_path=args.main_value_selection_candidate,
+                testnet_candidate_path=args.testnet_value_selection_candidate,
+                main_archive_record_path=(
+                    args.main_value_selection_candidate_artifact_archive_record
+                ),
+                testnet_archive_record_path=(
+                    args.testnet_value_selection_candidate_artifact_archive_record
+                ),
+            )
+        )
         return 0
 
     if args.check_release_evidence_bundle is not None:
@@ -19656,6 +19909,14 @@ def main():
                 check,
                 args.check_release_evidence_bundle,
                 require_match=args.require_release_evidence_bundle_match,
+                main_candidate_path=args.main_value_selection_candidate,
+                testnet_candidate_path=args.testnet_value_selection_candidate,
+                main_archive_record_path=(
+                    args.main_value_selection_candidate_artifact_archive_record
+                ),
+                testnet_archive_record_path=(
+                    args.testnet_value_selection_candidate_artifact_archive_record
+                ),
             )
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
