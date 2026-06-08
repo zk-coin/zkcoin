@@ -199,7 +199,13 @@ Both are intentionally present before behavior changes so tests and review can t
   with optional `--main-value-selection-candidate` and
   `--testnet-value-selection-candidate` paths when release dashboards need an
   all-network inventory of candidate artifacts as `missing-artifact, verified, or error`
-  without choosing or applying production values. Use
+  without choosing or applying production values. The JSON also includes
+  per-network candidate archive checklists with required record fields such as
+  `value_selection_candidate_artifact_uri`,
+  `value_selection_candidate_artifact_sha256`,
+  `value_selection_candidate_artifact_size`, `candidate_check_command`, and
+  `candidate_check_verified` so operators can retain SHA/URI evidence after
+  a candidate is verified. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists`
   when CI or release dashboards need one compact all-network pre-apply checklist
   of the queued value-selection JSON checks without parsing full status JSON.
@@ -1597,8 +1603,8 @@ index archive handoff summary. The payload includes `closeout_artifacts`,
 `verified_closeout_artifact_count`, `ready_for_publication`,
 `publication_blockers`, `next_publication_blocker`, and the bundle-retained
 value-selection candidate artifact status summary with the next missing
-candidate template command and next unverified candidate check command, and
-status JSON exposes
+candidate template command, next unverified candidate check command, and
+candidate archive-record readiness counts, and status JSON exposes
 `release_evidence_publication_closeout_checklist_command` so dashboards can
 discover the final closeout step without choosing external publication values.
 Use `--check-release-evidence-publication-closeout --json` when automation needs
@@ -1626,9 +1632,9 @@ includes `handoff_artifacts`, `verified_handoff_artifact_count`,
 `ready_for_publication`, `publication_blockers`, `next_publication_blocker`,
 `closeout_gate`, `closeout_archive_gate`, and the retained closeout's
 value-selection candidate artifact status summary, including the next candidate
-template/check commands, so release operators can retain the closeout JSON,
-closeout archive record, and generated summary JSON as the final closeout
-archive evidence set. Status JSON exposes
+template/check commands and candidate archive-record readiness counts, so
+release operators can retain the closeout JSON, closeout archive record, and
+generated summary JSON as the final closeout archive evidence set. Status JSON exposes
 `release_evidence_publication_closeout_archive_handoff_summary_command` for
 dashboards that need to discover this final read-only handoff step.
 Use `--release-evidence-publication-status --json` when automation needs a
@@ -1647,8 +1653,9 @@ counts, publication gate counts, `ready_for_final_handoff`,
 `next_missing_artifact`, per-gate errors or first mismatches, and the
 value-selection candidate artifact status embedded in a supplied release
 evidence bundle, including the next missing candidate template command and next
-unverified candidate check command. Path flags are optional, so dashboards can
-call it before every artifact exists and add
+unverified candidate check command plus candidate archive-record readiness
+counts. Path flags are optional, so dashboards can call it before every artifact
+exists and add
 `--release-evidence-bundle-path`,
 `--release-evidence-archive-record-path`,
 `--release-evidence-publication-index-path`,
