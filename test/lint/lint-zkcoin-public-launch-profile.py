@@ -7287,6 +7287,185 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        release_evidence_publication_closeout_artifact_status_json_result = (
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                    "--json",
+                    "--release-evidence-publication-artifact-status",
+                    "--release-evidence-bundle-path",
+                    str(release_evidence_bundle_path),
+                    "--release-evidence-archive-record-path",
+                    str(release_evidence_archive_record_path),
+                    "--release-evidence-publication-index-path",
+                    str(release_evidence_publication_index_path),
+                    "--release-evidence-publication-index-archive-record-path",
+                    str(release_evidence_publication_index_archive_record_path),
+                    "--release-evidence-publication-closeout-path",
+                    str(release_evidence_publication_closeout_path),
+                    str(PUBLIC_LAUNCH_MANIFEST),
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+        if release_evidence_publication_closeout_artifact_status_json_result.returncode != 0:
+            return "{} --release-evidence-publication-artifact-status --json failed for a generated publication closeout: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                release_evidence_publication_closeout_artifact_status_json_result.stderr.strip()
+                or release_evidence_publication_closeout_artifact_status_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            release_evidence_publication_closeout_artifact_status_json = json.loads(
+                release_evidence_publication_closeout_artifact_status_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --release-evidence-publication-artifact-status --json closeout output was not JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        closeout_artifact_completion_summary = (
+            release_evidence_publication_closeout_artifact_status_json.get(
+                "completion_summary",
+                {},
+            )
+        )
+        closeout_artifact_statuses = (
+            release_evidence_publication_closeout_artifact_status_json.get(
+                "artifact_statuses",
+                [],
+            )
+        )
+        closeout_artifact_verifications = (
+            release_evidence_publication_closeout_artifact_status_json.get(
+                "artifact_verifications",
+                [],
+            )
+        )
+        if (
+            release_evidence_publication_closeout_artifact_status_json.get("schema_version") != 1
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "provided_artifact_count"
+            ) != 5
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "missing_artifact_count"
+            ) != 1
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "verified_artifact_count"
+            ) != 5
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "verified_publication_gate_count"
+            ) != 4
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_missing_artifact"
+            )
+            != "release-evidence-publication-closeout-archive-record"
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_unverified_verification"
+            )
+            != "release-evidence-publication-closeout-archive-gate"
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_operator_action_available"
+            ) is not False
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_operator_action_id"
+            ) is not None
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_operator_action_kind"
+            ) is not None
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "next_operator_action_command"
+            ) is not None
+            or closeout_artifact_statuses[4].get("path")
+            != str(release_evidence_publication_closeout_path)
+            or closeout_artifact_statuses[4].get("verified") is not True
+            or closeout_artifact_verifications[4].get("status")
+            != "verified"
+            or closeout_artifact_verifications[4].get("mismatch_count") != 0
+            or closeout_artifact_verifications[5].get("missing_artifacts")
+            != ["release-evidence-publication-closeout-archive-record"]
+            or closeout_artifact_verifications[5].get("json_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --require-release-evidence-publication-closeout-archive-match --check-release-evidence-publication-closeout-archive <release_evidence_publication_closeout_archive_record.json> {} {} {} {} {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_publication_closeout_path,
+                quoted_publication_index_archive_record_path,
+                quoted_publication_index_path,
+                quoted_archive_record_path,
+                quoted_bundle_path,
+            )
+            or closeout_artifact_completion_summary.get("schema_version") != 1
+            or closeout_artifact_completion_summary.get(
+                "provided_artifact_count"
+            ) != 5
+            or closeout_artifact_completion_summary.get(
+                "missing_artifact_count"
+            ) != 1
+            or closeout_artifact_completion_summary.get(
+                "verified_artifact_count"
+            ) != 5
+            or closeout_artifact_completion_summary.get(
+                "verified_publication_gate_count"
+            ) != 4
+            or closeout_artifact_completion_summary.get(
+                "ready_for_final_handoff"
+            ) is not False
+            or closeout_artifact_completion_summary.get(
+                "next_missing_artifact"
+            )
+            != "release-evidence-publication-closeout-archive-record"
+            or closeout_artifact_completion_summary.get(
+                "next_unverified_verification"
+            )
+            != "release-evidence-publication-closeout-archive-gate"
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action_reason"
+            )
+            != "missing-artifact"
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action_available"
+            ) is not False
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action_id"
+            ) is not None
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action_kind"
+            ) is not None
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action_target_artifact"
+            )
+            != "release-evidence-publication-closeout-archive-record"
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("input_artifact_count") != 0
+            or closeout_artifact_completion_summary.get(
+                "next_operator_action",
+                {},
+            ).get("output_artifact") is not None
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "completion_next_operator_action_id"
+            ) is not None
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "completion_next_operator_action_command"
+            ) is not None
+            or release_evidence_publication_closeout_artifact_status_json.get(
+                "release_evidence_publication_artifact_status_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-artifact-status --release-evidence-bundle-path {} --release-evidence-archive-record-path {} --release-evidence-publication-index-path {} --release-evidence-publication-index-archive-record-path {} --release-evidence-publication-closeout-path {} contrib/devtools/zkcoin_public_launch_profile_manifest.json".format(
+                quoted_bundle_path,
+                quoted_archive_record_path,
+                quoted_publication_index_path,
+                quoted_publication_index_archive_record_path,
+                quoted_publication_closeout_path,
+            )
+        ):
+            return "{} --release-evidence-publication-artifact-status --json did not summarize a supplied publication closeout".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         release_evidence_publication_closeout_sha256 = hashlib.sha256(
             release_evidence_publication_closeout_json_result.stdout.encode("utf8")
         ).hexdigest()
