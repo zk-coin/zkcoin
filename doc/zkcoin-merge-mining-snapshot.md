@@ -1595,7 +1595,8 @@ covering the release evidence bundle, archive record, release evidence handoff
 summary, publication index, publication index archive record, and publication
 index archive handoff summary. The payload includes `closeout_artifacts`,
 `verified_closeout_artifact_count`, `ready_for_publication`,
-`publication_blockers`, and `next_publication_blocker`, and status JSON exposes
+`publication_blockers`, `next_publication_blocker`, and the bundle-retained
+value-selection candidate artifact status summary, and status JSON exposes
 `release_evidence_publication_closeout_checklist_command` so dashboards can
 discover the final closeout step without choosing external publication values.
 Use `--check-release-evidence-publication-closeout --json` when automation needs
@@ -1621,9 +1622,10 @@ after the closeout archive gate verifies when dashboards need one final
 machine-readable handoff for retained public-release evidence. The payload
 includes `handoff_artifacts`, `verified_handoff_artifact_count`,
 `ready_for_publication`, `publication_blockers`, `next_publication_blocker`,
-`closeout_gate`, and `closeout_archive_gate` so release operators can retain
-the closeout JSON, closeout archive record, and generated summary JSON as the
-final closeout archive evidence set. Status JSON exposes
+`closeout_gate`, `closeout_archive_gate`, and the retained closeout's
+value-selection candidate artifact status summary so release operators can
+retain the closeout JSON, closeout archive record, and generated summary JSON as
+the final closeout archive evidence set. Status JSON exposes
 `release_evidence_publication_closeout_archive_handoff_summary_command` for
 dashboards that need to discover this final read-only handoff step.
 Use `--release-evidence-publication-status --json` when automation needs a

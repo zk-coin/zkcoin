@@ -5726,6 +5726,14 @@ def require_public_launch_manifest_current():
             f"  - release evidence bundle: {release_evidence_bundle_path}",
             "  - closeout artifacts: 6",
             "  - verified closeout artifacts: 6",
+            "  - value-selection candidate artifact status available: yes",
+            "  - value-selection candidate artifact source verified: yes",
+            "  - value-selection candidate artifacts: 0/2",
+            "  - verified value-selection candidate artifacts: 0/2",
+            "  - value-selection candidate artifact errors: 0",
+            "  - all value-selection candidate artifacts verified: no",
+            "  - next missing value-selection candidate: main",
+            "  - next unverified value-selection candidate: main",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - release evidence handoff summary verified: yes",
@@ -5783,12 +5791,43 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 exc,
             )
+        closeout_candidate_status = publication_closeout_json.get(
+            "value_selection_candidate_artifact_status",
+            {},
+        )
+        closeout_main_candidate_status = closeout_candidate_status.get(
+            "candidate_statuses_by_network",
+            {},
+        ).get("main", {})
         if (
             publication_closeout_json.get("schema_version") != 1
             or publication_closeout_json.get("verified") is not True
             or publication_closeout_json.get("required_match_exit_code") != 0
             or publication_closeout_json.get("closeout_artifact_count") != 6
             or publication_closeout_json.get("verified_closeout_artifact_count") != 6
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_available"
+            ) is not True
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_source_verified"
+            ) is not True
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_count"
+            ) != 2
+            or publication_closeout_json.get(
+                "provided_value_selection_candidate_artifact_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "verified_value_selection_candidate_artifact_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "next_missing_value_selection_candidate"
+            ) != "main"
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("candidate_count") != 2
+            or closeout_main_candidate_status.get("status") != "missing-artifact"
             or publication_closeout_json.get("ready_for_publication") is not True
             or publication_closeout_json.get("publication_blocker_count") != 0
             or publication_closeout_json.get("publication_blockers") != []
@@ -5931,6 +5970,18 @@ def require_public_launch_manifest_current():
             != publication_closeout_json
             or publication_closeout_check_json.get("expected_closeout_artifact_count") != 6
             or publication_closeout_check_json.get("actual_closeout_artifact_count") != 6
+            or publication_closeout_check_json.get(
+                "expected_closeout_values",
+                {},
+            ).get("value_selection_candidate_artifact_status_summary", {}).get(
+                "candidate_count"
+            ) != 2
+            or publication_closeout_check_json.get(
+                "actual_closeout_values",
+                {},
+            ).get("value_selection_candidate_artifact_status_summary", {}).get(
+                "provided_candidate_count"
+            ) != 0
             or publication_closeout_check_json.get("expected_ready_for_publication") is not True
             or publication_closeout_check_json.get("actual_ready_for_publication") is not True
             or publication_closeout_check_json.get("check_release_evidence_publication_closeout_command")
@@ -6239,6 +6290,14 @@ def require_public_launch_manifest_current():
             "  - mismatches: 0",
             "  - handoff artifacts: 3",
             "  - verified handoff artifacts: 3",
+            "  - value-selection candidate artifact status available: yes",
+            "  - value-selection candidate artifact source verified: yes",
+            "  - value-selection candidate artifacts: 0/2",
+            "  - verified value-selection candidate artifacts: 0/2",
+            "  - value-selection candidate artifact errors: 0",
+            "  - all value-selection candidate artifacts verified: no",
+            "  - next missing value-selection candidate: main",
+            "  - next unverified value-selection candidate: main",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - closeout gate verified: yes",
@@ -6304,6 +6363,18 @@ def require_public_launch_manifest_current():
                 [],
             )
         )
+        closeout_archive_handoff_candidate_status = (
+            publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status",
+                {},
+            )
+        )
+        closeout_archive_handoff_main_candidate_status = (
+            closeout_archive_handoff_candidate_status.get(
+                "candidate_statuses_by_network",
+                {},
+            ).get("main", {})
+        )
         if (
             publication_closeout_archive_handoff_summary_json.get("schema_version") != 1
             or publication_closeout_archive_handoff_summary_json.get("verified") is not True
@@ -6317,6 +6388,24 @@ def require_public_launch_manifest_current():
             != release_evidence_publication_closeout_sha256
             or publication_closeout_archive_handoff_summary_json.get("handoff_artifact_count") != 3
             or publication_closeout_archive_handoff_summary_json.get("verified_handoff_artifact_count") != 3
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_available"
+            ) is not True
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_count"
+            ) != 2
+            or publication_closeout_archive_handoff_summary_json.get(
+                "provided_value_selection_candidate_artifact_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("next_missing_candidate") != "main"
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status"
+            ) != closeout_archive_handoff_candidate_status
+            or closeout_archive_handoff_main_candidate_status.get("status")
+            != "missing-artifact"
             or publication_closeout_archive_handoff_summary_json.get("ready_for_publication") is not True
             or publication_closeout_archive_handoff_summary_json.get("publication_blocker_count") != 0
             or publication_closeout_archive_handoff_summary_json.get("first_mismatch") is not None

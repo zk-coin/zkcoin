@@ -12404,6 +12404,18 @@ def release_evidence_publication_closeout_checklist_payload(
         handoff_summary,
         publication_index_archive_handoff_summary,
     )
+    candidate_artifact_status = (
+        release_evidence_publication_candidate_artifact_status(
+            manifest_path,
+            bundle_path,
+            handoff_summary["bundle_gate"],
+        )
+    )
+    candidate_artifact_status_summary = (
+        release_evidence_publication_candidate_artifact_status_summary(
+            candidate_artifact_status
+        )
+    )
     publication_blockers = release_evidence_publication_blockers(
         closeout_artifacts
     )
@@ -12443,6 +12455,39 @@ def release_evidence_publication_closeout_checklist_payload(
             if artifact["verified"]
         ]),
         "closeout_artifacts": closeout_artifacts,
+        "value_selection_candidate_artifact_status": candidate_artifact_status,
+        "value_selection_candidate_artifact_status_summary": (
+            candidate_artifact_status_summary
+        ),
+        "value_selection_candidate_artifact_status_available": (
+            candidate_artifact_status_summary["available"]
+        ),
+        "value_selection_candidate_artifact_source_verified": (
+            candidate_artifact_status_summary["source_verified"]
+        ),
+        "value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["candidate_count"]
+        ),
+        "provided_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["provided_candidate_count"]
+        ),
+        "verified_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["verified_candidate_count"]
+        ),
+        "value_selection_candidate_artifact_error_count": (
+            candidate_artifact_status_summary["error_candidate_count"]
+        ),
+        "all_value_selection_candidate_artifacts_verified": (
+            candidate_artifact_status_summary[
+                "all_required_candidates_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate": (
+            candidate_artifact_status_summary["next_missing_candidate"]
+        ),
+        "next_unverified_value_selection_candidate": (
+            candidate_artifact_status_summary["next_unverified_candidate"]
+        ),
         "ready_for_publication": not publication_blockers,
         "publication_blocker_count": len(publication_blockers),
         "publication_blockers": publication_blockers,
@@ -12542,6 +12587,14 @@ def release_evidence_publication_closeout_checklist_text_from_payload(payload):
         f"  - mismatches: {payload['mismatch_count']}",
         f"  - closeout artifacts: {payload['closeout_artifact_count']}",
         f"  - verified closeout artifacts: {payload['verified_closeout_artifact_count']}",
+        f"  - value-selection candidate artifact status available: {yes_no(payload['value_selection_candidate_artifact_status_available'])}",
+        f"  - value-selection candidate artifact source verified: {yes_no(payload['value_selection_candidate_artifact_source_verified'])}",
+        f"  - value-selection candidate artifacts: {payload['provided_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - verified value-selection candidate artifacts: {payload['verified_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - value-selection candidate artifact errors: {payload['value_selection_candidate_artifact_error_count']}",
+        f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
+        f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
+        f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
         f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
         f"  - publication blockers: {payload['publication_blocker_count']}",
         f"  - release evidence handoff summary verified: {yes_no(payload['release_evidence_handoff_summary']['verified'])}",
@@ -13354,6 +13407,16 @@ def release_evidence_publication_closeout_archive_handoff_summary_payload(
             verified,
         )
     )
+    candidate_artifact_status = (
+        closeout_gate["actual_closeout_values"].get(
+            "value_selection_candidate_artifact_status"
+        )
+    )
+    candidate_artifact_status_summary = (
+        release_evidence_publication_candidate_artifact_status_summary(
+            candidate_artifact_status
+        )
+    )
     publication_blockers = release_evidence_publication_blockers(
         handoff_artifacts
     )
@@ -13393,6 +13456,39 @@ def release_evidence_publication_closeout_archive_handoff_summary_payload(
             if artifact["verified"]
         ]),
         "handoff_artifacts": handoff_artifacts,
+        "value_selection_candidate_artifact_status": candidate_artifact_status,
+        "value_selection_candidate_artifact_status_summary": (
+            candidate_artifact_status_summary
+        ),
+        "value_selection_candidate_artifact_status_available": (
+            candidate_artifact_status_summary["available"]
+        ),
+        "value_selection_candidate_artifact_source_verified": (
+            candidate_artifact_status_summary["source_verified"]
+        ),
+        "value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["candidate_count"]
+        ),
+        "provided_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["provided_candidate_count"]
+        ),
+        "verified_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["verified_candidate_count"]
+        ),
+        "value_selection_candidate_artifact_error_count": (
+            candidate_artifact_status_summary["error_candidate_count"]
+        ),
+        "all_value_selection_candidate_artifacts_verified": (
+            candidate_artifact_status_summary[
+                "all_required_candidates_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate": (
+            candidate_artifact_status_summary["next_missing_candidate"]
+        ),
+        "next_unverified_value_selection_candidate": (
+            candidate_artifact_status_summary["next_unverified_candidate"]
+        ),
         "ready_for_publication": not publication_blockers,
         "publication_blocker_count": len(publication_blockers),
         "publication_blockers": publication_blockers,
@@ -13528,6 +13624,14 @@ def release_evidence_publication_closeout_archive_handoff_summary_text_from_payl
         f"  - mismatches: {payload['mismatch_count']}",
         f"  - handoff artifacts: {payload['handoff_artifact_count']}",
         f"  - verified handoff artifacts: {payload['verified_handoff_artifact_count']}",
+        f"  - value-selection candidate artifact status available: {yes_no(payload['value_selection_candidate_artifact_status_available'])}",
+        f"  - value-selection candidate artifact source verified: {yes_no(payload['value_selection_candidate_artifact_source_verified'])}",
+        f"  - value-selection candidate artifacts: {payload['provided_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - verified value-selection candidate artifacts: {payload['verified_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - value-selection candidate artifact errors: {payload['value_selection_candidate_artifact_error_count']}",
+        f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
+        f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
+        f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
         f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
         f"  - publication blockers: {payload['publication_blocker_count']}",
         f"  - closeout gate verified: {yes_no(payload['closeout_gate']['verified'])}",
@@ -14244,6 +14348,46 @@ def release_evidence_publication_candidate_artifact_status(
         ),
     })
     return base
+
+
+def release_evidence_publication_candidate_artifact_status_summary(
+    candidate_artifact_status,
+):
+    if not isinstance(candidate_artifact_status, dict):
+        candidate_artifact_status = {}
+    return {
+        "available": bool(candidate_artifact_status.get("available")),
+        "status": candidate_artifact_status.get("status"),
+        "source_artifact": candidate_artifact_status.get("source_artifact"),
+        "source_path": candidate_artifact_status.get("source_path"),
+        "source_verified": bool(candidate_artifact_status.get("source_verified")),
+        "candidate_count": candidate_artifact_status.get("candidate_count", 0),
+        "provided_candidate_count": candidate_artifact_status.get(
+            "provided_candidate_count",
+            0,
+        ),
+        "missing_candidate_count": candidate_artifact_status.get(
+            "missing_candidate_count",
+            0,
+        ),
+        "verified_candidate_count": candidate_artifact_status.get(
+            "verified_candidate_count",
+            0,
+        ),
+        "error_candidate_count": candidate_artifact_status.get(
+            "error_candidate_count",
+            0,
+        ),
+        "all_required_candidates_verified": bool(
+            candidate_artifact_status.get("all_required_candidates_verified")
+        ),
+        "next_missing_candidate": candidate_artifact_status.get(
+            "next_missing_candidate"
+        ),
+        "next_unverified_candidate": candidate_artifact_status.get(
+            "next_unverified_candidate"
+        ),
+    }
 
 
 def release_evidence_publication_artifact_status_payload(
