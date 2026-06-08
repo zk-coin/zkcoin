@@ -358,6 +358,8 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_archive_gate_json_command`,
   `release_evidence_handoff_summary_command`,
   `release_evidence_handoff_summary_json_command`,
+  `release_evidence_publication_next_operator_action`, and
+  `release_evidence_publication_next_operator_action_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -1717,7 +1719,10 @@ pipeline command, reason, target artifact, and JSON command so dashboards can
 render the next retained-evidence action without deriving it from the ordered
 step list. Status JSON exposes
 `release_evidence_publication_status_command` for dashboards that need to
-discover the pipeline inventory without hard-coding the command string.
+discover the pipeline inventory without hard-coding the command string, and
+top-level `--status-json` mirrors this action as
+`release_evidence_publication_next_operator_action` with direct command and
+JSON-command aliases for release overview pages.
 Use `--release-evidence-publication-artifact-status --json` when automation
 needs to reconcile retained publication artifacts against the ordered pipeline.
 The payload reports supplied and missing artifact counts, verified artifact

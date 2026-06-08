@@ -17334,6 +17334,16 @@ def status_json_text(manifest, manifest_path, check):
         manifest_path,
         json_output=True,
     )
+    release_evidence_publication_status = (
+        release_evidence_publication_status_payload(
+            manifest,
+            manifest_path,
+            check,
+        )
+    )
+    release_evidence_publication_next_operator_action = (
+        release_evidence_publication_status["next_operator_action"]
+    )
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     blocker_type_later_blockers_commands_by_type = blocker_type_later_blockers_commands(manifest_path)
     readiness_gate_summary_commands_by_gate = readiness_gate_summary_commands(manifest_path)
@@ -17665,6 +17675,40 @@ def status_json_text(manifest, manifest_path, check):
                     manifest_path,
                     json_output=True,
                 )
+            ),
+            "release_evidence_publication_next_operator_action": (
+                release_evidence_publication_next_operator_action
+            ),
+            "release_evidence_publication_next_operator_action_available": (
+                release_evidence_publication_next_operator_action["available"]
+            ),
+            "release_evidence_publication_next_operator_action_reason": (
+                release_evidence_publication_next_operator_action["reason"]
+            ),
+            "release_evidence_publication_next_operator_action_id": (
+                release_evidence_publication_next_operator_action["id"]
+            ),
+            "release_evidence_publication_next_operator_action_kind": (
+                release_evidence_publication_next_operator_action["kind"]
+            ),
+            "release_evidence_publication_next_operator_action_description": (
+                release_evidence_publication_next_operator_action["description"]
+            ),
+            "release_evidence_publication_next_operator_action_target_artifact": (
+                release_evidence_publication_next_operator_action[
+                    "target_artifact"
+                ]
+            ),
+            "release_evidence_publication_next_operator_action_target_verification": (
+                release_evidence_publication_next_operator_action[
+                    "target_verification"
+                ]
+            ),
+            "release_evidence_publication_next_operator_action_command": (
+                release_evidence_publication_next_operator_action["command"]
+            ),
+            "release_evidence_publication_next_operator_action_json_command": (
+                release_evidence_publication_next_operator_action["json_command"]
             ),
             "release_evidence_publication_artifact_status_command": (
                 release_evidence_publication_artifact_status_command(
