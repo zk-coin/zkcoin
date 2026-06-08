@@ -7185,6 +7185,24 @@ def require_public_launch_manifest_current():
             "  - handoff steps: 4",
             "  - operator-value steps: 3",
             "  - final handoff step: release-evidence-publication-closeout-archive-handoff-summary",
+            "  - value-selection candidate artifacts: 0/2",
+            "  - verified value-selection candidate artifacts: 0/2",
+            "  - value-selection candidate artifact errors: 0",
+            "  - all value-selection candidate artifacts verified: no",
+            "  - next missing value-selection candidate: main",
+            "  - next unverified value-selection candidate: main",
+            "  - value-selection candidate archive records ready: 0/2",
+            "  - next value-selection candidate archive record network: main",
+            "  - supplied value-selection candidate archive records: 0/2",
+            "  - verified value-selection candidate archive records: 0/2",
+            "  - value-selection candidate archive record mismatches: 0",
+            "  - value-selection candidate archive record errors: 0",
+            "  - blocked value-selection candidate archive records: 0",
+            "  - all value-selection candidate archive records verified: no",
+            "  - next missing value-selection candidate archive record path network: none",
+            "  - next unverified value-selection candidate archive record network: none",
+            "  - value-selection candidate artifact status command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - value-selection candidate artifact status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - release evidence publication status command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - release evidence publication status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - publication step 13: release-evidence-publication-closeout-archive-handoff-summary",
@@ -7227,6 +7245,10 @@ def require_public_launch_manifest_current():
                 exc,
             )
         publication_status_steps = publication_status_json.get("publication_steps", [])
+        publication_candidate_status_summary = publication_status_json.get(
+            "value_selection_candidate_artifact_status_summary",
+            {},
+        )
         if (
             publication_status_json.get("schema_version") != 1
             or publication_status_json.get("publication_step_count") != 13
@@ -7242,6 +7264,69 @@ def require_public_launch_manifest_current():
             ]
             or publication_status_json.get("final_handoff_step_id")
             != "release-evidence-publication-closeout-archive-handoff-summary"
+            or publication_status_json.get(
+                "value_selection_candidate_artifact_count"
+            ) != 2
+            or publication_status_json.get(
+                "provided_value_selection_candidate_artifact_count"
+            ) != 0
+            or publication_status_json.get(
+                "verified_value_selection_candidate_artifact_count"
+            ) != 0
+            or publication_status_json.get(
+                "next_missing_value_selection_candidate"
+            ) != "main"
+            or publication_status_json.get(
+                "next_unverified_value_selection_candidate"
+            ) != "main"
+            or publication_status_json.get(
+                "value_selection_candidate_archive_record_count"
+            ) != 2
+            or publication_status_json.get(
+                "ready_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "next_value_selection_candidate_archive_record_network"
+            ) != "main"
+            or publication_status_json.get(
+                "provided_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "verified_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "mismatch_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "error_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "blocked_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_status_json.get(
+                "all_value_selection_candidate_archive_records_verified"
+            ) is not False
+            or publication_status_json.get(
+                "next_missing_value_selection_candidate_archive_record_path_network"
+            ) is not None
+            or publication_status_json.get(
+                "next_unverified_value_selection_candidate_archive_record_network"
+            ) is not None
+            or publication_candidate_status_summary.get("candidate_count") != 2
+            or publication_candidate_status_summary.get(
+                "provided_candidate_archive_record_count"
+            ) != 0
+            or publication_candidate_status_summary.get(
+                "next_missing_candidate_archive_record_path_network"
+            ) is not None
+            or publication_status_json.get(
+                "value_selection_candidate_artifact_status_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_status_json.get("commands", {}).get(
+                "value_selection_candidate_artifact_status_json"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or [step.get("id") for step in publication_status_steps][0]
             != "release-evidence-bundle"
             or [step.get("id") for step in publication_status_steps][-1]
