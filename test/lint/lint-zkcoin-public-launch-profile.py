@@ -10579,6 +10579,45 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose the release evidence publication status JSON command".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    if (
+        status_json.get("release_evidence_publication_next_operator_action_available")
+        is not True
+        or status_json.get("release_evidence_publication_next_operator_action_id")
+        != "release-evidence-bundle"
+        or status_json.get("release_evidence_publication_next_operator_action_kind")
+        != "generate"
+        or status_json.get("release_evidence_publication_next_operator_action_reason")
+        != "next-publication-step"
+        or status_json.get(
+            "release_evidence_publication_next_operator_action_target_artifact"
+        )
+        != "release-evidence-bundle"
+        or status_json.get(
+            "release_evidence_publication_next_operator_action_target_verification"
+        )
+        is not None
+        or status_json.get("release_evidence_publication_next_operator_action_command")
+        != (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--release-evidence-bundle "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        or status_json.get(
+            "release_evidence_publication_next_operator_action_json_command"
+        )
+        != (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--release-evidence-bundle "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        or status_json.get(
+            "release_evidence_publication_next_operator_action",
+            {},
+        ).get("output_artifact") != "<release_evidence_bundle.json>"
+    ):
+        return "{} --status-json did not expose release evidence publication next operator action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("release_evidence_publication_artifact_status_command") != (
         "contrib/devtools/zkcoin_public_launch_profile.py "
         "--release-evidence-publication-artifact-status "
@@ -24496,6 +24535,7 @@ def main():
         ("release_evidence_publication_closeout_archive_gate_command", "manifest status JSON exposes release evidence publication closeout archive gate command"),
         ("release_evidence_publication_closeout_archive_handoff_summary_command", "manifest status JSON exposes release evidence publication closeout archive handoff summary command"),
         ("release_evidence_publication_status_command", "manifest status JSON exposes release evidence publication status command"),
+        ("release_evidence_publication_next_operator_action", "manifest status JSON exposes release evidence publication next operator action"),
         ("release_evidence_publication_artifact_status_command", "manifest status JSON exposes release evidence publication artifact status command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
@@ -26185,6 +26225,10 @@ def main():
         (
             "release_evidence_publication_status_command",
             "public launch manifest status-json release evidence publication status command documentation",
+        ),
+        (
+            "release_evidence_publication_next_operator_action",
+            "public launch manifest status-json release evidence publication next operator action documentation",
         ),
         (
             "release_evidence_publication_artifact_status_command",
