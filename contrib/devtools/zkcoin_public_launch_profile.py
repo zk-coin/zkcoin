@@ -75,6 +75,9 @@ RELEASE_EVIDENCE_PUBLICATION_INDEX_ARCHIVE_RECORD_MAX_BYTES = (
 RELEASE_EVIDENCE_PUBLICATION_CLOSEOUT_ARCHIVE_RECORD_MAX_BYTES = (
     RELEASE_EVIDENCE_ARCHIVE_RECORD_MAX_BYTES
 )
+VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES = (
+    RELEASE_EVIDENCE_ARCHIVE_RECORD_MAX_BYTES
+)
 RELEASE_EVIDENCE_PUBLICATION_INDEX_MAX_BYTES = 64 * 1024
 RELEASE_EVIDENCE_PUBLICATION_CLOSEOUT_MAX_BYTES = 256 * 1024
 RELEASE_EVIDENCE_BUNDLE_MISMATCH_LIMIT = 50
@@ -2704,6 +2707,126 @@ def read_value_selection_candidate_json(candidate_path):
     return candidate
 
 
+def value_selection_candidate_artifact_archive_record_too_large_error(
+    record_path,
+):
+    return (
+        "value-selection candidate artifact archive record must not exceed "
+        f"{VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES} "
+        f"bytes: {record_path}"
+    )
+
+
+def read_value_selection_candidate_artifact_archive_record_text(record_path):
+    fd, record_stat = open_regular_file_no_symlink(
+        record_path,
+        symlink_error=(
+            "value-selection candidate artifact archive record path must not be "
+            "a symlink"
+        ),
+        missing_error=(
+            "cannot read value-selection candidate artifact archive record"
+        ),
+        not_regular_error=(
+            "value-selection candidate artifact archive record path must be a "
+            "regular file"
+        ),
+        open_error=(
+            "cannot read value-selection candidate artifact archive record"
+        ),
+        parent_symlink_error=(
+            "value-selection candidate artifact archive record parent "
+            "directory must not be a symlink"
+        ),
+    )
+    if (
+        record_stat.st_size
+        > VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES
+    ):
+        os.close(fd)
+        raise ValueError(
+            value_selection_candidate_artifact_archive_record_too_large_error(
+                record_path
+            )
+        )
+
+    chunks = []
+    total_bytes = 0
+    try:
+        while (
+            total_bytes
+            <= VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES
+        ):
+            chunk = os.read(
+                fd,
+                min(
+                    65536,
+                    VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES
+                    + 1
+                    - total_bytes,
+                ),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_bytes += len(chunk)
+        if (
+            total_bytes
+            > VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_MAX_BYTES
+        ):
+            raise ValueError(
+                value_selection_candidate_artifact_archive_record_too_large_error(
+                    record_path
+                )
+            )
+        require_regular_file_stable(
+            record_path,
+            record_stat,
+            fd,
+            "value-selection candidate artifact archive record changed during read",
+            parent_symlink_error=(
+                "value-selection candidate artifact archive record parent "
+                "directory must not be a symlink"
+            ),
+        )
+    except OSError as exc:
+        raise ValueError(
+            "cannot read value-selection candidate artifact archive record: "
+            f"{exc}"
+        ) from None
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf8")
+    except UnicodeDecodeError:
+        raise ValueError(f"{record_path} is not valid UTF-8") from None
+
+
+def read_value_selection_candidate_artifact_archive_record(record_path):
+    record_text = read_value_selection_candidate_artifact_archive_record_text(
+        record_path
+    )
+    try:
+        record = json.loads(
+            record_text,
+            object_pairs_hook=reject_duplicate_json_fields,
+        )
+    except DuplicateJSONFieldError as exc:
+        raise ValueError(
+            f"{record_path} contains duplicate field: {exc}"
+        ) from None
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{record_path} is not valid JSON: {exc}") from None
+
+    if not isinstance(record, dict):
+        raise ValueError(
+            "value-selection candidate artifact archive record must be a JSON "
+            "object"
+        )
+    return record
+
+
 def release_evidence_bundle_too_large_error(bundle_path):
     return (
         "release evidence bundle must not exceed "
@@ -5100,6 +5223,34 @@ def value_selection_candidate_artifact_archive_checklist_entry(
             "candidate_check_command": entry["candidate_check_json_command"],
             "candidate_check_verified": True,
         }
+    candidate_path = entry["candidate_path"] or "<value_selection_candidate.json>"
+    archive_record_path = "<value_selection_candidate_artifact_archive_record.json>"
+    check_command = check_value_selection_candidate_artifact_archive_command(
+        manifest_path,
+        entry["network"],
+        archive_record_path,
+        candidate_path,
+    )
+    check_json_command = check_value_selection_candidate_artifact_archive_command(
+        manifest_path,
+        entry["network"],
+        archive_record_path,
+        candidate_path,
+        json_output=True,
+    )
+    gate_command = value_selection_candidate_artifact_archive_gate_command(
+        manifest_path,
+        entry["network"],
+        archive_record_path,
+        candidate_path,
+    )
+    gate_json_command = value_selection_candidate_artifact_archive_gate_command(
+        manifest_path,
+        entry["network"],
+        archive_record_path,
+        candidate_path,
+        json_output=True,
+    )
     return {
         "step": entry["step"],
         "network": entry["network"],
@@ -5116,6 +5267,16 @@ def value_selection_candidate_artifact_archive_checklist_entry(
         "required_nonempty_archive_record_field_count": len(nonempty_fields),
         "expected_archive_record_values": expected_values,
         "expected_archive_record_value_count": len(expected_values),
+        "archive_record_check_command": check_command,
+        "archive_record_check_json_command": check_json_command,
+        "archive_record_gate_command": gate_command,
+        "archive_record_gate_json_command": gate_json_command,
+        "commands": {
+            "archive_record_check": check_command,
+            "archive_record_check_json": check_json_command,
+            "archive_record_gate": gate_command,
+            "archive_record_gate_json": gate_json_command,
+        },
     }
 
 
@@ -5215,6 +5376,22 @@ def value_selection_candidate_artifact_status_payload(
         "candidate_archive_checklists": archive_checklists,
         "candidate_archive_checklists_by_network": {
             entry["network"]: entry
+            for entry in archive_checklists
+        },
+        "candidate_archive_record_check_commands_by_network": {
+            entry["network"]: entry["archive_record_check_command"]
+            for entry in archive_checklists
+        },
+        "candidate_archive_record_check_json_commands_by_network": {
+            entry["network"]: entry["archive_record_check_json_command"]
+            for entry in archive_checklists
+        },
+        "candidate_archive_record_gate_commands_by_network": {
+            entry["network"]: entry["archive_record_gate_command"]
+            for entry in archive_checklists
+        },
+        "candidate_archive_record_gate_json_commands_by_network": {
+            entry["network"]: entry["archive_record_gate_json_command"]
             for entry in archive_checklists
         },
         "candidate_statuses": entries,
@@ -5338,6 +5515,14 @@ def value_selection_candidate_artifact_status_text_from_payload(payload):
                 + list_summary(
                     archive_checklist.get("required_archive_record_fields", [])
                 )
+            ),
+            (
+                "    - archive record check command: "
+                + archive_checklist.get("archive_record_check_command", "")
+            ),
+            (
+                "    - archive record gate command: "
+                + archive_checklist.get("archive_record_gate_command", "")
             ),
         ])
         if entry["candidate_size"] is not None:
@@ -6285,6 +6470,52 @@ def network_value_selection_candidate_check_command(
         f"{tool_path} {json_flag}"
         f"--check-network-value-selection-candidate "
         f"{network} {candidate_path} {manifest_path}"
+    )
+
+
+def check_value_selection_candidate_artifact_archive_command(
+    manifest_path,
+    network,
+    archive_record_path=(
+        "<value_selection_candidate_artifact_archive_record.json>"
+    ),
+    candidate_path="<value_selection_candidate.json>",
+    json_output=False,
+    require_match=False,
+):
+    tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
+    manifest_path = shell_quote(display_path(manifest_path))
+    archive_record_path = command_path_arg(archive_record_path)
+    candidate_path = command_path_arg(candidate_path)
+    json_flag = "--json " if json_output else ""
+    require_match_flag = (
+        "--require-value-selection-candidate-artifact-archive-match "
+        if require_match
+        else ""
+    )
+    return (
+        f"{tool_path} {json_flag}{require_match_flag}"
+        "--check-value-selection-candidate-artifact-archive "
+        f"{network} {archive_record_path} {candidate_path} {manifest_path}"
+    )
+
+
+def value_selection_candidate_artifact_archive_gate_command(
+    manifest_path,
+    network,
+    archive_record_path=(
+        "<value_selection_candidate_artifact_archive_record.json>"
+    ),
+    candidate_path="<value_selection_candidate.json>",
+    json_output=False,
+):
+    return check_value_selection_candidate_artifact_archive_command(
+        manifest_path,
+        network,
+        archive_record_path,
+        candidate_path,
+        json_output=json_output,
+        require_match=True,
     )
 
 
@@ -10427,6 +10658,341 @@ def release_evidence_archive_check_json_text(
         indent=2,
         sort_keys=False,
     )
+
+
+def value_selection_candidate_artifact_archive_mismatch_entry(
+    path,
+    kind,
+    actual_value,
+    expected_value,
+):
+    return {
+        "path": path or "$",
+        "kind": kind,
+        "expected": release_evidence_bundle_mismatch_value(expected_value),
+        "actual": release_evidence_bundle_mismatch_value(actual_value),
+    }
+
+
+def append_value_selection_candidate_artifact_archive_mismatch(
+    mismatches,
+    path,
+    kind,
+    actual_value,
+    expected_value,
+):
+    mismatches.append(
+        value_selection_candidate_artifact_archive_mismatch_entry(
+            path,
+            kind,
+            actual_value,
+            expected_value,
+        )
+    )
+
+
+def value_selection_candidate_artifact_archive_check_payload(
+    manifest,
+    manifest_path,
+    network,
+    archive_record_path,
+    candidate_path,
+    require_match=False,
+):
+    record = read_value_selection_candidate_artifact_archive_record(
+        archive_record_path
+    )
+    (
+        candidate_json,
+        candidate_metadata,
+        auxpow,
+        identity,
+        dns_seeds,
+        candidate,
+    ) = checked_network_value_selection_candidate(
+        manifest,
+        network,
+        candidate_path,
+    )
+    candidate_check = network_value_selection_candidate_check_json_payload(
+        manifest,
+        manifest_path,
+        network,
+        candidate_path,
+        candidate_json,
+        candidate_metadata,
+        auxpow,
+        identity,
+        dns_seeds,
+        candidate,
+    )
+    archive_fields = list(
+        VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_FIELDS
+    )
+    nonempty_fields = list(
+        VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_NONEMPTY_FIELDS
+    )
+    missing_required_fields = [
+        field for field in archive_fields if field not in record
+    ]
+    unexpected_fields = sorted(set(record) - set(archive_fields))
+    mismatches = []
+
+    for field in missing_required_fields:
+        append_value_selection_candidate_artifact_archive_mismatch(
+            mismatches,
+            field,
+            "missing",
+            "<missing>",
+            "required archive record field",
+        )
+
+    expected_archive_values = {
+        "network": network,
+        "value_selection_candidate_artifact_sha256": (
+            candidate_metadata["sha256"]
+        ),
+        "value_selection_candidate_artifact_size": candidate_metadata["size"],
+        "value_selection_candidate_schema_version": (
+            candidate_json.get("schema_version")
+        ),
+        "manifest_path": display_path(manifest_path),
+        "candidate_check_command": candidate_check["commands"][
+            "candidate_check_json"
+        ],
+        "candidate_check_verified": True,
+    }
+    for field, expected_value in expected_archive_values.items():
+        if field not in record:
+            continue
+        actual_value = record[field]
+        if type(actual_value) is not type(expected_value):
+            append_value_selection_candidate_artifact_archive_mismatch(
+                mismatches,
+                field,
+                "type",
+                actual_value,
+                expected_value,
+            )
+            continue
+        if actual_value != expected_value:
+            append_value_selection_candidate_artifact_archive_mismatch(
+                mismatches,
+                field,
+                "value",
+                actual_value,
+                expected_value,
+            )
+
+    for field in nonempty_fields:
+        if field not in record:
+            continue
+        actual_value = record[field]
+        if not isinstance(actual_value, str):
+            append_value_selection_candidate_artifact_archive_mismatch(
+                mismatches,
+                field,
+                "type",
+                actual_value,
+                "non-empty string",
+            )
+        elif not actual_value.strip():
+            append_value_selection_candidate_artifact_archive_mismatch(
+                mismatches,
+                field,
+                "empty",
+                actual_value,
+                "non-empty string",
+            )
+
+    if not candidate_check["verified"]:
+        append_value_selection_candidate_artifact_archive_mismatch(
+            mismatches,
+            "candidate_check.verified",
+            "value",
+            candidate_check["verified"],
+            True,
+        )
+    if not candidate_check["ready_to_apply"]:
+        append_value_selection_candidate_artifact_archive_mismatch(
+            mismatches,
+            "candidate_check.ready_to_apply",
+            "value",
+            candidate_check["ready_to_apply"],
+            True,
+        )
+
+    actual_archive_values = {
+        field: record.get(field)
+        for field in archive_fields
+    }
+    return {
+        "schema_version": 1,
+        "manifest": display_path(manifest_path),
+        "network": network,
+        "value_selection_candidate_artifact_archive_record": (
+            display_path(archive_record_path)
+        ),
+        "value_selection_candidate": display_path(candidate_path),
+        "verified": not mismatches,
+        "require_match": require_match,
+        "required_match_exit_code": 0 if not mismatches else 1,
+        "mismatch_count": len(mismatches),
+        "mismatches": mismatches,
+        "missing_required_fields": missing_required_fields,
+        "missing_required_field_count": len(missing_required_fields),
+        "unexpected_fields": unexpected_fields,
+        "unexpected_field_count": len(unexpected_fields),
+        "archive_record_schema_version": 1,
+        "required_archive_record_fields": archive_fields,
+        "required_archive_record_field_count": len(archive_fields),
+        "required_nonempty_archive_record_fields": nonempty_fields,
+        "required_nonempty_archive_record_field_count": len(nonempty_fields),
+        "expected_archive_record_values": expected_archive_values,
+        "actual_archive_record_values": actual_archive_values,
+        "candidate_artifact": candidate_metadata,
+        "candidate_size": candidate_metadata["size"],
+        "candidate_sha256": candidate_metadata["sha256"],
+        "candidate_schema_version": candidate_json.get("schema_version"),
+        "candidate_network": candidate_json.get("network"),
+        "candidate_check_verified": candidate_check["verified"],
+        "candidate_check_ready_to_apply": candidate_check["ready_to_apply"],
+        "candidate_check_section_count": candidate_check["section_count"],
+        "candidate_check_verified_section_count": (
+            candidate_check["verified_section_count"]
+        ),
+        "candidate_check_section_blockers": (
+            candidate_check["section_blockers"]
+        ),
+        "candidate_check_json_command": candidate_check["commands"][
+            "candidate_check_json"
+        ],
+        "check_value_selection_candidate_artifact_archive_command": (
+            check_value_selection_candidate_artifact_archive_command(
+                manifest_path,
+                network,
+                archive_record_path,
+                candidate_path,
+            )
+        ),
+        "check_value_selection_candidate_artifact_archive_json_command": (
+            check_value_selection_candidate_artifact_archive_command(
+                manifest_path,
+                network,
+                archive_record_path,
+                candidate_path,
+                json_output=True,
+            )
+        ),
+        "value_selection_candidate_artifact_archive_gate_command": (
+            value_selection_candidate_artifact_archive_gate_command(
+                manifest_path,
+                network,
+                archive_record_path,
+                candidate_path,
+            )
+        ),
+        "value_selection_candidate_artifact_archive_gate_json_command": (
+            value_selection_candidate_artifact_archive_gate_command(
+                manifest_path,
+                network,
+                archive_record_path,
+                candidate_path,
+                json_output=True,
+            )
+        ),
+    }
+
+
+def value_selection_candidate_artifact_archive_check_text_from_payload(
+    payload,
+):
+    lines = [
+        "zkCoin public launch profile value-selection candidate artifact archive check:",
+        f"  - verified: {yes_no(payload['verified'])}",
+        f"  - require match: {yes_no(payload['require_match'])}",
+        f"  - required-match exit code: {payload['required_match_exit_code']}",
+        f"  - manifest: {payload['manifest']}",
+        f"  - network: {payload['network']}",
+        (
+            "  - value-selection candidate artifact archive record: "
+            + payload["value_selection_candidate_artifact_archive_record"]
+        ),
+        (
+            "  - value-selection candidate: "
+            + payload["value_selection_candidate"]
+        ),
+        f"  - candidate size: {payload['candidate_size']}",
+        f"  - candidate sha256: {payload['candidate_sha256']}",
+        f"  - candidate schema version: {payload['candidate_schema_version']}",
+        f"  - candidate network: {payload['candidate_network']}",
+        (
+            "  - candidate check verified: "
+            + yes_no(payload["candidate_check_verified"])
+        ),
+        (
+            "  - candidate check ready to apply: "
+            + yes_no(payload["candidate_check_ready_to_apply"])
+        ),
+        (
+            "  - candidate check verified sections: "
+            f"{payload['candidate_check_verified_section_count']}/"
+            f"{payload['candidate_check_section_count']}"
+        ),
+        (
+            "  - required archive record fields: "
+            f"{list_summary(payload['required_archive_record_fields'])}"
+        ),
+        (
+            "  - required non-empty archive record fields: "
+            f"{list_summary(payload['required_nonempty_archive_record_fields'])}"
+        ),
+        (
+            "  - missing required fields: "
+            f"{list_summary(payload['missing_required_fields'])}"
+        ),
+        f"  - unexpected fields: {list_summary(payload['unexpected_fields'])}",
+        f"  - mismatches: {payload['mismatch_count']}",
+        (
+            "  - candidate check JSON command: "
+            + payload["candidate_check_json_command"]
+        ),
+        (
+            "  - check value-selection candidate artifact archive command: "
+            + payload[
+                "check_value_selection_candidate_artifact_archive_command"
+            ]
+        ),
+        (
+            "  - check value-selection candidate artifact archive JSON command: "
+            + payload[
+                "check_value_selection_candidate_artifact_archive_json_command"
+            ]
+        ),
+        (
+            "  - value-selection candidate artifact archive gate command: "
+            + payload["value_selection_candidate_artifact_archive_gate_command"]
+        ),
+        (
+            "  - value-selection candidate artifact archive gate JSON command: "
+            + payload[
+                "value_selection_candidate_artifact_archive_gate_json_command"
+            ]
+        ),
+    ]
+    if payload["mismatches"]:
+        mismatch = payload["mismatches"][0]
+        lines.extend([
+            f"  - first mismatch path: {mismatch['path']}",
+            f"  - first mismatch kind: {mismatch['kind']}",
+        ])
+    return "\n".join(lines)
+
+
+def value_selection_candidate_artifact_archive_check_json_text_from_payload(
+    payload,
+):
+    return json.dumps(payload, indent=2, sort_keys=False)
 
 
 def release_evidence_handoff_first_mismatch(bundle_gate, archive_gate):
@@ -16707,6 +17273,8 @@ def selected_primary_actions(args):
         actions.append("--network-value-selection-candidate-template")
     if args.check_network_value_selection_candidate is not None:
         actions.append("--check-network-value-selection-candidate")
+    if args.check_value_selection_candidate_artifact_archive is not None:
+        actions.append("--check-value-selection-candidate-artifact-archive")
     if args.value_selection_candidate_artifact_status:
         actions.append("--value-selection-candidate-artifact-status")
     if args.value_selection_checklists:
@@ -16943,6 +17511,17 @@ def main():
         help="verify a filled value-selection candidate JSON artifact without updating the manifest",
     )
     parser.add_argument(
+        "--check-value-selection-candidate-artifact-archive",
+        nargs=3,
+        metavar=("NETWORK", "ARCHIVE_RECORD_JSON", "CANDIDATE_JSON"),
+        help="verify a filled value-selection candidate artifact archive record",
+    )
+    parser.add_argument(
+        "--require-value-selection-candidate-artifact-archive-match",
+        action="store_true",
+        help="return a non-zero exit code when --check-value-selection-candidate-artifact-archive detects mismatches",
+    )
+    parser.add_argument(
         "--value-selection-candidate-artifact-status",
         action="store_true",
         help="print supplied/missing value-selection candidate artifact status for public networks",
@@ -17159,6 +17738,17 @@ def main():
         return 1
 
     if (
+        args.require_value_selection_candidate_artifact_archive_match
+        and args.check_value_selection_candidate_artifact_archive is None
+    ):
+        print(
+            "error: --require-value-selection-candidate-artifact-archive-match "
+            "requires --check-value-selection-candidate-artifact-archive",
+            file=sys.stderr,
+        )
+        return 1
+
+    if (
         (
             args.main_value_selection_candidate is not None
             or args.testnet_value_selection_candidate is not None
@@ -17211,6 +17801,7 @@ def main():
         and args.network_value_selection_later_blockers is None
         and args.network_value_selection_candidate_template is None
         and args.check_network_value_selection_candidate is None
+        and args.check_value_selection_candidate_artifact_archive is None
         and not args.value_selection_candidate_artifact_status
         and args.network_readiness_summary is None
         and args.network_later_blockers is None
@@ -17232,6 +17823,7 @@ def main():
             "--network-value-selection-later-blockers, "
             "--network-value-selection-candidate-template, "
             "--check-network-value-selection-candidate, "
+            "--check-value-selection-candidate-artifact-archive, "
             "--value-selection-candidate-artifact-status, "
             "--network-readiness-summary, "
             "--network-later-blockers, "
@@ -17589,6 +18181,50 @@ def main():
                 candidate,
             )
         )
+        return 0
+    if args.check_value_selection_candidate_artifact_archive is not None:
+        if args.in_place:
+            print("error: --check-value-selection-candidate-artifact-archive does not write the manifest", file=sys.stderr)
+            return 1
+        (
+            candidate_network,
+            archive_record_path,
+            candidate_path,
+        ) = args.check_value_selection_candidate_artifact_archive
+        archive_record_path = Path(archive_record_path)
+        candidate_path = Path(candidate_path)
+        try:
+            archive_check_payload = (
+                value_selection_candidate_artifact_archive_check_payload(
+                    manifest,
+                    args.manifest,
+                    candidate_network,
+                    archive_record_path,
+                    candidate_path,
+                    require_match=(
+                        args.require_value_selection_candidate_artifact_archive_match
+                    ),
+                )
+            )
+            archive_check_text = (
+                value_selection_candidate_artifact_archive_check_json_text_from_payload
+                if args.json
+                else value_selection_candidate_artifact_archive_check_text_from_payload
+            )
+            print(archive_check_text(archive_check_payload))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if (
+            args.require_value_selection_candidate_artifact_archive_match
+            and not archive_check_payload["verified"]
+        ):
+            print(
+                "error: value-selection candidate artifact archive record does "
+                "not match the current candidate check",
+                file=sys.stderr,
+            )
+            return 1
         return 0
     if args.value_selection_candidate_artifact_status:
         if args.in_place:

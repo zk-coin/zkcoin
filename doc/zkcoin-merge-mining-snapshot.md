@@ -206,6 +206,12 @@ Both are intentionally present before behavior changes so tests and review can t
   `value_selection_candidate_artifact_size`, `candidate_check_command`, and
   `candidate_check_verified` so operators can retain SHA/URI evidence after
   a candidate is verified. Use
+  `contrib/devtools/zkcoin_public_launch_profile.py --check-value-selection-candidate-artifact-archive NETWORK value-selection-candidate-artifact-archive-record.json value-selection-candidate.json`
+  after that archive record is filled to re-check the retained URI/SHA record
+  against the current candidate check without applying production values. Add
+  `--require-value-selection-candidate-artifact-archive-match` when CI should
+  fail on candidate archive-record drift while still emitting the same JSON
+  payload with `--json`. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --value-selection-checklists`
   when CI or release dashboards need one compact all-network pre-apply checklist
   of the queued value-selection JSON checks without parsing full status JSON.
@@ -474,7 +480,11 @@ Both are intentionally present before behavior changes so tests and review can t
   `value_selection_candidate_artifact_status_command` and
   `value_selection_candidate_artifact_status_json_command` expose the
   all-network candidate artifact inventory commands for dashboards that track
-  supplied, missing, verified, and invalid candidate files.
+  supplied, missing, verified, and invalid candidate files. Candidate artifact
+  status JSON also exposes
+  `candidate_archive_record_check_commands_by_network` and
+  `candidate_archive_record_gate_commands_by_network` so dashboards can verify
+  retained URI/SHA records after operators fill them.
   `queued_value_selection_json_check_commands_by_network`,
   `queued_value_selection_json_check_command_counts_by_network`,
   `queued_value_selection_candidate_checklists_by_network`, and
@@ -1429,6 +1439,20 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
+  --check-value-selection-candidate-artifact-archive NETWORK \
+  value-selection-candidate-artifact-archive-record.json \
+  value-selection-candidate.json \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
+  --json \
+  --require-value-selection-candidate-artifact-archive-match \
+  --check-value-selection-candidate-artifact-archive NETWORK \
+  value-selection-candidate-artifact-archive-record.json \
+  value-selection-candidate.json \
+  contrib/devtools/zkcoin_public_launch_profile_manifest.json
+
+contrib/devtools/zkcoin_public_launch_profile.py \
   --value-selection-checklists \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
@@ -1502,6 +1526,19 @@ Add `--json` to the network value-selection candidate-template command when
 automation needs the placeholder-only JSON shape for AuxPoW, public identity, and DNS seed candidates,
 candidate constraints, required candidate sections, and JSON check command
 templates for one network before any production values are selected.
+Use `--check-value-selection-candidate-artifact-archive --json` when automation
+needs a machine-readable verification of a filled value-selection candidate
+artifact archive record. The archive record must include `network`,
+`value_selection_candidate_artifact_uri`,
+`value_selection_candidate_artifact_sha256`,
+`value_selection_candidate_artifact_size`,
+`value_selection_candidate_schema_version`, `manifest_path`, `manifest_commit`,
+`candidate_check_command`, `candidate_check_verified`, and
+`candidate_checked_at`; the verifier compares deterministic fields to the
+current candidate check and only requires operator-owned URI, commit, and
+checked-at fields to be non-empty. Add
+`--require-value-selection-candidate-artifact-archive-match` when CI should
+reject archive drift while still emitting the same JSON payload.
 Use `--value-selection-checklists --json` when automation needs the same
 pre-apply value-selection checklist data for every public network in one compact
 payload, including per-network blocker counts, field counts, JSON check command
