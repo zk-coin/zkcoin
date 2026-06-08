@@ -3844,6 +3844,10 @@ def require_public_launch_manifest_current():
             "  - all value-selection candidate artifacts verified: no",
             "  - next missing value-selection candidate: main",
             "  - next unverified value-selection candidate: main",
+            "  - next missing value-selection candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - main value-selection candidate status: missing-artifact",
             "  - main value-selection candidate supplied: no",
             "  - main value-selection candidate verified: no",
@@ -3950,6 +3954,14 @@ def require_public_launch_manifest_current():
             or release_evidence_artifact_status_json.get(
                 "next_missing_value_selection_candidate"
             ) != "main"
+            or release_evidence_artifact_status_json.get(
+                "next_missing_value_selection_candidate_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or release_evidence_artifact_status_json.get(
+                "next_unverified_value_selection_candidate_check_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or candidate_artifact_status.get("status") != "reported"
             or candidate_artifact_status.get("source_artifact")
             != "release-evidence-bundle"
@@ -3958,6 +3970,14 @@ def require_public_launch_manifest_current():
             or candidate_artifact_status.get("source_verified") is not True
             or candidate_artifact_status.get("candidate_count") != 2
             or candidate_artifact_status.get("provided_candidate_count") != 0
+            or candidate_artifact_status.get(
+                "next_missing_candidate_template_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or candidate_artifact_status.get(
+                "next_unverified_candidate_check_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or main_candidate_status.get("status") != "missing-artifact"
             or release_evidence_artifact_status_json.get(
                 "release_evidence_publication_artifact_status_json_command"
@@ -5734,6 +5754,10 @@ def require_public_launch_manifest_current():
             "  - all value-selection candidate artifacts verified: no",
             "  - next missing value-selection candidate: main",
             "  - next unverified value-selection candidate: main",
+            "  - next missing value-selection candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - release evidence handoff summary verified: yes",
@@ -5824,9 +5848,22 @@ def require_public_launch_manifest_current():
                 "next_missing_value_selection_candidate"
             ) != "main"
             or publication_closeout_json.get(
+                "next_missing_value_selection_candidate_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_json.get(
+                "next_unverified_value_selection_candidate_check_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("candidate_count") != 2
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("next_missing_candidate_template_json_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or closeout_main_candidate_status.get("status") != "missing-artifact"
             or publication_closeout_json.get("ready_for_publication") is not True
             or publication_closeout_json.get("publication_blocker_count") != 0
@@ -6298,6 +6335,10 @@ def require_public_launch_manifest_current():
             "  - all value-selection candidate artifacts verified: no",
             "  - next missing value-selection candidate: main",
             "  - next unverified value-selection candidate: main",
+            "  - next missing value-selection candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - closeout gate verified: yes",
@@ -6398,9 +6439,22 @@ def require_public_launch_manifest_current():
                 "provided_value_selection_candidate_artifact_count"
             ) != 0
             or publication_closeout_archive_handoff_summary_json.get(
+                "next_missing_value_selection_candidate_template_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_archive_handoff_summary_json.get(
+                "next_unverified_value_selection_candidate_check_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("next_missing_candidate") != "main"
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("next_unverified_candidate_check_json_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status"
             ) != closeout_archive_handoff_candidate_status
