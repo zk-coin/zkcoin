@@ -1706,7 +1706,13 @@ requiring any operator-owned artifact path. The payload lists the 13 ordered
 publication steps, gate steps, handoff steps, operator-value steps, per-step
 commands, per-step JSON commands, and
 `release-evidence-publication-closeout-archive-handoff-summary` as the final
-handoff step. Status JSON exposes
+handoff step. It also includes a compact value-selection candidate artifact
+status summary with candidate archive-record readiness and
+supplied/verified/mismatch/error counters such as
+`provided_value_selection_candidate_archive_record_count` and
+`next_missing_value_selection_candidate_archive_record_path_network`, so
+dashboards can see retained candidate archive-record gaps before any release
+artifact path exists. Status JSON exposes
 `release_evidence_publication_status_command` for dashboards that need to
 discover the pipeline inventory without hard-coding the command string.
 Use `--release-evidence-publication-artifact-status --json` when automation

@@ -15139,6 +15139,76 @@ def release_evidence_publication_status_steps(manifest_path):
 def release_evidence_publication_status_payload(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     steps = release_evidence_publication_status_steps(manifest_path)
+    candidate_artifact_status = value_selection_candidate_artifact_status_payload(
+        manifest,
+        manifest_path,
+    )
+    candidate_artifact_status_summary = {
+        "candidate_count": candidate_artifact_status["candidate_count"],
+        "provided_candidate_count": (
+            candidate_artifact_status["provided_candidate_count"]
+        ),
+        "verified_candidate_count": (
+            candidate_artifact_status["verified_candidate_count"]
+        ),
+        "error_candidate_count": candidate_artifact_status["error_candidate_count"],
+        "all_required_candidates_verified": (
+            candidate_artifact_status["all_required_candidates_verified"]
+        ),
+        "next_missing_candidate": (
+            candidate_artifact_status["next_missing_candidate"]
+        ),
+        "next_unverified_candidate": (
+            candidate_artifact_status["next_unverified_candidate"]
+        ),
+        "candidate_archive_record_count": (
+            candidate_artifact_status["candidate_archive_record_count"]
+        ),
+        "ready_candidate_archive_record_count": (
+            candidate_artifact_status["ready_candidate_archive_record_count"]
+        ),
+        "next_candidate_archive_record_network": (
+            candidate_artifact_status["next_candidate_archive_record_network"]
+        ),
+        "provided_candidate_archive_record_count": (
+            candidate_artifact_status["provided_candidate_archive_record_count"]
+        ),
+        "verified_candidate_archive_record_count": (
+            candidate_artifact_status["verified_candidate_archive_record_count"]
+        ),
+        "mismatch_candidate_archive_record_count": (
+            candidate_artifact_status["mismatch_candidate_archive_record_count"]
+        ),
+        "error_candidate_archive_record_count": (
+            candidate_artifact_status["error_candidate_archive_record_count"]
+        ),
+        "blocked_candidate_archive_record_count": (
+            candidate_artifact_status["blocked_candidate_archive_record_count"]
+        ),
+        "all_candidate_archive_records_verified": (
+            candidate_artifact_status["all_candidate_archive_records_verified"]
+        ),
+        "next_missing_candidate_archive_record_path_network": (
+            candidate_artifact_status[
+                "next_missing_candidate_archive_record_path_network"
+            ]
+        ),
+        "next_unverified_candidate_archive_record_network": (
+            candidate_artifact_status[
+                "next_unverified_candidate_archive_record_network"
+            ]
+        ),
+        "value_selection_candidate_artifact_status_command": (
+            candidate_artifact_status[
+                "value_selection_candidate_artifact_status_command"
+            ]
+        ),
+        "value_selection_candidate_artifact_status_json_command": (
+            candidate_artifact_status[
+                "value_selection_candidate_artifact_status_json_command"
+            ]
+        ),
+    }
     operator_value_steps = [
         step["id"]
         for step in steps
@@ -15189,6 +15259,95 @@ def release_evidence_publication_status_payload(manifest, manifest_path, check):
         "final_handoff_step_id": (
             "release-evidence-publication-closeout-archive-handoff-summary"
         ),
+        "value_selection_candidate_artifact_status_summary": (
+            candidate_artifact_status_summary
+        ),
+        "value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["candidate_count"]
+        ),
+        "provided_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["provided_candidate_count"]
+        ),
+        "verified_value_selection_candidate_artifact_count": (
+            candidate_artifact_status_summary["verified_candidate_count"]
+        ),
+        "value_selection_candidate_artifact_error_count": (
+            candidate_artifact_status_summary["error_candidate_count"]
+        ),
+        "all_value_selection_candidate_artifacts_verified": (
+            candidate_artifact_status_summary[
+                "all_required_candidates_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate": (
+            candidate_artifact_status_summary["next_missing_candidate"]
+        ),
+        "next_unverified_value_selection_candidate": (
+            candidate_artifact_status_summary["next_unverified_candidate"]
+        ),
+        "value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary["candidate_archive_record_count"]
+        ),
+        "ready_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "ready_candidate_archive_record_count"
+            ]
+        ),
+        "next_value_selection_candidate_archive_record_network": (
+            candidate_artifact_status_summary[
+                "next_candidate_archive_record_network"
+            ]
+        ),
+        "provided_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "provided_candidate_archive_record_count"
+            ]
+        ),
+        "verified_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "verified_candidate_archive_record_count"
+            ]
+        ),
+        "mismatch_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "mismatch_candidate_archive_record_count"
+            ]
+        ),
+        "error_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "error_candidate_archive_record_count"
+            ]
+        ),
+        "blocked_value_selection_candidate_archive_record_count": (
+            candidate_artifact_status_summary[
+                "blocked_candidate_archive_record_count"
+            ]
+        ),
+        "all_value_selection_candidate_archive_records_verified": (
+            candidate_artifact_status_summary[
+                "all_candidate_archive_records_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate_archive_record_path_network": (
+            candidate_artifact_status_summary[
+                "next_missing_candidate_archive_record_path_network"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_archive_record_network": (
+            candidate_artifact_status_summary[
+                "next_unverified_candidate_archive_record_network"
+            ]
+        ),
+        "value_selection_candidate_artifact_status_command": (
+            candidate_artifact_status_summary[
+                "value_selection_candidate_artifact_status_command"
+            ]
+        ),
+        "value_selection_candidate_artifact_status_json_command": (
+            candidate_artifact_status_summary[
+                "value_selection_candidate_artifact_status_json_command"
+            ]
+        ),
         "publication_steps": steps,
         "release_evidence_publication_status_command": status_command,
         "release_evidence_publication_status_json_command": (
@@ -15199,6 +15358,16 @@ def release_evidence_publication_status_payload(manifest, manifest_path, check):
         "commands": {
             "release_evidence_publication_status": status_command,
             "release_evidence_publication_status_json": status_json_command,
+            "value_selection_candidate_artifact_status": (
+                candidate_artifact_status_summary[
+                    "value_selection_candidate_artifact_status_command"
+                ]
+            ),
+            "value_selection_candidate_artifact_status_json": (
+                candidate_artifact_status_summary[
+                    "value_selection_candidate_artifact_status_json_command"
+                ]
+            ),
             "by_step": command_by_step,
             "json_by_step": json_command_by_step,
         },
@@ -15217,6 +15386,24 @@ def release_evidence_publication_status_text_from_payload(payload):
         f"  - handoff steps: {payload['handoff_step_count']}",
         f"  - operator-value steps: {payload['operator_value_step_count']}",
         f"  - final handoff step: {payload['final_handoff_step_id']}",
+        f"  - value-selection candidate artifacts: {payload['provided_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - verified value-selection candidate artifacts: {payload['verified_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",
+        f"  - value-selection candidate artifact errors: {payload['value_selection_candidate_artifact_error_count']}",
+        f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
+        f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
+        f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
+        f"  - value-selection candidate archive records ready: {payload['ready_value_selection_candidate_archive_record_count']}/{payload['value_selection_candidate_archive_record_count']}",
+        f"  - next value-selection candidate archive record network: {payload['next_value_selection_candidate_archive_record_network'] or 'none'}",
+        f"  - supplied value-selection candidate archive records: {payload['provided_value_selection_candidate_archive_record_count']}/{payload['value_selection_candidate_archive_record_count']}",
+        f"  - verified value-selection candidate archive records: {payload['verified_value_selection_candidate_archive_record_count']}/{payload['value_selection_candidate_archive_record_count']}",
+        f"  - value-selection candidate archive record mismatches: {payload['mismatch_value_selection_candidate_archive_record_count']}",
+        f"  - value-selection candidate archive record errors: {payload['error_value_selection_candidate_archive_record_count']}",
+        f"  - blocked value-selection candidate archive records: {payload['blocked_value_selection_candidate_archive_record_count']}",
+        f"  - all value-selection candidate archive records verified: {yes_no(payload['all_value_selection_candidate_archive_records_verified'])}",
+        f"  - next missing value-selection candidate archive record path network: {payload['next_missing_value_selection_candidate_archive_record_path_network'] or 'none'}",
+        f"  - next unverified value-selection candidate archive record network: {payload['next_unverified_value_selection_candidate_archive_record_network'] or 'none'}",
+        f"  - value-selection candidate artifact status command: {payload['value_selection_candidate_artifact_status_command']}",
+        f"  - value-selection candidate artifact status JSON command: {payload['value_selection_candidate_artifact_status_json_command']}",
         f"  - release evidence publication status command: {payload['release_evidence_publication_status_command']}",
         f"  - release evidence publication status JSON command: {payload['release_evidence_publication_status_json_command']}",
     ]
