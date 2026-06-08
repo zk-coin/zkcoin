@@ -3836,6 +3836,17 @@ def require_public_launch_manifest_current():
             "  - ready for final handoff: no",
             "  - next missing artifact: release-evidence-archive-record",
             "  - next unverified verification: release-evidence-archive-gate",
+            "  - value-selection candidate artifact status available: yes",
+            "  - value-selection candidate artifact source verified: yes",
+            "  - value-selection candidate artifacts: 0/2",
+            "  - verified value-selection candidate artifacts: 0/2",
+            "  - value-selection candidate artifact errors: 0",
+            "  - all value-selection candidate artifacts verified: no",
+            "  - next missing value-selection candidate: main",
+            "  - next unverified value-selection candidate: main",
+            "  - main value-selection candidate status: missing-artifact",
+            "  - main value-selection candidate supplied: no",
+            "  - main value-selection candidate verified: no",
             f"  - artifact 1 path: {release_evidence_bundle_path}",
             "  - artifact 1 status: verified",
             "  - verification 1 status: verified",
@@ -3888,6 +3899,14 @@ def require_public_launch_manifest_current():
             "artifact_verifications",
             [],
         )
+        candidate_artifact_status = release_evidence_artifact_status_json.get(
+            "value_selection_candidate_artifact_status",
+            {},
+        )
+        main_candidate_status = candidate_artifact_status.get(
+            "candidate_statuses_by_network",
+            {},
+        ).get("main", {})
         if (
             release_evidence_artifact_status_json.get("schema_version") != 1
             or release_evidence_artifact_status_json.get("artifact_count") != 6
@@ -3913,6 +3932,33 @@ def require_public_launch_manifest_current():
             or artifact_verifications[0].get("mismatch_count") != 0
             or artifact_verifications[1].get("missing_artifacts")
             != ["release-evidence-archive-record"]
+            or release_evidence_artifact_status_json.get(
+                "value_selection_candidate_artifact_status_available"
+            ) is not True
+            or release_evidence_artifact_status_json.get(
+                "value_selection_candidate_artifact_source_verified"
+            ) is not True
+            or release_evidence_artifact_status_json.get(
+                "value_selection_candidate_artifact_count"
+            ) != 2
+            or release_evidence_artifact_status_json.get(
+                "provided_value_selection_candidate_artifact_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "verified_value_selection_candidate_artifact_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "next_missing_value_selection_candidate"
+            ) != "main"
+            or candidate_artifact_status.get("status") != "reported"
+            or candidate_artifact_status.get("source_artifact")
+            != "release-evidence-bundle"
+            or candidate_artifact_status.get("source_path")
+            != str(release_evidence_bundle_path)
+            or candidate_artifact_status.get("source_verified") is not True
+            or candidate_artifact_status.get("candidate_count") != 2
+            or candidate_artifact_status.get("provided_candidate_count") != 0
+            or main_candidate_status.get("status") != "missing-artifact"
             or release_evidence_artifact_status_json.get(
                 "release_evidence_publication_artifact_status_json_command"
             )

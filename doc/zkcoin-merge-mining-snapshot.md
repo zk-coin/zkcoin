@@ -1639,8 +1639,10 @@ Use `--release-evidence-publication-artifact-status --json` when automation
 needs to reconcile retained publication artifacts against the ordered pipeline.
 The payload reports supplied and missing artifact counts, verified artifact
 counts, publication gate counts, `ready_for_final_handoff`,
-`next_missing_artifact`, and per-gate errors or first mismatches. Path flags
-are optional, so dashboards can call it before every artifact exists and add
+`next_missing_artifact`, per-gate errors or first mismatches, and the
+value-selection candidate artifact status embedded in a supplied release
+evidence bundle. Path flags are optional, so dashboards can call it before
+every artifact exists and add
 `--release-evidence-bundle-path`,
 `--release-evidence-archive-record-path`,
 `--release-evidence-publication-index-path`,
