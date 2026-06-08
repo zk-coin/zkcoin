@@ -16072,6 +16072,7 @@ def release_evidence_publication_artifact_status_payload(
     publication_index_archive_record_path=None,
     closeout_path=None,
     closeout_archive_record_path=None,
+    publication_status=None,
 ):
     blockers = ordered_unresolved_blocker_ids(manifest)
     artifact_paths = {
@@ -16432,7 +16433,7 @@ def release_evidence_publication_artifact_status_payload(
         closeout_archive_record_path,
         json_output=True,
     )
-    return {
+    payload = {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
         "launch_profile_blocked": bool(blockers),
@@ -16573,6 +16574,42 @@ def release_evidence_publication_artifact_status_payload(
             ),
         },
     }
+    if publication_status is None:
+        publication_status = release_evidence_publication_status_payload(
+            manifest,
+            manifest_path,
+            check,
+        )
+    completion_summary = release_evidence_publication_completion_summary_payload(
+        publication_status,
+        payload,
+    )
+    payload.update({
+        "completion_summary": completion_summary,
+        "completion_ready": completion_summary["ready_for_final_handoff"],
+        "completion_next_missing_artifact": (
+            completion_summary["next_missing_artifact"]
+        ),
+        "completion_next_unverified_verification": (
+            completion_summary["next_unverified_verification"]
+        ),
+        "completion_next_operator_action": (
+            completion_summary["next_operator_action"]
+        ),
+        "completion_next_operator_action_reason": (
+            completion_summary["next_operator_action_reason"]
+        ),
+        "completion_next_operator_action_id": (
+            completion_summary["next_operator_action_id"]
+        ),
+        "completion_next_operator_action_command": (
+            completion_summary["next_operator_action_command"]
+        ),
+        "completion_next_operator_action_json_command": (
+            completion_summary["next_operator_action_json_command"]
+        ),
+    })
+    return payload
 
 
 def release_evidence_publication_completion_summary_payload(
@@ -17519,6 +17556,7 @@ def status_json_text(manifest, manifest_path, check):
             manifest,
             manifest_path,
             check,
+            publication_status=release_evidence_publication_status,
         )
     )
     release_evidence_publication_completion_summary = (

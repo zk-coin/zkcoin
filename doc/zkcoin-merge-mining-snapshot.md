@@ -1749,10 +1749,12 @@ are optional, so dashboards can call it before every artifact exists and add
 `--release-evidence-publication-index-archive-record-path`,
 `--release-evidence-publication-closeout-path`, and
 `--release-evidence-publication-closeout-archive-record-path` as operators
-retain those files. Status JSON exposes
-`next_operator_action` for the immediate missing-artifact or unverified-gate
-command, and `release_evidence_publication_artifact_status_command` for
-dashboard discovery.
+retain those files. The JSON payload also includes `completion_summary` and
+`completion_next_operator_action_command` so a supplied-path dashboard can show
+the same retained-artifact completion rollup without separately joining the
+publication and artifact counters. Status JSON exposes `next_operator_action`
+for the immediate missing-artifact or unverified-gate command, and
+`release_evidence_publication_artifact_status_command` for dashboard discovery.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
