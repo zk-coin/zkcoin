@@ -2969,6 +2969,241 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        candidate_archive_record_path = (
+            Path(temp_dir)
+            / "value-selection-candidate-artifact-archive-record.json"
+        )
+        candidate_archive_record = {
+            "network": "main",
+            "value_selection_candidate_artifact_uri": (
+                "file:///operator/value-selection-candidate-main.json"
+            ),
+            "value_selection_candidate_artifact_sha256": candidate_sha256,
+            "value_selection_candidate_artifact_size": candidate_size,
+            "value_selection_candidate_schema_version": 1,
+            "manifest_path": str(readonly_candidate_manifest_path),
+            "manifest_commit": "operator-filled-test-commit",
+            "candidate_check_command": candidate_json_command,
+            "candidate_check_verified": True,
+            "candidate_checked_at": "2026-06-08T00:00:00Z",
+        }
+        candidate_archive_record_path.write_text(
+            json.dumps(candidate_archive_record, indent=2),
+            encoding="utf8",
+        )
+        candidate_archive_check_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--check-value-selection-candidate-artifact-archive "
+            f"main {candidate_archive_record_path} {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_archive_check_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--json --check-value-selection-candidate-artifact-archive "
+            f"main {candidate_archive_record_path} {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_archive_gate_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--require-value-selection-candidate-artifact-archive-match "
+            "--check-value-selection-candidate-artifact-archive "
+            f"main {candidate_archive_record_path} {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_archive_gate_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--json --require-value-selection-candidate-artifact-archive-match "
+            "--check-value-selection-candidate-artifact-archive "
+            f"main {candidate_archive_record_path} {candidate_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_archive_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--check-value-selection-candidate-artifact-archive",
+                "main",
+                str(candidate_archive_record_path),
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_archive_check_result.returncode != 0:
+            return "{} --check-value-selection-candidate-artifact-archive failed for a filled archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_archive_check_result.stderr.strip()
+                or candidate_archive_check_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "zkCoin public launch profile value-selection candidate artifact archive check:",
+            "  - verified: yes",
+            "  - require match: no",
+            "  - required-match exit code: 0",
+            "  - network: main",
+            f"  - value-selection candidate artifact archive record: {candidate_archive_record_path}",
+            f"  - value-selection candidate: {candidate_path}",
+            f"  - candidate size: {candidate_size}",
+            f"  - candidate sha256: {candidate_sha256}",
+            "  - candidate check verified: yes",
+            "  - candidate check ready to apply: yes",
+            "  - candidate check verified sections: 3/3",
+            "  - required non-empty archive record fields: value_selection_candidate_artifact_uri, manifest_commit, candidate_checked_at",
+            "  - mismatches: 0",
+            f"  - candidate check JSON command: {candidate_json_command}",
+            f"  - check value-selection candidate artifact archive command: {candidate_archive_check_command}",
+            f"  - value-selection candidate artifact archive gate command: {candidate_archive_gate_command}",
+        ):
+            if expected not in candidate_archive_check_result.stdout:
+                return "{} --check-value-selection-candidate-artifact-archive did not print {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        candidate_archive_check_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--check-value-selection-candidate-artifact-archive",
+                "main",
+                str(candidate_archive_record_path),
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_archive_check_json_result.returncode != 0:
+            return "{} --check-value-selection-candidate-artifact-archive --json failed for a filled archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_archive_check_json_result.stderr.strip()
+                or candidate_archive_check_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_archive_check_json = json.loads(
+                candidate_archive_check_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --check-value-selection-candidate-artifact-archive --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            candidate_archive_check_json.get("schema_version") != 1
+            or candidate_archive_check_json.get("network") != "main"
+            or candidate_archive_check_json.get("verified") is not True
+            or candidate_archive_check_json.get("require_match") is not False
+            or candidate_archive_check_json.get("required_match_exit_code") != 0
+            or candidate_archive_check_json.get("mismatch_count") != 0
+            or candidate_archive_check_json.get("required_archive_record_field_count") != 10
+            or candidate_archive_check_json.get("required_nonempty_archive_record_field_count") != 3
+            or candidate_archive_check_json.get("value_selection_candidate_artifact_archive_record") != str(candidate_archive_record_path)
+            or candidate_archive_check_json.get("value_selection_candidate") != str(candidate_path)
+            or candidate_archive_check_json.get("candidate_size") != candidate_size
+            or candidate_archive_check_json.get("candidate_sha256") != candidate_sha256
+            or candidate_archive_check_json.get("candidate_check_verified") is not True
+            or candidate_archive_check_json.get("candidate_check_ready_to_apply") is not True
+            or candidate_archive_check_json.get("candidate_check_verified_section_count") != 3
+            or candidate_archive_check_json.get("candidate_check_json_command") != candidate_json_command
+            or candidate_archive_check_json.get("expected_archive_record_values", {}).get("candidate_check_command") != candidate_json_command
+            or candidate_archive_check_json.get("expected_archive_record_values", {}).get("value_selection_candidate_artifact_sha256") != candidate_sha256
+            or candidate_archive_check_json.get("actual_archive_record_values", {}).get("value_selection_candidate_artifact_uri") != "file:///operator/value-selection-candidate-main.json"
+            or candidate_archive_check_json.get("check_value_selection_candidate_artifact_archive_command") != candidate_archive_check_command
+            or candidate_archive_check_json.get("check_value_selection_candidate_artifact_archive_json_command") != candidate_archive_check_json_command
+            or candidate_archive_check_json.get("value_selection_candidate_artifact_archive_gate_command") != candidate_archive_gate_command
+            or candidate_archive_check_json.get("value_selection_candidate_artifact_archive_gate_json_command") != candidate_archive_gate_json_command
+        ):
+            return "{} --check-value-selection-candidate-artifact-archive --json did not expose archive record verification details".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        candidate_archive_gate_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--require-value-selection-candidate-artifact-archive-match",
+                "--check-value-selection-candidate-artifact-archive",
+                "main",
+                str(candidate_archive_record_path),
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_archive_gate_json_result.returncode != 0:
+            return "{} --require-value-selection-candidate-artifact-archive-match failed for a matching archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_archive_gate_json_result.stderr.strip()
+                or candidate_archive_gate_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_archive_gate_json = json.loads(
+                candidate_archive_gate_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --require-value-selection-candidate-artifact-archive-match --json did not emit JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        if (
+            candidate_archive_gate_json.get("verified") is not True
+            or candidate_archive_gate_json.get("require_match") is not True
+            or candidate_archive_gate_json.get("required_match_exit_code") != 0
+        ):
+            return "{} --require-value-selection-candidate-artifact-archive-match --json did not expose a passing archive gate".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        stale_candidate_archive_record_path = (
+            Path(temp_dir)
+            / "stale-value-selection-candidate-artifact-archive-record.json"
+        )
+        stale_candidate_archive_record = dict(candidate_archive_record)
+        stale_candidate_archive_record[
+            "value_selection_candidate_artifact_sha256"
+        ] = "0" * 64
+        stale_candidate_archive_record_path.write_text(
+            json.dumps(stale_candidate_archive_record, indent=2),
+            encoding="utf8",
+        )
+        stale_candidate_archive_gate_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--require-value-selection-candidate-artifact-archive-match",
+                "--check-value-selection-candidate-artifact-archive",
+                "main",
+                str(stale_candidate_archive_record_path),
+                str(candidate_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if stale_candidate_archive_gate_result.returncode == 0:
+            return "{} --require-value-selection-candidate-artifact-archive-match accepted a stale archive record".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+        if "value-selection candidate artifact archive record does not match the current candidate check" not in stale_candidate_archive_gate_result.stderr:
+            return "{} --require-value-selection-candidate-artifact-archive-match did not explain stale archive record rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         placeholder_candidate = json.loads(json.dumps(candidate))
         placeholder_candidate["auxpow_chain_id"] = "<chain_id>"
         placeholder_candidate_path = Path(temp_dir) / "placeholder-candidate.json"
@@ -15109,6 +15344,27 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    candidate_artifact_archive_gate_without_check_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--require-value-selection-candidate-artifact-archive-match",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if candidate_artifact_archive_gate_without_check_result.returncode == 0:
+        return "{} --require-value-selection-candidate-artifact-archive-match was accepted without a candidate artifact archive check".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--require-value-selection-candidate-artifact-archive-match requires --check-value-selection-candidate-artifact-archive" not in candidate_artifact_archive_gate_without_check_result.stderr:
+        return "{} --require-value-selection-candidate-artifact-archive-match did not explain its required check action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     candidate_status_path_without_action_result = subprocess.run(
         [
             sys.executable,
@@ -15128,6 +15384,31 @@ def require_public_launch_manifest_current():
         )
     if "--main-value-selection-candidate and --testnet-value-selection-candidate require --value-selection-candidate-artifact-status" not in candidate_status_path_without_action_result.stderr:
         return "{} --main-value-selection-candidate did not explain its required status action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
+    candidate_artifact_archive_in_place_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--check-value-selection-candidate-artifact-archive",
+            "main",
+            "<value_selection_candidate_artifact_archive_record.json>",
+            "<value_selection_candidate.json>",
+            "--in-place",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if candidate_artifact_archive_in_place_result.returncode == 0:
+        return "{} --check-value-selection-candidate-artifact-archive accepted --in-place".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--check-value-selection-candidate-artifact-archive does not write the manifest" not in candidate_artifact_archive_in_place_result.stderr:
+        return "{} --check-value-selection-candidate-artifact-archive did not explain --in-place rejection".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
@@ -16738,7 +17019,7 @@ def require_public_launch_manifest_current():
             return "{} --json was accepted without --snapshot-audit-preflight".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
-        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --check-network-value-selection-candidate, --value-selection-candidate-artifact-status, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
+        if "--json is only supported with --snapshot-audit-template, --snapshot-audit-template-diff, --snapshot-audit-preflight, --check-snapshot-audit, --snapshot-audit-handoff, --snapshot-audit-handoffs, --check-auxpow, --check-dns-seeds, --check-identity, --readiness-summary, --network-handoff-bundle, --blocker-readiness-summary, --network-value-selection-later-blockers, --network-value-selection-candidate-template, --check-network-value-selection-candidate, --check-value-selection-candidate-artifact-archive, --value-selection-candidate-artifact-status, --network-readiness-summary, --network-later-blockers, --blocker-type-readiness-summary, --blocker-type-later-blockers, --readiness-gate-summary, --readiness-gate-later-blockers, --launch-gate-preflight, --operator-runbook, --release-evidence-bundle, --check-release-evidence-bundle, --check-release-evidence-archive, --release-evidence-handoff-summary, --release-evidence-publication-index-template, --check-release-evidence-publication-index, --release-evidence-publication-index-archive-checklist, --check-release-evidence-publication-index-archive, --release-evidence-publication-index-archive-handoff-summary, --release-evidence-publication-closeout-checklist, --check-release-evidence-publication-closeout, --check-release-evidence-publication-closeout-archive, --release-evidence-publication-closeout-archive-handoff-summary, --release-evidence-publication-status, --release-evidence-publication-artifact-status, --release-evidence-archive-checklist, or --value-selection-checklists" not in json_without_preflight_result.stderr:
             return "{} --json without snapshot audit read-only action did not explain the restriction".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
@@ -23507,6 +23788,8 @@ def main():
         ("network_value_selection_candidate_check_commands", "manifest builds network value-selection candidate check command maps"),
         ("network_value_selection_candidate_check_commands_by_network", "manifest status JSON exposes value-selection candidate check command maps"),
         ("network_value_selection_candidate_check_json_commands_by_network", "manifest status JSON exposes value-selection candidate check JSON command maps"),
+        ("check_value_selection_candidate_artifact_archive_command", "manifest builds value-selection candidate artifact archive check commands"),
+        ("value_selection_candidate_artifact_archive_gate_command", "manifest builds value-selection candidate artifact archive gate commands"),
         ("value_selection_candidate_artifact_status_command", "manifest status JSON exposes value-selection candidate artifact status commands"),
         ("value_selection_candidate_artifact_status_json_command", "manifest status JSON exposes value-selection candidate artifact status JSON commands"),
         ("queued_value_selection_json_check_commands", "manifest exposes network handoff JSON candidate check command maps"),
@@ -23596,6 +23879,8 @@ def main():
         ("release_evidence_publication_closeout_archive_check_json_text", "manifest prints release evidence publication closeout archive check JSON guidance"),
         ("release_evidence_publication_closeout_archive_handoff_summary_text", "manifest prints release evidence publication closeout archive handoff summary guidance"),
         ("release_evidence_publication_closeout_archive_handoff_summary_json_text", "manifest prints release evidence publication closeout archive handoff summary JSON guidance"),
+        ("value_selection_candidate_artifact_archive_check_text", "manifest prints value-selection candidate artifact archive check guidance"),
+        ("value_selection_candidate_artifact_archive_check_json_text", "manifest prints value-selection candidate artifact archive check JSON guidance"),
         ("release_evidence_publication_status_text", "manifest prints release evidence publication status guidance"),
         ("release_evidence_publication_status_json_text", "manifest prints release evidence publication status JSON guidance"),
         ("release_evidence_publication_artifact_status_text", "manifest prints release evidence publication artifact status guidance"),
@@ -25048,6 +25333,18 @@ def main():
             "public launch manifest value-selection candidate artifact archive record documentation",
         ),
         (
+            "zkcoin_public_launch_profile.py \\\n  --check-value-selection-candidate-artifact-archive NETWORK",
+            "public launch manifest value-selection candidate artifact archive check documentation",
+        ),
+        (
+            "zkcoin_public_launch_profile.py \\\n  --json \\\n  --require-value-selection-candidate-artifact-archive-match",
+            "public launch manifest value-selection candidate artifact archive gate JSON documentation",
+        ),
+        (
+            "candidate_checked_at",
+            "public launch manifest value-selection candidate artifact archive checked-at documentation",
+        ),
+        (
             "zkcoin_public_launch_profile.py \\\n  --value-selection-checklists",
             "public launch manifest all-network value-selection checklist documentation",
         ),
@@ -25354,6 +25651,14 @@ def main():
         (
             "value_selection_candidate_artifact_status_command",
             "public launch manifest status-json value-selection candidate artifact status command documentation",
+        ),
+        (
+            "candidate_archive_record_check_commands_by_network",
+            "public launch manifest status-json value-selection candidate archive check command documentation",
+        ),
+        (
+            "candidate_archive_record_gate_commands_by_network",
+            "public launch manifest status-json value-selection candidate archive gate command documentation",
         ),
         (
             "handoff_artifacts",
