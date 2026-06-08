@@ -15136,6 +15136,88 @@ def release_evidence_publication_status_steps(manifest_path):
     ]
 
 
+def release_evidence_publication_next_operator_action_entry(
+    step,
+    reason,
+    target_artifact=None,
+    target_verification=None,
+):
+    base = {
+        "available": step is not None,
+        "reason": reason,
+        "id": None,
+        "kind": None,
+        "description": None,
+        "target_artifact": target_artifact,
+        "target_verification": target_verification,
+        "input_artifacts": [],
+        "input_artifact_count": 0,
+        "output_artifact": None,
+        "requires_operator_values": False,
+        "operator_fields": [],
+        "operator_field_count": 0,
+        "command": None,
+        "json_command": None,
+    }
+    if step is None:
+        return base
+    base.update({
+        "id": step["id"],
+        "kind": step["kind"],
+        "description": step["description"],
+        "input_artifacts": list(step["input_artifacts"]),
+        "input_artifact_count": step["input_artifact_count"],
+        "output_artifact": step["output_artifact"],
+        "requires_operator_values": step["requires_operator_values"],
+        "operator_fields": list(step["operator_fields"]),
+        "operator_field_count": step["operator_field_count"],
+        "command": step["command"],
+        "json_command": step["json_command"],
+    })
+    return base
+
+
+def release_evidence_publication_next_operator_action_for_artifacts(
+    steps,
+    artifact_placeholders,
+    next_missing_artifact,
+    next_unverified_verification,
+):
+    if next_missing_artifact is not None:
+        missing_placeholder = artifact_placeholders.get(next_missing_artifact)
+        missing_step = next(
+            (
+                step
+                for step in steps
+                if step["output_artifact"] == missing_placeholder
+            ),
+            None,
+        )
+        return release_evidence_publication_next_operator_action_entry(
+            missing_step,
+            "missing-artifact",
+            target_artifact=next_missing_artifact,
+        )
+    if next_unverified_verification is not None:
+        verification_step = next(
+            (
+                step
+                for step in steps
+                if step["id"] == next_unverified_verification
+            ),
+            None,
+        )
+        return release_evidence_publication_next_operator_action_entry(
+            verification_step,
+            "unverified-verification",
+            target_verification=next_unverified_verification,
+        )
+    return release_evidence_publication_next_operator_action_entry(
+        None,
+        "complete",
+    )
+
+
 def release_evidence_publication_status_payload(manifest, manifest_path, check):
     blockers = ordered_unresolved_blocker_ids(manifest)
     steps = release_evidence_publication_status_steps(manifest_path)
@@ -15239,6 +15321,13 @@ def release_evidence_publication_status_payload(manifest, manifest_path, check):
         step["id"]: step["json_command"]
         for step in steps
     }
+    next_operator_action = (
+        release_evidence_publication_next_operator_action_entry(
+            steps[0] if steps else None,
+            "next-publication-step",
+            target_artifact="release-evidence-bundle",
+        )
+    )
     return {
         "schema_version": 1,
         "manifest": display_path(manifest_path),
@@ -15348,6 +15437,24 @@ def release_evidence_publication_status_payload(manifest, manifest_path, check):
                 "value_selection_candidate_artifact_status_json_command"
             ]
         ),
+        "next_operator_action": next_operator_action,
+        "next_operator_action_available": next_operator_action["available"],
+        "next_operator_action_reason": next_operator_action["reason"],
+        "next_operator_action_id": next_operator_action["id"],
+        "next_operator_action_kind": next_operator_action["kind"],
+        "next_operator_action_description": (
+            next_operator_action["description"]
+        ),
+        "next_operator_action_target_artifact": (
+            next_operator_action["target_artifact"]
+        ),
+        "next_operator_action_target_verification": (
+            next_operator_action["target_verification"]
+        ),
+        "next_operator_action_command": next_operator_action["command"],
+        "next_operator_action_json_command": (
+            next_operator_action["json_command"]
+        ),
         "publication_steps": steps,
         "release_evidence_publication_status_command": status_command,
         "release_evidence_publication_status_json_command": (
@@ -15404,6 +15511,14 @@ def release_evidence_publication_status_text_from_payload(payload):
         f"  - next unverified value-selection candidate archive record network: {payload['next_unverified_value_selection_candidate_archive_record_network'] or 'none'}",
         f"  - value-selection candidate artifact status command: {payload['value_selection_candidate_artifact_status_command']}",
         f"  - value-selection candidate artifact status JSON command: {payload['value_selection_candidate_artifact_status_json_command']}",
+        f"  - next operator action available: {yes_no(payload['next_operator_action_available'])}",
+        f"  - next operator action: {payload['next_operator_action_id'] or 'none'}",
+        f"  - next operator action kind: {payload['next_operator_action_kind'] or 'none'}",
+        f"  - next operator action reason: {payload['next_operator_action_reason'] or 'none'}",
+        f"  - next operator action target artifact: {payload['next_operator_action_target_artifact'] or 'none'}",
+        f"  - next operator action target verification: {payload['next_operator_action_target_verification'] or 'none'}",
+        f"  - next operator action command: {payload['next_operator_action_command'] or 'none'}",
+        f"  - next operator action JSON command: {payload['next_operator_action_json_command'] or 'none'}",
         f"  - release evidence publication status command: {payload['release_evidence_publication_status_command']}",
         f"  - release evidence publication status JSON command: {payload['release_evidence_publication_status_json_command']}",
     ]
@@ -15975,6 +16090,7 @@ def release_evidence_publication_artifact_status_payload(
         artifact_id: placeholder
         for artifact_id, _, placeholder in RELEASE_EVIDENCE_PUBLICATION_ARTIFACT_PATH_FLAGS
     }
+    publication_steps = release_evidence_publication_status_steps(manifest_path)
     artifact_entries = [
         release_evidence_publication_artifact_entry(
             step,
@@ -16289,6 +16405,14 @@ def release_evidence_publication_artifact_status_payload(
         ),
         None,
     )
+    next_operator_action = (
+        release_evidence_publication_next_operator_action_for_artifacts(
+            publication_steps,
+            artifact_placeholders,
+            next_missing_artifact,
+            next_unverified_verification,
+        )
+    )
     status_command = release_evidence_publication_artifact_status_command(
         manifest_path,
         bundle_path,
@@ -16327,6 +16451,24 @@ def release_evidence_publication_artifact_status_payload(
         "ready_for_final_handoff": verification_entries[-1]["verified"],
         "next_missing_artifact": next_missing_artifact,
         "next_unverified_verification": next_unverified_verification,
+        "next_operator_action": next_operator_action,
+        "next_operator_action_available": next_operator_action["available"],
+        "next_operator_action_reason": next_operator_action["reason"],
+        "next_operator_action_id": next_operator_action["id"],
+        "next_operator_action_kind": next_operator_action["kind"],
+        "next_operator_action_description": (
+            next_operator_action["description"]
+        ),
+        "next_operator_action_target_artifact": (
+            next_operator_action["target_artifact"]
+        ),
+        "next_operator_action_target_verification": (
+            next_operator_action["target_verification"]
+        ),
+        "next_operator_action_command": next_operator_action["command"],
+        "next_operator_action_json_command": (
+            next_operator_action["json_command"]
+        ),
         "artifact_statuses": artifact_entries,
         "artifact_verifications": verification_entries,
         "value_selection_candidate_artifact_status": candidate_artifact_status,
@@ -16445,6 +16587,14 @@ def release_evidence_publication_artifact_status_text_from_payload(payload):
         f"  - ready for final handoff: {yes_no(payload['ready_for_final_handoff'])}",
         f"  - next missing artifact: {payload['next_missing_artifact'] or 'none'}",
         f"  - next unverified verification: {payload['next_unverified_verification'] or 'none'}",
+        f"  - next operator action available: {yes_no(payload['next_operator_action_available'])}",
+        f"  - next operator action: {payload['next_operator_action_id'] or 'none'}",
+        f"  - next operator action kind: {payload['next_operator_action_kind'] or 'none'}",
+        f"  - next operator action reason: {payload['next_operator_action_reason'] or 'none'}",
+        f"  - next operator action target artifact: {payload['next_operator_action_target_artifact'] or 'none'}",
+        f"  - next operator action target verification: {payload['next_operator_action_target_verification'] or 'none'}",
+        f"  - next operator action command: {payload['next_operator_action_command'] or 'none'}",
+        f"  - next operator action JSON command: {payload['next_operator_action_json_command'] or 'none'}",
         f"  - value-selection candidate artifact status available: {yes_no(payload['value_selection_candidate_artifact_status_available'])}",
         f"  - value-selection candidate artifact source verified: {yes_no(payload['value_selection_candidate_artifact_source_verified'])}",
         f"  - value-selection candidate artifacts: {payload['provided_value_selection_candidate_artifact_count']}/{payload['value_selection_candidate_artifact_count']}",

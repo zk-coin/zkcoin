@@ -4354,6 +4354,14 @@ def require_public_launch_manifest_current():
             "  - ready for final handoff: no",
             "  - next missing artifact: release-evidence-archive-record",
             "  - next unverified verification: release-evidence-archive-gate",
+            "  - next operator action available: yes",
+            "  - next operator action: release-evidence-archive-checklist",
+            "  - next operator action kind: operator-record",
+            "  - next operator action reason: missing-artifact",
+            "  - next operator action target artifact: release-evidence-archive-record",
+            "  - next operator action target verification: none",
+            "  - next operator action command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next operator action JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - value-selection candidate artifact status available: yes",
             "  - value-selection candidate artifact source verified: yes",
             "  - value-selection candidate artifacts: 0/2",
@@ -4452,6 +4460,34 @@ def require_public_launch_manifest_current():
             != "release-evidence-archive-record"
             or release_evidence_artifact_status_json.get("next_unverified_verification")
             != "release-evidence-archive-gate"
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action_available"
+            ) is not True
+            or release_evidence_artifact_status_json.get("next_operator_action_id")
+            != "release-evidence-archive-checklist"
+            or release_evidence_artifact_status_json.get("next_operator_action_kind")
+            != "operator-record"
+            or release_evidence_artifact_status_json.get("next_operator_action_reason")
+            != "missing-artifact"
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action_target_artifact"
+            )
+            != "release-evidence-archive-record"
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action_target_verification"
+            ) is not None
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action_json_command"
+            )
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-archive-checklist <release_evidence_bundle.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or release_evidence_artifact_status_json.get(
+                "next_operator_action",
+                {},
+            ).get("output_artifact") != "<release_evidence_archive_record.json>"
             or len(artifact_statuses) != 6
             or len(artifact_verifications) != 6
             or artifact_statuses[0].get("id") != "release-evidence-bundle"
@@ -7203,6 +7239,14 @@ def require_public_launch_manifest_current():
             "  - next unverified value-selection candidate archive record network: none",
             "  - value-selection candidate artifact status command: contrib/devtools/zkcoin_public_launch_profile.py --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - value-selection candidate artifact status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next operator action available: yes",
+            "  - next operator action: release-evidence-bundle",
+            "  - next operator action kind: generate",
+            "  - next operator action reason: next-publication-step",
+            "  - next operator action target artifact: release-evidence-bundle",
+            "  - next operator action target verification: none",
+            "  - next operator action command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-bundle contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - next operator action JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-bundle contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - release evidence publication status command: contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - release evidence publication status JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-publication-status contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - publication step 13: release-evidence-publication-closeout-archive-handoff-summary",
@@ -7323,6 +7367,24 @@ def require_public_launch_manifest_current():
                 "value_selection_candidate_artifact_status_json_command"
             )
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --value-selection-candidate-artifact-status contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_status_json.get("next_operator_action_available") is not True
+            or publication_status_json.get("next_operator_action_id")
+            != "release-evidence-bundle"
+            or publication_status_json.get("next_operator_action_kind")
+            != "generate"
+            or publication_status_json.get("next_operator_action_reason")
+            != "next-publication-step"
+            or publication_status_json.get("next_operator_action_target_artifact")
+            != "release-evidence-bundle"
+            or publication_status_json.get("next_operator_action_target_verification")
+            is not None
+            or publication_status_json.get("next_operator_action_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --release-evidence-bundle contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_status_json.get("next_operator_action_json_command")
+            != "contrib/devtools/zkcoin_public_launch_profile.py --json --release-evidence-bundle contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_status_json.get("next_operator_action", {}).get(
+                "output_artifact"
+            ) != "<release_evidence_bundle.json>"
             or publication_status_json.get("commands", {}).get(
                 "value_selection_candidate_artifact_status_json"
             )
