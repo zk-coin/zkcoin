@@ -199,13 +199,20 @@ Both are intentionally present before behavior changes so tests and review can t
   with optional `--main-value-selection-candidate` and
   `--testnet-value-selection-candidate` paths when release dashboards need an
   all-network inventory of candidate artifacts as `missing-artifact, verified, or error`
-  without choosing or applying production values. The JSON also includes
-  per-network candidate archive checklists with required record fields such as
+  without choosing or applying production values. Add optional
+  `--main-value-selection-candidate-artifact-archive-record` and
+  `--testnet-value-selection-candidate-artifact-archive-record` paths when the
+  same dashboard should re-check retained candidate archive-record JSON and
+  report per-network `archive_record_status` without changing the manifest. The
+  JSON also includes per-network candidate archive checklists with required
+  record fields such as
   `value_selection_candidate_artifact_uri`,
   `value_selection_candidate_artifact_sha256`,
   `value_selection_candidate_artifact_size`, `candidate_check_command`, and
-  `candidate_check_verified` so operators can retain SHA/URI evidence after
-  a candidate is verified. Use
+  `candidate_check_verified`, plus archive-record status counters such as
+  `provided_candidate_archive_record_count` and
+  `verified_candidate_archive_record_count`, so operators can retain SHA/URI
+  evidence after a candidate is verified. Use
   `contrib/devtools/zkcoin_public_launch_profile.py --check-value-selection-candidate-artifact-archive NETWORK value-selection-candidate-artifact-archive-record.json value-selection-candidate.json`
   after that archive record is filled to re-check the retained URI/SHA record
   against the current candidate check without applying production values. Add
@@ -1435,7 +1442,9 @@ contrib/devtools/zkcoin_public_launch_profile.py \
   --json \
   --value-selection-candidate-artifact-status \
   --main-value-selection-candidate main-value-selection-candidate.json \
+  --main-value-selection-candidate-artifact-archive-record main-value-selection-candidate-artifact-archive-record.json \
   --testnet-value-selection-candidate testnet-value-selection-candidate.json \
+  --testnet-value-selection-candidate-artifact-archive-record testnet-value-selection-candidate-artifact-archive-record.json \
   contrib/devtools/zkcoin_public_launch_profile_manifest.json
 
 contrib/devtools/zkcoin_public_launch_profile.py \
@@ -1526,6 +1535,14 @@ Add `--json` to the network value-selection candidate-template command when
 automation needs the placeholder-only JSON shape for AuxPoW, public identity, and DNS seed candidates,
 candidate constraints, required candidate sections, and JSON check command
 templates for one network before any production values are selected.
+Add `--json` to `--value-selection-candidate-artifact-status` when automation
+needs a machine-readable all-network candidate inventory. Supplying
+`--main-value-selection-candidate-artifact-archive-record` or
+`--testnet-value-selection-candidate-artifact-archive-record` adds retained
+archive-record verification state, including
+`provided_candidate_archive_record_count`,
+`verified_candidate_archive_record_count`, mismatch/error counters, and
+per-network `archive_record_status` values.
 Use `--check-value-selection-candidate-artifact-archive --json` when automation
 needs a machine-readable verification of a filled value-selection candidate
 artifact archive record. The archive record must include `network`,

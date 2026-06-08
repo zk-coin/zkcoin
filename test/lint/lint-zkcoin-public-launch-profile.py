@@ -2943,6 +2943,14 @@ def require_public_launch_manifest_current():
             or candidate_status_json.get("candidate_archive_record_count") != 2
             or candidate_status_json.get("ready_candidate_archive_record_count") != 1
             or candidate_status_json.get("next_candidate_archive_record_network") != "testnet"
+            or candidate_status_json.get("provided_candidate_archive_record_count") != 0
+            or candidate_status_json.get("verified_candidate_archive_record_count") != 0
+            or candidate_status_json.get("mismatch_candidate_archive_record_count") != 0
+            or candidate_status_json.get("error_candidate_archive_record_count") != 0
+            or candidate_status_json.get("blocked_candidate_archive_record_count") != 0
+            or candidate_status_json.get("all_candidate_archive_records_verified") is not False
+            or candidate_status_json.get("next_missing_candidate_archive_record_path_network") != "main"
+            or candidate_status_json.get("next_unverified_candidate_archive_record_network") is not None
             or candidate_status_json.get("candidate_archive_record_field_count") != 10
             or candidate_status_json.get("value_selection_candidate_artifact_status_command") != candidate_status_command
             or candidate_status_json.get("value_selection_candidate_artifact_status_json_command") != candidate_status_json_command
@@ -2951,6 +2959,10 @@ def require_public_launch_manifest_current():
             or main_candidate_status.get("candidate_sha256") != candidate_sha256
             or main_candidate_status.get("candidate_artifact", {}).get("path") != str(candidate_path)
             or main_archive_checklist.get("ready_to_archive") is not True
+            or main_archive_checklist.get("archive_record_provided") is not False
+            or main_archive_checklist.get("archive_record_status") != "missing-record"
+            or main_archive_checklist.get("archive_record_verified") is not False
+            or main_archive_checklist.get("archive_record_check") is not None
             or main_archive_checklist.get("expected_archive_record_values", {}).get(
                 "value_selection_candidate_artifact_sha256"
             ) != candidate_sha256
@@ -3167,6 +3179,148 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
+        candidate_status_archive_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--value-selection-candidate-artifact-status "
+            f"--main-value-selection-candidate {candidate_path} "
+            "--main-value-selection-candidate-artifact-archive-record "
+            f"{candidate_archive_record_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_status_archive_json_command = (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--json --value-selection-candidate-artifact-status "
+            f"--main-value-selection-candidate {candidate_path} "
+            "--main-value-selection-candidate-artifact-archive-record "
+            f"{candidate_archive_record_path} "
+            f"{readonly_candidate_manifest_path}"
+        )
+        candidate_status_archive_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                "--main-value-selection-candidate-artifact-archive-record",
+                str(candidate_archive_record_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_archive_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status failed for a retained archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_archive_result.stderr.strip()
+                or candidate_status_archive_result.stdout.strip()
+                or "no output",
+            )
+        for expected in (
+            "  - supplied candidate archive records: 1/2",
+            "  - verified candidate archive records: 1/2",
+            "  - candidate archive record mismatches: 0",
+            "  - candidate archive record errors: 0",
+            "  - blocked candidate archive records: 0",
+            "  - all candidate archive records verified: no",
+            "  - next missing candidate archive record path network: none",
+            "  - next unverified candidate archive record network: none",
+            "    - archive record supplied: yes",
+            f"    - archive record path: {candidate_archive_record_path}",
+            "    - archive record status: verified",
+            "    - archive record verified: yes",
+            "    - archive record mismatches: 0",
+            f"  - value-selection candidate artifact status command: {candidate_status_archive_command}",
+            f"  - value-selection candidate artifact status JSON command: {candidate_status_archive_json_command}",
+        ):
+            if expected not in candidate_status_archive_result.stdout:
+                return "{} --value-selection-candidate-artifact-status did not print retained archive record status {}".format(
+                    PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                    expected,
+                )
+
+        candidate_status_archive_json_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                "--main-value-selection-candidate-artifact-archive-record",
+                str(candidate_archive_record_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if candidate_status_archive_json_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status --json failed for a retained archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                candidate_status_archive_json_result.stderr.strip()
+                or candidate_status_archive_json_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            candidate_status_archive_json = json.loads(
+                candidate_status_archive_json_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --value-selection-candidate-artifact-status --json did not emit retained archive record JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        main_archive_status_checklist = candidate_status_archive_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("main", {})
+        testnet_archive_status_checklist = candidate_status_archive_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("testnet", {})
+        main_archive_record_check = main_archive_status_checklist.get(
+            "archive_record_check",
+            {},
+        )
+        if (
+            candidate_status_archive_json.get("provided_candidate_archive_record_count") != 1
+            or candidate_status_archive_json.get("verified_candidate_archive_record_count") != 1
+            or candidate_status_archive_json.get("mismatch_candidate_archive_record_count") != 0
+            or candidate_status_archive_json.get("error_candidate_archive_record_count") != 0
+            or candidate_status_archive_json.get("blocked_candidate_archive_record_count") != 0
+            or candidate_status_archive_json.get("all_candidate_archive_records_verified") is not False
+            or candidate_status_archive_json.get("next_missing_candidate_archive_record_path_network") is not None
+            or candidate_status_archive_json.get("next_unverified_candidate_archive_record_network") is not None
+            or candidate_status_archive_json.get("value_selection_candidate_artifact_status_command") != candidate_status_archive_command
+            or candidate_status_archive_json.get("value_selection_candidate_artifact_status_json_command") != candidate_status_archive_json_command
+            or candidate_status_archive_json.get("candidate_archive_record_check_commands_by_network", {}).get("main") != candidate_archive_check_command
+            or candidate_status_archive_json.get("candidate_archive_record_gate_commands_by_network", {}).get("main") != candidate_archive_gate_command
+            or main_archive_status_checklist.get("archive_record_path") != str(candidate_archive_record_path)
+            or main_archive_status_checklist.get("archive_record_provided") is not True
+            or main_archive_status_checklist.get("archive_record_status") != "verified"
+            or main_archive_status_checklist.get("archive_record_verified") is not True
+            or main_archive_status_checklist.get("archive_record_error") is not None
+            or main_archive_status_checklist.get("archive_record_mismatch_count") != 0
+            or main_archive_status_checklist.get("archive_record_required_match_exit_code") != 0
+            or main_archive_status_checklist.get("archive_record_first_mismatch") is not None
+            or main_archive_record_check.get("verified") is not True
+            or main_archive_record_check.get("mismatch_count") != 0
+            or main_archive_record_check.get("required_match_exit_code") != 0
+            or main_archive_record_check.get("first_mismatch") is not None
+            or main_archive_record_check.get("candidate_check_verified") is not True
+            or main_archive_record_check.get("candidate_check_ready_to_apply") is not True
+            or testnet_archive_status_checklist.get("archive_record_provided") is not False
+            or testnet_archive_status_checklist.get("archive_record_status") != "missing-record"
+            or testnet_archive_status_checklist.get("archive_record_verified") is not False
+        ):
+            return "{} --value-selection-candidate-artifact-status --json did not expose retained archive record status".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
         stale_candidate_archive_record_path = (
             Path(temp_dir)
             / "stale-value-selection-candidate-artifact-archive-record.json"
@@ -3201,6 +3355,69 @@ def require_public_launch_manifest_current():
             )
         if "value-selection candidate artifact archive record does not match the current candidate check" not in stale_candidate_archive_gate_result.stderr:
             return "{} --require-value-selection-candidate-artifact-archive-match did not explain stale archive record rejection".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+            )
+
+        stale_candidate_status_archive_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+                "--json",
+                "--value-selection-candidate-artifact-status",
+                "--main-value-selection-candidate",
+                str(candidate_path),
+                "--main-value-selection-candidate-artifact-archive-record",
+                str(stale_candidate_archive_record_path),
+                str(readonly_candidate_manifest_path),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if stale_candidate_status_archive_result.returncode != 0:
+            return "{} --value-selection-candidate-artifact-status --json failed for a stale archive record: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                stale_candidate_status_archive_result.stderr.strip()
+                or stale_candidate_status_archive_result.stdout.strip()
+                or "no output",
+            )
+        try:
+            stale_candidate_status_archive_json = json.loads(
+                stale_candidate_status_archive_result.stdout
+            )
+        except json.JSONDecodeError as exc:
+            return "{} --value-selection-candidate-artifact-status --json did not emit stale archive record JSON: {}".format(
+                PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
+                exc,
+            )
+        main_stale_archive_checklist = stale_candidate_status_archive_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("main", {})
+        main_stale_archive_check = main_stale_archive_checklist.get(
+            "archive_record_check",
+            {},
+        )
+        if (
+            stale_candidate_status_archive_json.get("provided_candidate_archive_record_count") != 1
+            or stale_candidate_status_archive_json.get("verified_candidate_archive_record_count") != 0
+            or stale_candidate_status_archive_json.get("mismatch_candidate_archive_record_count") != 1
+            or stale_candidate_status_archive_json.get("error_candidate_archive_record_count") != 0
+            or stale_candidate_status_archive_json.get("blocked_candidate_archive_record_count") != 0
+            or stale_candidate_status_archive_json.get("all_candidate_archive_records_verified") is not False
+            or stale_candidate_status_archive_json.get("next_unverified_candidate_archive_record_network") != "main"
+            or main_stale_archive_checklist.get("archive_record_status") != "mismatch"
+            or main_stale_archive_checklist.get("archive_record_verified") is not False
+            or main_stale_archive_checklist.get("archive_record_mismatch_count") != 1
+            or main_stale_archive_checklist.get("archive_record_required_match_exit_code") != 1
+            or main_stale_archive_checklist.get("archive_record_first_mismatch", {}).get("path") != "value_selection_candidate_artifact_sha256"
+            or main_stale_archive_check.get("verified") is not False
+            or main_stale_archive_check.get("mismatch_count") != 1
+            or main_stale_archive_check.get("required_match_exit_code") != 1
+            or main_stale_archive_check.get("first_mismatch", {}).get("kind") != "value"
+        ):
+            return "{} --value-selection-candidate-artifact-status --json did not expose stale archive record mismatch status".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
             )
 
@@ -15387,6 +15604,28 @@ def require_public_launch_manifest_current():
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
 
+    candidate_archive_status_path_without_action_result = subprocess.run(
+        [
+            sys.executable,
+            str(PUBLIC_LAUNCH_MANIFEST_TOOL),
+            "--main-value-selection-candidate-artifact-archive-record",
+            "<value_selection_candidate_artifact_archive_record.json>",
+            str(PUBLIC_LAUNCH_MANIFEST),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if candidate_archive_status_path_without_action_result.returncode == 0:
+        return "{} --main-value-selection-candidate-artifact-archive-record was accepted without artifact status".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if "--main-value-selection-candidate-artifact-archive-record and --testnet-value-selection-candidate-artifact-archive-record require --value-selection-candidate-artifact-status" not in candidate_archive_status_path_without_action_result.stderr:
+        return "{} --main-value-selection-candidate-artifact-archive-record did not explain its required status action".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+
     candidate_artifact_archive_in_place_result = subprocess.run(
         [
             sys.executable,
@@ -23241,6 +23480,8 @@ def main():
         ("--value-selection-candidate-artifact-status", "manifest value-selection candidate artifact status flag"),
         ("--main-value-selection-candidate", "manifest main value-selection candidate artifact status path flag"),
         ("--testnet-value-selection-candidate", "manifest testnet value-selection candidate artifact status path flag"),
+        ("--main-value-selection-candidate-artifact-archive-record", "manifest main value-selection candidate artifact archive record status path flag"),
+        ("--testnet-value-selection-candidate-artifact-archive-record", "manifest testnet value-selection candidate artifact archive record status path flag"),
         ("VALUE_SELECTION_CANDIDATE_MAX_BYTES", "manifest bounds value-selection candidate artifacts"),
         ("VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_FIELDS", "manifest defines value-selection candidate artifact archive record fields"),
         ("VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_NONEMPTY_FIELDS", "manifest defines value-selection candidate artifact archive non-empty fields"),
@@ -23260,6 +23501,10 @@ def main():
         ("value_selection_candidate_artifact_status_payload", "manifest builds value-selection candidate artifact status payloads"),
         ("value_selection_candidate_artifact_status_text", "manifest prints value-selection candidate artifact status guidance"),
         ("value_selection_candidate_artifact_status_json_text", "manifest prints value-selection candidate artifact status JSON guidance"),
+        ("provided_candidate_archive_record_count", "manifest reports supplied candidate archive record paths"),
+        ("verified_candidate_archive_record_count", "manifest reports verified candidate archive record paths"),
+        ("mismatch_candidate_archive_record_count", "manifest reports mismatched candidate archive record paths"),
+        ("archive_record_status", "manifest reports per-network candidate archive record status"),
         ("value_selection_candidate_template", "manifest builds value-selection candidate templates"),
         ("network_value_selection_candidate_template_json_payload", "manifest network value-selection candidate template JSON payload helper"),
         ("network_value_selection_candidate_template_text", "manifest network value-selection candidate template text renderer"),
@@ -25325,8 +25570,20 @@ def main():
             "public launch manifest value-selection candidate artifact status path documentation",
         ),
         (
+            "--main-value-selection-candidate-artifact-archive-record",
+            "public launch manifest value-selection candidate artifact archive record status path documentation",
+        ),
+        (
             "missing-artifact, verified, or error",
             "public launch manifest value-selection candidate artifact status result documentation",
+        ),
+        (
+            "provided_candidate_archive_record_count",
+            "public launch manifest value-selection candidate archive record status count documentation",
+        ),
+        (
+            "archive_record_status",
+            "public launch manifest value-selection candidate archive record status result documentation",
         ),
         (
             "value_selection_candidate_artifact_uri",

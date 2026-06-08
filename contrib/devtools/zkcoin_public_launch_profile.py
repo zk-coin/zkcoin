@@ -5200,8 +5200,11 @@ def value_selection_candidate_artifact_status_entry(
 
 
 def value_selection_candidate_artifact_archive_checklist_entry(
+    manifest,
     manifest_path,
     entry,
+    candidate_path=None,
+    archive_record_path=None,
 ):
     fields = list(VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_FIELDS)
     nonempty_fields = list(
@@ -5223,34 +5226,101 @@ def value_selection_candidate_artifact_archive_checklist_entry(
             "candidate_check_command": entry["candidate_check_json_command"],
             "candidate_check_verified": True,
         }
-    candidate_path = entry["candidate_path"] or "<value_selection_candidate.json>"
-    archive_record_path = "<value_selection_candidate_artifact_archive_record.json>"
+    command_candidate_path = candidate_path or "<value_selection_candidate.json>"
+    command_archive_record_path = (
+        archive_record_path
+        or "<value_selection_candidate_artifact_archive_record.json>"
+    )
     check_command = check_value_selection_candidate_artifact_archive_command(
         manifest_path,
         entry["network"],
-        archive_record_path,
-        candidate_path,
+        command_archive_record_path,
+        command_candidate_path,
     )
     check_json_command = check_value_selection_candidate_artifact_archive_command(
         manifest_path,
         entry["network"],
-        archive_record_path,
-        candidate_path,
+        command_archive_record_path,
+        command_candidate_path,
         json_output=True,
     )
     gate_command = value_selection_candidate_artifact_archive_gate_command(
         manifest_path,
         entry["network"],
-        archive_record_path,
-        candidate_path,
+        command_archive_record_path,
+        command_candidate_path,
     )
     gate_json_command = value_selection_candidate_artifact_archive_gate_command(
         manifest_path,
         entry["network"],
-        archive_record_path,
-        candidate_path,
+        command_archive_record_path,
+        command_candidate_path,
         json_output=True,
     )
+    archive_record_provided = archive_record_path is not None
+    archive_record_display_path = (
+        display_path(archive_record_path) if archive_record_provided else None
+    )
+    archive_record_status = "missing-record"
+    archive_record_verified = False
+    archive_record_error = None
+    archive_record_mismatch_count = None
+    archive_record_required_match_exit_code = None
+    archive_record_first_mismatch = None
+    archive_record_check = None
+    if archive_record_provided and not verified:
+        archive_record_status = "blocked-candidate"
+        archive_record_error = entry.get("error") or "candidate artifact is not verified"
+    elif archive_record_provided:
+        try:
+            archive_record_check_payload = (
+                value_selection_candidate_artifact_archive_check_payload(
+                    manifest,
+                    manifest_path,
+                    entry["network"],
+                    archive_record_path,
+                    candidate_path,
+                    require_match=True,
+                )
+            )
+            archive_record_verified = archive_record_check_payload["verified"]
+            archive_record_status = (
+                "verified" if archive_record_verified else "mismatch"
+            )
+            archive_record_mismatch_count = archive_record_check_payload[
+                "mismatch_count"
+            ]
+            archive_record_required_match_exit_code = (
+                archive_record_check_payload["required_match_exit_code"]
+            )
+            archive_record_first_mismatch = (
+                archive_record_check_payload["mismatches"][0]
+                if archive_record_check_payload["mismatches"]
+                else None
+            )
+            archive_record_check = {
+                "verified": archive_record_verified,
+                "mismatch_count": archive_record_mismatch_count,
+                "required_match_exit_code": (
+                    archive_record_required_match_exit_code
+                ),
+                "first_mismatch": archive_record_first_mismatch,
+                "missing_required_field_count": archive_record_check_payload[
+                    "missing_required_field_count"
+                ],
+                "unexpected_field_count": archive_record_check_payload[
+                    "unexpected_field_count"
+                ],
+                "candidate_check_verified": archive_record_check_payload[
+                    "candidate_check_verified"
+                ],
+                "candidate_check_ready_to_apply": archive_record_check_payload[
+                    "candidate_check_ready_to_apply"
+                ],
+            }
+        except ValueError as exc:
+            archive_record_status = "error"
+            archive_record_error = str(exc)
     return {
         "step": entry["step"],
         "network": entry["network"],
@@ -5271,6 +5341,17 @@ def value_selection_candidate_artifact_archive_checklist_entry(
         "archive_record_check_json_command": check_json_command,
         "archive_record_gate_command": gate_command,
         "archive_record_gate_json_command": gate_json_command,
+        "archive_record_path": archive_record_display_path,
+        "archive_record_provided": archive_record_provided,
+        "archive_record_status": archive_record_status,
+        "archive_record_verified": archive_record_verified,
+        "archive_record_error": archive_record_error,
+        "archive_record_mismatch_count": archive_record_mismatch_count,
+        "archive_record_required_match_exit_code": (
+            archive_record_required_match_exit_code
+        ),
+        "archive_record_first_mismatch": archive_record_first_mismatch,
+        "archive_record_check": archive_record_check,
         "commands": {
             "archive_record_check": check_command,
             "archive_record_check_json": check_json_command,
@@ -5285,10 +5366,16 @@ def value_selection_candidate_artifact_status_payload(
     manifest_path,
     main_candidate_path=None,
     testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     candidate_paths = {
         "main": main_candidate_path,
         "testnet": testnet_candidate_path,
+    }
+    archive_record_paths = {
+        "main": main_archive_record_path,
+        "testnet": testnet_archive_record_path,
     }
     entries = [
         value_selection_candidate_artifact_status_entry(
@@ -5302,8 +5389,11 @@ def value_selection_candidate_artifact_status_payload(
     ]
     archive_checklists = [
         value_selection_candidate_artifact_archive_checklist_entry(
+            manifest,
             manifest_path,
             entry,
+            candidate_paths.get(entry["network"]),
+            archive_record_paths.get(entry["network"]),
         )
         for entry in entries
     ]
@@ -5316,15 +5406,38 @@ def value_selection_candidate_artifact_status_payload(
     ready_archive_record_count = sum(
         1 for entry in archive_checklists if entry["ready_to_archive"]
     )
+    provided_archive_record_count = sum(
+        1 for entry in archive_checklists if entry["archive_record_provided"]
+    )
+    verified_archive_record_count = sum(
+        1 for entry in archive_checklists if entry["archive_record_verified"]
+    )
+    error_archive_record_count = sum(
+        1 for entry in archive_checklists if entry["archive_record_status"] == "error"
+    )
+    mismatch_archive_record_count = sum(
+        1
+        for entry in archive_checklists
+        if entry["archive_record_status"] == "mismatch"
+    )
+    blocked_archive_record_count = sum(
+        1
+        for entry in archive_checklists
+        if entry["archive_record_status"] == "blocked-candidate"
+    )
     status_command = value_selection_candidate_artifact_status_command(
         manifest_path,
         main_candidate_path,
         testnet_candidate_path,
+        main_archive_record_path,
+        testnet_archive_record_path,
     )
     status_json_command = value_selection_candidate_artifact_status_command(
         manifest_path,
         main_candidate_path,
         testnet_candidate_path,
+        main_archive_record_path,
+        testnet_archive_record_path,
         json_output=True,
     )
     next_missing_candidate = next(
@@ -5340,6 +5453,23 @@ def value_selection_candidate_artifact_status_payload(
             entry["network"]
             for entry in archive_checklists
             if not entry["ready_to_archive"]
+        ),
+        None,
+    )
+    next_missing_candidate_archive_record_path_network = next(
+        (
+            entry["network"]
+            for entry in archive_checklists
+            if entry["ready_to_archive"] and not entry["archive_record_provided"]
+        ),
+        None,
+    )
+    next_unverified_candidate_archive_record_network = next(
+        (
+            entry["network"]
+            for entry in archive_checklists
+            if entry["archive_record_provided"]
+            and not entry["archive_record_verified"]
         ),
         None,
     )
@@ -5360,6 +5490,20 @@ def value_selection_candidate_artifact_status_payload(
         "ready_candidate_archive_record_count": ready_archive_record_count,
         "next_candidate_archive_record_network": (
             next_candidate_archive_record_network
+        ),
+        "provided_candidate_archive_record_count": provided_archive_record_count,
+        "verified_candidate_archive_record_count": verified_archive_record_count,
+        "error_candidate_archive_record_count": error_archive_record_count,
+        "mismatch_candidate_archive_record_count": mismatch_archive_record_count,
+        "blocked_candidate_archive_record_count": blocked_archive_record_count,
+        "all_candidate_archive_records_verified": (
+            verified_archive_record_count == len(archive_checklists)
+        ),
+        "next_missing_candidate_archive_record_path_network": (
+            next_missing_candidate_archive_record_path_network
+        ),
+        "next_unverified_candidate_archive_record_network": (
+            next_unverified_candidate_archive_record_network
         ),
         "candidate_archive_record_fields": list(
             VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_FIELDS
@@ -5469,6 +5613,40 @@ def value_selection_candidate_artifact_status_text_from_payload(payload):
             f"{payload['next_candidate_archive_record_network'] or 'none'}"
         ),
         (
+            "  - supplied candidate archive records: "
+            f"{payload['provided_candidate_archive_record_count']}/"
+            f"{payload['candidate_archive_record_count']}"
+        ),
+        (
+            "  - verified candidate archive records: "
+            f"{payload['verified_candidate_archive_record_count']}/"
+            f"{payload['candidate_archive_record_count']}"
+        ),
+        (
+            "  - candidate archive record mismatches: "
+            f"{payload['mismatch_candidate_archive_record_count']}"
+        ),
+        (
+            "  - candidate archive record errors: "
+            f"{payload['error_candidate_archive_record_count']}"
+        ),
+        (
+            "  - blocked candidate archive records: "
+            f"{payload['blocked_candidate_archive_record_count']}"
+        ),
+        (
+            "  - all candidate archive records verified: "
+            f"{yes_no(payload['all_candidate_archive_records_verified'])}"
+        ),
+        (
+            "  - next missing candidate archive record path network: "
+            f"{payload['next_missing_candidate_archive_record_path_network'] or 'none'}"
+        ),
+        (
+            "  - next unverified candidate archive record network: "
+            f"{payload['next_unverified_candidate_archive_record_network'] or 'none'}"
+        ),
+        (
             "  - candidate archive record fields: "
             f"{list_summary(payload['candidate_archive_record_fields'])}"
         ),
@@ -5524,7 +5702,42 @@ def value_selection_candidate_artifact_status_text_from_payload(payload):
                 "    - archive record gate command: "
                 + archive_checklist.get("archive_record_gate_command", "")
             ),
+            (
+                "    - archive record supplied: "
+                + yes_no(bool(archive_checklist.get("archive_record_provided")))
+            ),
+            (
+                "    - archive record path: "
+                + (
+                    archive_checklist.get("archive_record_path")
+                    or "<value_selection_candidate_artifact_archive_record.json>"
+                )
+            ),
+            (
+                "    - archive record status: "
+                + archive_checklist.get("archive_record_status", "missing-record")
+            ),
+            (
+                "    - archive record verified: "
+                + yes_no(bool(archive_checklist.get("archive_record_verified")))
+            ),
         ])
+        if archive_checklist.get("archive_record_mismatch_count") is not None:
+            lines.append(
+                "    - archive record mismatches: "
+                f"{archive_checklist['archive_record_mismatch_count']}"
+            )
+        if archive_checklist.get("archive_record_first_mismatch"):
+            first_mismatch = archive_checklist["archive_record_first_mismatch"]
+            lines.extend([
+                f"    - archive record first mismatch path: {first_mismatch['path']}",
+                f"    - archive record first mismatch kind: {first_mismatch['kind']}",
+            ])
+        if archive_checklist.get("archive_record_error"):
+            lines.append(
+                "    - archive record error: "
+                + archive_checklist["archive_record_error"]
+            )
         if entry["candidate_size"] is not None:
             lines.extend([
                 f"    - candidate size: {entry['candidate_size']}",
@@ -5556,6 +5769,8 @@ def value_selection_candidate_artifact_status_text(
     manifest_path,
     main_candidate_path=None,
     testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     return value_selection_candidate_artifact_status_text_from_payload(
         value_selection_candidate_artifact_status_payload(
@@ -5563,6 +5778,8 @@ def value_selection_candidate_artifact_status_text(
             manifest_path,
             main_candidate_path,
             testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         )
     )
 
@@ -5576,6 +5793,8 @@ def value_selection_candidate_artifact_status_json_text(
     manifest_path,
     main_candidate_path=None,
     testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
 ):
     return value_selection_candidate_artifact_status_json_text_from_payload(
         value_selection_candidate_artifact_status_payload(
@@ -5583,6 +5802,8 @@ def value_selection_candidate_artifact_status_json_text(
             manifest_path,
             main_candidate_path,
             testnet_candidate_path,
+            main_archive_record_path,
+            testnet_archive_record_path,
         )
     )
 
@@ -6523,6 +6744,8 @@ def value_selection_candidate_artifact_status_command(
     manifest_path,
     main_candidate_path=None,
     testnet_candidate_path=None,
+    main_archive_record_path=None,
+    testnet_archive_record_path=None,
     json_output=False,
 ):
     tool_path = Path("contrib/devtools/zkcoin_public_launch_profile.py")
@@ -6540,6 +6763,16 @@ def value_selection_candidate_artifact_status_command(
         args.extend([
             "--testnet-value-selection-candidate",
             command_path_arg(testnet_candidate_path),
+        ])
+    if main_archive_record_path is not None:
+        args.extend([
+            "--main-value-selection-candidate-artifact-archive-record",
+            command_path_arg(main_archive_record_path),
+        ])
+    if testnet_archive_record_path is not None:
+        args.extend([
+            "--testnet-value-selection-candidate-artifact-archive-record",
+            command_path_arg(testnet_archive_record_path),
         ])
     args.append(manifest_path)
     return " ".join(args)
@@ -17538,6 +17771,18 @@ def main():
         type=Path,
         help="testnet value-selection candidate JSON artifact for status reporting",
     )
+    parser.add_argument(
+        "--main-value-selection-candidate-artifact-archive-record",
+        metavar="ARCHIVE_RECORD_JSON",
+        type=Path,
+        help="mainnet value-selection candidate artifact archive record JSON for status reporting",
+    )
+    parser.add_argument(
+        "--testnet-value-selection-candidate-artifact-archive-record",
+        metavar="ARCHIVE_RECORD_JSON",
+        type=Path,
+        help="testnet value-selection candidate artifact archive record JSON for status reporting",
+    )
     parser.add_argument("--value-selection-checklists", action="store_true", help="print queued value-selection JSON checklists for all public networks")
     parser.add_argument("--blocker-readiness-summary", metavar="BLOCKER_ID", help="print a compact readiness summary for one unresolved launch blocker")
     parser.add_argument("--status-json", action="store_true", help="print machine-readable public launch-profile status and action guidance")
@@ -17759,6 +18004,24 @@ def main():
             "error: --main-value-selection-candidate and "
             "--testnet-value-selection-candidate require "
             "--value-selection-candidate-artifact-status",
+            file=sys.stderr,
+        )
+        return 1
+
+    if (
+        (
+            args.main_value_selection_candidate_artifact_archive_record is not None
+            or (
+                args.testnet_value_selection_candidate_artifact_archive_record
+                is not None
+            )
+        )
+        and not args.value_selection_candidate_artifact_status
+    ):
+        print(
+            "error: --main-value-selection-candidate-artifact-archive-record "
+            "and --testnet-value-selection-candidate-artifact-archive-record "
+            "require --value-selection-candidate-artifact-status",
             file=sys.stderr,
         )
         return 1
@@ -18918,6 +19181,8 @@ def main():
                 args.manifest,
                 args.main_value_selection_candidate,
                 args.testnet_value_selection_candidate,
+                args.main_value_selection_candidate_artifact_archive_record,
+                args.testnet_value_selection_candidate_artifact_archive_record,
             )
         )
         return 0
