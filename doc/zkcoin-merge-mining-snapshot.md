@@ -1574,7 +1574,12 @@ gate summary counts in one compact operator runbook payload.
 Use `--release-evidence-bundle --json` when CI needs one compact release
 evidence bundle with embedded operator-runbook, launch-gate preflight,
 snapshot-audit handoff, value-selection checklist, and value-selection candidate
-artifact status JSON payloads.
+artifact status JSON payloads. The bundle summary also carries retained
+candidate archive-record status counters such as
+`provided_candidate_archive_record_count`,
+`verified_candidate_archive_record_count`, and
+`mismatch_candidate_archive_record_count` so release dashboards can detect
+missing or drifted archive records from the same evidence bundle.
 Use `--check-release-evidence-bundle --json` when CI needs a machine-readable
 freshness check for an archived release evidence bundle, including a stable
 `verified` boolean and compact mismatch paths.
@@ -1658,7 +1663,10 @@ index archive handoff summary. The payload includes `closeout_artifacts`,
 `publication_blockers`, `next_publication_blocker`, and the bundle-retained
 value-selection candidate artifact status summary with the next missing
 candidate template command, next unverified candidate check command, and
-candidate archive-record readiness counts, and status JSON exposes
+candidate archive-record readiness and supplied/verified/mismatch/error status
+counters, including `provided_value_selection_candidate_archive_record_count`
+and `next_missing_value_selection_candidate_archive_record_path_network`, and
+status JSON exposes
 `release_evidence_publication_closeout_checklist_command` so dashboards can
 discover the final closeout step without choosing external publication values.
 Use `--check-release-evidence-publication-closeout --json` when automation needs
@@ -1686,9 +1694,10 @@ includes `handoff_artifacts`, `verified_handoff_artifact_count`,
 `ready_for_publication`, `publication_blockers`, `next_publication_blocker`,
 `closeout_gate`, `closeout_archive_gate`, and the retained closeout's
 value-selection candidate artifact status summary, including the next candidate
-template/check commands and candidate archive-record readiness counts, so
-release operators can retain the closeout JSON, closeout archive record, and
-generated summary JSON as the final closeout archive evidence set. Status JSON exposes
+template/check commands and candidate archive-record readiness plus
+supplied/verified/mismatch/error status counters, so release operators can
+retain the closeout JSON, closeout archive record, and generated summary JSON
+as the final closeout archive evidence set. Status JSON exposes
 `release_evidence_publication_closeout_archive_handoff_summary_command` for
 dashboards that need to discover this final read-only handoff step.
 Use `--release-evidence-publication-status --json` when automation needs a
@@ -1708,8 +1717,10 @@ counts, publication gate counts, `ready_for_final_handoff`,
 value-selection candidate artifact status embedded in a supplied release
 evidence bundle, including the next missing candidate template command and next
 unverified candidate check command plus candidate archive-record readiness
-counts. Path flags are optional, so dashboards can call it before every artifact
-exists and add
+and supplied/verified/mismatch/error status counters such as
+`provided_value_selection_candidate_archive_record_count` and
+`next_unverified_value_selection_candidate_archive_record_network`. Path flags
+are optional, so dashboards can call it before every artifact exists and add
 `--release-evidence-bundle-path`,
 `--release-evidence-archive-record-path`,
 `--release-evidence-publication-index-path`,
