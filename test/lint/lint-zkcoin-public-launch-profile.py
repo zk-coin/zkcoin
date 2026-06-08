@@ -10618,6 +10618,120 @@ def require_public_launch_manifest_current():
         return "{} --status-json did not expose release evidence publication next operator action".format(
             PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
         )
+    publication_completion_summary = status_json.get(
+        "release_evidence_publication_completion_summary",
+        {},
+    )
+    if (
+        publication_completion_summary.get("schema_version") != 1
+        or publication_completion_summary.get("publication_step_count") != 13
+        or publication_completion_summary.get("operator_value_step_count") != 3
+        or publication_completion_summary.get("artifact_count") != 6
+        or publication_completion_summary.get("provided_artifact_count") != 0
+        or publication_completion_summary.get("missing_artifact_count") != 6
+        or publication_completion_summary.get("verified_artifact_count") != 0
+        or publication_completion_summary.get("publication_gate_count") != 5
+        or publication_completion_summary.get("verified_publication_gate_count") != 0
+        or publication_completion_summary.get("ready_for_final_handoff") is not False
+        or publication_completion_summary.get("next_missing_artifact")
+        != "release-evidence-bundle"
+        or publication_completion_summary.get("next_unverified_verification")
+        != "release-evidence-bundle-gate"
+        or publication_completion_summary.get(
+            "value_selection_candidate_archive_record_count"
+        )
+        != 2
+        or publication_completion_summary.get(
+            "provided_value_selection_candidate_archive_record_count"
+        )
+        != 0
+        or publication_completion_summary.get(
+            "verified_value_selection_candidate_archive_record_count"
+        )
+        != 0
+        or publication_completion_summary.get(
+            "next_missing_value_selection_candidate_archive_record_path_network"
+        )
+        is not None
+        or publication_completion_summary.get("next_operator_action_reason")
+        != "missing-artifact"
+        or publication_completion_summary.get("next_operator_action_id")
+        != "release-evidence-bundle"
+        or publication_completion_summary.get("next_operator_action_kind")
+        != "generate"
+        or publication_completion_summary.get(
+            "next_operator_action_target_artifact"
+        )
+        != "release-evidence-bundle"
+        or publication_completion_summary.get(
+            "next_operator_action_target_verification"
+        )
+        is not None
+        or publication_completion_summary.get("next_operator_action_command")
+        != (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--release-evidence-bundle "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        or publication_completion_summary.get(
+            "next_operator_action_json_command"
+        )
+        != (
+            "contrib/devtools/zkcoin_public_launch_profile.py --json "
+            "--release-evidence-bundle "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        or publication_completion_summary.get(
+            "next_operator_action",
+            {},
+        ).get("output_artifact") != "<release_evidence_bundle.json>"
+    ):
+        return "{} --status-json did not expose release evidence publication completion summary".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
+    if (
+        status_json.get("release_evidence_publication_completion_ready")
+        is not False
+        or status_json.get(
+            "release_evidence_publication_completion_artifact_count"
+        )
+        != 6
+        or status_json.get(
+            "release_evidence_publication_completion_missing_artifact_count"
+        )
+        != 6
+        or status_json.get(
+            "release_evidence_publication_completion_next_missing_artifact"
+        )
+        != "release-evidence-bundle"
+        or status_json.get(
+            "release_evidence_publication_completion_next_operator_action_reason"
+        )
+        != "missing-artifact"
+        or status_json.get(
+            "release_evidence_publication_completion_next_operator_action_id"
+        )
+        != "release-evidence-bundle"
+        or status_json.get(
+            "release_evidence_publication_completion_next_operator_action_command"
+        )
+        != (
+            "contrib/devtools/zkcoin_public_launch_profile.py "
+            "--release-evidence-bundle "
+            "contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+        )
+        or status_json.get(
+            "release_evidence_publication_completion_value_selection_candidate_archive_record_count"
+        )
+        != 2
+        or status_json.get(
+            "release_evidence_publication_completion_next_missing_value_selection_candidate_archive_record_path_network"
+        )
+        is not None
+    ):
+        return "{} --status-json did not expose release evidence publication completion aliases".format(
+            PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
+        )
     if status_json.get("release_evidence_publication_artifact_status_command") != (
         "contrib/devtools/zkcoin_public_launch_profile.py "
         "--release-evidence-publication-artifact-status "
@@ -23974,6 +24088,7 @@ def main():
         ("release_evidence_publication_status_json_text", "manifest prints release evidence publication status JSON guidance"),
         ("release_evidence_publication_artifact_status_command", "manifest builds release evidence publication artifact status commands"),
         ("release_evidence_publication_artifact_status_payload", "manifest builds release evidence publication artifact status JSON payloads"),
+        ("release_evidence_publication_completion_summary_payload", "manifest builds release evidence publication completion summary JSON payloads"),
         ("release_evidence_publication_artifact_status_text", "manifest prints release evidence publication artifact status guidance"),
         ("release_evidence_publication_artifact_status_json_text", "manifest prints release evidence publication artifact status JSON guidance"),
         ("provided_value_selection_candidate_archive_record_count", "manifest reports release evidence candidate archive record path counts"),
@@ -24536,6 +24651,7 @@ def main():
         ("release_evidence_publication_closeout_archive_handoff_summary_command", "manifest status JSON exposes release evidence publication closeout archive handoff summary command"),
         ("release_evidence_publication_status_command", "manifest status JSON exposes release evidence publication status command"),
         ("release_evidence_publication_next_operator_action", "manifest status JSON exposes release evidence publication next operator action"),
+        ("release_evidence_publication_completion_summary", "manifest status JSON exposes release evidence publication completion summary"),
         ("release_evidence_publication_artifact_status_command", "manifest status JSON exposes release evidence publication artifact status command"),
         ("readiness_gates", "manifest status JSON includes readiness gates"),
         ("readiness_gate_count", "manifest status JSON counts readiness gates"),
@@ -26229,6 +26345,10 @@ def main():
         (
             "release_evidence_publication_next_operator_action",
             "public launch manifest status-json release evidence publication next operator action documentation",
+        ),
+        (
+            "release_evidence_publication_completion_summary",
+            "public launch manifest status-json release evidence publication completion summary documentation",
         ),
         (
             "release_evidence_publication_artifact_status_command",

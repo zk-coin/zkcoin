@@ -358,8 +358,10 @@ Both are intentionally present before behavior changes so tests and review can t
   `release_evidence_archive_gate_json_command`,
   `release_evidence_handoff_summary_command`,
   `release_evidence_handoff_summary_json_command`,
-  `release_evidence_publication_next_operator_action`, and
+  `release_evidence_publication_next_operator_action`,
   `release_evidence_publication_next_operator_action_command`,
+  `release_evidence_publication_completion_summary`,
+  `release_evidence_publication_completion_next_operator_action_command`,
   `next_action`, `next_action_id`,
   `next_action_kind`, `next_action_step`, `next_action_network`,
   `next_action_blocker_type`,
@@ -1723,6 +1725,12 @@ discover the pipeline inventory without hard-coding the command string, and
 top-level `--status-json` mirrors this action as
 `release_evidence_publication_next_operator_action` with direct command and
 JSON-command aliases for release overview pages.
+Top-level `--status-json` also exposes
+`release_evidence_publication_completion_summary`, a compact rollup of
+publication step counts, retained artifact counts, verified gate counts,
+candidate archive-record counters, and the next missing-artifact or
+unverified-gate operator action for dashboards that need one completion object
+instead of recomputing across the publication and artifact status payloads.
 Use `--release-evidence-publication-artifact-status --json` when automation
 needs to reconcile retained publication artifacts against the ordered pipeline.
 The payload reports supplied and missing artifact counts, verified artifact

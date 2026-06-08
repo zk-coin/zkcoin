@@ -16575,6 +16575,179 @@ def release_evidence_publication_artifact_status_payload(
     }
 
 
+def release_evidence_publication_completion_summary_payload(
+    publication_status,
+    artifact_status,
+):
+    next_operator_action = artifact_status["next_operator_action"]
+    candidate_artifact_summary = (
+        publication_status["value_selection_candidate_artifact_status_summary"]
+    )
+    return {
+        "schema_version": 1,
+        "manifest": publication_status["manifest"],
+        "launch_profile_blocked": (
+            publication_status["launch_profile_blocked"]
+        ),
+        "unresolved_blocker_count": (
+            publication_status["unresolved_blocker_count"]
+        ),
+        "unresolved_blockers": publication_status["unresolved_blockers"],
+        "ready_for_chainparams": publication_status["ready_for_chainparams"],
+        "publication_step_count": (
+            publication_status["publication_step_count"]
+        ),
+        "operator_value_step_count": (
+            publication_status["operator_value_step_count"]
+        ),
+        "final_handoff_step_id": publication_status["final_handoff_step_id"],
+        "artifact_count": artifact_status["artifact_count"],
+        "provided_artifact_count": (
+            artifact_status["provided_artifact_count"]
+        ),
+        "missing_artifact_count": artifact_status["missing_artifact_count"],
+        "verified_artifact_count": (
+            artifact_status["verified_artifact_count"]
+        ),
+        "publication_gate_count": (
+            artifact_status["publication_gate_count"]
+        ),
+        "verified_publication_gate_count": (
+            artifact_status["verified_publication_gate_count"]
+        ),
+        "ready_for_final_handoff": (
+            artifact_status["ready_for_final_handoff"]
+        ),
+        "next_missing_artifact": artifact_status["next_missing_artifact"],
+        "next_unverified_verification": (
+            artifact_status["next_unverified_verification"]
+        ),
+        "value_selection_candidate_artifact_status_summary": (
+            candidate_artifact_summary
+        ),
+        "value_selection_candidate_artifact_count": (
+            publication_status["value_selection_candidate_artifact_count"]
+        ),
+        "provided_value_selection_candidate_artifact_count": (
+            publication_status[
+                "provided_value_selection_candidate_artifact_count"
+            ]
+        ),
+        "verified_value_selection_candidate_artifact_count": (
+            publication_status[
+                "verified_value_selection_candidate_artifact_count"
+            ]
+        ),
+        "value_selection_candidate_artifact_error_count": (
+            publication_status[
+                "value_selection_candidate_artifact_error_count"
+            ]
+        ),
+        "all_value_selection_candidate_artifacts_verified": (
+            publication_status[
+                "all_value_selection_candidate_artifacts_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate": (
+            publication_status["next_missing_value_selection_candidate"]
+        ),
+        "next_unverified_value_selection_candidate": (
+            publication_status["next_unverified_value_selection_candidate"]
+        ),
+        "value_selection_candidate_archive_record_count": (
+            publication_status[
+                "value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "ready_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "ready_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "next_value_selection_candidate_archive_record_network": (
+            publication_status[
+                "next_value_selection_candidate_archive_record_network"
+            ]
+        ),
+        "provided_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "provided_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "verified_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "verified_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "mismatch_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "mismatch_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "error_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "error_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "blocked_value_selection_candidate_archive_record_count": (
+            publication_status[
+                "blocked_value_selection_candidate_archive_record_count"
+            ]
+        ),
+        "all_value_selection_candidate_archive_records_verified": (
+            publication_status[
+                "all_value_selection_candidate_archive_records_verified"
+            ]
+        ),
+        "next_missing_value_selection_candidate_archive_record_path_network": (
+            publication_status[
+                "next_missing_value_selection_candidate_archive_record_path_network"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_archive_record_network": (
+            publication_status[
+                "next_unverified_value_selection_candidate_archive_record_network"
+            ]
+        ),
+        "next_operator_action": next_operator_action,
+        "next_operator_action_available": next_operator_action["available"],
+        "next_operator_action_reason": next_operator_action["reason"],
+        "next_operator_action_id": next_operator_action["id"],
+        "next_operator_action_kind": next_operator_action["kind"],
+        "next_operator_action_description": (
+            next_operator_action["description"]
+        ),
+        "next_operator_action_target_artifact": (
+            next_operator_action["target_artifact"]
+        ),
+        "next_operator_action_target_verification": (
+            next_operator_action["target_verification"]
+        ),
+        "next_operator_action_command": next_operator_action["command"],
+        "next_operator_action_json_command": (
+            next_operator_action["json_command"]
+        ),
+        "release_evidence_publication_status_command": (
+            publication_status["release_evidence_publication_status_command"]
+        ),
+        "release_evidence_publication_status_json_command": (
+            publication_status[
+                "release_evidence_publication_status_json_command"
+            ]
+        ),
+        "release_evidence_publication_artifact_status_command": (
+            artifact_status[
+                "release_evidence_publication_artifact_status_command"
+            ]
+        ),
+        "release_evidence_publication_artifact_status_json_command": (
+            artifact_status[
+                "release_evidence_publication_artifact_status_json_command"
+            ]
+        ),
+    }
+
+
 def release_evidence_publication_artifact_status_text_from_payload(payload):
     lines = [
         "zkCoin public launch profile release evidence publication artifact status:",
@@ -17341,8 +17514,26 @@ def status_json_text(manifest, manifest_path, check):
             check,
         )
     )
+    release_evidence_publication_artifact_status = (
+        release_evidence_publication_artifact_status_payload(
+            manifest,
+            manifest_path,
+            check,
+        )
+    )
+    release_evidence_publication_completion_summary = (
+        release_evidence_publication_completion_summary_payload(
+            release_evidence_publication_status,
+            release_evidence_publication_artifact_status,
+        )
+    )
     release_evidence_publication_next_operator_action = (
         release_evidence_publication_status["next_operator_action"]
+    )
+    release_evidence_publication_completion_next_operator_action = (
+        release_evidence_publication_completion_summary[
+            "next_operator_action"
+        ]
     )
     blocker_type_readiness_commands = blocker_type_readiness_summary_commands(manifest_path)
     blocker_type_later_blockers_commands_by_type = blocker_type_later_blockers_commands(manifest_path)
@@ -17710,16 +17901,121 @@ def status_json_text(manifest, manifest_path, check):
             "release_evidence_publication_next_operator_action_json_command": (
                 release_evidence_publication_next_operator_action["json_command"]
             ),
+            "release_evidence_publication_completion_summary": (
+                release_evidence_publication_completion_summary
+            ),
+            "release_evidence_publication_completion_ready": (
+                release_evidence_publication_completion_summary[
+                    "ready_for_final_handoff"
+                ]
+            ),
+            "release_evidence_publication_completion_artifact_count": (
+                release_evidence_publication_completion_summary[
+                    "artifact_count"
+                ]
+            ),
+            "release_evidence_publication_completion_provided_artifact_count": (
+                release_evidence_publication_completion_summary[
+                    "provided_artifact_count"
+                ]
+            ),
+            "release_evidence_publication_completion_missing_artifact_count": (
+                release_evidence_publication_completion_summary[
+                    "missing_artifact_count"
+                ]
+            ),
+            "release_evidence_publication_completion_verified_artifact_count": (
+                release_evidence_publication_completion_summary[
+                    "verified_artifact_count"
+                ]
+            ),
+            "release_evidence_publication_completion_next_missing_artifact": (
+                release_evidence_publication_completion_summary[
+                    "next_missing_artifact"
+                ]
+            ),
+            "release_evidence_publication_completion_next_unverified_verification": (
+                release_evidence_publication_completion_summary[
+                    "next_unverified_verification"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action": (
+                release_evidence_publication_completion_next_operator_action
+            ),
+            "release_evidence_publication_completion_next_operator_action_available": (
+                release_evidence_publication_completion_next_operator_action[
+                    "available"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_reason": (
+                release_evidence_publication_completion_next_operator_action[
+                    "reason"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_id": (
+                release_evidence_publication_completion_next_operator_action[
+                    "id"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_kind": (
+                release_evidence_publication_completion_next_operator_action[
+                    "kind"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_target_artifact": (
+                release_evidence_publication_completion_next_operator_action[
+                    "target_artifact"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_target_verification": (
+                release_evidence_publication_completion_next_operator_action[
+                    "target_verification"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_command": (
+                release_evidence_publication_completion_next_operator_action[
+                    "command"
+                ]
+            ),
+            "release_evidence_publication_completion_next_operator_action_json_command": (
+                release_evidence_publication_completion_next_operator_action[
+                    "json_command"
+                ]
+            ),
+            "release_evidence_publication_completion_value_selection_candidate_archive_record_count": (
+                release_evidence_publication_completion_summary[
+                    "value_selection_candidate_archive_record_count"
+                ]
+            ),
+            "release_evidence_publication_completion_provided_value_selection_candidate_archive_record_count": (
+                release_evidence_publication_completion_summary[
+                    "provided_value_selection_candidate_archive_record_count"
+                ]
+            ),
+            "release_evidence_publication_completion_verified_value_selection_candidate_archive_record_count": (
+                release_evidence_publication_completion_summary[
+                    "verified_value_selection_candidate_archive_record_count"
+                ]
+            ),
+            "release_evidence_publication_completion_next_missing_value_selection_candidate_archive_record_path_network": (
+                release_evidence_publication_completion_summary[
+                    "next_missing_value_selection_candidate_archive_record_path_network"
+                ]
+            ),
+            "release_evidence_publication_completion_next_unverified_value_selection_candidate_archive_record_network": (
+                release_evidence_publication_completion_summary[
+                    "next_unverified_value_selection_candidate_archive_record_network"
+                ]
+            ),
             "release_evidence_publication_artifact_status_command": (
-                release_evidence_publication_artifact_status_command(
-                    manifest_path
-                )
+                release_evidence_publication_artifact_status[
+                    "release_evidence_publication_artifact_status_command"
+                ]
             ),
             "release_evidence_publication_artifact_status_json_command": (
-                release_evidence_publication_artifact_status_command(
-                    manifest_path,
-                    json_output=True,
-                )
+                release_evidence_publication_artifact_status[
+                    "release_evidence_publication_artifact_status_json_command"
+                ]
             ),
             "command_field_order": list(COMMAND_FIELDS),
             "command_field_count": len(COMMAND_FIELDS),
