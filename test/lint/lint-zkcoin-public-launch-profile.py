@@ -2763,9 +2763,13 @@ def require_public_launch_manifest_current():
             "  - verified candidates: 0/2",
             "  - all required candidates verified: no",
             "  - next missing candidate: main",
+            "  - candidate archive records ready: 0/2",
+            "  - next candidate archive record network: main",
+            "  - candidate archive record fields: network, value_selection_candidate_artifact_uri",
             "  - main candidate status: missing-artifact",
             "    - supplied: no",
             "    - path: <value_selection_candidate.json>",
+            "    - archive record ready: no",
             "    - candidate template command: contrib/devtools/zkcoin_public_launch_profile.py --network-value-selection-candidate-template main {}".format(
                 readonly_candidate_manifest_path
             ),
@@ -2805,12 +2809,23 @@ def require_public_launch_manifest_current():
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR),
                 exc,
             )
+        main_missing_archive_checklist = candidate_status_missing_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("main", {})
         if (
             candidate_status_missing_json.get("schema_version") != 1
             or candidate_status_missing_json.get("provided_candidate_count") != 0
             or candidate_status_missing_json.get("missing_candidate_count") != 2
             or candidate_status_missing_json.get("verified_candidate_count") != 0
             or candidate_status_missing_json.get("all_required_candidates_verified") is not False
+            or candidate_status_missing_json.get("candidate_archive_record_count") != 2
+            or candidate_status_missing_json.get("ready_candidate_archive_record_count") != 0
+            or candidate_status_missing_json.get("next_candidate_archive_record_network") != "main"
+            or "value_selection_candidate_artifact_uri"
+            not in candidate_status_missing_json.get("candidate_archive_record_fields", [])
+            or main_missing_archive_checklist.get("ready_to_archive") is not False
+            or main_missing_archive_checklist.get("expected_archive_record_values") != {}
             or candidate_status_missing_json.get("candidate_statuses_by_network", {}).get("main", {}).get("status") != "missing-artifact"
             or candidate_status_missing_json.get("candidate_statuses_by_network", {}).get("testnet", {}).get("status") != "missing-artifact"
         ):
@@ -2855,10 +2870,13 @@ def require_public_launch_manifest_current():
             "  - supplied candidates: 1/2",
             "  - verified candidates: 1/2",
             "  - all required candidates verified: no",
+            "  - candidate archive records ready: 1/2",
+            "  - next candidate archive record network: testnet",
             "  - main candidate status: verified",
             f"    - path: {candidate_path}",
             f"    - candidate size: {candidate_size}",
             f"    - candidate sha256: {candidate_sha256}",
+            "    - archive record ready: yes",
             "    - post-apply remaining blockers: 5",
             "    - post-apply next blocker: main.litecoin_snapshot",
             "  - testnet candidate status: missing-artifact",
@@ -2908,21 +2926,44 @@ def require_public_launch_manifest_current():
             "candidate_statuses_by_network",
             {},
         ).get("testnet", {})
+        main_archive_checklist = candidate_status_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("main", {})
+        testnet_archive_checklist = candidate_status_json.get(
+            "candidate_archive_checklists_by_network",
+            {},
+        ).get("testnet", {})
         if (
             candidate_status_json.get("provided_candidate_count") != 1
             or candidate_status_json.get("missing_candidate_count") != 1
             or candidate_status_json.get("verified_candidate_count") != 1
             or candidate_status_json.get("error_candidate_count") != 0
             or candidate_status_json.get("all_required_candidates_verified") is not False
+            or candidate_status_json.get("candidate_archive_record_count") != 2
+            or candidate_status_json.get("ready_candidate_archive_record_count") != 1
+            or candidate_status_json.get("next_candidate_archive_record_network") != "testnet"
+            or candidate_status_json.get("candidate_archive_record_field_count") != 10
             or candidate_status_json.get("value_selection_candidate_artifact_status_command") != candidate_status_command
             or candidate_status_json.get("value_selection_candidate_artifact_status_json_command") != candidate_status_json_command
             or main_candidate_status.get("status") != "verified"
             or main_candidate_status.get("candidate_size") != candidate_size
             or main_candidate_status.get("candidate_sha256") != candidate_sha256
             or main_candidate_status.get("candidate_artifact", {}).get("path") != str(candidate_path)
+            or main_archive_checklist.get("ready_to_archive") is not True
+            or main_archive_checklist.get("expected_archive_record_values", {}).get(
+                "value_selection_candidate_artifact_sha256"
+            ) != candidate_sha256
+            or main_archive_checklist.get("expected_archive_record_values", {}).get(
+                "value_selection_candidate_artifact_size"
+            ) != candidate_size
+            or main_archive_checklist.get("expected_archive_record_values", {}).get(
+                "candidate_check_command"
+            ) != candidate_json_command
             or main_candidate_status.get("post_apply", {}).get("remaining_blocker_count") != 5
             or main_candidate_status.get("post_apply", {}).get("next_blocker") != "main.litecoin_snapshot"
             or testnet_candidate_status.get("status") != "missing-artifact"
+            or testnet_archive_checklist.get("ready_to_archive") is not False
         ):
             return "{} --value-selection-candidate-artifact-status --json did not expose supplied-candidate status".format(
                 PUBLIC_LAUNCH_MANIFEST_TOOL.relative_to(ROOT_DIR)
@@ -3501,6 +3542,8 @@ def require_public_launch_manifest_current():
         "  - value-selection candidate artifacts: 0/2",
         "  - verified value-selection candidate artifacts: 0/2",
         "  - value-selection candidate artifact errors: 0",
+        "  - value-selection candidate archive records ready: 0/2",
+        "  - next value-selection candidate archive record network: main",
         "  - checklist steps: 18",
         "  - runbook steps: 3",
         "  - evidence 1: operator-runbook",
@@ -3635,6 +3678,9 @@ def require_public_launch_manifest_current():
         or release_evidence_summary.get("missing_candidate_artifact_count") != 2
         or release_evidence_summary.get("verified_candidate_artifact_count") != 0
         or release_evidence_summary.get("error_candidate_artifact_count") != 0
+        or release_evidence_summary.get("candidate_archive_record_count") != 2
+        or release_evidence_summary.get("ready_candidate_archive_record_count") != 0
+        or release_evidence_summary.get("next_candidate_archive_record_network") != "main"
         or release_evidence_summary.get("checklist_step_count") != 18
         or release_evidence_summary.get("embedded_payload_schema_versions")
         != {
@@ -3658,6 +3704,8 @@ def require_public_launch_manifest_current():
         or release_evidence_payload.get("value_selection_checklists", {}).get("summary", {}).get("required_json_check_count") != 6
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_count") != 2
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("provided_candidate_count") != 0
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("ready_candidate_archive_record_count") != 0
+        or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_archive_checklists_by_network", {}).get("main", {}).get("ready_to_archive") is not False
         or release_evidence_payload.get("value_selection_candidate_artifact_status", {}).get("candidate_statuses_by_network", {}).get("main", {}).get("status") != "missing-artifact"
     ):
         return "{} --release-evidence-bundle --json did not embed evidence payload summaries".format(
@@ -3848,6 +3896,8 @@ def require_public_launch_manifest_current():
             "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - value-selection candidate archive records ready: 0/2",
+            "  - next value-selection candidate archive record network: main",
             "  - main value-selection candidate status: missing-artifact",
             "  - main value-selection candidate supplied: no",
             "  - main value-selection candidate verified: no",
@@ -3962,6 +4012,15 @@ def require_public_launch_manifest_current():
                 "next_unverified_value_selection_candidate_check_command"
             )
             != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or release_evidence_artifact_status_json.get(
+                "value_selection_candidate_archive_record_count"
+            ) != 2
+            or release_evidence_artifact_status_json.get(
+                "ready_value_selection_candidate_archive_record_count"
+            ) != 0
+            or release_evidence_artifact_status_json.get(
+                "next_value_selection_candidate_archive_record_network"
+            ) != "main"
             or candidate_artifact_status.get("status") != "reported"
             or candidate_artifact_status.get("source_artifact")
             != "release-evidence-bundle"
@@ -3978,6 +4037,12 @@ def require_public_launch_manifest_current():
                 "next_unverified_candidate_check_json_command"
             )
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or candidate_artifact_status.get("candidate_archive_record_count") != 2
+            or candidate_artifact_status.get("ready_candidate_archive_record_count") != 0
+            or candidate_artifact_status.get(
+                "candidate_archive_checklists_by_network",
+                {},
+            ).get("main", {}).get("ready_to_archive") is not False
             or main_candidate_status.get("status") != "missing-artifact"
             or release_evidence_artifact_status_json.get(
                 "release_evidence_publication_artifact_status_json_command"
@@ -5758,6 +5823,8 @@ def require_public_launch_manifest_current():
             "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - value-selection candidate archive records ready: 0/2",
+            "  - next value-selection candidate archive record network: main",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - release evidence handoff summary verified: yes",
@@ -5856,6 +5923,15 @@ def require_public_launch_manifest_current():
             )
             != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or publication_closeout_json.get(
+                "value_selection_candidate_archive_record_count"
+            ) != 2
+            or publication_closeout_json.get(
+                "ready_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_json.get(
+                "next_value_selection_candidate_archive_record_network"
+            ) != "main"
+            or publication_closeout_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("candidate_count") != 2
@@ -5864,6 +5940,10 @@ def require_public_launch_manifest_current():
                 {},
             ).get("next_missing_candidate_template_json_command")
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("ready_candidate_archive_record_count") != 0
             or closeout_main_candidate_status.get("status") != "missing-artifact"
             or publication_closeout_json.get("ready_for_publication") is not True
             or publication_closeout_json.get("publication_blocker_count") != 0
@@ -6339,6 +6419,8 @@ def require_public_launch_manifest_current():
             "  - next missing value-selection candidate template JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --network-value-selection-candidate-template main contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check command: contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
             "  - next unverified value-selection candidate check JSON command: contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json",
+            "  - value-selection candidate archive records ready: 0/2",
+            "  - next value-selection candidate archive record network: main",
             "  - ready for publication: yes",
             "  - publication blockers: 0",
             "  - closeout gate verified: yes",
@@ -6447,6 +6529,15 @@ def require_public_launch_manifest_current():
             )
             != "contrib/devtools/zkcoin_public_launch_profile.py --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
             or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_archive_record_count"
+            ) != 2
+            or publication_closeout_archive_handoff_summary_json.get(
+                "ready_value_selection_candidate_archive_record_count"
+            ) != 0
+            or publication_closeout_archive_handoff_summary_json.get(
+                "next_value_selection_candidate_archive_record_network"
+            ) != "main"
+            or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status_summary",
                 {},
             ).get("next_missing_candidate") != "main"
@@ -6455,6 +6546,10 @@ def require_public_launch_manifest_current():
                 {},
             ).get("next_unverified_candidate_check_json_command")
             != "contrib/devtools/zkcoin_public_launch_profile.py --json --check-network-value-selection-candidate main <value_selection_candidate.json> contrib/devtools/zkcoin_public_launch_profile_manifest.json"
+            or publication_closeout_archive_handoff_summary_json.get(
+                "value_selection_candidate_artifact_status_summary",
+                {},
+            ).get("candidate_archive_record_count") != 2
             or publication_closeout_archive_handoff_summary_json.get(
                 "value_selection_candidate_artifact_status"
             ) != closeout_archive_handoff_candidate_status
@@ -22866,6 +22961,8 @@ def main():
         ("--main-value-selection-candidate", "manifest main value-selection candidate artifact status path flag"),
         ("--testnet-value-selection-candidate", "manifest testnet value-selection candidate artifact status path flag"),
         ("VALUE_SELECTION_CANDIDATE_MAX_BYTES", "manifest bounds value-selection candidate artifacts"),
+        ("VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_FIELDS", "manifest defines value-selection candidate artifact archive record fields"),
+        ("VALUE_SELECTION_CANDIDATE_ARTIFACT_ARCHIVE_RECORD_NONEMPTY_FIELDS", "manifest defines value-selection candidate artifact archive non-empty fields"),
         ("read_value_selection_candidate_bytes", "manifest reads value-selection candidate artifacts once for hashing"),
         ("value_selection_candidate_artifact_metadata", "manifest fingerprints value-selection candidate artifacts"),
         ("read_value_selection_candidate_json_with_metadata", "manifest reads value-selection candidate JSON with metadata"),
@@ -22878,6 +22975,7 @@ def main():
         ("network_value_selection_candidate_check_json_text", "manifest network value-selection candidate check JSON renderer"),
         ("value_selection_candidate_artifact_status_command", "manifest builds value-selection candidate artifact status commands"),
         ("value_selection_candidate_artifact_status_entry", "manifest builds value-selection candidate artifact status entries"),
+        ("value_selection_candidate_artifact_archive_checklist_entry", "manifest builds value-selection candidate artifact archive checklist entries"),
         ("value_selection_candidate_artifact_status_payload", "manifest builds value-selection candidate artifact status payloads"),
         ("value_selection_candidate_artifact_status_text", "manifest prints value-selection candidate artifact status guidance"),
         ("value_selection_candidate_artifact_status_json_text", "manifest prints value-selection candidate artifact status JSON guidance"),
@@ -24944,6 +25042,10 @@ def main():
         (
             "missing-artifact, verified, or error",
             "public launch manifest value-selection candidate artifact status result documentation",
+        ),
+        (
+            "value_selection_candidate_artifact_uri",
+            "public launch manifest value-selection candidate artifact archive record documentation",
         ),
         (
             "zkcoin_public_launch_profile.py \\\n  --value-selection-checklists",
