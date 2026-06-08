@@ -1712,7 +1712,10 @@ supplied/verified/mismatch/error counters such as
 `provided_value_selection_candidate_archive_record_count` and
 `next_missing_value_selection_candidate_archive_record_path_network`, so
 dashboards can see retained candidate archive-record gaps before any release
-artifact path exists. Status JSON exposes
+artifact path exists. The `next_operator_action` object names the immediate
+pipeline command, reason, target artifact, and JSON command so dashboards can
+render the next retained-evidence action without deriving it from the ordered
+step list. Status JSON exposes
 `release_evidence_publication_status_command` for dashboards that need to
 discover the pipeline inventory without hard-coding the command string.
 Use `--release-evidence-publication-artifact-status --json` when automation
@@ -1734,7 +1737,9 @@ are optional, so dashboards can call it before every artifact exists and add
 `--release-evidence-publication-closeout-path`, and
 `--release-evidence-publication-closeout-archive-record-path` as operators
 retain those files. Status JSON exposes
-`release_evidence_publication_artifact_status_command` for dashboard discovery.
+`next_operator_action` for the immediate missing-artifact or unverified-gate
+command, and `release_evidence_publication_artifact_status_command` for
+dashboard discovery.
 Add `--json` to a blocker readiness summary when automation needs
 machine-readable blocker order, readiness gate, blocked fields, candidate
 constraints, command fields, and earlier/later blocker handoff commands for a
