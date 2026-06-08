@@ -12488,6 +12488,26 @@ def release_evidence_publication_closeout_checklist_payload(
         "next_unverified_value_selection_candidate": (
             candidate_artifact_status_summary["next_unverified_candidate"]
         ),
+        "next_missing_value_selection_candidate_template_command": (
+            candidate_artifact_status_summary[
+                "next_missing_candidate_template_command"
+            ]
+        ),
+        "next_missing_value_selection_candidate_template_json_command": (
+            candidate_artifact_status_summary[
+                "next_missing_candidate_template_json_command"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_check_command": (
+            candidate_artifact_status_summary[
+                "next_unverified_candidate_check_command"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_check_json_command": (
+            candidate_artifact_status_summary[
+                "next_unverified_candidate_check_json_command"
+            ]
+        ),
         "ready_for_publication": not publication_blockers,
         "publication_blocker_count": len(publication_blockers),
         "publication_blockers": publication_blockers,
@@ -12595,6 +12615,10 @@ def release_evidence_publication_closeout_checklist_text_from_payload(payload):
         f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
         f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
         f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
+        f"  - next missing value-selection candidate template command: {payload['next_missing_value_selection_candidate_template_command'] or 'none'}",
+        f"  - next missing value-selection candidate template JSON command: {payload['next_missing_value_selection_candidate_template_json_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check command: {payload['next_unverified_value_selection_candidate_check_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check JSON command: {payload['next_unverified_value_selection_candidate_check_json_command'] or 'none'}",
         f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
         f"  - publication blockers: {payload['publication_blocker_count']}",
         f"  - release evidence handoff summary verified: {yes_no(payload['release_evidence_handoff_summary']['verified'])}",
@@ -13489,6 +13513,26 @@ def release_evidence_publication_closeout_archive_handoff_summary_payload(
         "next_unverified_value_selection_candidate": (
             candidate_artifact_status_summary["next_unverified_candidate"]
         ),
+        "next_missing_value_selection_candidate_template_command": (
+            candidate_artifact_status_summary[
+                "next_missing_candidate_template_command"
+            ]
+        ),
+        "next_missing_value_selection_candidate_template_json_command": (
+            candidate_artifact_status_summary[
+                "next_missing_candidate_template_json_command"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_check_command": (
+            candidate_artifact_status_summary[
+                "next_unverified_candidate_check_command"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_check_json_command": (
+            candidate_artifact_status_summary[
+                "next_unverified_candidate_check_json_command"
+            ]
+        ),
         "ready_for_publication": not publication_blockers,
         "publication_blocker_count": len(publication_blockers),
         "publication_blockers": publication_blockers,
@@ -13632,6 +13676,10 @@ def release_evidence_publication_closeout_archive_handoff_summary_text_from_payl
         f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
         f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
         f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
+        f"  - next missing value-selection candidate template command: {payload['next_missing_value_selection_candidate_template_command'] or 'none'}",
+        f"  - next missing value-selection candidate template JSON command: {payload['next_missing_value_selection_candidate_template_json_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check command: {payload['next_unverified_value_selection_candidate_check_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check JSON command: {payload['next_unverified_value_selection_candidate_check_json_command'] or 'none'}",
         f"  - ready for publication: {yes_no(payload['ready_for_publication'])}",
         f"  - publication blockers: {payload['publication_blocker_count']}",
         f"  - closeout gate verified: {yes_no(payload['closeout_gate']['verified'])}",
@@ -14247,6 +14295,28 @@ def release_evidence_publication_artifact_verification_entry(
     }
 
 
+def release_evidence_publication_candidate_artifact_network_status(
+    candidate_artifact_status,
+    network,
+):
+    if not isinstance(candidate_artifact_status, dict) or network is None:
+        return {}
+    statuses_by_network = candidate_artifact_status.get(
+        "candidate_statuses_by_network",
+        {},
+    )
+    if isinstance(statuses_by_network, dict):
+        status = statuses_by_network.get(network)
+        if isinstance(status, dict):
+            return status
+    statuses = candidate_artifact_status.get("candidate_statuses", [])
+    if isinstance(statuses, list):
+        for status in statuses:
+            if isinstance(status, dict) and status.get("network") == network:
+                return status
+    return {}
+
+
 def release_evidence_publication_candidate_artifact_status(
     manifest_path,
     bundle_path,
@@ -14272,6 +14342,10 @@ def release_evidence_publication_candidate_artifact_status(
         "all_required_candidates_verified": False,
         "next_missing_candidate": None,
         "next_unverified_candidate": None,
+        "next_missing_candidate_template_command": None,
+        "next_missing_candidate_template_json_command": None,
+        "next_unverified_candidate_check_command": None,
+        "next_unverified_candidate_check_json_command": None,
         "candidate_statuses": [],
         "candidate_statuses_by_network": {},
         "value_selection_candidate_artifact_status_command": status_command,
@@ -14307,6 +14381,26 @@ def release_evidence_publication_candidate_artifact_status(
     )
     if not isinstance(candidate_statuses_by_network, dict):
         candidate_statuses_by_network = {}
+    next_missing_candidate = candidate_status.get("next_missing_candidate")
+    next_unverified_candidate = candidate_status.get("next_unverified_candidate")
+    next_missing_status = (
+        release_evidence_publication_candidate_artifact_network_status(
+            {
+                "candidate_statuses": candidate_statuses,
+                "candidate_statuses_by_network": candidate_statuses_by_network,
+            },
+            next_missing_candidate,
+        )
+    )
+    next_unverified_status = (
+        release_evidence_publication_candidate_artifact_network_status(
+            {
+                "candidate_statuses": candidate_statuses,
+                "candidate_statuses_by_network": candidate_statuses_by_network,
+            },
+            next_unverified_candidate,
+        )
+    )
 
     base.update({
         "available": True,
@@ -14328,9 +14422,19 @@ def release_evidence_publication_candidate_artifact_status(
         "all_required_candidates_verified": bool(
             candidate_status.get("all_required_candidates_verified")
         ),
-        "next_missing_candidate": candidate_status.get("next_missing_candidate"),
-        "next_unverified_candidate": candidate_status.get(
-            "next_unverified_candidate"
+        "next_missing_candidate": next_missing_candidate,
+        "next_unverified_candidate": next_unverified_candidate,
+        "next_missing_candidate_template_command": (
+            next_missing_status.get("candidate_template_command")
+        ),
+        "next_missing_candidate_template_json_command": (
+            next_missing_status.get("candidate_template_json_command")
+        ),
+        "next_unverified_candidate_check_command": (
+            next_unverified_status.get("candidate_check_command")
+        ),
+        "next_unverified_candidate_check_json_command": (
+            next_unverified_status.get("candidate_check_json_command")
         ),
         "candidate_statuses": candidate_statuses,
         "candidate_statuses_by_network": candidate_statuses_by_network,
@@ -14386,6 +14490,22 @@ def release_evidence_publication_candidate_artifact_status_summary(
         ),
         "next_unverified_candidate": candidate_artifact_status.get(
             "next_unverified_candidate"
+        ),
+        "next_missing_candidate_template_command": candidate_artifact_status.get(
+            "next_missing_candidate_template_command"
+        ),
+        "next_missing_candidate_template_json_command": (
+            candidate_artifact_status.get(
+                "next_missing_candidate_template_json_command"
+            )
+        ),
+        "next_unverified_candidate_check_command": candidate_artifact_status.get(
+            "next_unverified_candidate_check_command"
+        ),
+        "next_unverified_candidate_check_json_command": (
+            candidate_artifact_status.get(
+                "next_unverified_candidate_check_json_command"
+            )
         ),
     }
 
@@ -14800,6 +14920,22 @@ def release_evidence_publication_artifact_status_payload(
         "next_unverified_value_selection_candidate": (
             candidate_artifact_status["next_unverified_candidate"]
         ),
+        "next_missing_value_selection_candidate_template_command": (
+            candidate_artifact_status["next_missing_candidate_template_command"]
+        ),
+        "next_missing_value_selection_candidate_template_json_command": (
+            candidate_artifact_status[
+                "next_missing_candidate_template_json_command"
+            ]
+        ),
+        "next_unverified_value_selection_candidate_check_command": (
+            candidate_artifact_status["next_unverified_candidate_check_command"]
+        ),
+        "next_unverified_value_selection_candidate_check_json_command": (
+            candidate_artifact_status[
+                "next_unverified_candidate_check_json_command"
+            ]
+        ),
         "artifact_path_flags": [
             {
                 "artifact_id": artifact_id,
@@ -14843,6 +14979,10 @@ def release_evidence_publication_artifact_status_text_from_payload(payload):
         f"  - all value-selection candidate artifacts verified: {yes_no(payload['all_value_selection_candidate_artifacts_verified'])}",
         f"  - next missing value-selection candidate: {payload['next_missing_value_selection_candidate'] or 'none'}",
         f"  - next unverified value-selection candidate: {payload['next_unverified_value_selection_candidate'] or 'none'}",
+        f"  - next missing value-selection candidate template command: {payload['next_missing_value_selection_candidate_template_command'] or 'none'}",
+        f"  - next missing value-selection candidate template JSON command: {payload['next_missing_value_selection_candidate_template_json_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check command: {payload['next_unverified_value_selection_candidate_check_command'] or 'none'}",
+        f"  - next unverified value-selection candidate check JSON command: {payload['next_unverified_value_selection_candidate_check_json_command'] or 'none'}",
         f"  - release evidence publication artifact status command: {payload['release_evidence_publication_artifact_status_command']}",
         f"  - release evidence publication artifact status JSON command: {payload['release_evidence_publication_artifact_status_json_command']}",
     ]

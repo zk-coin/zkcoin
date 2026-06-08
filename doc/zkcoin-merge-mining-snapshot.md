@@ -1596,7 +1596,9 @@ summary, publication index, publication index archive record, and publication
 index archive handoff summary. The payload includes `closeout_artifacts`,
 `verified_closeout_artifact_count`, `ready_for_publication`,
 `publication_blockers`, `next_publication_blocker`, and the bundle-retained
-value-selection candidate artifact status summary, and status JSON exposes
+value-selection candidate artifact status summary with the next missing
+candidate template command and next unverified candidate check command, and
+status JSON exposes
 `release_evidence_publication_closeout_checklist_command` so dashboards can
 discover the final closeout step without choosing external publication values.
 Use `--check-release-evidence-publication-closeout --json` when automation needs
@@ -1623,9 +1625,10 @@ machine-readable handoff for retained public-release evidence. The payload
 includes `handoff_artifacts`, `verified_handoff_artifact_count`,
 `ready_for_publication`, `publication_blockers`, `next_publication_blocker`,
 `closeout_gate`, `closeout_archive_gate`, and the retained closeout's
-value-selection candidate artifact status summary so release operators can
-retain the closeout JSON, closeout archive record, and generated summary JSON as
-the final closeout archive evidence set. Status JSON exposes
+value-selection candidate artifact status summary, including the next candidate
+template/check commands, so release operators can retain the closeout JSON,
+closeout archive record, and generated summary JSON as the final closeout
+archive evidence set. Status JSON exposes
 `release_evidence_publication_closeout_archive_handoff_summary_command` for
 dashboards that need to discover this final read-only handoff step.
 Use `--release-evidence-publication-status --json` when automation needs a
@@ -1643,8 +1646,9 @@ The payload reports supplied and missing artifact counts, verified artifact
 counts, publication gate counts, `ready_for_final_handoff`,
 `next_missing_artifact`, per-gate errors or first mismatches, and the
 value-selection candidate artifact status embedded in a supplied release
-evidence bundle. Path flags are optional, so dashboards can call it before
-every artifact exists and add
+evidence bundle, including the next missing candidate template command and next
+unverified candidate check command. Path flags are optional, so dashboards can
+call it before every artifact exists and add
 `--release-evidence-bundle-path`,
 `--release-evidence-archive-record-path`,
 `--release-evidence-publication-index-path`,
